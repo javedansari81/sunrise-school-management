@@ -141,3 +141,34 @@ temp/
 # Alembic
 alembic/versions/*.py
 !alembic/versions/
+
+# Package lock files (keep them for reproducible builds)
+# package-lock.json
+# yarn.lock
+
+# IDE and Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Backup files
+*.bak
+*.backup
+*.tmp
+
+# Local development files
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
