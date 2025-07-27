@@ -1,0 +1,62 @@
+# Production Docker Compose for Render deployment
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: sunrise-postgres-prod
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-sunrise_school}
+      POSTGRES_USER: ${POSTGRES_USER:-sunrise_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - sunrise-network
+    restart: unless-stopped
+
+  # FastAPI Backend
+  backend:
+    build:
+      context: ./sunrise-backend-fastapi
+      dockerfile: Dockerfile
+    container_name: sunrise-backend-prod
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - SECRET_KEY=${SECRET_KEY}
+      - ALGORITHM=HS256
+      - ACCESS_TOKEN_EXPIRE_MINUTES=30
+      - ENVIRONMENT=production
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    depends_on:
+      - postgres
+    networks:
+      - sunrise-network
+    restart: unless-stopped
+    command: uvicorn main:app --host 0.0.0.0 --port 8000
+
+  # React Frontend
+  frontend:
+    build:
+      context: ./sunrise-school-frontend
+      dockerfile: Dockerfile
+    container_name: sunrise-frontend-prod
+    environment:
+      - REACT_APP_API_URL=${REACT_APP_API_URL}
+      - REACT_APP_SCHOOL_NAME=Sunrise National Public School
+    ports:
+      - "${FRONTEND_PORT:-80}:80"
+    depends_on:
+      - backend
+    networks:
+      - sunrise-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+
+networks:
+  sunrise-network:
+    driver: bridge

@@ -1,0 +1,85 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: sunrise-postgres
+    environment:
+      POSTGRES_DB: sunrise_school
+      POSTGRES_USER: sunrise_user
+      POSTGRES_PASSWORD: sunrise_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - sunrise-network
+    restart: unless-stopped
+
+  # FastAPI Backend
+  backend:
+    build:
+      context: ./sunrise-backend-fastapi
+      dockerfile: Dockerfile
+    container_name: sunrise-backend
+    environment:
+      - DATABASE_URL=postgresql://sunrise_user:sunrise_password@postgres:5432/sunrise_school
+      - SECRET_KEY=your-secret-key-here-change-in-production
+      - ALGORITHM=HS256
+      - ACCESS_TOKEN_EXPIRE_MINUTES=30
+    ports:
+      - "8000:8000"
+    depends_on:
+      - postgres
+    networks:
+      - sunrise-network
+    restart: unless-stopped
+    volumes:
+      - ./sunrise-backend-fastapi:/app
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+  # React Frontend
+  frontend:
+    build:
+      context: ./sunrise-school-frontend
+      dockerfile: Dockerfile
+    container_name: sunrise-frontend
+    environment:
+      - REACT_APP_API_URL=http://localhost:8000/api/v1
+      - REACT_APP_SCHOOL_NAME=Sunrise National Public School
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    networks:
+      - sunrise-network
+    restart: unless-stopped
+    volumes:
+      - ./sunrise-school-frontend:/app
+      - /app/node_modules
+    command: npm start
+
+  # Nginx Reverse Proxy (for production)
+  nginx:
+    image: nginx:alpine
+    container_name: sunrise-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+      - ./ssl:/etc/nginx/ssl
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - sunrise-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+
+networks:
+  sunrise-network:
+    driver: bridge

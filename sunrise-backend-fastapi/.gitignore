@@ -1,0 +1,52 @@
+# Ignore virtual environment directories and files
+# Byte-compiled / optimized / DLL files
+venv/
+env/
+*.venv
+ENV/
+.venv/
+.python-venv/
+
+# Ignore Python bytecode files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Ignore IDE/editor specific files
+.vscode/
+.idea/
+*.swp
+*.swo
+.project
+.pydevproject
+.settings/
+
+# Ignore macOS Finder files
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Ignore other common files
+*.log
+*.sqlite3
+.env
+.coverage
+htmlcov/
+.pytest_cache/
