@@ -25,17 +25,16 @@ async def setup_database():
     print("=" * 60)
     
     try:
-        # Parse DATABASE_URL
-        parts = DATABASE_URL.replace('postgresql://', '').split('@')
-        user_pass = parts[0].split(':')
-        host_db = parts[1].split('/')
-        host_port = host_db[0].split(':')
-        
-        username = user_pass[0]
-        password = user_pass[1]
-        host = host_port[0]
-        port = int(host_port[1])
-        database = host_db[1]
+        # Parse DATABASE_URL using urllib.parse for better compatibility
+        from urllib.parse import urlparse
+
+        parsed = urlparse(DATABASE_URL)
+
+        username = parsed.username
+        password = parsed.password
+        host = parsed.hostname
+        port = parsed.port or 5432  # Default PostgreSQL port
+        database = parsed.path.lstrip('/')  # Remove leading slash
         
         print(f"📡 Connecting to database: {host}:{port}/{database}")
         
@@ -119,17 +118,16 @@ async def reset_database():
         return
     
     try:
-        # Parse DATABASE_URL
-        parts = DATABASE_URL.replace('postgresql://', '').split('@')
-        user_pass = parts[0].split(':')
-        host_db = parts[1].split('/')
-        host_port = host_db[0].split(':')
-        
-        username = user_pass[0]
-        password = user_pass[1]
-        host = host_port[0]
-        port = int(host_port[1])
-        database = host_db[1]
+        # Parse DATABASE_URL using urllib.parse for better compatibility
+        from urllib.parse import urlparse
+
+        parsed = urlparse(DATABASE_URL)
+
+        username = parsed.username
+        password = parsed.password
+        host = parsed.hostname
+        port = parsed.port or 5432  # Default PostgreSQL port
+        database = parsed.path.lstrip('/')  # Remove leading slash
         
         # Connect to database
         conn = await asyncpg.connect(
