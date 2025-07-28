@@ -10,6 +10,9 @@ envs:
 - key: SECRET_KEY
   scope: RUN_AND_BUILD_TIME
   type: SECRET
+- key: JWT_SECRET_KEY
+  scope: RUN_AND_BUILD_TIME
+  type: SECRET
 - key: ENVIRONMENT
   scope: RUN_AND_BUILD_TIME
   value: production
@@ -23,33 +26,38 @@ services:
     repo: javedansari81/sunrise-school-management
     branch: main
     deploy_on_push: true
-  
+
   # Build configuration
+  dockerfile_path: sunrise-backend-fastapi/Dockerfile.prod
   build_command: |
+    pip install --upgrade pip
     pip install -r requirements.txt
-  
+    pip install gunicorn
+
   # Run configuration
-  run_command: uvicorn main:app --host 0.0.0.0 --port 8080
-  
+  run_command: gunicorn main:app -w 2 -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:8080
+
   # Environment
   environment_slug: python
   instance_count: 1
   instance_size_slug: basic-xxs  # $5/month
-  
+
   # Health check
   health_check:
     http_path: /health
-  
+
   # Routes
   routes:
   - path: /api
   - path: /docs
   - path: /redoc
-  
+  - path: /health
+
   # CORS configuration
   cors:
     allow_origins:
     - exact: https://sunrise-school-management.ondigitalocean.app
+    - exact: https://sunrise-school-management-*.ondigitalocean.app
     allow_methods:
     - GET
     - POST
@@ -59,6 +67,9 @@ services:
     allow_headers:
     - Content-Type
     - Authorization
+    - Accept
+    - Origin
+    - X-Requested-With
 
 # React Frontend
 - name: frontend
@@ -67,15 +78,28 @@ services:
     repo: javedansari81/sunrise-school-management
     branch: main
     deploy_on_push: true
-  
+
   # Build configuration
+  dockerfile_path: sunrise-school-frontend/Dockerfile.prod
   build_command: |
-    npm ci
+    npm ci --production=false
     npm run build
-  
+
+  # Environment variables for frontend
+  envs:
+  - key: REACT_APP_API_URL
+    scope: BUILD_TIME
+    value: https://sunrise-school-management-backend.ondigitalocean.app/api/v1
+  - key: REACT_APP_SCHOOL_NAME
+    scope: BUILD_TIME
+    value: Sunrise National Public School
+  - key: GENERATE_SOURCEMAP
+    scope: BUILD_TIME
+    value: "false"
+
   # Environment
   environment_slug: node-js
-  
+
   # Static site configuration
   static_sites:
   - name: frontend
