@@ -1,0 +1,48 @@
+# Render Blueprint for Sunrise School Management System
+# This file can be used to deploy the entire application with one click
+
+services:
+  # PostgreSQL Database
+  - type: pserv
+    name: sunrise-postgres
+    plan: free
+    databaseName: sunrise_school
+    user: sunrise_user
+    region: oregon
+
+  # FastAPI Backend
+  - type: web
+    name: sunrise-backend
+    runtime: python3
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port 10000
+    repo: https://github.com/javedansari81/sunrise-school-management.git
+    rootDir: sunrise-backend-fastapi
+    region: oregon
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: sunrise-postgres
+          property: connectionString
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ENVIRONMENT
+        value: production
+      - key: BACKEND_CORS_ORIGINS
+        value: https://sunrise-frontend.onrender.com
+
+  # React Frontend
+  - type: web
+    name: sunrise-frontend
+    runtime: static
+    buildCommand: npm ci && npm run build
+    staticPublishPath: ./build
+    repo: https://github.com/javedansari81/sunrise-school-management.git
+    rootDir: sunrise-school-frontend
+    region: oregon
+    envVars:
+      - key: REACT_APP_API_URL
+        value: https://sunrise-backend.onrender.com/api/v1
+      - key: REACT_APP_SCHOOL_NAME
+        value: Sunrise National Public School

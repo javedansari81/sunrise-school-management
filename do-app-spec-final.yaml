@@ -23,6 +23,9 @@ services:
   - key: SECRET_KEY
     scope: RUN_TIME
     type: SECRET
+  - key: ENVIRONMENT
+    scope: RUN_TIME
+    value: production
 
 static_sites:
 - name: frontend
