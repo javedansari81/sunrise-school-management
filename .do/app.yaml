@@ -1,134 +1,57 @@
 # DigitalOcean App Platform Configuration
 name: sunrise-school-management
-region: blr1  # Bangalore, India region
+region: blr1
 
-# Environment variables (set these in DO dashboard)
-envs:
-- key: DATABASE_URL
-  scope: RUN_AND_BUILD_TIME
-  type: SECRET
-- key: SECRET_KEY
-  scope: RUN_AND_BUILD_TIME
-  type: SECRET
-- key: JWT_SECRET_KEY
-  scope: RUN_AND_BUILD_TIME
-  type: SECRET
-- key: ENVIRONMENT
-  scope: RUN_AND_BUILD_TIME
-  value: production
-
-# Services
 services:
-# FastAPI Backend
 - name: backend
   source_dir: /sunrise-backend-fastapi
   github:
     repo: javedansari81/sunrise-school-management
     branch: main
     deploy_on_push: true
-
-  # Build configuration
-  dockerfile_path: sunrise-backend-fastapi/Dockerfile.prod
-  build_command: |
-    pip install --upgrade pip
-    pip install -r requirements.txt
-    pip install gunicorn
-
-  # Run configuration
+  build_command: pip install -r requirements.txt && pip install gunicorn
   run_command: gunicorn main:app -w 2 -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:8080
-
-  # Environment
   environment_slug: python
   instance_count: 1
-  instance_size_slug: basic-xxs  # $5/month
-
-  # Health check
+  instance_size_slug: basic-xxs
+  http_port: 8080
   health_check:
     http_path: /health
+  envs:
+  - key: DATABASE_URL
+    scope: RUN_TIME
+    type: SECRET
+  - key: SECRET_KEY
+    scope: RUN_TIME
+    type: SECRET
+  - key: ENVIRONMENT
+    scope: RUN_TIME
+    value: production
 
-  # Routes
-  routes:
-  - path: /api
-  - path: /docs
-  - path: /redoc
-  - path: /health
-
-  # CORS configuration
-  cors:
-    allow_origins:
-    - exact: https://sunrise-school-management.ondigitalocean.app
-    - exact: https://sunrise-school-management-*.ondigitalocean.app
-    allow_methods:
-    - GET
-    - POST
-    - PUT
-    - DELETE
-    - OPTIONS
-    allow_headers:
-    - Content-Type
-    - Authorization
-    - Accept
-    - Origin
-    - X-Requested-With
-
-# React Frontend
 - name: frontend
+  type: STATIC_SITE
   source_dir: /sunrise-school-frontend
   github:
     repo: javedansari81/sunrise-school-management
     branch: main
     deploy_on_push: true
-
-  # Build configuration
-  dockerfile_path: sunrise-school-frontend/Dockerfile.prod
-  build_command: |
-    npm ci --production=false
-    npm run build
-
-  # Environment variables for frontend
+  build_command: npm ci && npm run build
+  output_dir: /build
+  environment_slug: node-js
   envs:
   - key: REACT_APP_API_URL
     scope: BUILD_TIME
-    value: https://sunrise-school-management-backend.ondigitalocean.app/api/v1
+    value: https://sunrise-school-management.ondigitalocean.app/api/v1
   - key: REACT_APP_SCHOOL_NAME
     scope: BUILD_TIME
     value: Sunrise National Public School
-  - key: GENERATE_SOURCEMAP
-    scope: BUILD_TIME
-    value: "false"
+  routes:
+  - path: /
+  catchall_document: index.html
 
-  # Environment
-  environment_slug: node-js
-
-  # Static site configuration
-  static_sites:
-  - name: frontend
-    source_dir: /build
-    routes:
-    - path: /
-    catchall_document: index.html
-
-# Database
 databases:
 - name: sunrise-postgres
   engine: PG
   version: "15"
-  size: db-s-1vcpu-1gb  # $15.15/month
+  size: db-s-1vcpu-1gb
   num_nodes: 1
-  
-# Jobs (for database migrations)
-jobs:
-- name: migrate
-  source_dir: /sunrise-backend-fastapi
-  github:
-    repo: javedansari81/sunrise-school-management
-    branch: main
-  
-  run_command: |
-    python setup_database.py
-  
-  environment_slug: python
-  instance_count: 1
-  instance_size_slug: basic-xxs
-  
-  kind: PRE_DEPLOY
