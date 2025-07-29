@@ -4,7 +4,7 @@ from sqlalchemy.future import select
 import logging
 
 from app.crud.base import CRUDBase
-from app.models.user import User
+from app.models.user import User, UserTypeEnum
 from app.schemas.user import UserCreate, UserUpdate
 from app.core.security import get_password_hash, verify_password
 from app.core.logging import log_crud_operation
@@ -58,7 +58,7 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
                 return None
 
             log_crud_operation("AUTHENTICATE", f"User found successfully",
-                             email=user.email, user_id=user.id, user_type=str(user.user_type_enum))
+                             email=user.email, user_id=user.id, user_type=str(user.user_type))
 
             # Step 2: Verify password
             try:
@@ -87,7 +87,7 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
         return user.is_active
 
     def is_superuser(self, user: User) -> bool:
-        return user.user_type.lower() == "admin"
+        return user.user_type == UserTypeEnum.ADMIN
 
 
 user_crud = CRUDUser(User)

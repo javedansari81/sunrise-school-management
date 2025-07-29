@@ -27,7 +27,7 @@ DROP TYPE IF EXISTS expense_category_enum CASCADE;
 DROP TYPE IF EXISTS expense_status_enum CASCADE;
 
 -- Create ENUM types
-CREATE TYPE user_type_enum AS ENUM ('admin', 'teacher', 'student', 'staff', 'parent');
+CREATE TYPE user_type_enum AS ENUM ('ADMIN', 'TEACHER', 'STUDENT', 'STAFF', 'PARENT');
 CREATE TYPE gender_enum AS ENUM ('Male', 'Female', 'Other');
 CREATE TYPE class_enum AS ENUM ('PG', 'LKG', 'UKG', 'Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5', 'Class 6', 'Class 7', 'Class 8');
 CREATE TYPE qualification_enum AS ENUM ('Bachelor''s Degree', 'Master''s Degree', 'PhD', 'Diploma', 'Certificate', 'Other');
@@ -49,7 +49,7 @@ CREATE TABLE users (
     mobile VARCHAR(20) NOT NULL,
     email VARCHAR(255) UNIQUE NOT NULL,
     password VARCHAR(255) NOT NULL,
-    user_type user_type_enum NOT NULL DEFAULT 'admin',
+    user_type user_type_enum NOT NULL DEFAULT 'ADMIN',
     student_id INTEGER,
     teacher_id INTEGER,
     is_active BOOLEAN DEFAULT TRUE,

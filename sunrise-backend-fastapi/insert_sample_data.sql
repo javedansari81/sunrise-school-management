@@ -4,11 +4,11 @@
 
 -- Insert Users (Admin, Teachers, Staff)
 INSERT INTO users (first_name, last_name, mobile, email, password, user_type) VALUES
-('Admin', 'User', '9876543210', 'admin@sunriseschool.edu', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj6hsHjxstm6', 'admin'),
-('John', 'Smith', '9876543211', 'john.smith@sunriseschool.edu', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj6hsHjxstm6', 'teacher'),
-('Sarah', 'Johnson', '9876543212', 'sarah.johnson@sunriseschool.edu', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj6hsHjxstm6', 'teacher'),
-('Michael', 'Brown', '9876543213', 'michael.brown@sunriseschool.edu', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj6hsHjxstm6', 'staff'),
-('Emily', 'Davis', '9876543214', 'emily.davis@sunriseschool.edu', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj6hsHjxstm6', 'teacher');
+('Admin', 'User', '9876543210', 'admin@sunriseschool.edu', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj6hsHjxstm6', 'ADMIN'),
+('John', 'Smith', '9876543211', 'john.smith@sunriseschool.edu', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj6hsHjxstm6', 'TEACHER'),
+('Sarah', 'Johnson', '9876543212', 'sarah.johnson@sunriseschool.edu', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj6hsHjxstm6', 'TEACHER'),
+('Michael', 'Brown', '9876543213', 'michael.brown@sunriseschool.edu', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj6hsHjxstm6', 'STAFF'),
+('Emily', 'Davis', '9876543214', 'emily.davis@sunriseschool.edu', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj6hsHjxstm6', 'TEACHER');
 
 -- Insert Students
 INSERT INTO students (admission_number, first_name, last_name, date_of_birth, gender, current_class, section, roll_number, 

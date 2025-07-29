@@ -5,18 +5,18 @@ from enum import Enum
 
 
 class UserTypeEnum(str, Enum):
-    ADMIN = "admin"
-    TEACHER = "teacher"
-    STUDENT = "student"
-    STAFF = "staff"
-    PARENT = "parent"
+    ADMIN = "ADMIN"
+    TEACHER = "TEACHER"
+    STUDENT = "STUDENT"
+    STAFF = "STAFF"
+    PARENT = "PARENT"
 
     @classmethod
     def _missing_(cls, value):
         """Handle case-insensitive enum lookup"""
         if isinstance(value, str):
             for member in cls:
-                if member.value.lower() == value.lower():
+                if member.value.upper() == value.upper():
                     return member
         return None
 

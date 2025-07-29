@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Enum
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 import enum
@@ -7,18 +7,18 @@ from app.core.database import Base
 
 
 class UserTypeEnum(str, enum.Enum):
-    ADMIN = "admin"
-    TEACHER = "teacher"
-    STUDENT = "student"
-    STAFF = "staff"
-    PARENT = "parent"
+    ADMIN = "ADMIN"
+    TEACHER = "TEACHER"
+    STUDENT = "STUDENT"
+    STAFF = "STAFF"
+    PARENT = "PARENT"
 
     @classmethod
     def _missing_(cls, value):
         """Handle case-insensitive enum lookup"""
         if isinstance(value, str):
             for member in cls:
-                if member.value.lower() == value.lower():
+                if member.value.upper() == value.upper():
                     return member
         return None
 
@@ -32,7 +32,7 @@ class User(Base):
     mobile = Column(String(20), nullable=False)
     email = Column(String(255), unique=True, index=True, nullable=False)
     password = Column(String(255), nullable=False)
-    user_type = Column(String(20), nullable=False, default="admin")
+    user_type = Column(Enum(UserTypeEnum), nullable=False, default=UserTypeEnum.ADMIN)
 
     # Profile links
     student_id = Column(Integer, ForeignKey("students.id"), nullable=True)
@@ -47,16 +47,3 @@ class User(Base):
     # Relationships
     student_profile = relationship("Student", foreign_keys=[student_id])
     teacher_profile = relationship("Teacher", foreign_keys=[teacher_id])
-
-    @property
-    def user_type_enum(self) -> UserTypeEnum:
-        """Convert string user_type to UserTypeEnum"""
-        try:
-            # Try direct enum lookup first
-            for member in UserTypeEnum:
-                if member.value.lower() == self.user_type.lower():
-                    return member
-            # Fallback to admin if not found
-            return UserTypeEnum.ADMIN
-        except (AttributeError, TypeError):
-            return UserTypeEnum.ADMIN
