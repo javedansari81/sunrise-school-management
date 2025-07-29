@@ -15,12 +15,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import AsyncSessionLocal, async_engine, Base
 from app.models.user import User
 from app.models.teacher import Teacher
-from app.models.menu import Menu
-from app.models.submenu import SubMenu
-from app.models.product import Product
-from app.models.event import Event
-from app.models.testimonial import Testimonial
-from app.models.class_model import Class
 from app.core.security import get_password_hash
 
 
@@ -96,36 +90,7 @@ async def migrate_teachers(session: AsyncSession):
     print("✅ Teachers migrated successfully")
 
 
-async def migrate_menus(session: AsyncSession):
-    """Migrate menus from JSON to PostgreSQL"""
-    data_file = Path(__file__).parent.parent / "data" / "sunrise-db.menu.json"
-    
-    if not data_file.exists():
-        print("❌ Menu data file not found")
-        return
-    
-    with open(data_file, 'r', encoding='utf-8') as f:
-        menus_data = json.load(f)
-    
-    # Get the first user to assign as creator
-    first_user = await session.get(User, 1)
-    if not first_user:
-        print("❌ No users found to assign menus to")
-        return
-    
-    for menu_data in menus_data:
-        menu = Menu(
-            title=menu_data.get('title', ''),
-            menu_class=menu_data.get('menuClass', ''),
-            order_by=menu_data.get('orderBy', 1),
-            user_id=first_user.id,
-            is_active=bool(menu_data.get('isActive', 1))
-        )
-        
-        session.add(menu)
-    
-    await session.commit()
-    print("✅ Menus migrated successfully")
+
 
 
 async def main():
@@ -140,8 +105,7 @@ async def main():
         try:
             await migrate_users(session)
             await migrate_teachers(session)
-            await migrate_menus(session)
-            
+
             print("🎉 Data migration completed successfully!")
             
         except Exception as e:

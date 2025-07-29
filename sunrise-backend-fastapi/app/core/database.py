@@ -44,7 +44,7 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 async def init_db():
     """Initialize database tables"""
     # Import all models here to ensure they are registered with SQLAlchemy
-    from app.models import user, teacher, menu, submenu, product, event, testimonial, student, fee, leave, expense
+    from app.models import user, teacher, student, fee, leave, expense
     
     # Create tables
     async with async_engine.begin() as conn:

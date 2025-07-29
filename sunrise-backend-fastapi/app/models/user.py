@@ -38,6 +38,3 @@ class User(Base):
     # Relationships
     student_profile = relationship("Student", foreign_keys=[student_id])
     teacher_profile = relationship("Teacher", foreign_keys=[teacher_id])
-
-    # Legacy relationships (keeping for backward compatibility)
-    # Note: Legacy relationships will be added when those models are implemented

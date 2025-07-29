@@ -12,7 +12,7 @@ from app.core.database import Base
 from app.core.config import settings
 
 # Import all models to ensure they are registered with SQLAlchemy
-from app.models import user, teacher, menu, submenu, product, event, testimonial, class_model
+from app.models import user, teacher
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
