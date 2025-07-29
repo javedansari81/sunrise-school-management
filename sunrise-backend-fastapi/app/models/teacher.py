@@ -22,19 +22,37 @@ class GenderEnum(str, enum.Enum):
 
 
 class QualificationEnum(str, enum.Enum):
-    BACHELOR = "Bachelor's Degree"
-    MASTER = "Master's Degree"
-    PHD = "PhD"
-    DIPLOMA = "Diploma"
-    CERTIFICATE = "Certificate"
-    OTHER = "Other"
+    BACHELOR = "BACHELOR"
+    MASTER = "MASTER"
+    PHD = "PHD"
+    DIPLOMA = "DIPLOMA"
+    CERTIFICATE = "CERTIFICATE"
+    OTHER = "OTHER"
+
+    @classmethod
+    def _missing_(cls, value):
+        """Handle case-insensitive enum lookup"""
+        if isinstance(value, str):
+            for member in cls:
+                if member.value.upper() == value.upper():
+                    return member
+        return None
 
 
 class EmploymentStatusEnum(str, enum.Enum):
-    FULL_TIME = "Full Time"
-    PART_TIME = "Part Time"
-    CONTRACT = "Contract"
-    SUBSTITUTE = "Substitute"
+    FULL_TIME = "FULL_TIME"
+    PART_TIME = "PART_TIME"
+    CONTRACT = "CONTRACT"
+    SUBSTITUTE = "SUBSTITUTE"
+
+    @classmethod
+    def _missing_(cls, value):
+        """Handle case-insensitive enum lookup"""
+        if isinstance(value, str):
+            for member in cls:
+                if member.value.upper() == value.upper():
+                    return member
+        return None
 
 
 class Teacher(Base):
@@ -61,10 +79,10 @@ class Teacher(Base):
     position = Column(String(100), nullable=False)
     department = Column(String(100), nullable=True)
     subjects = Column(Text, nullable=True)  # JSON array of subjects
-    qualification = Column(Enum(QualificationEnum), nullable=False)
+    qualification = Column(String(20), nullable=False)
     experience_years = Column(Integer, default=0)
     joining_date = Column(Date, nullable=False)
-    employment_status = Column(Enum(EmploymentStatusEnum), default=EmploymentStatusEnum.FULL_TIME)
+    employment_status = Column(String(20), default="FULL_TIME")
 
     # Salary Information
     salary = Column(Float, nullable=True)
@@ -98,3 +116,31 @@ class Teacher(Base):
             return GenderEnum.MALE
         except (AttributeError, TypeError):
             return GenderEnum.MALE
+
+    @property
+    def qualification_enum(self) -> QualificationEnum:
+        """Convert string qualification to QualificationEnum for application logic"""
+        try:
+            # Handle case-insensitive conversion
+            if isinstance(self.qualification, str):
+                for member in QualificationEnum:
+                    if member.value.upper() == self.qualification.upper():
+                        return member
+            # Fallback to BACHELOR if not found
+            return QualificationEnum.BACHELOR
+        except (AttributeError, TypeError):
+            return QualificationEnum.BACHELOR
+
+    @property
+    def employment_status_enum(self) -> EmploymentStatusEnum:
+        """Convert string employment_status to EmploymentStatusEnum for application logic"""
+        try:
+            # Handle case-insensitive conversion
+            if isinstance(self.employment_status, str):
+                for member in EmploymentStatusEnum:
+                    if member.value.upper() == self.employment_status.upper():
+                        return member
+            # Fallback to FULL_TIME if not found
+            return EmploymentStatusEnum.FULL_TIME
+        except (AttributeError, TypeError):
+            return EmploymentStatusEnum.FULL_TIME

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Date, Enum, ForeignKey, Text, DateTime, Boolean
+from sqlalchemy import Column, Integer, String, Date, ForeignKey, Text, DateTime, Boolean
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import enum
@@ -7,24 +7,46 @@ from app.core.database import Base
 
 
 class GenderEnum(str, enum.Enum):
-    MALE = "Male"
-    FEMALE = "Female"
-    OTHER = "Other"
+    MALE = "MALE"
+    FEMALE = "FEMALE"
+    OTHER = "OTHER"
+
+    @classmethod
+    def _missing_(cls, value):
+        """Handle case-insensitive enum lookup"""
+        if isinstance(value, str):
+            for member in cls:
+                if member.value.upper() == value.upper():
+                    return member
+        return None
 
 
 class ClassEnum(str, enum.Enum):
     PG = "PG"
-    NURSERY = "Nursery"
+    NURSERY = "NURSERY"
     LKG = "LKG"
     UKG = "UKG"
-    CLASS_1 = "Class 1"
-    CLASS_2 = "Class 2"
-    CLASS_3 = "Class 3"
-    CLASS_4 = "Class 4"
-    CLASS_5 = "Class 5"
-    CLASS_6 = "Class 6"
-    CLASS_7 = "Class 7"
-    CLASS_8 = "Class 8"
+    CLASS_1 = "CLASS_1"
+    CLASS_2 = "CLASS_2"
+    CLASS_3 = "CLASS_3"
+    CLASS_4 = "CLASS_4"
+    CLASS_5 = "CLASS_5"
+    CLASS_6 = "CLASS_6"
+    CLASS_7 = "CLASS_7"
+    CLASS_8 = "CLASS_8"
+    CLASS_9 = "CLASS_9"
+    CLASS_10 = "CLASS_10"
+    CLASS_11 = "CLASS_11"
+    CLASS_12 = "CLASS_12"
+
+    @classmethod
+    def _missing_(cls, value):
+        """Handle case-insensitive enum lookup"""
+        if isinstance(value, str):
+            for member in cls:
+                if member.value.upper() == value.upper():
+                    return member
+        return None
 
 
 class Student(Base):
@@ -35,8 +57,8 @@ class Student(Base):
     first_name = Column(String(50), nullable=False)
     last_name = Column(String(50), nullable=False)
     date_of_birth = Column(Date, nullable=False)
-    gender = Column(Enum(GenderEnum), nullable=False)
-    current_class = Column(Enum(ClassEnum), nullable=False)
+    gender = Column(String(10), nullable=False)
+    current_class = Column(String(20), nullable=False)
     section = Column(String(10), nullable=True)
     roll_number = Column(String(20), nullable=True)
     
@@ -75,3 +97,31 @@ class Student(Base):
     # Relationships
     fee_records = relationship("FeeRecord", back_populates="student")
     leave_requests = relationship("LeaveRequest", back_populates="student")
+
+    @property
+    def gender_enum(self) -> GenderEnum:
+        """Convert string gender to GenderEnum for application logic"""
+        try:
+            # Handle case-insensitive conversion
+            if isinstance(self.gender, str):
+                for member in GenderEnum:
+                    if member.value.upper() == self.gender.upper():
+                        return member
+            # Fallback to MALE if not found
+            return GenderEnum.MALE
+        except (AttributeError, TypeError):
+            return GenderEnum.MALE
+
+    @property
+    def current_class_enum(self) -> ClassEnum:
+        """Convert string current_class to ClassEnum for application logic"""
+        try:
+            # Handle case-insensitive conversion
+            if isinstance(self.current_class, str):
+                for member in ClassEnum:
+                    if member.value.upper() == self.current_class.upper():
+                        return member
+            # Fallback to CLASS_1 if not found
+            return ClassEnum.CLASS_1
+        except (AttributeError, TypeError):
+            return ClassEnum.CLASS_1
