@@ -2,6 +2,7 @@ from datetime import timedelta, datetime
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import text
 
 from app.core.database import get_db
 from app.core.security import create_access_token, verify_password
@@ -106,29 +107,61 @@ async def login_json(
     Enhanced user login endpoint using JSON payload with role-based permissions
     """
     try:
-        user = await user_crud.authenticate(
-            db, email=login_data.email, password=login_data.password
-        )
+        print(f"🔍 Login attempt for email: {login_data.email}")
+
+        # Test database connection
+        try:
+            result = await db.execute(text("SELECT 1"))
+            print("✅ Database connection successful")
+        except Exception as db_error:
+            print(f"❌ Database connection failed: {db_error}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Database connection error: {str(db_error)}"
+            )
+
+        # Test user lookup
+        try:
+            user = await user_crud.authenticate(
+                db, email=login_data.email, password=login_data.password
+            )
+            print(f"🔍 User lookup result: {user is not None}")
+        except Exception as auth_error:
+            print(f"❌ Authentication error: {auth_error}")
+            import traceback
+            traceback.print_exc()
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Authentication error: {str(auth_error)}"
+            )
+
         if not user:
+            print("❌ User not found or password incorrect")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Incorrect email or password",
                 headers={"WWW-Authenticate": "Bearer"},
             )
         elif not user_crud.is_active(user):
+            print("❌ User is inactive")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Inactive user"
             )
+
+        print(f"✅ User authenticated successfully: {user.email}")
+
     except HTTPException:
         # Re-raise HTTP exceptions
         raise
     except Exception as e:
-        # Log the error and return a generic error message
-        print(f"Login error: {e}")
+        # Log the error and return a detailed error message
+        print(f"❌ Unexpected login error: {e}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal server error during authentication"
+            detail=f"Internal server error: {str(e)}"
         )
 
     # Update last login
