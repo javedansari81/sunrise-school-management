@@ -54,20 +54,39 @@ async def login(
 
     # Get profile data based on user type
     profile_data = None
-    if user.user_type == UserTypeEnum.STUDENT and user.student_id:
-        student_profile = await student_crud.get(db, id=user.student_id)
-        if student_profile:
-            profile_data = {
-                "type": "student",
-                "profile": student_profile.__dict__
-            }
-    elif user.user_type == UserTypeEnum.TEACHER and user.teacher_id:
-        teacher_profile = await teacher_crud.get(db, id=user.teacher_id)
-        if teacher_profile:
-            profile_data = {
-                "type": "teacher",
-                "profile": teacher_profile.__dict__
-            }
+    try:
+        if user.user_type == UserTypeEnum.STUDENT and user.student_id:
+            student_profile = await student_crud.get(db, id=user.student_id)
+            if student_profile:
+                profile_data = {
+                    "type": "student",
+                    "profile": {
+                        "id": student_profile.id,
+                        "admission_number": student_profile.admission_number,
+                        "first_name": student_profile.first_name,
+                        "last_name": student_profile.last_name,
+                        "current_class": student_profile.current_class,
+                        "section": getattr(student_profile, 'section', None)
+                    }
+                }
+        elif user.user_type == UserTypeEnum.TEACHER and user.teacher_id:
+            teacher_profile = await teacher_crud.get(db, id=user.teacher_id)
+            if teacher_profile:
+                profile_data = {
+                    "type": "teacher",
+                    "profile": {
+                        "id": teacher_profile.id,
+                        "employee_id": teacher_profile.employee_id,
+                        "first_name": teacher_profile.first_name,
+                        "last_name": teacher_profile.last_name,
+                        "department": getattr(teacher_profile, 'department', None),
+                        "position": getattr(teacher_profile, 'position', None)
+                    }
+                }
+    except Exception as profile_error:
+        # If profile fetching fails, continue without profile data
+        print(f"Profile fetch error: {profile_error}")
+        profile_data = None
 
     return UserLoginResponse(
         user=user,
@@ -86,19 +105,30 @@ async def login_json(
     """
     Enhanced user login endpoint using JSON payload with role-based permissions
     """
-    user = await user_crud.authenticate(
-        db, email=login_data.email, password=login_data.password
-    )
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password",
-            headers={"WWW-Authenticate": "Bearer"},
+    try:
+        user = await user_crud.authenticate(
+            db, email=login_data.email, password=login_data.password
         )
-    elif not user_crud.is_active(user):
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Incorrect email or password",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        elif not user_crud.is_active(user):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Inactive user"
+            )
+    except HTTPException:
+        # Re-raise HTTP exceptions
+        raise
+    except Exception as e:
+        # Log the error and return a generic error message
+        print(f"Login error: {e}")
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Inactive user"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error during authentication"
         )
 
     # Update last login
@@ -115,20 +145,39 @@ async def login_json(
 
     # Get profile data based on user type
     profile_data = None
-    if user.user_type == UserTypeEnum.STUDENT and user.student_id:
-        student_profile = await student_crud.get(db, id=user.student_id)
-        if student_profile:
-            profile_data = {
-                "type": "student",
-                "profile": student_profile.__dict__
-            }
-    elif user.user_type == UserTypeEnum.TEACHER and user.teacher_id:
-        teacher_profile = await teacher_crud.get(db, id=user.teacher_id)
-        if teacher_profile:
-            profile_data = {
-                "type": "teacher",
-                "profile": teacher_profile.__dict__
-            }
+    try:
+        if user.user_type == UserTypeEnum.STUDENT and user.student_id:
+            student_profile = await student_crud.get(db, id=user.student_id)
+            if student_profile:
+                profile_data = {
+                    "type": "student",
+                    "profile": {
+                        "id": student_profile.id,
+                        "admission_number": student_profile.admission_number,
+                        "first_name": student_profile.first_name,
+                        "last_name": student_profile.last_name,
+                        "current_class": student_profile.current_class,
+                        "section": getattr(student_profile, 'section', None)
+                    }
+                }
+        elif user.user_type == UserTypeEnum.TEACHER and user.teacher_id:
+            teacher_profile = await teacher_crud.get(db, id=user.teacher_id)
+            if teacher_profile:
+                profile_data = {
+                    "type": "teacher",
+                    "profile": {
+                        "id": teacher_profile.id,
+                        "employee_id": teacher_profile.employee_id,
+                        "first_name": teacher_profile.first_name,
+                        "last_name": teacher_profile.last_name,
+                        "department": getattr(teacher_profile, 'department', None),
+                        "position": getattr(teacher_profile, 'position', None)
+                    }
+                }
+    except Exception as profile_error:
+        # If profile fetching fails, continue without profile data
+        print(f"Profile fetch error: {profile_error}")
+        profile_data = None
 
     return UserLoginResponse(
         user=user,
