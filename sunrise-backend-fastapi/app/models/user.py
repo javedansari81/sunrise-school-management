@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Enum
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 import enum
@@ -32,7 +32,7 @@ class User(Base):
     mobile = Column(String(20), nullable=False)
     email = Column(String(255), unique=True, index=True, nullable=False)
     password = Column(String(255), nullable=False)
-    user_type = Column(Enum(UserTypeEnum), nullable=False, default=UserTypeEnum.ADMIN)
+    user_type = Column(String(20), nullable=False, default="ADMIN")
 
     # Profile links
     student_id = Column(Integer, ForeignKey("students.id"), nullable=True)
@@ -47,3 +47,17 @@ class User(Base):
     # Relationships
     student_profile = relationship("Student", foreign_keys=[student_id])
     teacher_profile = relationship("Teacher", foreign_keys=[teacher_id])
+
+    @property
+    def user_type_enum(self) -> UserTypeEnum:
+        """Convert string user_type to UserTypeEnum for application logic"""
+        try:
+            # Handle case-insensitive conversion
+            if isinstance(self.user_type, str):
+                for member in UserTypeEnum:
+                    if member.value.upper() == self.user_type.upper():
+                        return member
+            # Fallback to admin if not found
+            return UserTypeEnum.ADMIN
+        except (AttributeError, TypeError):
+            return UserTypeEnum.ADMIN

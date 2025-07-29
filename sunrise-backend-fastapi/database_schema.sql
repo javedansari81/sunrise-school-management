@@ -11,8 +11,7 @@ DROP TABLE IF EXISTS students CASCADE;
 DROP TABLE IF EXISTS teachers CASCADE;
 DROP TABLE IF EXISTS users CASCADE;
 
--- Drop existing ENUM types if they exist
-DROP TYPE IF EXISTS user_type_enum CASCADE;
+-- Drop existing ENUM types if they exist (keeping user_type_enum removal for cleanup)
 DROP TYPE IF EXISTS gender_enum CASCADE;
 DROP TYPE IF EXISTS class_enum CASCADE;
 DROP TYPE IF EXISTS qualification_enum CASCADE;
@@ -26,8 +25,7 @@ DROP TYPE IF EXISTS leave_status_enum CASCADE;
 DROP TYPE IF EXISTS expense_category_enum CASCADE;
 DROP TYPE IF EXISTS expense_status_enum CASCADE;
 
--- Create ENUM types
-CREATE TYPE user_type_enum AS ENUM ('ADMIN', 'TEACHER', 'STUDENT', 'STAFF', 'PARENT');
+-- Create ENUM types (removed user_type_enum - using string column instead)
 CREATE TYPE gender_enum AS ENUM ('Male', 'Female', 'Other');
 CREATE TYPE class_enum AS ENUM ('PG', 'LKG', 'UKG', 'Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5', 'Class 6', 'Class 7', 'Class 8');
 CREATE TYPE qualification_enum AS ENUM ('Bachelor''s Degree', 'Master''s Degree', 'PhD', 'Diploma', 'Certificate', 'Other');
@@ -49,7 +47,7 @@ CREATE TABLE users (
     mobile VARCHAR(20) NOT NULL,
     email VARCHAR(255) UNIQUE NOT NULL,
     password VARCHAR(255) NOT NULL,
-    user_type user_type_enum NOT NULL DEFAULT 'ADMIN',
+    user_type VARCHAR(20) NOT NULL DEFAULT 'ADMIN',
     student_id INTEGER,
     teacher_id INTEGER,
     is_active BOOLEAN DEFAULT TRUE,

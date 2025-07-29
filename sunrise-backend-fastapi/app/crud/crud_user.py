@@ -58,7 +58,7 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
                 return None
 
             log_crud_operation("AUTHENTICATE", f"User found successfully",
-                             email=user.email, user_id=user.id, user_type=str(user.user_type))
+                             email=user.email, user_id=user.id, user_type=str(user.user_type_enum))
 
             # Step 2: Verify password
             try:
@@ -87,7 +87,7 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
         return user.is_active
 
     def is_superuser(self, user: User) -> bool:
-        return user.user_type == UserTypeEnum.ADMIN
+        return user.user_type_enum == UserTypeEnum.ADMIN
 
 
 user_crud = CRUDUser(User)
