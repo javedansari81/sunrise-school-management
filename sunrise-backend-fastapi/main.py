@@ -21,6 +21,7 @@ app.add_middleware(
 # Import and include routers
 import sys
 import os
+import asyncpg
 
 # Ensure proper path setup
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -74,6 +75,43 @@ async def test_api():
         "endpoint": "/api/v1/test",
         "timestamp": "2025-01-26"
     }
+
+@app.post("/setup-database")
+async def setup_database():
+    """One-time database setup endpoint"""
+    import asyncpg
+    DATABASE_URL = os.getenv('DATABASE_URL')
+    if not DATABASE_URL:
+        return {"error": "DATABASE_URL not found"}
+
+    try:
+        conn = await asyncpg.connect(DATABASE_URL)
+
+        # Check if already setup
+        try:
+            count = await conn.fetchval("SELECT COUNT(*) FROM users")
+            if count > 0:
+                await conn.close()
+                return {"message": "Database already setup", "users": count}
+        except:
+            pass
+
+        # Setup database
+        with open('database_schema.sql', 'r') as f:
+            await conn.execute(f.read())
+        with open('sample_data.sql', 'r') as f:
+            await conn.execute(f.read())
+
+        user_count = await conn.fetchval("SELECT COUNT(*) FROM users")
+        await conn.close()
+
+        return {
+            "message": "Database setup complete!",
+            "users": user_count,
+            "login": "admin@sunriseschool.edu / admin123"
+        }
+    except Exception as e:
+        return {"error": str(e)}
 
 
 

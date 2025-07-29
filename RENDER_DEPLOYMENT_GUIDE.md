@@ -72,7 +72,7 @@ This guide will help you deploy your complete school management system on Render
    | `DATABASE_URL` | `[Your PostgreSQL External URL from Step 2]` |
    | `SECRET_KEY` | `b8f2c9d4e6a1f3g5h7j9k2l4m6n8p0q2r4s6t8u0v2w4x6y8z0a2b4c6d8e0f2g4h6` |
    | `ENVIRONMENT` | `production` |
-   | `BACKEND_CORS_ORIGINS` | `https://your-frontend-name.onrender.com` |
+   | `BACKEND_CORS_ORIGINS` | `https://sunrise-school-frontend.onrender.com` |
 
 4. **Deploy Backend:**
    - Click **"Create Web Service"**

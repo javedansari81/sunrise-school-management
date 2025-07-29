@@ -11,6 +11,21 @@ DROP TABLE IF EXISTS students CASCADE;
 DROP TABLE IF EXISTS teachers CASCADE;
 DROP TABLE IF EXISTS users CASCADE;
 
+-- Drop existing ENUM types if they exist
+DROP TYPE IF EXISTS user_type_enum CASCADE;
+DROP TYPE IF EXISTS gender_enum CASCADE;
+DROP TYPE IF EXISTS class_enum CASCADE;
+DROP TYPE IF EXISTS qualification_enum CASCADE;
+DROP TYPE IF EXISTS employment_status_enum CASCADE;
+DROP TYPE IF EXISTS session_year_enum CASCADE;
+DROP TYPE IF EXISTS payment_type_enum CASCADE;
+DROP TYPE IF EXISTS payment_status_enum CASCADE;
+DROP TYPE IF EXISTS payment_method_enum CASCADE;
+DROP TYPE IF EXISTS leave_type_enum CASCADE;
+DROP TYPE IF EXISTS leave_status_enum CASCADE;
+DROP TYPE IF EXISTS expense_category_enum CASCADE;
+DROP TYPE IF EXISTS expense_status_enum CASCADE;
+
 -- Create ENUM types
 CREATE TYPE user_type_enum AS ENUM ('admin', 'teacher', 'student', 'staff', 'parent');
 CREATE TYPE gender_enum AS ENUM ('Male', 'Female', 'Other');

@@ -51,19 +51,27 @@ async def setup_database():
         
         # Read and execute schema file
         print("\n🔧 Creating database schema...")
-        with open('database_schema.sql', 'r') as f:
-            schema_sql = f.read()
-        
-        await conn.execute(schema_sql)
-        print("✅ Database schema created successfully!")
+        try:
+            with open('database_schema.sql', 'r') as f:
+                schema_sql = f.read()
+
+            await conn.execute(schema_sql)
+            print("✅ Database schema created successfully!")
+        except Exception as schema_error:
+            print(f"⚠️ Schema creation warning: {schema_error}")
+            print("🔄 Attempting to continue with existing schema...")
         
         # Read and execute sample data file
         print("\n📊 Inserting sample data...")
-        with open('sample_data.sql', 'r') as f:
-            sample_sql = f.read()
-        
-        await conn.execute(sample_sql)
-        print("✅ Sample data inserted successfully!")
+        try:
+            with open('sample_data.sql', 'r') as f:
+                sample_sql = f.read()
+
+            await conn.execute(sample_sql)
+            print("✅ Sample data inserted successfully!")
+        except Exception as data_error:
+            print(f"⚠️ Sample data warning: {data_error}")
+            print("🔄 Some data may already exist, continuing...")
         
         # Verify the setup by checking table counts
         print("\n📈 Verifying database setup...")
