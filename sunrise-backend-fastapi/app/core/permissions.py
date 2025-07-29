@@ -1,7 +1,9 @@
 from typing import List, Dict, Any
 from enum import Enum
+import logging
 
 from app.schemas.user import UserTypeEnum
+from app.core.logging import log_permission_check
 
 
 class Permission(str, Enum):
@@ -150,8 +152,20 @@ ROLE_PERMISSIONS: Dict[UserTypeEnum, List[Permission]] = {
 
 def get_user_permissions(user_type: UserTypeEnum) -> List[str]:
     """Get list of permissions for a user type"""
-    permissions = ROLE_PERMISSIONS.get(user_type, [])
-    return [perm.value for perm in permissions]
+    try:
+        log_permission_check(f"Getting permissions for user type: {user_type}",
+                           user_type=str(user_type))
+        permissions = ROLE_PERMISSIONS.get(user_type, [])
+        permission_values = [perm.value for perm in permissions]
+        log_permission_check(f"Found {len(permission_values)} permissions",
+                           user_type=str(user_type), count=len(permission_values))
+        return permission_values
+    except Exception as perm_error:
+        log_permission_check(f"Error getting permissions: {str(perm_error)}",
+                           "error", user_type=str(user_type), error_type=type(perm_error).__name__)
+        logging.exception("Full permissions error traceback:")
+        # Return empty list as fallback
+        return []
 
 
 def has_permission(user_type: UserTypeEnum, permission: Permission) -> bool:

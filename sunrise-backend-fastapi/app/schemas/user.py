@@ -11,6 +11,15 @@ class UserTypeEnum(str, Enum):
     STAFF = "staff"
     PARENT = "parent"
 
+    @classmethod
+    def _missing_(cls, value):
+        """Handle case-insensitive enum lookup"""
+        if isinstance(value, str):
+            for member in cls:
+                if member.value.lower() == value.lower():
+                    return member
+        return None
+
 
 class UserBase(BaseModel):
     first_name: str

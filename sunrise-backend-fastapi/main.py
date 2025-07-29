@@ -1,6 +1,13 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
+import logging
+
+from app.core.logging import setup_logging
+
+# Initialize logging
+setup_logging("INFO")
+logger = logging.getLogger("sunrise_app")
 
 # Create FastAPI app
 app = FastAPI(

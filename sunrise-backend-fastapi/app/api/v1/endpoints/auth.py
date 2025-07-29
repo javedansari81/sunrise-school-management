@@ -2,11 +2,12 @@ from datetime import timedelta, datetime
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import text
+import logging
 
 from app.core.database import get_db
 from app.core.security import create_access_token, verify_password
 from app.core.config import settings
+from app.core.logging import log_auth_step
 from app.core.permissions import get_user_permissions, get_dashboard_permissions, filter_menu_items
 from app.crud.crud_user import user_crud
 from app.crud import student_crud, teacher_crud
@@ -86,7 +87,7 @@ async def login(
                 }
     except Exception as profile_error:
         # If profile fetching fails, continue without profile data
-        print(f"Profile fetch error: {profile_error}")
+        log_auth_step("PROFILE_ERROR", f"Profile fetch error: {profile_error}", "error")
         profile_data = None
 
     return UserLoginResponse(
@@ -107,118 +108,193 @@ async def login_json(
     Enhanced user login endpoint using JSON payload with role-based permissions
     """
     try:
-        print(f"🔍 Login attempt for email: {login_data.email}")
+        log_auth_step("LOGIN_START", f"Login attempt for email: {login_data.email}", email=login_data.email)
 
-        # Test database connection
-        try:
-            result = await db.execute(text("SELECT 1"))
-            print("✅ Database connection successful")
-        except Exception as db_error:
-            print(f"❌ Database connection failed: {db_error}")
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Database connection error: {str(db_error)}"
-            )
-
-        # Test user lookup
+        # Step 1: Authenticate user
         try:
             user = await user_crud.authenticate(
                 db, email=login_data.email, password=login_data.password
             )
-            print(f"🔍 User lookup result: {user is not None}")
+            log_auth_step("AUTH_QUERY", f"User authentication query completed", email=login_data.email)
         except Exception as auth_error:
-            print(f"❌ Authentication error: {auth_error}")
-            import traceback
-            traceback.print_exc()
+            log_auth_step("AUTH_ERROR", f"Database authentication error: {str(auth_error)}",
+                         "error", email=login_data.email, error_type=type(auth_error).__name__)
+            logging.exception("Full authentication error traceback:")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Authentication error: {str(auth_error)}"
+                detail=f"Database authentication error: {str(auth_error)}"
             )
 
+        # Step 2: Check if user exists
         if not user:
-            print("❌ User not found or password incorrect")
+            log_auth_step("USER_NOT_FOUND", f"User not found or invalid password",
+                         "warning", email=login_data.email)
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Incorrect email or password",
                 headers={"WWW-Authenticate": "Bearer"},
             )
-        elif not user_crud.is_active(user):
-            print("❌ User is inactive")
+
+        log_auth_step("USER_FOUND", f"User found successfully",
+                     email=user.email, user_id=user.id, user_type=str(user.user_type))
+
+        # Step 3: Check if user is active
+        try:
+            is_active = user_crud.is_active(user)
+            log_auth_step("ACTIVE_CHECK", f"User active status checked",
+                         email=user.email, is_active=is_active)
+        except Exception as active_error:
+            log_auth_step("ACTIVE_ERROR", f"Error checking user active status: {str(active_error)}",
+                         "error", email=user.email)
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Error checking user status: {str(active_error)}"
+            )
+
+        if not is_active:
+            log_auth_step("USER_INACTIVE", f"User is inactive", "warning", email=user.email)
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Inactive user"
             )
 
-        print(f"✅ User authenticated successfully: {user.email}")
-
     except HTTPException:
-        # Re-raise HTTP exceptions
+        # Re-raise HTTP exceptions (these are expected errors)
         raise
-    except Exception as e:
-        # Log the error and return a detailed error message
-        print(f"❌ Unexpected login error: {e}")
-        import traceback
-        traceback.print_exc()
+    except Exception as unexpected_error:
+        log_auth_step("UNEXPECTED_ERROR", f"Unexpected error during authentication: {str(unexpected_error)}",
+                     "error", email=login_data.email, error_type=type(unexpected_error).__name__)
+        logging.exception("Full unexpected error traceback:")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Internal server error: {str(e)}"
+            detail=f"Unexpected authentication error: {str(unexpected_error)}"
         )
 
-    # Update last login
-    user.last_login = datetime.utcnow()
-    await user_crud.update(db, db_obj=user, obj_in={"last_login": user.last_login})
+    # Step 4: Update last login
+    try:
+        log_auth_step("UPDATE_LOGIN", f"Updating last login", email=user.email)
+        user.last_login = datetime.utcnow()
+        await user_crud.update(db, db_obj=user, obj_in={"last_login": user.last_login})
+        log_auth_step("UPDATE_LOGIN", f"Last login updated successfully", email=user.email)
+    except Exception as update_error:
+        log_auth_step("UPDATE_LOGIN", f"Warning: Could not update last login: {str(update_error)}",
+                     "warning", email=user.email)
+        # Don't fail login for this, just log the warning
 
-    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-        subject=user.id, expires_delta=access_token_expires
-    )
+    # Step 5: Create access token
+    try:
+        log_auth_step("CREATE_TOKEN", f"Creating access token", email=user.email)
+        access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+        access_token = create_access_token(
+            subject=user.id, expires_delta=access_token_expires
+        )
+        log_auth_step("CREATE_TOKEN", f"Access token created successfully", email=user.email)
+    except Exception as token_error:
+        log_auth_step("CREATE_TOKEN", f"Error creating access token: {str(token_error)}",
+                     "error", email=user.email)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error creating access token: {str(token_error)}"
+        )
 
-    # Get user permissions
-    permissions = get_user_permissions(user.user_type)
+    # Step 6: Get user permissions
+    try:
+        log_auth_step("GET_PERMISSIONS", f"Getting permissions",
+                     email=user.email, user_type=str(user.user_type))
+        permissions = get_user_permissions(user.user_type)
+        log_auth_step("GET_PERMISSIONS", f"Permissions retrieved",
+                     email=user.email, count=len(permissions))
+    except Exception as perm_error:
+        log_auth_step("GET_PERMISSIONS", f"Error getting user permissions: {str(perm_error)}",
+                     "error", email=user.email)
+        # Use empty permissions as fallback
+        permissions = []
 
-    # Get profile data based on user type
+    # Step 7: Get profile data based on user type
     profile_data = None
     try:
+        log_auth_step("GET_PROFILE", f"Getting profile data",
+                     email=user.email, user_type=str(user.user_type))
+
         if user.user_type == UserTypeEnum.STUDENT and user.student_id:
-            student_profile = await student_crud.get(db, id=user.student_id)
-            if student_profile:
-                profile_data = {
-                    "type": "student",
-                    "profile": {
-                        "id": student_profile.id,
-                        "admission_number": student_profile.admission_number,
-                        "first_name": student_profile.first_name,
-                        "last_name": student_profile.last_name,
-                        "current_class": student_profile.current_class,
-                        "section": getattr(student_profile, 'section', None)
+            log_auth_step("GET_PROFILE", f"Fetching student profile",
+                         email=user.email, student_id=user.student_id)
+            try:
+                student_profile = await student_crud.get(db, id=user.student_id)
+                if student_profile:
+                    profile_data = {
+                        "type": "student",
+                        "profile": {
+                            "id": student_profile.id,
+                            "admission_number": student_profile.admission_number,
+                            "first_name": student_profile.first_name,
+                            "last_name": student_profile.last_name,
+                            "current_class": student_profile.current_class,
+                            "section": getattr(student_profile, 'section', None)
+                        }
                     }
-                }
+                    log_auth_step("GET_PROFILE", f"Student profile loaded successfully",
+                                 email=user.email, student_name=f"{student_profile.first_name} {student_profile.last_name}")
+                else:
+                    log_auth_step("GET_PROFILE", f"Student profile not found",
+                                 "warning", email=user.email, student_id=user.student_id)
+            except Exception as student_error:
+                log_auth_step("GET_PROFILE", f"Error fetching student profile: {str(student_error)}",
+                             "error", email=user.email)
+
         elif user.user_type == UserTypeEnum.TEACHER and user.teacher_id:
-            teacher_profile = await teacher_crud.get(db, id=user.teacher_id)
-            if teacher_profile:
-                profile_data = {
-                    "type": "teacher",
-                    "profile": {
-                        "id": teacher_profile.id,
-                        "employee_id": teacher_profile.employee_id,
-                        "first_name": teacher_profile.first_name,
-                        "last_name": teacher_profile.last_name,
-                        "department": getattr(teacher_profile, 'department', None),
-                        "position": getattr(teacher_profile, 'position', None)
+            log_auth_step("GET_PROFILE", f"Fetching teacher profile",
+                         email=user.email, teacher_id=user.teacher_id)
+            try:
+                teacher_profile = await teacher_crud.get(db, id=user.teacher_id)
+                if teacher_profile:
+                    profile_data = {
+                        "type": "teacher",
+                        "profile": {
+                            "id": teacher_profile.id,
+                            "employee_id": teacher_profile.employee_id,
+                            "first_name": teacher_profile.first_name,
+                            "last_name": teacher_profile.last_name,
+                            "department": getattr(teacher_profile, 'department', None),
+                            "position": getattr(teacher_profile, 'position', None)
+                        }
                     }
-                }
+                    log_auth_step("GET_PROFILE", f"Teacher profile loaded successfully",
+                                 email=user.email, teacher_name=f"{teacher_profile.first_name} {teacher_profile.last_name}")
+                else:
+                    log_auth_step("GET_PROFILE", f"Teacher profile not found",
+                                 "warning", email=user.email, teacher_id=user.teacher_id)
+            except Exception as teacher_error:
+                log_auth_step("GET_PROFILE", f"Error fetching teacher profile: {str(teacher_error)}",
+                             "error", email=user.email)
+        else:
+            log_auth_step("GET_PROFILE", f"No profile data needed",
+                         email=user.email, user_type=str(user.user_type))
+
     except Exception as profile_error:
-        # If profile fetching fails, continue without profile data
-        print(f"Profile fetch error: {profile_error}")
+        log_auth_step("GET_PROFILE", f"Error in profile data section: {str(profile_error)}",
+                     "error", email=user.email)
         profile_data = None
 
-    return UserLoginResponse(
-        user=user,
-        access_token=access_token,
-        token_type="bearer",
-        permissions=permissions,
-        profile_data=profile_data
-    )
+    # Step 8: Create and return response
+    try:
+        log_auth_step("CREATE_RESPONSE", f"Creating login response", email=user.email)
+        response = UserLoginResponse(
+            user=user,
+            access_token=access_token,
+            token_type="bearer",
+            permissions=permissions,
+            profile_data=profile_data
+        )
+        log_auth_step("LOGIN_SUCCESS", f"Login completed successfully", email=user.email)
+        return response
+    except Exception as response_error:
+        log_auth_step("CREATE_RESPONSE", f"Error creating login response: {str(response_error)}",
+                     "error", email=user.email)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error creating login response: {str(response_error)}"
+        )
 
 
 @router.post("/register", response_model=UserSchema)
