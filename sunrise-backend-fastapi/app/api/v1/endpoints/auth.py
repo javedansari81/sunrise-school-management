@@ -52,12 +52,12 @@ async def login(
     )
 
     # Get user permissions
-    permissions = get_user_permissions(user.user_type)
+    permissions = get_user_permissions(user.user_type_enum)
 
     # Get profile data based on user type
     profile_data = None
     try:
-        if user.user_type == UserTypeEnum.STUDENT and user.student_id:
+        if user.user_type_enum == UserTypeEnum.STUDENT and user.student_id:
             student_profile = await student_crud.get(db, id=user.student_id)
             if student_profile:
                 profile_data = {
@@ -71,7 +71,7 @@ async def login(
                         "section": getattr(student_profile, 'section', None)
                     }
                 }
-        elif user.user_type == UserTypeEnum.TEACHER and user.teacher_id:
+        elif user.user_type_enum == UserTypeEnum.TEACHER and user.teacher_id:
             teacher_profile = await teacher_crud.get(db, id=user.teacher_id)
             if teacher_profile:
                 profile_data = {
@@ -136,7 +136,7 @@ async def login_json(
             )
 
         log_auth_step("USER_FOUND", f"User found successfully",
-                     email=user.email, user_id=user.id, user_type=str(user.user_type))
+                     email=user.email, user_id=user.id, user_type=str(user.user_type_enum))
 
         # Step 3: Check if user is active
         try:
@@ -200,8 +200,8 @@ async def login_json(
     # Step 6: Get user permissions
     try:
         log_auth_step("GET_PERMISSIONS", f"Getting permissions",
-                     email=user.email, user_type=str(user.user_type))
-        permissions = get_user_permissions(user.user_type)
+                     email=user.email, user_type=str(user.user_type_enum))
+        permissions = get_user_permissions(user.user_type_enum)
         log_auth_step("GET_PERMISSIONS", f"Permissions retrieved",
                      email=user.email, count=len(permissions))
     except Exception as perm_error:
@@ -214,9 +214,9 @@ async def login_json(
     profile_data = None
     try:
         log_auth_step("GET_PROFILE", f"Getting profile data",
-                     email=user.email, user_type=str(user.user_type))
+                     email=user.email, user_type=str(user.user_type_enum))
 
-        if user.user_type == UserTypeEnum.STUDENT and user.student_id:
+        if user.user_type_enum == UserTypeEnum.STUDENT and user.student_id:
             log_auth_step("GET_PROFILE", f"Fetching student profile",
                          email=user.email, student_id=user.student_id)
             try:
@@ -242,7 +242,7 @@ async def login_json(
                 log_auth_step("GET_PROFILE", f"Error fetching student profile: {str(student_error)}",
                              "error", email=user.email)
 
-        elif user.user_type == UserTypeEnum.TEACHER and user.teacher_id:
+        elif user.user_type_enum == UserTypeEnum.TEACHER and user.teacher_id:
             log_auth_step("GET_PROFILE", f"Fetching teacher profile",
                          email=user.email, teacher_id=user.teacher_id)
             try:
@@ -269,7 +269,7 @@ async def login_json(
                              "error", email=user.email)
         else:
             log_auth_step("GET_PROFILE", f"No profile data needed",
-                         email=user.email, user_type=str(user.user_type))
+                         email=user.email, user_type=str(user.user_type_enum))
 
     except Exception as profile_error:
         log_auth_step("GET_PROFILE", f"Error in profile data section: {str(profile_error)}",
@@ -330,12 +330,12 @@ async def get_current_user_info(
     student_profile = None
     teacher_profile = None
 
-    if current_user.user_type == UserTypeEnum.STUDENT and current_user.student_id:
+    if current_user.user_type_enum == UserTypeEnum.STUDENT and current_user.student_id:
         student = await student_crud.get(db, id=current_user.student_id)
         if student:
             student_profile = student.__dict__
 
-    if current_user.user_type == UserTypeEnum.TEACHER and current_user.teacher_id:
+    if current_user.user_type_enum == UserTypeEnum.TEACHER and current_user.teacher_id:
         teacher = await teacher_crud.get(db, id=current_user.teacher_id)
         if teacher:
             teacher_profile = teacher.__dict__
@@ -364,9 +364,9 @@ async def get_user_permissions_endpoint(
     """
     Get current user's permissions and dashboard configuration
     """
-    permissions = get_user_permissions(current_user.user_type)
-    dashboard_config = get_dashboard_permissions(current_user.user_type)
-    menu_items = filter_menu_items(current_user.user_type)
+    permissions = get_user_permissions(current_user.user_type_enum)
+    dashboard_config = get_dashboard_permissions(current_user.user_type_enum)
+    menu_items = filter_menu_items(current_user.user_type_enum)
 
     return {
         "user_type": current_user.user_type,
@@ -398,7 +398,7 @@ async def get_user_profile(
     }
 
     # Add role-specific profile data
-    if current_user.user_type == UserTypeEnum.STUDENT and current_user.student_id:
+    if current_user.user_type_enum == UserTypeEnum.STUDENT and current_user.student_id:
         student = await student_crud.get_with_fees(db, id=current_user.student_id)
         if student:
             # Calculate fee summary
@@ -423,7 +423,7 @@ async def get_user_profile(
                 }
             }
 
-    elif current_user.user_type == UserTypeEnum.TEACHER and current_user.teacher_id:
+    elif current_user.user_type_enum == UserTypeEnum.TEACHER and current_user.teacher_id:
         teacher = await teacher_crud.get(db, id=current_user.teacher_id)
         if teacher:
             profile_data["teacher_profile"] = {
