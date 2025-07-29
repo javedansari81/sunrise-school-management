@@ -176,8 +176,10 @@ def has_permission(user_type: UserTypeEnum, permission: Permission) -> bool:
 
 def get_dashboard_permissions(user_type: UserTypeEnum) -> Dict[str, Any]:
     """Get dashboard-specific permissions and features for a user type"""
+    log_permission_check(f"Getting dashboard permissions for user type: {user_type}", user_type=str(user_type))
+
     permissions = get_user_permissions(user_type)
-    
+
     dashboard_config = {
         "user_type": user_type.value,
         "permissions": permissions,
@@ -200,12 +202,16 @@ def get_dashboard_permissions(user_type: UserTypeEnum) -> Dict[str, Any]:
             "can_approve_expenses": has_permission(user_type, Permission.APPROVE_EXPENSES),
         }
     }
-    
+
+    log_permission_check(f"Dashboard config created with {len(dashboard_config['features'])} features",
+                       feature_count=len(dashboard_config['features']))
     return dashboard_config
 
 
 def filter_menu_items(user_type: UserTypeEnum) -> List[Dict[str, Any]]:
     """Filter menu items based on user permissions"""
+    log_permission_check(f"Filtering menu items for user type: {user_type}", user_type=str(user_type))
+
     all_menu_items = [
         {
             "name": "Dashboard",
@@ -262,5 +268,11 @@ def filter_menu_items(user_type: UserTypeEnum) -> List[Dict[str, Any]]:
     for item in all_menu_items:
         if item["permission"] is None or has_permission(user_type, item["permission"]):
             filtered_menu.append(item)
-    
+            log_permission_check(f"Menu item included: {item['name']}",
+                               item_name=item['name'], permission=str(item['permission']))
+        else:
+            log_permission_check(f"Menu item excluded: {item['name']}",
+                               "warning", item_name=item['name'], permission=str(item['permission']))
+
+    log_permission_check(f"Total menu items returned: {len(filtered_menu)}", count=len(filtered_menu))
     return filtered_menu
