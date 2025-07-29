@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text, Date, Float, Enum
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text, Date, Float
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 import enum
@@ -7,9 +7,18 @@ from app.core.database import Base
 
 
 class GenderEnum(str, enum.Enum):
-    MALE = "Male"
-    FEMALE = "Female"
-    OTHER = "Other"
+    MALE = "MALE"
+    FEMALE = "FEMALE"
+    OTHER = "OTHER"
+
+    @classmethod
+    def _missing_(cls, value):
+        """Handle case-insensitive enum lookup"""
+        if isinstance(value, str):
+            for member in cls:
+                if member.value.upper() == value.upper():
+                    return member
+        return None
 
 
 class QualificationEnum(str, enum.Enum):
@@ -38,7 +47,7 @@ class Teacher(Base):
     first_name = Column(String(100), nullable=False)
     last_name = Column(String(100), nullable=False)
     date_of_birth = Column(Date, nullable=False)
-    gender = Column(Enum(GenderEnum), nullable=False)
+    gender = Column(String(10), nullable=False)
 
     # Contact Information
     email = Column(String(255), unique=True, index=True, nullable=False)
@@ -75,3 +84,17 @@ class Teacher(Base):
 
     # Relationships
     # Note: Class relationships will be added when Class model is implemented
+
+    @property
+    def gender_enum(self) -> GenderEnum:
+        """Convert string gender to GenderEnum for application logic"""
+        try:
+            # Handle case-insensitive conversion
+            if isinstance(self.gender, str):
+                for member in GenderEnum:
+                    if member.value.upper() == self.gender.upper():
+                        return member
+            # Fallback to MALE if not found
+            return GenderEnum.MALE
+        except (AttributeError, TypeError):
+            return GenderEnum.MALE
