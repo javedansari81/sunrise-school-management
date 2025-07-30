@@ -173,15 +173,24 @@ const FeesManagement: React.FC = () => {
 
   return (
     <AdminLayout>
-      <Box sx={{ py: 2 }}>
+      <Box sx={{ py: { xs: 1, sm: 2 } }}>
 
       {/* Filters Section */}
-      <Paper sx={{ p: 3, mb: 3 }}>
-        <Typography variant="h6" gutterBottom>
+      <Paper sx={{ p: { xs: 2, sm: 3 }, mb: { xs: 2, sm: 3 } }}>
+        <Typography variant="h6" gutterBottom sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }}>
           Filters
         </Typography>
-        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, alignItems: 'center' }}>
-          <FormControl size="small" sx={{ minWidth: 150 }}>
+        <Box sx={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          gap: { xs: 1, sm: 2 },
+          alignItems: 'center',
+          '& .MuiFormControl-root': {
+            minWidth: { xs: '100%', sm: 150 },
+            maxWidth: { xs: '100%', sm: 'none' }
+          }
+        }}>
+          <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 150 } }}>
             <InputLabel>Session Year</InputLabel>
             <Select
               value={filters.sessionYear}
@@ -194,7 +203,7 @@ const FeesManagement: React.FC = () => {
             </Select>
           </FormControl>
 
-          <FormControl size="small" sx={{ minWidth: 120 }}>
+          <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 120 } }}>
             <InputLabel>Class</InputLabel>
             <Select
               value={filters.class}
@@ -213,7 +222,7 @@ const FeesManagement: React.FC = () => {
             </Select>
           </FormControl>
 
-          <FormControl size="small" sx={{ minWidth: 120 }}>
+          <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 120 } }}>
             <InputLabel>Status</InputLabel>
             <Select
               value={filters.status}
@@ -228,7 +237,7 @@ const FeesManagement: React.FC = () => {
             </Select>
           </FormControl>
 
-          <FormControl size="small" sx={{ minWidth: 140 }}>
+          <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 140 } }}>
             <InputLabel>Payment Type</InputLabel>
             <Select
               value={filters.paymentType}
@@ -251,13 +260,23 @@ const FeesManagement: React.FC = () => {
             InputProps={{
               startAdornment: <Search sx={{ mr: 1, color: 'text.secondary' }} />,
             }}
-            sx={{ minWidth: 250 }}
+            sx={{
+              minWidth: { xs: '100%', sm: 250 },
+              '& .MuiInputBase-input': {
+                fontSize: { xs: '0.875rem', sm: '1rem' }
+              }
+            }}
           />
 
           <Button
             variant="contained"
             startIcon={<Add />}
             onClick={() => setAddFeeDialogOpen(true)}
+            sx={{
+              minWidth: { xs: '100%', sm: 'auto' },
+              fontSize: { xs: '0.875rem', sm: '1rem' },
+              py: { xs: 1, sm: 0.75 }
+            }}
           >
             Add Fee Record
           </Button>
@@ -265,9 +284,29 @@ const FeesManagement: React.FC = () => {
       </Paper>
 
       {/* Fees Records Table */}
-      <Paper sx={{ width: '100%', overflow: 'hidden' }}>
-        <TableContainer sx={{ maxHeight: 600 }}>
-          <Table stickyHeader>
+      <Paper sx={{
+        width: '100%',
+        overflow: 'hidden',
+        '& .MuiTableContainer-root': {
+          overflowX: 'auto'
+        }
+      }}>
+        <TableContainer sx={{
+          maxHeight: { xs: 400, sm: 500, md: 600 },
+          overflowX: 'auto'
+        }}>
+          <Table stickyHeader size="small" sx={{
+            minWidth: { xs: 800, sm: 1000 },
+            '& .MuiTableCell-root': {
+              fontSize: { xs: '0.75rem', sm: '0.875rem' },
+              padding: { xs: '8px 4px', sm: '16px' },
+              whiteSpace: 'nowrap'
+            },
+            '& .MuiTableCell-head': {
+              fontWeight: 600,
+              backgroundColor: 'grey.50'
+            }
+          }}>
             <TableHead>
               <TableRow>
                 <TableCell>Student Name</TableCell>
