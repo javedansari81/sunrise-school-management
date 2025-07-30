@@ -9,6 +9,12 @@ import {
   IconButton,
   Menu,
   MenuItem,
+  Drawer,
+  List,
+  ListItem,
+  ListItemText,
+  useMediaQuery,
+  useTheme,
 } from '@mui/material';
 import { Link, useNavigate } from 'react-router-dom';
 import SchoolIcon from '@mui/icons-material/School';
@@ -16,6 +22,7 @@ import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import LogoutIcon from '@mui/icons-material/Logout';
 import PersonIcon from '@mui/icons-material/Person';
 import DashboardIcon from '@mui/icons-material/Dashboard';
+import MenuIcon from '@mui/icons-material/Menu';
 import { useAuth } from '../../contexts/AuthContext';
 import LoginPopup from '../LoginPopup';
 
@@ -24,6 +31,9 @@ const Header: React.FC = () => {
   const { user, isAuthenticated, logout } = useAuth();
   const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
   const [loginPopupOpen, setLoginPopupOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
   const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -39,42 +49,68 @@ const Header: React.FC = () => {
     navigate('/');
   };
 
+  const navigationItems = [
+    { label: 'Home', path: '/' },
+    { label: 'About', path: '/about' },
+    { label: 'Academics', path: '/academics' },
+    { label: 'Admissions', path: '/admissions' },
+    { label: 'Faculty', path: '/faculty' },
+    { label: 'Gallery', path: '/gallery' },
+    { label: 'Contact', path: '/contact' },
+  ];
+
   return (
     <AppBar position="static" sx={{ backgroundColor: '#1976d2' }}>
-      <Container maxWidth="lg">
-        <Toolbar>
-          <SchoolIcon sx={{ mr: 2 }} />
+      <Container maxWidth="lg" sx={{ px: { xs: 1, sm: 2, md: 3 } }}>
+        <Toolbar sx={{ minHeight: { xs: 56, sm: 64 } }}>
+          <SchoolIcon sx={{ mr: { xs: 1, sm: 2 } }} />
           <Typography
             variant="h6"
             component="div"
-            sx={{ flexGrow: 1, fontWeight: 'bold' }}
+            sx={{
+              flexGrow: 1,
+              fontWeight: 'bold',
+              fontSize: { xs: '1rem', sm: '1.25rem' },
+              lineHeight: 1.2
+            }}
           >
-            Sunrise National Public School
+            {isMobile ? 'Sunrise School' : 'Sunrise National Public School'}
           </Typography>
-          <Box sx={{ display: 'flex', gap: 2 }}>
-            <Button color="inherit" component={Link} to="/">
-              Home
-            </Button>
-            <Button color="inherit" component={Link} to="/about">
-              About
-            </Button>
-            <Button color="inherit" component={Link} to="/academics">
-              Academics
-            </Button>
-            <Button color="inherit" component={Link} to="/admissions">
-              Admissions
-            </Button>
-            <Button color="inherit" component={Link} to="/faculty">
-              Faculty
-            </Button>
-            <Button color="inherit" component={Link} to="/gallery">
-              Gallery
-            </Button>
-            <Button color="inherit" component={Link} to="/contact">
-              Contact
-            </Button>
+
+          {/* Desktop Navigation */}
+          <Box sx={{ display: { xs: 'none', md: 'flex' }, gap: 2 }}>
+            {navigationItems.map((item) => (
+              <Button
+                key={item.path}
+                color="inherit"
+                component={Link}
+                to={item.path}
+                sx={{ fontSize: '0.875rem' }}
+              >
+                {item.label}
+              </Button>
+            ))}
+          </Box>
+
+          {/* Mobile Menu Button */}
+          <Box sx={{ display: { xs: 'flex', md: 'none' }, alignItems: 'center', gap: 1 }}>
+            <IconButton
+              color="inherit"
+              onClick={() => setMobileMenuOpen(true)}
+              sx={{ p: 1 }}
+            >
+              <MenuIcon />
+            </IconButton>
+          </Box>
+
+          {/* User Menu - Always visible */}
+          <Box sx={{ display: 'flex', alignItems: 'center', ml: { xs: 1, md: 2 } }}>
             {!isAuthenticated ? (
-              <Button color="inherit" onClick={() => setLoginPopupOpen(true)}>
+              <Button
+                color="inherit"
+                onClick={() => setLoginPopupOpen(true)}
+                sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}
+              >
                 Login
               </Button>
             ) : (
@@ -82,7 +118,7 @@ const Header: React.FC = () => {
                 <IconButton
                   color="inherit"
                   onClick={handleMenuOpen}
-                  sx={{ ml: 1 }}
+                  sx={{ p: { xs: 1, sm: 1.5 } }}
                 >
                   <AccountCircleIcon />
                 </IconButton>
@@ -123,6 +159,75 @@ const Header: React.FC = () => {
           </Box>
         </Toolbar>
       </Container>
+
+      {/* Mobile Navigation Drawer */}
+      <Drawer
+        anchor="right"
+        open={mobileMenuOpen}
+        onClose={() => setMobileMenuOpen(false)}
+        sx={{
+          display: { xs: 'block', md: 'none' },
+          '& .MuiDrawer-paper': {
+            width: 250,
+            pt: 2,
+          },
+        }}
+      >
+        <List>
+          {navigationItems.map((item) => (
+            <ListItem
+              key={item.path}
+              component={Link}
+              to={item.path}
+              onClick={() => setMobileMenuOpen(false)}
+              sx={{
+                color: 'inherit',
+                textDecoration: 'none',
+                '&:hover': {
+                  backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                },
+              }}
+            >
+              <ListItemText
+                primary={item.label}
+                sx={{
+                  '& .MuiListItemText-primary': {
+                    fontSize: '1rem',
+                    fontWeight: 500,
+                  },
+                }}
+              />
+            </ListItem>
+          ))}
+
+          {/* Login/Logout in mobile menu */}
+          {!isAuthenticated && (
+            <ListItem
+              onClick={() => {
+                setMobileMenuOpen(false);
+                setLoginPopupOpen(true);
+              }}
+              sx={{
+                cursor: 'pointer',
+                '&:hover': {
+                  backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                },
+              }}
+            >
+              <ListItemText
+                primary="Login"
+                sx={{
+                  '& .MuiListItemText-primary': {
+                    fontSize: '1rem',
+                    fontWeight: 500,
+                    color: 'primary.main',
+                  },
+                }}
+              />
+            </ListItem>
+          )}
+        </List>
+      </Drawer>
 
       <LoginPopup
         open={loginPopupOpen}

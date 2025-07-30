@@ -54,10 +54,19 @@ const ImageSlider: React.FC = () => {
   };
 
   return (
-    <Box sx={{ position: 'relative', height: '70vh', overflow: 'hidden' }}>
+    <Box sx={{
+      position: 'relative',
+      height: { xs: '50vh', sm: '60vh', md: '70vh' },
+      overflow: 'hidden',
+      minHeight: { xs: '400px', sm: '500px', md: '600px' }
+    }}>
       <Slider {...settings}>
         {slides.map((slide) => (
-          <Box key={slide.id} sx={{ position: 'relative', height: '70vh' }}>
+          <Box key={slide.id} sx={{
+            position: 'relative',
+            height: { xs: '50vh', sm: '60vh', md: '70vh' },
+            minHeight: { xs: '400px', sm: '500px', md: '600px' }
+          }}>
             <Box
               sx={{
                 backgroundImage: `url(${slide.image})`,
@@ -78,12 +87,17 @@ const ImageSlider: React.FC = () => {
                 },
               }}
             >
-              <Container maxWidth="lg" sx={{ position: 'relative', zIndex: 1 }}>
+              <Container maxWidth="lg" sx={{
+                position: 'relative',
+                zIndex: 1,
+                px: { xs: 2, sm: 3, md: 4 }
+              }}>
                 <Box
                   sx={{
                     color: 'white',
-                    maxWidth: '600px',
+                    maxWidth: { xs: '100%', sm: '80%', md: '600px' },
                     textAlign: { xs: 'center', md: 'left' },
+                    mx: { xs: 'auto', md: 0 }
                   }}
                 >
                   <Typography
@@ -92,8 +106,10 @@ const ImageSlider: React.FC = () => {
                     gutterBottom
                     sx={{
                       fontWeight: 'bold',
-                      fontSize: { xs: '2rem', md: '3.5rem' },
+                      fontSize: { xs: '1.5rem', sm: '2.5rem', md: '3.5rem' },
                       textShadow: '2px 2px 4px rgba(0,0,0,0.5)',
+                      lineHeight: { xs: 1.2, sm: 1.3 },
+                      mb: { xs: 2, sm: 3 }
                     }}
                   >
                     {slide.title}
@@ -103,9 +119,11 @@ const ImageSlider: React.FC = () => {
                     component="p"
                     gutterBottom
                     sx={{
-                      mb: 4,
-                      fontSize: { xs: '1.1rem', md: '1.5rem' },
+                      mb: { xs: 3, sm: 4 },
+                      fontSize: { xs: '0.875rem', sm: '1.1rem', md: '1.5rem' },
                       textShadow: '1px 1px 2px rgba(0,0,0,0.5)',
+                      lineHeight: { xs: 1.4, sm: 1.5 },
+                      px: { xs: 1, sm: 0 }
                     }}
                   >
                     {slide.description}
@@ -119,9 +137,10 @@ const ImageSlider: React.FC = () => {
                         '&:hover': {
                           backgroundColor: '#e55a2b',
                         },
-                        px: 4,
-                        py: 1.5,
-                        fontSize: '1.1rem',
+                        px: { xs: 3, sm: 4 },
+                        py: { xs: 1.25, sm: 1.5 },
+                        fontSize: { xs: '0.875rem', sm: '1rem', md: '1.1rem' },
+                        minWidth: { xs: '150px', sm: 'auto' }
                       }}
                     >
                       {slide.buttonText}

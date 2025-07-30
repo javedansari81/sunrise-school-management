@@ -67,12 +67,32 @@ const Home: React.FC = () => {
       <ImageSlider />
 
       {/* About Section */}
-      <Container maxWidth="lg" sx={{ py: 8 }}>
-        <Box textAlign="center" mb={6}>
-          <Typography variant="h3" component="h2" gutterBottom fontWeight="bold">
+      <Container maxWidth="lg" sx={{ py: { xs: 4, sm: 6, md: 8 }, px: { xs: 2, sm: 3 } }}>
+        <Box textAlign="center" mb={{ xs: 4, sm: 5, md: 6 }}>
+          <Typography
+            variant="h3"
+            component="h2"
+            gutterBottom
+            fontWeight="bold"
+            sx={{
+              fontSize: { xs: '1.5rem', sm: '2rem', md: '3rem' },
+              lineHeight: { xs: 1.2, sm: 1.3 },
+              mb: { xs: 2, sm: 3 }
+            }}
+          >
             About Sunrise National Public School
           </Typography>
-          <Typography variant="h6" color="text.secondary" maxWidth="800px" mx="auto">
+          <Typography
+            variant="h6"
+            color="text.secondary"
+            sx={{
+              maxWidth: "800px",
+              mx: "auto",
+              fontSize: { xs: '0.875rem', sm: '1rem', md: '1.25rem' },
+              lineHeight: { xs: 1.4, sm: 1.5 },
+              px: { xs: 1, sm: 2 }
+            }}
+          >
             Established with a vision to provide quality education, we are committed to nurturing
             young minds and preparing them for a successful future. Our school offers education
             from Pre-Primary to Class 8 with a focus on academic excellence and character building.
@@ -80,73 +100,138 @@ const Home: React.FC = () => {
         </Box>
 
         {/* Features Grid */}
-        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 4, mb: 8 }}>
+        <Box sx={{
+          display: 'grid',
+          gridTemplateColumns: {
+            xs: '1fr',
+            sm: 'repeat(2, 1fr)',
+            md: 'repeat(4, 1fr)'
+          },
+          gap: { xs: 2, sm: 3, md: 4 },
+          mb: { xs: 6, sm: 7, md: 8 }
+        }}>
           {features.map((feature, index) => (
-            <Box key={index} sx={{ flex: '1 1 250px', minWidth: 250 }}>
-              <Paper
-                elevation={3}
+            <Paper
+              key={index}
+              elevation={3}
+              sx={{
+                p: { xs: 2, sm: 2.5, md: 3 },
+                textAlign: 'center',
+                height: '100%',
+                transition: 'transform 0.3s ease-in-out',
+                '&:hover': {
+                  transform: 'translateY(-5px)',
+                },
+              }}
+            >
+              <Box sx={{ color: 'primary.main', mb: { xs: 1.5, sm: 2 } }}>
+                {feature.icon}
+              </Box>
+              <Typography
+                variant="h6"
+                gutterBottom
+                fontWeight="bold"
                 sx={{
-                  p: 3,
-                  textAlign: 'center',
-                  height: '100%',
-                  transition: 'transform 0.3s ease-in-out',
-                  '&:hover': {
-                    transform: 'translateY(-5px)',
-                  },
+                  fontSize: { xs: '1rem', sm: '1.125rem', md: '1.25rem' },
+                  mb: { xs: 1, sm: 1.5 }
                 }}
               >
-                <Box sx={{ color: 'primary.main', mb: 2 }}>
-                  {feature.icon}
-                </Box>
-                <Typography variant="h6" gutterBottom fontWeight="bold">
-                  {feature.title}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {feature.description}
-                </Typography>
-              </Paper>
-            </Box>
+                {feature.title}
+              </Typography>
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                sx={{
+                  fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                  lineHeight: { xs: 1.4, sm: 1.5 }
+                }}
+              >
+                {feature.description}
+              </Typography>
+            </Paper>
           ))}
         </Box>
 
         {/* Achievements Section */}
-        <Box textAlign="center" mb={6}>
-          <Typography variant="h4" component="h2" gutterBottom fontWeight="bold">
+        <Box textAlign="center" mb={{ xs: 4, sm: 5, md: 6 }}>
+          <Typography
+            variant="h4"
+            component="h2"
+            gutterBottom
+            fontWeight="bold"
+            sx={{
+              fontSize: { xs: '1.25rem', sm: '1.75rem', md: '2.125rem' },
+              mb: { xs: 1.5, sm: 2 }
+            }}
+          >
             Our Achievements
           </Typography>
-          <Typography variant="h6" color="text.secondary">
+          <Typography
+            variant="h6"
+            color="text.secondary"
+            sx={{
+              fontSize: { xs: '0.875rem', sm: '1rem', md: '1.25rem' },
+              px: { xs: 1, sm: 2 }
+            }}
+          >
             Celebrating excellence in academics, sports, and cultural activities
           </Typography>
         </Box>
 
-        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 4, mb: 8 }}>
+        <Box sx={{
+          display: 'grid',
+          gridTemplateColumns: {
+            xs: '1fr',
+            sm: 'repeat(2, 1fr)',
+            md: 'repeat(3, 1fr)'
+          },
+          gap: { xs: 2, sm: 3, md: 4 },
+          mb: { xs: 6, sm: 7, md: 8 }
+        }}>
           {achievements.map((achievement, index) => (
-            <Box key={index} sx={{ flex: '1 1 300px', minWidth: 300 }}>
-              <Card
+            <Card
+              key={index}
+              sx={{
+                height: '100%',
+                transition: 'transform 0.3s ease-in-out',
+                '&:hover': {
+                  transform: 'scale(1.02)',
+                },
+              }}
+            >
+              <CardMedia
+                component="img"
+                image={achievement.image}
+                alt={achievement.title}
                 sx={{
-                  height: '100%',
-                  transition: 'transform 0.3s ease-in-out',
-                  '&:hover': {
-                    transform: 'scale(1.02)',
-                  },
+                  height: { xs: 150, sm: 180, md: 200 },
+                  objectFit: 'cover'
                 }}
-              >
-                <CardMedia
-                  component="img"
-                  height="200"
-                  image={achievement.image}
-                  alt={achievement.title}
-                />
-                <CardContent>
-                  <Typography variant="h6" gutterBottom fontWeight="bold">
-                    {achievement.title}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {achievement.description}
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Box>
+              />
+              <CardContent sx={{ p: { xs: 1.5, sm: 2 } }}>
+                <Typography
+                  variant="h6"
+                  gutterBottom
+                  fontWeight="bold"
+                  sx={{
+                    fontSize: { xs: '1rem', sm: '1.125rem', md: '1.25rem' },
+                    mb: { xs: 1, sm: 1.5 }
+                  }}
+                >
+                  {achievement.title}
+                </Typography>
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{
+                    fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                    lineHeight: { xs: 1.4, sm: 1.5 }
+                  }}
+                >
+                  {achievement.description}
+                </Typography>
+              </CardContent>
+            </Card>
           ))}
         </Box>
 
@@ -156,17 +241,40 @@ const Home: React.FC = () => {
           sx={{
             backgroundColor: 'primary.main',
             color: 'white',
-            p: 6,
+            p: { xs: 3, sm: 4, md: 6 },
             borderRadius: 2,
+            mx: { xs: 1, sm: 0 }
           }}
         >
-          <Typography variant="h4" gutterBottom fontWeight="bold">
+          <Typography
+            variant="h4"
+            gutterBottom
+            fontWeight="bold"
+            sx={{
+              fontSize: { xs: '1.25rem', sm: '1.75rem', md: '2.125rem' },
+              mb: { xs: 2, sm: 2.5, md: 3 }
+            }}
+          >
             Ready to Join Our School Community?
           </Typography>
-          <Typography variant="h6" mb={3}>
+          <Typography
+            variant="h6"
+            sx={{
+              mb: { xs: 2.5, sm: 3 },
+              fontSize: { xs: '0.875rem', sm: '1rem', md: '1.25rem' },
+              px: { xs: 1, sm: 2 }
+            }}
+          >
             Give your child the best educational foundation for a bright future
           </Typography>
-          <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center', flexWrap: 'wrap' }}>
+          <Box sx={{
+            display: 'flex',
+            gap: { xs: 1.5, sm: 2 },
+            justifyContent: 'center',
+            flexWrap: 'wrap',
+            flexDirection: { xs: 'column', sm: 'row' },
+            alignItems: 'center'
+          }}>
             <Button
               variant="contained"
               size="large"
@@ -176,8 +284,10 @@ const Home: React.FC = () => {
                 '&:hover': {
                   backgroundColor: '#f5f5f5',
                 },
-                px: 4,
-                py: 1.5,
+                px: { xs: 3, sm: 4 },
+                py: { xs: 1.25, sm: 1.5 },
+                fontSize: { xs: '0.875rem', sm: '1rem' },
+                minWidth: { xs: '200px', sm: 'auto' }
               }}
             >
               Apply for Admission
@@ -195,8 +305,10 @@ const Home: React.FC = () => {
                   borderColor: 'white',
                   backgroundColor: 'rgba(255, 255, 255, 0.1)',
                 },
-                px: 4,
-                py: 1.5,
+                px: { xs: 3, sm: 4 },
+                py: { xs: 1.25, sm: 1.5 },
+                fontSize: { xs: '0.875rem', sm: '1rem' },
+                minWidth: { xs: '200px', sm: 'auto' }
               }}
             >
               Login Portal
