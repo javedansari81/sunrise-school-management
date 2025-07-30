@@ -71,6 +71,21 @@ const FeesManagement: React.FC = () => {
   const [transactionId, setTransactionId] = useState('');
   const [remarks, setRemarks] = useState('');
 
+  // Transform API response to match frontend interface
+  const transformFeeRecord = (apiRecord: any): FeeRecord => ({
+    id: apiRecord.id,
+    studentName: apiRecord.student_name,
+    admissionNumber: apiRecord.student_admission_number,
+    class: apiRecord.student_class,
+    sessionYear: apiRecord.session_year,
+    paymentType: apiRecord.payment_type,
+    totalAmount: apiRecord.total_amount,
+    paidAmount: apiRecord.paid_amount,
+    balanceAmount: apiRecord.balance_amount,
+    status: apiRecord.status,
+    dueDate: apiRecord.due_date,
+  });
+
   // Load fee records from API
   const loadFeeRecords = async () => {
     setLoading(true);
@@ -81,7 +96,8 @@ const FeesManagement: React.FC = () => {
         status: filters.status || undefined,
         payment_type: filters.paymentType || undefined,
       });
-      setFeeRecords(response.data.records || []);
+      const transformedRecords = (response.data.fees || []).map(transformFeeRecord);
+      setFeeRecords(transformedRecords);
     } catch (error) {
       console.error('Error loading fee records:', error);
       setSnackbar({ open: true, message: 'Error loading fee records', severity: 'error' });

@@ -2,7 +2,7 @@ from typing import List, Optional, Dict, Any
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload, joinedload
-from sqlalchemy import and_, or_, func, extract
+from sqlalchemy import and_, or_, func, extract, case
 from datetime import date, datetime
 
 from app.crud.base import CRUDBase
@@ -135,8 +135,8 @@ class CRUDFeeRecord(CRUDBase[FeeRecord, FeeRecordCreate, FeeRecordUpdate]):
             func.sum(FeeRecord.paid_amount).label('paid_amount'),
             func.count(FeeRecord.id).label('total_records'),
             func.count(
-                func.case(
-                    (FeeRecord.status == PaymentStatusEnum.PAID, 1),
+                case(
+                    (FeeRecord.status == "Paid", 1),
                     else_=None
                 )
             ).label('paid_records')

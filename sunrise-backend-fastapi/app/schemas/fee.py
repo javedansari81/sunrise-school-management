@@ -27,6 +27,7 @@ class PaymentMethodEnum(str, Enum):
 
 
 class SessionYearEnum(str, Enum):
+    YEAR_2022_23 = "2022-23"
     YEAR_2023_24 = "2023-24"
     YEAR_2024_25 = "2024-25"
     YEAR_2025_26 = "2025-26"
