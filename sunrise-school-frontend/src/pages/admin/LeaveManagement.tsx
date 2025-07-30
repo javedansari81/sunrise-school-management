@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import {
-  Container,
   Typography,
   Box,
   Grid,
@@ -26,6 +25,7 @@ import {
   Tab,
   Alert,
 } from '@mui/material';
+import AdminLayout from '../../components/Layout/AdminLayout';
 import {
   Add,
   Edit,
@@ -198,11 +198,9 @@ const LeaveManagement: React.FC = () => {
   ];
 
   return (
-    <Container maxWidth="lg" sx={{ py: 4 }}>
+    <AdminLayout>
+      <Box sx={{ py: 2 }}>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
-        <Typography variant="h4" fontWeight="bold" color="primary">
-          Leave Management
-        </Typography>
         <Button
           variant="contained"
           startIcon={<Add />}
@@ -446,7 +444,8 @@ const LeaveManagement: React.FC = () => {
           )}
         </DialogActions>
       </Dialog>
-    </Container>
+      </Box>
+    </AdminLayout>
   );
 };
 

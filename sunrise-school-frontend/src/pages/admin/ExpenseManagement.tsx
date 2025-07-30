@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import {
-  Container,
   Typography,
   Box,
   Grid,
@@ -26,6 +25,7 @@ import {
   InputLabel,
   Select,
 } from '@mui/material';
+import AdminLayout from '../../components/Layout/AdminLayout';
 import {
   Add,
   Edit,
@@ -211,11 +211,9 @@ const ExpenseManagement: React.FC = () => {
   });
 
   return (
-    <Container maxWidth="lg" sx={{ py: 4 }}>
+    <AdminLayout>
+      <Box sx={{ py: 2 }}>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
-        <Typography variant="h4" fontWeight="bold" color="primary">
-          Expense Management
-        </Typography>
         <Button
           variant="contained"
           startIcon={<Add />}
@@ -492,7 +490,8 @@ const ExpenseManagement: React.FC = () => {
           </Button>
         </DialogActions>
       </Dialog>
-    </Container>
+      </Box>
+    </AdminLayout>
   );
 };
 

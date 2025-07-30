@@ -174,6 +174,22 @@ class CRUDFeeRecord(CRUDBase[FeeRecord, FeeRecordCreate, FeeRecordUpdate]):
         await db.refresh(fee_record)
         return fee_record
 
+    async def get_pending_fees_by_student(
+        self, db: AsyncSession, *, student_id: int
+    ) -> List[FeeRecord]:
+        """Get all pending fee records for a student ordered by due date"""
+        result = await db.execute(
+            select(FeeRecord)
+            .where(
+                and_(
+                    FeeRecord.student_id == student_id,
+                    FeeRecord.balance_amount > 0
+                )
+            )
+            .order_by(FeeRecord.due_date.asc())
+        )
+        return result.scalars().all()
+
 
 class CRUDFeePayment(CRUDBase[FeePayment, FeePaymentCreate, FeePaymentUpdate]):
     async def get_by_fee_record(
@@ -213,6 +229,19 @@ class CRUDFeePayment(CRUDBase[FeePayment, FeePaymentCreate, FeePaymentUpdate]):
         
         return payment
 
+    async def get_student_payment_history(
+        self, db: AsyncSession, *, student_id: int, session_year: Optional[str] = None
+    ) -> List[FeePayment]:
+        """Get all payments made by a student"""
+        query = select(FeePayment).join(FeeRecord).where(FeeRecord.student_id == student_id)
+
+        if session_year:
+            query = query.where(FeeRecord.session_year == session_year)
+
+        query = query.order_by(FeePayment.payment_date.desc())
+
+        result = await db.execute(query)
+        return result.scalars().all()
 
 # Create instances
 fee_structure_crud = CRUDFeeStructure(FeeStructure)

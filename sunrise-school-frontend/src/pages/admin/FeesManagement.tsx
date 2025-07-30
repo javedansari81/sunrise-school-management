@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
-  Container,
   Paper,
   Typography,
   TextField,
@@ -22,17 +21,21 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  Card,
-  CardContent,
+  CircularProgress,
+  Alert,
+  Snackbar,
 } from '@mui/material';
 import {
   Search,
-  FilterList,
   Payment,
   Visibility,
   Download,
   Add,
+  Edit,
+  Delete,
 } from '@mui/icons-material';
+import { feesAPI } from '../../services/api';
+import AdminLayout from '../../components/Layout/AdminLayout';
 
 interface FeeRecord {
   id: number;
@@ -58,50 +61,38 @@ const FeesManagement: React.FC = () => {
   });
   const [searchTerm, setSearchTerm] = useState('');
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+  const [addFeeDialogOpen, setAddFeeDialogOpen] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState<FeeRecord | null>(null);
+  const [feeRecords, setFeeRecords] = useState<FeeRecord[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
+  const [paymentAmount, setPaymentAmount] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('Cash');
+  const [transactionId, setTransactionId] = useState('');
+  const [remarks, setRemarks] = useState('');
 
-  // Sample data
-  const feeRecords: FeeRecord[] = [
-    {
-      id: 1,
-      studentName: 'John Doe',
-      admissionNumber: 'SNS2024001',
-      class: 'Class 5',
-      sessionYear: '2024-25',
-      paymentType: 'Quarterly',
-      totalAmount: 15000,
-      paidAmount: 10000,
-      balanceAmount: 5000,
-      status: 'Partial',
-      dueDate: '2024-02-15',
-    },
-    {
-      id: 2,
-      studentName: 'Sarah Johnson',
-      admissionNumber: 'SNS2024002',
-      class: 'Class 3',
-      sessionYear: '2024-25',
-      paymentType: 'Monthly',
-      totalAmount: 5000,
-      paidAmount: 5000,
-      balanceAmount: 0,
-      status: 'Paid',
-      dueDate: '2024-01-15',
-    },
-    {
-      id: 3,
-      studentName: 'Mike Davis',
-      admissionNumber: 'SNS2024003',
-      class: 'Class 7',
-      sessionYear: '2024-25',
-      paymentType: 'Half Yearly',
-      totalAmount: 20000,
-      paidAmount: 0,
-      balanceAmount: 20000,
-      status: 'Overdue',
-      dueDate: '2024-01-01',
-    },
-  ];
+  // Load fee records from API
+  const loadFeeRecords = async () => {
+    setLoading(true);
+    try {
+      const response = await feesAPI.getFees({
+        session_year: filters.sessionYear,
+        class_name: filters.class || undefined,
+        status: filters.status || undefined,
+        payment_type: filters.paymentType || undefined,
+      });
+      setFeeRecords(response.data.records || []);
+    } catch (error) {
+      console.error('Error loading fee records:', error);
+      setSnackbar({ open: true, message: 'Error loading fee records', severity: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadFeeRecords();
+  }, [filters]);
 
   const handleFilterChange = (field: string, value: string) => {
     setFilters({ ...filters, [field]: value });
@@ -109,7 +100,59 @@ const FeesManagement: React.FC = () => {
 
   const handlePayment = (record: FeeRecord) => {
     setSelectedRecord(record);
+    setPaymentAmount('');
+    setPaymentMethod('Cash');
+    setTransactionId('');
+    setRemarks('');
     setPaymentDialogOpen(true);
+  };
+
+  const processPayment = async () => {
+    if (!selectedRecord || !paymentAmount) return;
+
+    try {
+      const amount = parseFloat(paymentAmount);
+      if (amount <= 0 || amount > selectedRecord.balanceAmount) {
+        setSnackbar({ open: true, message: 'Invalid payment amount', severity: 'error' });
+        return;
+      }
+
+      await feesAPI.processPayment(selectedRecord.id, {
+        amount,
+        payment_method: paymentMethod,
+        transaction_id: transactionId,
+        remarks,
+        payment_date: new Date().toISOString().split('T')[0]
+      });
+
+      setSnackbar({ open: true, message: 'Payment processed successfully', severity: 'success' });
+      setPaymentDialogOpen(false);
+      loadFeeRecords(); // Reload data
+    } catch (error) {
+      console.error('Error processing payment:', error);
+      setSnackbar({ open: true, message: 'Error processing payment', severity: 'error' });
+    }
+  };
+
+  const processLumpSumPayment = async (studentId: number, amount: number) => {
+    try {
+      const response = await feesAPI.processLumpSumPayment(studentId, {
+        amount,
+        payment_method: paymentMethod,
+        transaction_id: transactionId,
+        remarks: `Lump sum payment - ${remarks}`
+      });
+
+      setSnackbar({
+        open: true,
+        message: `Lump sum payment processed. ${response.data.months_covered} months covered.`,
+        severity: 'success'
+      });
+      loadFeeRecords(); // Reload data
+    } catch (error) {
+      console.error('Error processing lump sum payment:', error);
+      setSnackbar({ open: true, message: 'Error processing lump sum payment', severity: 'error' });
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -129,163 +172,102 @@ const FeesManagement: React.FC = () => {
   };
 
   return (
-    <Container maxWidth="lg" sx={{ py: 4 }}>
-      <Typography variant="h4" gutterBottom fontWeight="bold">
-        Fees Management
-      </Typography>
+    <AdminLayout>
+      <Box sx={{ py: 2 }}>
 
-      {/* Summary Cards */}
-      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3, mb: 4 }}>
-        <Box sx={{ flex: '1 1 250px', minWidth: 250 }}>
-          <Card>
-            <CardContent>
-              <Typography variant="h4" color="primary" fontWeight="bold">
-                {summary.totalStudents}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Total Students
-              </Typography>
-            </CardContent>
-          </Card>
-        </Box>
-        <Box sx={{ flex: '1 1 250px', minWidth: 250 }}>
-          <Card>
-            <CardContent>
-              <Typography variant="h4" color="success.main" fontWeight="bold">
-                ₹{summary.totalCollected.toLocaleString()}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Total Collected
-              </Typography>
-            </CardContent>
-          </Card>
-        </Box>
-        <Box sx={{ flex: '1 1 250px', minWidth: 250 }}>
-          <Card>
-            <CardContent>
-              <Typography variant="h4" color="warning.main" fontWeight="bold">
-                ₹{summary.totalPending.toLocaleString()}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Total Pending
-              </Typography>
-            </CardContent>
-          </Card>
-        </Box>
-        <Box sx={{ flex: '1 1 250px', minWidth: 250 }}>
-          <Card>
-            <CardContent>
-              <Typography variant="h4" color="error.main" fontWeight="bold">
-                {summary.overdueCount}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Overdue Records
-              </Typography>
-            </CardContent>
-          </Card>
-        </Box>
-      </Box>
-
-      {/* Filters */}
+      {/* Filters Section */}
       <Paper sx={{ p: 3, mb: 3 }}>
         <Typography variant="h6" gutterBottom>
           Filters
         </Typography>
         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, alignItems: 'center' }}>
-          <Box sx={{ minWidth: 150, flex: '0 0 auto' }}>
-            <FormControl fullWidth size="small">
-              <InputLabel>Session Year</InputLabel>
-              <Select
-                value={filters.sessionYear}
-                label="Session Year"
-                onChange={(e) => handleFilterChange('sessionYear', e.target.value)}
-              >
-                <MenuItem value="2024-25">2024-25</MenuItem>
-                <MenuItem value="2023-24">2023-24</MenuItem>
-              </Select>
-            </FormControl>
-          </Box>
-          <Box sx={{ minWidth: 150, flex: '0 0 auto' }}>
-            <FormControl fullWidth size="small">
-              <InputLabel>Class</InputLabel>
-              <Select
-                value={filters.class}
-                label="Class"
-                onChange={(e) => handleFilterChange('class', e.target.value)}
-              >
-                <MenuItem value="">All Classes</MenuItem>
-                <MenuItem value="PG">PG</MenuItem>
-                <MenuItem value="Class 1">Class 1</MenuItem>
-                <MenuItem value="Class 2">Class 2</MenuItem>
-                <MenuItem value="Class 3">Class 3</MenuItem>
-                <MenuItem value="Class 4">Class 4</MenuItem>
-                <MenuItem value="Class 5">Class 5</MenuItem>
-                <MenuItem value="Class 6">Class 6</MenuItem>
-                <MenuItem value="Class 7">Class 7</MenuItem>
-                <MenuItem value="Class 8">Class 8</MenuItem>
-              </Select>
-            </FormControl>
-          </Box>
-          <Box sx={{ minWidth: 150, flex: '0 0 auto' }}>
-            <FormControl fullWidth size="small">
-              <InputLabel>Status</InputLabel>
-              <Select
-                value={filters.status}
-                label="Status"
-                onChange={(e) => handleFilterChange('status', e.target.value)}
-              >
-                <MenuItem value="">All Status</MenuItem>
-                <MenuItem value="Pending">Pending</MenuItem>
-                <MenuItem value="Partial">Partial</MenuItem>
-                <MenuItem value="Paid">Paid</MenuItem>
-                <MenuItem value="Overdue">Overdue</MenuItem>
-              </Select>
-            </FormControl>
-          </Box>
-          <Box sx={{ minWidth: 150, flex: '0 0 auto' }}>
-            <FormControl fullWidth size="small">
-              <InputLabel>Payment Type</InputLabel>
-              <Select
-                value={filters.paymentType}
-                label="Payment Type"
-                onChange={(e) => handleFilterChange('paymentType', e.target.value)}
-              >
-                <MenuItem value="">All Types</MenuItem>
-                <MenuItem value="Monthly">Monthly</MenuItem>
-                <MenuItem value="Quarterly">Quarterly</MenuItem>
-                <MenuItem value="Half Yearly">Half Yearly</MenuItem>
-                <MenuItem value="Yearly">Yearly</MenuItem>
-              </Select>
-            </FormControl>
-          </Box>
-          <Box sx={{ minWidth: 250, flex: '1 1 auto' }}>
-            <TextField
-              fullWidth
-              size="small"
-              placeholder="Search by name or admission number"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              InputProps={{
-                startAdornment: <Search sx={{ mr: 1, color: 'text.secondary' }} />,
-              }}
-            />
-          </Box>
-          <Box sx={{ minWidth: 100, flex: '0 0 auto' }}>
-            <Button
-              variant="contained"
-              startIcon={<Add />}
-              fullWidth
+          <FormControl size="small" sx={{ minWidth: 150 }}>
+            <InputLabel>Session Year</InputLabel>
+            <Select
+              value={filters.sessionYear}
+              label="Session Year"
+              onChange={(e) => handleFilterChange('sessionYear', e.target.value)}
             >
-              Add
-            </Button>
-          </Box>
+              <MenuItem value="2024-25">2024-25</MenuItem>
+              <MenuItem value="2023-24">2023-24</MenuItem>
+              <MenuItem value="2022-23">2022-23</MenuItem>
+            </Select>
+          </FormControl>
+
+          <FormControl size="small" sx={{ minWidth: 120 }}>
+            <InputLabel>Class</InputLabel>
+            <Select
+              value={filters.class}
+              label="Class"
+              onChange={(e) => handleFilterChange('class', e.target.value)}
+            >
+              <MenuItem value="">All Classes</MenuItem>
+              <MenuItem value="Class 1">Class 1</MenuItem>
+              <MenuItem value="Class 2">Class 2</MenuItem>
+              <MenuItem value="Class 3">Class 3</MenuItem>
+              <MenuItem value="Class 4">Class 4</MenuItem>
+              <MenuItem value="Class 5">Class 5</MenuItem>
+              <MenuItem value="Class 6">Class 6</MenuItem>
+              <MenuItem value="Class 7">Class 7</MenuItem>
+              <MenuItem value="Class 8">Class 8</MenuItem>
+            </Select>
+          </FormControl>
+
+          <FormControl size="small" sx={{ minWidth: 120 }}>
+            <InputLabel>Status</InputLabel>
+            <Select
+              value={filters.status}
+              label="Status"
+              onChange={(e) => handleFilterChange('status', e.target.value)}
+            >
+              <MenuItem value="">All Status</MenuItem>
+              <MenuItem value="Paid">Paid</MenuItem>
+              <MenuItem value="Partial">Partial</MenuItem>
+              <MenuItem value="Pending">Pending</MenuItem>
+              <MenuItem value="Overdue">Overdue</MenuItem>
+            </Select>
+          </FormControl>
+
+          <FormControl size="small" sx={{ minWidth: 140 }}>
+            <InputLabel>Payment Type</InputLabel>
+            <Select
+              value={filters.paymentType}
+              label="Payment Type"
+              onChange={(e) => handleFilterChange('paymentType', e.target.value)}
+            >
+              <MenuItem value="">All Types</MenuItem>
+              <MenuItem value="Monthly">Monthly</MenuItem>
+              <MenuItem value="Quarterly">Quarterly</MenuItem>
+              <MenuItem value="Half Yearly">Half Yearly</MenuItem>
+              <MenuItem value="Yearly">Yearly</MenuItem>
+            </Select>
+          </FormControl>
+
+          <TextField
+            size="small"
+            placeholder="Search by name or admission number"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            InputProps={{
+              startAdornment: <Search sx={{ mr: 1, color: 'text.secondary' }} />,
+            }}
+            sx={{ minWidth: 250 }}
+          />
+
+          <Button
+            variant="contained"
+            startIcon={<Add />}
+            onClick={() => setAddFeeDialogOpen(true)}
+          >
+            Add Fee Record
+          </Button>
         </Box>
       </Paper>
 
-      {/* Fee Records Table */}
-      <Paper>
-        <TableContainer>
-          <Table>
+      {/* Fees Records Table */}
+      <Paper sx={{ width: '100%', overflow: 'hidden' }}>
+        <TableContainer sx={{ maxHeight: 600 }}>
+          <Table stickyHeader>
             <TableHead>
               <TableRow>
                 <TableCell>Student Name</TableCell>
@@ -301,36 +283,65 @@ const FeesManagement: React.FC = () => {
               </TableRow>
             </TableHead>
             <TableBody>
-              {feeRecords.map((record) => (
-                <TableRow key={record.id}>
-                  <TableCell>{record.studentName}</TableCell>
-                  <TableCell>{record.admissionNumber}</TableCell>
-                  <TableCell>{record.class}</TableCell>
-                  <TableCell>{record.paymentType}</TableCell>
-                  <TableCell align="right">₹{record.totalAmount.toLocaleString()}</TableCell>
-                  <TableCell align="right">₹{record.paidAmount.toLocaleString()}</TableCell>
-                  <TableCell align="right">₹{record.balanceAmount.toLocaleString()}</TableCell>
-                  <TableCell>
-                    <Chip
-                      label={record.status}
-                      color={getStatusColor(record.status) as any}
-                      size="small"
-                    />
-                  </TableCell>
-                  <TableCell>{record.dueDate}</TableCell>
-                  <TableCell align="center">
-                    <IconButton size="small" onClick={() => handlePayment(record)}>
-                      <Payment />
-                    </IconButton>
-                    <IconButton size="small">
-                      <Visibility />
-                    </IconButton>
-                    <IconButton size="small">
-                      <Download />
-                    </IconButton>
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={10} align="center">
+                    <CircularProgress />
                   </TableCell>
                 </TableRow>
-              ))}
+              ) : feeRecords.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={10} align="center">
+                    No fee records found
+                  </TableCell>
+                </TableRow>
+              ) : (
+                feeRecords.map((record) => (
+                  <TableRow key={record.id} hover>
+                    <TableCell>{record.studentName}</TableCell>
+                    <TableCell>{record.admissionNumber}</TableCell>
+                    <TableCell>{record.class}</TableCell>
+                    <TableCell>{record.paymentType}</TableCell>
+                    <TableCell align="right">₹{record.totalAmount.toLocaleString()}</TableCell>
+                    <TableCell align="right">₹{record.paidAmount.toLocaleString()}</TableCell>
+                    <TableCell align="right">₹{record.balanceAmount.toLocaleString()}</TableCell>
+                    <TableCell>
+                      <Chip
+                        label={record.status}
+                        color={getStatusColor(record.status) as any}
+                        size="small"
+                      />
+                    </TableCell>
+                    <TableCell>{record.dueDate}</TableCell>
+                    <TableCell align="center">
+                      <IconButton
+                        size="small"
+                        onClick={() => handlePayment(record)}
+                        color="primary"
+                        disabled={record.balanceAmount <= 0}
+                      >
+                        <Payment />
+                      </IconButton>
+                      <IconButton size="small" color="default">
+                        <Visibility />
+                      </IconButton>
+                      <IconButton size="small" color="default">
+                        <Download />
+                      </IconButton>
+                      <IconButton size="small" color="secondary">
+                        <Edit />
+                      </IconButton>
+                      <IconButton
+                        size="small"
+                        color="error"
+                        disabled={record.paidAmount > 0}
+                      >
+                        <Delete />
+                      </IconButton>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </TableContainer>
@@ -353,11 +364,18 @@ const FeesManagement: React.FC = () => {
                 label="Payment Amount"
                 type="number"
                 margin="normal"
+                value={paymentAmount}
+                onChange={(e) => setPaymentAmount(e.target.value)}
                 placeholder={`Max: ₹${selectedRecord.balanceAmount}`}
+                inputProps={{ max: selectedRecord.balanceAmount, min: 0 }}
               />
               <FormControl fullWidth margin="normal">
                 <InputLabel>Payment Method</InputLabel>
-                <Select label="Payment Method">
+                <Select
+                  label="Payment Method"
+                  value={paymentMethod}
+                  onChange={(e) => setPaymentMethod(e.target.value)}
+                >
                   <MenuItem value="Cash">Cash</MenuItem>
                   <MenuItem value="Cheque">Cheque</MenuItem>
                   <MenuItem value="Online">Online Transfer</MenuItem>
@@ -369,6 +387,8 @@ const FeesManagement: React.FC = () => {
                 fullWidth
                 label="Transaction ID / Reference"
                 margin="normal"
+                value={transactionId}
+                onChange={(e) => setTransactionId(e.target.value)}
               />
               <TextField
                 fullWidth
@@ -376,16 +396,39 @@ const FeesManagement: React.FC = () => {
                 multiline
                 rows={3}
                 margin="normal"
+                value={remarks}
+                onChange={(e) => setRemarks(e.target.value)}
               />
             </Box>
           )}
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setPaymentDialogOpen(false)}>Cancel</Button>
-          <Button variant="contained">Process Payment</Button>
+          <Button
+            variant="contained"
+            onClick={processPayment}
+            disabled={!paymentAmount || parseFloat(paymentAmount) <= 0}
+          >
+            Process Payment
+          </Button>
         </DialogActions>
       </Dialog>
-    </Container>
+
+      {/* Snackbar for notifications */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+      >
+        <Alert
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
+          severity={snackbar.severity}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
+      </Box>
+    </AdminLayout>
   );
 };
 

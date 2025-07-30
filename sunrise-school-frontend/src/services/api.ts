@@ -50,6 +50,49 @@ export const authAPI = {
     api.post('/auth/logout'),
 };
 
+// Fees API
+export const feesAPI = {
+  // Get fees with filters
+  getFees: (params?: any) =>
+    api.get('/fees/', { params }),
+
+  // CRUD operations for fee records
+  createFeeRecord: (feeData: any) =>
+    api.post('/fees/records', feeData),
+
+  updateFeeRecord: (id: number, feeData: any) =>
+    api.put(`/fees/records/${id}`, feeData),
+
+  deleteFeeRecord: (id: number) =>
+    api.delete(`/fees/records/${id}`),
+
+  // Payment operations
+  processPayment: (feeRecordId: number, paymentData: any) =>
+    api.post(`/fees/payment/${feeRecordId}`, paymentData),
+
+  processLumpSumPayment: (studentId: number, paymentData: any) =>
+    api.post(`/fees/payments/lump-sum/${studentId}`, paymentData),
+
+  // Payment history
+  getPaymentHistory: (studentId: number, sessionYear?: string) =>
+    api.get(`/fees/payments/history/${studentId}`, {
+      params: sessionYear ? { session_year: sessionYear } : {}
+    }),
+
+  // Fee structures
+  getFeeStructures: () =>
+    api.get('/fees/structures'),
+
+  createFeeStructure: (structureData: any) =>
+    api.post('/fees/structure', structureData),
+
+  // Dashboard
+  getFeeDashboard: (sessionYear?: string) =>
+    api.get('/fees/dashboard', {
+      params: sessionYear ? { session_year: sessionYear } : {}
+    }),
+};
+
 // Users API
 export const usersAPI = {
   getUsers: () => api.get('/users'),
@@ -77,15 +120,7 @@ export const studentsAPI = {
   deleteStudent: (id: number) => api.delete(`/students/${id}`),
 };
 
-// Fees API (to be implemented in backend)
-export const feesAPI = {
-  getFees: (filters?: any) => api.get('/fees', { params: filters }),
-  getFeesByStudent: (studentId: number) => api.get(`/fees/student/${studentId}`),
-  createFeeRecord: (feeData: any) => api.post('/fees', feeData),
-  updateFeeRecord: (id: number, feeData: any) => api.put(`/fees/${id}`, feeData),
-  payFees: (paymentData: any) => api.post('/fees/payment', paymentData),
-  getFeeHistory: (studentId: number) => api.get(`/fees/history/${studentId}`),
-};
+
 
 // Leave API (to be implemented in backend)
 export const leaveAPI = {

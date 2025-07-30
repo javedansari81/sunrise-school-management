@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import {
-  Container,
   Typography,
   Box,
   Grid,
@@ -41,6 +40,7 @@ import {
   LocationOn,
   Search,
 } from '@mui/icons-material';
+import AdminLayout from '../../components/Layout/AdminLayout';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -215,11 +215,9 @@ const StudentProfiles: React.FC = () => {
   });
 
   return (
-    <Container maxWidth="lg" sx={{ py: 4 }}>
+    <AdminLayout>
+      <Box sx={{ py: 2 }}>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
-        <Typography variant="h4" fontWeight="bold" color="primary">
-          Student Profiles
-        </Typography>
         <Button
           variant="contained"
           startIcon={<Add />}
@@ -581,7 +579,8 @@ const StudentProfiles: React.FC = () => {
           </Button>
         </DialogActions>
       </Dialog>
-    </Container>
+      </Box>
+    </AdminLayout>
   );
 };
 

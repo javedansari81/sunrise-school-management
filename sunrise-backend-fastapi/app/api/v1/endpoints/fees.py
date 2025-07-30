@@ -171,6 +171,87 @@ async def process_fee_payment(
     return payment
 
 
+@router.post("/payments/lump-sum/{student_id}")
+async def process_lump_sum_payment(
+    student_id: int,
+    payment_data: dict,  # {"amount": float, "payment_method": str, "transaction_id": str, "remarks": str}
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Process lump sum payment - automatically distribute across pending fee records
+    """
+    # Verify student exists
+    student = await student_crud.get(db, id=student_id)
+    if not student:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Student not found"
+        )
+
+    total_amount = payment_data.get("amount", 0)
+    if total_amount <= 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Payment amount must be greater than 0"
+        )
+
+    # Get all pending fee records for the student (ordered by due date)
+    pending_fees = await fee_record_crud.get_pending_fees_by_student(db, student_id=student_id)
+
+    if not pending_fees:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No pending fees found for this student"
+        )
+
+    remaining_amount = total_amount
+    payments_made = []
+
+    # Process payments in order of due date
+    for fee_record in pending_fees:
+        if remaining_amount <= 0:
+            break
+
+        # Calculate payment amount for this record
+        payment_amount = min(remaining_amount, fee_record.balance_amount)
+
+        # Create payment record
+        payment_create = FeePaymentCreate(
+            fee_record_id=fee_record.id,
+            amount=payment_amount,
+            payment_method=payment_data.get("payment_method", "Cash"),
+            transaction_id=payment_data.get("transaction_id", ""),
+            payment_date=date.today(),
+            remarks=f"Lump sum payment - {payment_data.get('remarks', '')}"
+        )
+
+        # Process the payment
+        payment = await fee_payment_crud.create_payment(
+            db, obj_in=payment_create, fee_record=fee_record
+        )
+
+        payments_made.append({
+            "fee_record_id": fee_record.id,
+            "amount_paid": payment_amount,
+            "remaining_balance": fee_record.balance_amount - payment_amount
+        })
+
+        remaining_amount -= payment_amount
+
+    # Calculate months covered (assuming monthly fees)
+    months_covered = len([p for p in payments_made if p["remaining_balance"] == 0])
+
+    return {
+        "message": "Lump sum payment processed successfully",
+        "total_amount": total_amount,
+        "amount_used": total_amount - remaining_amount,
+        "remaining_amount": remaining_amount,
+        "months_covered": months_covered,
+        "payments_made": payments_made
+    }
+
+
 @router.get("/history/{student_id}")
 async def get_fee_history(
     student_id: int,
@@ -334,6 +415,106 @@ async def get_fee_collection_report(
             "total_records": summary['total_records'],
             "paid_records": summary['paid_records']
         }
+    }
+
+
+@router.post("/records", response_model=FeeRecord)
+async def create_fee_record(
+    fee_data: FeeRecordCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Create a new fee record for a student
+    """
+    # Verify student exists
+    student = await student_crud.get(db, id=fee_data.student_id)
+    if not student:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Student not found"
+        )
+
+    # Create fee record
+    fee_record = await fee_record_crud.create(db, obj_in=fee_data)
+    return fee_record
+
+
+@router.put("/records/{fee_record_id}", response_model=FeeRecord)
+async def update_fee_record(
+    fee_record_id: int,
+    fee_data: FeeRecordUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Update an existing fee record
+    """
+    fee_record = await fee_record_crud.get(db, id=fee_record_id)
+    if not fee_record:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Fee record not found"
+        )
+
+    updated_record = await fee_record_crud.update(db, db_obj=fee_record, obj_in=fee_data)
+    return updated_record
+
+
+@router.delete("/records/{fee_record_id}")
+async def delete_fee_record(
+    fee_record_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Delete a fee record (only if no payments made)
+    """
+    fee_record = await fee_record_crud.get(db, id=fee_record_id)
+    if not fee_record:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Fee record not found"
+        )
+
+    # Check if any payments have been made
+    if fee_record.paid_amount > 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot delete fee record with payments. Please contact administrator."
+        )
+
+    await fee_record_crud.remove(db, id=fee_record_id)
+    return {"message": "Fee record deleted successfully"}
+
+
+@router.get("/payments/history/{student_id}")
+async def get_payment_history(
+    student_id: int,
+    session_year: Optional[SessionYearEnum] = None,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Get complete payment history for a student
+    """
+    # Verify student exists
+    student = await student_crud.get(db, id=student_id)
+    if not student:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Student not found"
+        )
+
+    # Get payment history
+    payments = await fee_payment_crud.get_student_payment_history(
+        db, student_id=student_id, session_year=session_year
+    )
+
+    return {
+        "student_id": student_id,
+        "student_name": f"{student.first_name} {student.last_name}",
+        "payments": payments
     }
 
 
