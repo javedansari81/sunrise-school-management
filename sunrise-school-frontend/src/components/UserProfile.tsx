@@ -64,7 +64,7 @@ const UserProfile: React.FC = () => {
   };
 
   const getUserTypeDisplay = () => {
-    switch (user?.user_type) {
+    switch (user?.user_type?.toLowerCase()) {
       case 'admin':
         return 'Administrator';
       case 'teacher':
@@ -77,7 +77,7 @@ const UserProfile: React.FC = () => {
   };
 
   const getUserTypeColor = () => {
-    switch (user?.user_type) {
+    switch (user?.user_type?.toLowerCase()) {
       case 'admin':
         return 'error';
       case 'teacher':
