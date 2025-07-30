@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import Slider from 'react-slick';
 import { Box, Typography, Button, Container } from '@mui/material';
 import 'slick-carousel/slick/slick.css';
@@ -14,6 +15,15 @@ interface SlideData {
 }
 
 const ImageSlider: React.FC = () => {
+  const navigate = useNavigate();
+
+  const handleButtonClick = (buttonLink: string) => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    setTimeout(() => {
+      navigate(buttonLink);
+    }, 500);
+  };
+
   const slides: SlideData[] = [
     {
       id: 1,
@@ -128,10 +138,11 @@ const ImageSlider: React.FC = () => {
                   >
                     {slide.description}
                   </Typography>
-                  {slide.buttonText && (
+                  {slide.buttonText && slide.buttonLink && (
                     <Button
                       variant="contained"
                       size="large"
+                      onClick={() => handleButtonClick(slide.buttonLink!)}
                       sx={{
                         backgroundColor: '#ff6b35',
                         '&:hover': {

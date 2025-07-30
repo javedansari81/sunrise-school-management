@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Container,
@@ -15,11 +15,19 @@ import {
   Groups,
   Science,
   SportsBasketball,
-  Login,
 } from '@mui/icons-material';
 import ImageSlider from '../components/Home/ImageSlider';
 
 const Home: React.FC = () => {
+  const navigate = useNavigate();
+
+  const handleAdmissionClick = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    setTimeout(() => {
+      navigate('/admissions');
+    }, 500);
+  };
+
   const features = [
     {
       icon: <School fontSize="large" />,
@@ -278,6 +286,7 @@ const Home: React.FC = () => {
             <Button
               variant="contained"
               size="large"
+              onClick={handleAdmissionClick}
               sx={{
                 backgroundColor: 'white',
                 color: 'primary.main',
@@ -291,27 +300,6 @@ const Home: React.FC = () => {
               }}
             >
               Apply for Admission
-            </Button>
-            <Button
-              component={Link}
-              to="/login"
-              variant="outlined"
-              size="large"
-              startIcon={<Login />}
-              sx={{
-                borderColor: 'white',
-                color: 'white',
-                '&:hover': {
-                  borderColor: 'white',
-                  backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                },
-                px: { xs: 3, sm: 4 },
-                py: { xs: 1.25, sm: 1.5 },
-                fontSize: { xs: '0.875rem', sm: '1rem' },
-                minWidth: { xs: '200px', sm: 'auto' }
-              }}
-            >
-              Login Portal
             </Button>
           </Box>
         </Box>

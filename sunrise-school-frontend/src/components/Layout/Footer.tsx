@@ -3,7 +3,6 @@ import {
   Box,
   Container,
   Typography,
-  Link,
   IconButton,
 } from '@mui/material';
 import {
@@ -28,8 +27,8 @@ const Footer: React.FC = () => {
       }}
     >
       <Container maxWidth="lg">
-        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-          <Box sx={{ flex: '1 1 300px', minWidth: 300 }}>
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 4, justifyContent: 'center' }}>
+          <Box sx={{ flex: '1 1 400px', minWidth: 300, maxWidth: 500 }}>
             <Typography variant="h6" gutterBottom>
               Sunrise National Public School
             </Typography>
@@ -53,47 +52,24 @@ const Footer: React.FC = () => {
             </Box>
           </Box>
 
-          <Box sx={{ flex: '1 1 300px', minWidth: 300 }}>
-            <Typography variant="h6" gutterBottom>
-              Quick Links
-            </Typography>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-              <Link href="/about" color="inherit" underline="hover">
-                About Us
-              </Link>
-              <Link href="/academics" color="inherit" underline="hover">
-                Academics
-              </Link>
-              <Link href="/admissions" color="inherit" underline="hover">
-                Admissions
-              </Link>
-              <Link href="/faculty" color="inherit" underline="hover">
-                Faculty
-              </Link>
-              <Link href="/gallery" color="inherit" underline="hover">
-                Gallery
-              </Link>
-            </Box>
-          </Box>
-
-          <Box sx={{ flex: '1 1 300px', minWidth: 300 }}>
+          <Box sx={{ flex: '1 1 400px', minWidth: 300, maxWidth: 500 }}>
             <Typography variant="h6" gutterBottom>
               Contact Info
             </Typography>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <LocationOn fontSize="small" />
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+              <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
+                <LocationOn fontSize="small" sx={{ mt: 0.5 }} />
                 <Typography variant="body2">
-                  123 Education Street, Learning City, LC 12345
+                  Sena road, Farsauliyana, Rath, Hamirpur, 210431
                 </Typography>
               </Box>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 <Phone fontSize="small" />
-                <Typography variant="body2">+1 (555) 123-4567</Typography>
+                <Typography variant="body2">6392171614</Typography>
               </Box>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 <Email fontSize="small" />
-                <Typography variant="body2">info@sunriseschool.edu</Typography>
+                <Typography variant="body2">sunrise.nps008@gmail.com</Typography>
               </Box>
             </Box>
           </Box>
