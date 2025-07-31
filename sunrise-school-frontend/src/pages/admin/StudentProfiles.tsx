@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Typography,
   Box,
@@ -27,12 +27,16 @@ import {
   Select,
   Tabs,
   Tab,
+  CircularProgress,
+  Alert,
+  Snackbar,
 } from '@mui/material';
 import {
   ClassDropdown,
   GenderDropdown,
   ClassFilter,
-  SessionYearDropdown
+  SessionYearDropdown,
+  SessionYearFilter
 } from '../../components/common/MetadataDropdown';
 import { useConfiguration } from '../../contexts/ConfigurationContext';
 import {
@@ -48,6 +52,7 @@ import {
   Search,
 } from '@mui/icons-material';
 import AdminLayout from '../../components/Layout/AdminLayout';
+import { studentsAPI } from '../../services/api';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -70,57 +75,253 @@ function TabPanel(props: TabPanelProps) {
   );
 }
 
+interface Student {
+  id: number;
+  admission_number: string;
+  first_name: string;
+  last_name: string;
+  date_of_birth: string;
+  gender_id: number;
+  class_id: number;
+  session_year_id: number;
+  section?: string;
+  roll_number?: string;
+  blood_group?: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  postal_code?: string;
+  country?: string;
+  father_name: string;
+  father_phone?: string;
+  father_email?: string;
+  father_occupation?: string;
+  mother_name: string;
+  mother_phone?: string;
+  mother_email?: string;
+  mother_occupation?: string;
+  emergency_contact_name?: string;
+  emergency_contact_phone?: string;
+  emergency_contact_relation?: string;
+  admission_date: string;
+  previous_school?: string;
+  is_active: boolean;
+  is_deleted?: boolean;
+  deleted_date?: string;
+  created_at: string;
+  updated_at: string;
+  // Metadata relationships
+  gender_name?: string;
+  class_name?: string;
+  session_year_name?: string;
+}
+
 const StudentProfiles: React.FC = () => {
-  const { isLoaded, getCurrentSessionYear } = useConfiguration();
+  const { isLoaded, getCurrentSessionYear, getSessionYears, getClasses } = useConfiguration();
   const [tabValue, setTabValue] = useState(0);
   const [openDialog, setOpenDialog] = useState(false);
-  const [selectedStudent, setSelectedStudent] = useState<any>(null);
+  const [dialogMode, setDialogMode] = useState<'view' | 'edit' | 'create'>('view');
+  const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [filterClass, setFilterClass] = useState('all');
   const [filterSection, setFilterSection] = useState('all');
+  const [filterSessionYear, setFilterSessionYear] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [students, setStudents] = useState<Student[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
+  const [conflictDialog, setConflictDialog] = useState({ open: false, message: '', type: '' });
   const [studentForm, setStudentForm] = useState({
-    rollNumber: '',
-    firstName: '',
-    lastName: '',
+    admission_number: '',
+    roll_number: '',
+    first_name: '',
+    last_name: '',
     class_id: '',
-    session_year_id: getCurrentSessionYear()?.id || '',
+    session_year_id: getCurrentSessionYear()?.id?.toString() || '',
     section: '',
-    dateOfBirth: '',
+    date_of_birth: '',
     gender_id: '',
-    bloodGroup: '',
+    blood_group: '',
+    phone: '',
+    email: '',
     address: '',
-    parentName: '',
-    parentPhone: '',
-    parentEmail: '',
-    emergencyContact: '',
-    admissionDate: ''
+    city: '',
+    state: '',
+    postal_code: '',
+    country: 'India',
+    father_name: '',
+    father_phone: '',
+    father_email: '',
+    father_occupation: '',
+    mother_name: '',
+    mother_phone: '',
+    mother_email: '',
+    mother_occupation: '',
+    emergency_contact_name: '',
+    emergency_contact_phone: '',
+    emergency_contact_relation: '',
+    admission_date: '',
+    previous_school: '',
+    is_active: true
   });
+
+  // Load students from API
+  const loadStudents = async () => {
+    setLoading(true);
+    try {
+      const response = await studentsAPI.getStudents();
+      const studentsData = response.data.students || [];
+      setStudents(studentsData);
+
+      // Debug student data structure
+      if (studentsData.length > 0) {
+        console.log('👨‍🎓 Student Data Debug:', {
+          totalStudents: studentsData.length,
+          firstStudent: studentsData[0],
+          studentFields: Object.keys(studentsData[0]),
+          classIds: Array.from(new Set(studentsData.map((s: any) => s.class_id))),
+          sessionYearIds: Array.from(new Set(studentsData.map((s: any) => s.session_year_id))),
+          sections: Array.from(new Set(studentsData.map((s: any) => s.section)))
+        });
+      }
+    } catch (error) {
+      console.error('Error loading students:', error);
+      setSnackbar({ open: true, message: 'Error loading students', severity: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isLoaded) {
+      loadStudents();
+
+      // Debug configuration data
+      const sessionYears = getSessionYears();
+      const classes = getClasses();
+      const currentSessionYear = getCurrentSessionYear();
+
+      console.log('📋 Configuration Debug:', {
+        sessionYears: sessionYears.length,
+        classes: classes.length,
+        currentSessionYear,
+        sessionYearsList: sessionYears,
+        classesList: classes.slice(0, 3) // First 3 classes
+      });
+
+      // Set default session year to current session year from configuration
+      console.log('🔧 Setting default session year:', {
+        currentSessionYear,
+        filterSessionYear,
+        willSet: currentSessionYear && filterSessionYear === 'all'
+      });
+      if (currentSessionYear && filterSessionYear === 'all') {
+        setFilterSessionYear(currentSessionYear.id.toString());
+        console.log('✅ Set default session year to:', currentSessionYear.id.toString());
+      }
+    }
+  }, [isLoaded, getCurrentSessionYear]);
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
   };
 
-  const handleOpenDialog = (student?: any) => {
+  const handleOpenDialog = (mode: 'view' | 'edit' | 'create', student?: Student) => {
+    // Validate mandatory fields for existing students
+    if (student && (mode === 'view' || mode === 'edit')) {
+      const missingFields = [];
+      if (!student.admission_number) missingFields.push('Admission Number');
+      if (!student.first_name) missingFields.push('First Name');
+      if (!student.last_name) missingFields.push('Last Name');
+      if (!student.date_of_birth) missingFields.push('Date of Birth');
+      if (!student.class_id) missingFields.push('Class');
+      if (!student.session_year_id) missingFields.push('Session Year');
+      if (!student.gender_id) missingFields.push('Gender');
+      if (!student.father_name) missingFields.push('Father Name');
+      if (!student.mother_name) missingFields.push('Mother Name');
+      if (!student.admission_date) missingFields.push('Admission Date');
+
+      if (missingFields.length > 0) {
+        setSnackbar({
+          open: true,
+          message: `Cannot ${mode} student: Missing required fields - ${missingFields.join(', ')}`,
+          severity: 'error'
+        });
+        return;
+      }
+    }
+
+    setDialogMode(mode);
+
     if (student) {
-      setStudentForm(student);
+      setStudentForm({
+        admission_number: student.admission_number,
+        roll_number: student.roll_number || '',
+        first_name: student.first_name,
+        last_name: student.last_name,
+        class_id: student.class_id.toString(),
+        session_year_id: student.session_year_id.toString(),
+        section: student.section || '',
+        date_of_birth: student.date_of_birth,
+        gender_id: student.gender_id.toString(),
+        blood_group: student.blood_group || '',
+        phone: student.phone || '',
+        email: student.email || '',
+        address: student.address || '',
+        city: student.city || '',
+        state: student.state || '',
+        postal_code: student.postal_code || '',
+        country: student.country || 'India',
+        father_name: student.father_name,
+        father_phone: student.father_phone || '',
+        father_email: student.father_email || '',
+        father_occupation: student.father_occupation || '',
+        mother_name: student.mother_name,
+        mother_phone: student.mother_phone || '',
+        mother_email: student.mother_email || '',
+        mother_occupation: student.mother_occupation || '',
+        emergency_contact_name: student.emergency_contact_name || '',
+        emergency_contact_phone: student.emergency_contact_phone || '',
+        emergency_contact_relation: student.emergency_contact_relation || '',
+        admission_date: student.admission_date,
+        previous_school: student.previous_school || '',
+        is_active: student.is_active
+      });
       setSelectedStudent(student);
     } else {
       setStudentForm({
-        rollNumber: '',
-        firstName: '',
-        lastName: '',
+        admission_number: '',
+        roll_number: '',
+        first_name: '',
+        last_name: '',
         class_id: '',
-        session_year_id: getCurrentSessionYear()?.id || '',
+        session_year_id: getCurrentSessionYear()?.id?.toString() || '',
         section: '',
-        dateOfBirth: '',
+        date_of_birth: '',
         gender_id: '',
-        bloodGroup: '',
+        blood_group: '',
+        phone: '',
+        email: '',
         address: '',
-        parentName: '',
-        parentPhone: '',
-        parentEmail: '',
-        emergencyContact: '',
-        admissionDate: ''
+        city: '',
+        state: '',
+        postal_code: '',
+        country: 'India',
+        father_name: '',
+        father_phone: '',
+        father_email: '',
+        father_occupation: '',
+        mother_name: '',
+        mother_phone: '',
+        mother_email: '',
+        mother_occupation: '',
+        emergency_contact_name: '',
+        emergency_contact_phone: '',
+        emergency_contact_relation: '',
+        admission_date: '',
+        previous_school: '',
+        is_active: true
       });
       setSelectedStudent(null);
     }
@@ -139,89 +340,162 @@ const StudentProfiles: React.FC = () => {
     });
   };
 
-  const handleSubmit = () => {
-    console.log('Student form submitted:', studentForm);
-    handleCloseDialog();
-  };
+  const handleSubmit = async () => {
+    try {
+      // Validate required fields
+      if (!studentForm.admission_number || !studentForm.first_name || !studentForm.last_name ||
+          !studentForm.date_of_birth || !studentForm.class_id || !studentForm.session_year_id ||
+          !studentForm.gender_id || !studentForm.father_name || !studentForm.mother_name ||
+          !studentForm.admission_date) {
+        setSnackbar({ open: true, message: 'Please fill in all required fields', severity: 'error' });
+        return;
+      }
 
-  const handleDelete = (studentId: number) => {
-    console.log('Delete student:', studentId);
-  };
+      // Convert form data to API format
+      const studentData = {
+        ...studentForm,
+        class_id: parseInt(studentForm.class_id),
+        session_year_id: parseInt(studentForm.session_year_id),
+        gender_id: parseInt(studentForm.gender_id),
+        // Ensure dates are in YYYY-MM-DD format
+        date_of_birth: studentForm.date_of_birth,
+        admission_date: studentForm.admission_date,
+        // Remove empty strings and convert to null for optional fields
+        phone: studentForm.phone || null,
+        email: studentForm.email || null,
+        address: studentForm.address || null,
+        city: studentForm.city || null,
+        state: studentForm.state || null,
+        postal_code: studentForm.postal_code || null,
+        section: studentForm.section || null,
+        roll_number: studentForm.roll_number || null,
+        blood_group: studentForm.blood_group || null,
+        father_phone: studentForm.father_phone || null,
+        father_email: studentForm.father_email || null,
+        father_occupation: studentForm.father_occupation || null,
+        mother_phone: studentForm.mother_phone || null,
+        mother_email: studentForm.mother_email || null,
+        mother_occupation: studentForm.mother_occupation || null,
+        emergency_contact_name: studentForm.emergency_contact_name || null,
+        emergency_contact_phone: studentForm.emergency_contact_phone || null,
+        emergency_contact_relation: studentForm.emergency_contact_relation || null,
+        previous_school: studentForm.previous_school || null,
+      };
 
-  // Mock data
-  const students = [
-    {
-      id: 1,
-      rollNumber: 'STU001',
-      firstName: 'Aarav',
-      lastName: 'Sharma',
-      class: '10',
-      section: 'A',
-      dateOfBirth: '2008-05-15',
-      gender: 'Male',
-      bloodGroup: 'O+',
-      address: '123 Main Street, City',
-      parentName: 'Rajesh Sharma',
-      parentPhone: '+91 98765 43210',
-      parentEmail: 'rajesh.sharma@email.com',
-      emergencyContact: '+91 87654 32109',
-      admissionDate: '2020-04-01',
-      status: 'Active'
-    },
-    {
-      id: 2,
-      rollNumber: 'STU002',
-      firstName: 'Priya',
-      lastName: 'Patel',
-      class: '9',
-      section: 'B',
-      dateOfBirth: '2009-08-22',
-      gender: 'Female',
-      bloodGroup: 'A+',
-      address: '456 Park Avenue, City',
-      parentName: 'Suresh Patel',
-      parentPhone: '+91 98765 43211',
-      parentEmail: 'suresh.patel@email.com',
-      emergencyContact: '+91 87654 32110',
-      admissionDate: '2021-04-01',
-      status: 'Active'
-    },
-    {
-      id: 3,
-      rollNumber: 'STU003',
-      firstName: 'Arjun',
-      lastName: 'Kumar',
-      class: '8',
-      section: 'A',
-      dateOfBirth: '2010-12-10',
-      gender: 'Male',
-      bloodGroup: 'B+',
-      address: '789 School Road, City',
-      parentName: 'Amit Kumar',
-      parentPhone: '+91 98765 43212',
-      parentEmail: 'amit.kumar@email.com',
-      emergencyContact: '+91 87654 32111',
-      admissionDate: '2022-04-01',
-      status: 'Active'
+
+
+      if (selectedStudent) {
+        // Update existing student
+        await studentsAPI.updateStudent(selectedStudent.id, studentData);
+        setSnackbar({ open: true, message: 'Student updated successfully', severity: 'success' });
+      } else {
+        // Create new student
+        await studentsAPI.createStudent(studentData);
+        setSnackbar({ open: true, message: 'Student created successfully', severity: 'success' });
+      }
+
+      handleCloseDialog();
+      loadStudents(); // Reload the list
+    } catch (error: any) {
+      console.error('Error saving student:', error);
+      const errorMessage = error.response?.data?.detail || 'Error saving student';
+
+      // Check if it's a conflict error (like duplicate admission number)
+      if (error.response?.status === 400 && errorMessage.includes('already exists')) {
+        setConflictDialog({
+          open: true,
+          message: errorMessage,
+          type: 'duplicate'
+        });
+      } else {
+        setSnackbar({ open: true, message: errorMessage, severity: 'error' });
+      }
     }
-  ];
+  };
+
+  const handleDelete = async (studentId: number) => {
+    if (window.confirm('Are you sure you want to delete this student?')) {
+      try {
+        await studentsAPI.deleteStudent(studentId);
+        setSnackbar({ open: true, message: 'Student deleted successfully', severity: 'success' });
+        loadStudents(); // Reload the list
+      } catch (error) {
+        console.error('Error deleting student:', error);
+        setSnackbar({ open: true, message: 'Error deleting student', severity: 'error' });
+      }
+    }
+  };
 
   // Hardcoded sections and blood groups (these are not in metadata yet)
   const sections = ['A', 'B', 'C', 'D'];
   const bloodGroups = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
+  // Calculate stats from actual data (exclude soft deleted students)
+  const validStudents = students.filter(s => !s.is_deleted);
   const studentStats = [
-    { title: 'Total Students', value: '1,245', icon: <Person />, color: 'primary' },
-    { title: 'Active Students', value: '1,198', icon: <School />, color: 'success' },
-    { title: 'New Admissions', value: '47', icon: <Add />, color: 'info' },
-    { title: 'Classes', value: '12', icon: <School />, color: 'warning' },
+    { title: 'Total Students', value: validStudents.length.toString(), icon: <Person />, color: 'primary' },
+    { title: 'Active Students', value: validStudents.filter(s => s.is_active).length.toString(), icon: <School />, color: 'success' },
+    { title: 'New Admissions', value: validStudents.filter(s => new Date(s.admission_date).getFullYear() === new Date().getFullYear()).length.toString(), icon: <Add />, color: 'info' },
+    { title: 'Classes', value: new Set(validStudents.map(s => s.class_name)).size.toString(), icon: <School />, color: 'warning' },
   ];
 
+
+
+  // Filter students based on search and filters
   const filteredStudents = students.filter(student => {
-    if (filterClass !== 'all' && student.class !== filterClass) return false;
-    if (filterSection !== 'all' && student.section !== filterSection) return false;
-    if (searchTerm && !`${student.firstName} ${student.lastName} ${student.rollNumber}`.toLowerCase().includes(searchTerm.toLowerCase())) return false;
-    return true;
+    // Exclude soft deleted students
+    if (student.is_deleted) {
+      return false;
+    }
+
+    const matchesSearch = searchTerm === '' ||
+      student.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      student.last_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      student.admission_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      student.father_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      student.mother_name.toLowerCase().includes(searchTerm.toLowerCase());
+
+    const matchesClass = filterClass === 'all' || student.class_id.toString() === filterClass;
+    const matchesSection = filterSection === 'all' || student.section === filterSection;
+    const matchesSessionYear = filterSessionYear === 'all' || student.session_year_id.toString() === filterSessionYear;
+    const matchesTab = tabValue === 0 ||
+      (tabValue === 1 && student.is_active) ||
+      (tabValue === 2 && !student.is_active);
+
+    // Debug logging for first student
+    if (student.id === students[0]?.id) {
+      console.log('🔍 Filter Debug for first student:', {
+        student: `${student.first_name} ${student.last_name}`,
+        filterClass,
+        filterSection,
+        filterSessionYear,
+        student_class_id: student.class_id,
+        student_section: student.section,
+        student_session_year_id: student.session_year_id,
+        matchesClass,
+        matchesSection,
+        matchesSessionYear,
+        matchesSearch,
+        matchesTab,
+        finalResult: matchesSearch && matchesClass && matchesSection && matchesSessionYear && matchesTab
+      });
+    }
+
+    return matchesSearch && matchesClass && matchesSection && matchesSessionYear && matchesTab;
+  });
+
+  // Debug filtered results
+  console.log('🔍 Filter Results Debug:', {
+    totalStudents: students.length,
+    validStudents: validStudents.length,
+    filteredStudents: filteredStudents.length,
+    currentFilters: {
+      filterClass,
+      filterSection,
+      filterSessionYear,
+      searchTerm,
+      tabValue
+    }
   });
 
   // Show loading state if configuration is not loaded
@@ -242,7 +516,7 @@ const StudentProfiles: React.FC = () => {
         <Button
           variant="contained"
           startIcon={<Add />}
-          onClick={() => handleOpenDialog()}
+          onClick={() => handleOpenDialog('create')}
         >
           Add Student
         </Button>
@@ -276,25 +550,45 @@ const StudentProfiles: React.FC = () => {
       {/* Filters and Search */}
       <Paper elevation={3} sx={{ p: 3, mb: 3 }}>
         <Grid container spacing={2} alignItems="center">
-          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-            <TextField
-              fullWidth
-              size="small"
-              placeholder="Search students..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              InputProps={{
-                startAdornment: <Search sx={{ mr: 1, color: 'text.secondary' }} />
-              }}
-            />
+          <Grid size={{ xs: 12, sm: 6, md: 2 }}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Session Year</InputLabel>
+              <Select
+                value={filterSessionYear}
+                label="Session Year"
+                onChange={(e) => {
+                  console.log('🔄 Session Year filter changed:', e.target.value);
+                  setFilterSessionYear(e.target.value);
+                }}
+              >
+                <MenuItem value="all">All Session Years</MenuItem>
+                {getSessionYears().map((sy: any) => (
+                  <MenuItem key={sy.id} value={sy.id.toString()}>
+                    {sy.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
           </Grid>
           <Grid size={{ xs: 12, sm: 6, md: 2 }}>
-            <ClassFilter
-              value={filterClass}
-              onChange={(value) => setFilterClass(value as string)}
-              size="small"
-              allLabel="All Classes"
-            />
+            <FormControl fullWidth size="small">
+              <InputLabel>Class</InputLabel>
+              <Select
+                value={filterClass}
+                label="Class"
+                onChange={(e) => {
+                  console.log('🔄 Class filter changed:', e.target.value);
+                  setFilterClass(e.target.value);
+                }}
+              >
+                <MenuItem value="all">All Classes</MenuItem>
+                {getClasses().map((cls: any) => (
+                  <MenuItem key={cls.id} value={cls.id.toString()}>
+                    {cls.display_name || cls.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
           </Grid>
           <Grid size={{ xs: 12, sm: 6, md: 2 }}>
             <FormControl fullWidth size="small">
@@ -312,6 +606,18 @@ const StudentProfiles: React.FC = () => {
                 ))}
               </Select>
             </FormControl>
+          </Grid>
+          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+            <TextField
+              fullWidth
+              size="small"
+              placeholder="Search students..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              InputProps={{
+                startAdornment: <Search sx={{ mr: 1, color: 'text.secondary' }} />
+              }}
+            />
           </Grid>
         </Grid>
       </Paper>
@@ -338,52 +644,143 @@ const StudentProfiles: React.FC = () => {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {filteredStudents.map((student) => (
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={6} align="center">
+                      <CircularProgress />
+                    </TableCell>
+                  </TableRow>
+                ) : filteredStudents.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} align="center">
+                      No students found
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredStudents.map((student) => (
+                    <TableRow key={student.id}>
+                      <TableCell>
+                        <Box display="flex" alignItems="center">
+                          <Avatar sx={{ mr: 2, bgcolor: 'primary.main' }}>
+                            {student.first_name[0]}{student.last_name[0]}
+                          </Avatar>
+                          <Box>
+                            <Typography variant="body2" fontWeight="bold">
+                              {student.first_name} {student.last_name}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              DOB: {student.date_of_birth}
+                            </Typography>
+                          </Box>
+                        </Box>
+                      </TableCell>
+                      <TableCell>{student.admission_number}</TableCell>
+                      <TableCell>
+                        <Chip
+                          label={`${student.class_name || 'N/A'}-${student.section || 'N/A'}`}
+                          size="small"
+                          color="primary"
+                          variant="outlined"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Box>
+                          <Typography variant="body2">{student.father_name}</Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            {student.father_phone}
+                          </Typography>
+                        </Box>
+                      </TableCell>
+                      <TableCell>
+                        <Chip
+                          label={student.is_active ? 'Active' : 'Inactive'}
+                          size="small"
+                          color={student.is_active ? 'success' : 'default'}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <IconButton size="small" onClick={() => handleOpenDialog('view', student)}>
+                          <Visibility />
+                        </IconButton>
+                        <IconButton size="small" onClick={() => handleOpenDialog('edit', student)}>
+                          <Edit />
+                        </IconButton>
+                        <IconButton size="small" color="error" onClick={() => handleDelete(student.id)}>
+                          <Delete />
+                        </IconButton>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </TabPanel>
+
+        <TabPanel value={tabValue} index={1}>
+          <TableContainer>
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell>Student</TableCell>
+                  <TableCell>Roll Number</TableCell>
+                  <TableCell>Class</TableCell>
+                  <TableCell>Parent Contact</TableCell>
+                  <TableCell>Status</TableCell>
+                  <TableCell>Actions</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {filteredStudents.filter(student => student.is_active).map((student) => (
                   <TableRow key={student.id}>
                     <TableCell>
                       <Box display="flex" alignItems="center">
                         <Avatar sx={{ mr: 2, bgcolor: 'primary.main' }}>
-                          {student.firstName[0]}{student.lastName[0]}
+                          {student.first_name[0]}{student.last_name[0]}
                         </Avatar>
                         <Box>
-                          <Typography variant="body2" fontWeight="bold">
-                            {student.firstName} {student.lastName}
+                          <Typography variant="subtitle2">
+                            {student.first_name} {student.last_name}
                           </Typography>
                           <Typography variant="caption" color="text.secondary">
-                            DOB: {student.dateOfBirth}
+                            {student.admission_number}
                           </Typography>
                         </Box>
                       </Box>
                     </TableCell>
-                    <TableCell>{student.rollNumber}</TableCell>
                     <TableCell>
-                      <Chip 
-                        label={`${student.class}-${student.section}`} 
-                        size="small" 
-                        color="primary" 
-                        variant="outlined" 
-                      />
+                      <Typography variant="body2">
+                        {student.roll_number || 'Not Assigned'}
+                      </Typography>
                     </TableCell>
                     <TableCell>
                       <Box>
-                        <Typography variant="body2">{student.parentName}</Typography>
+                        <Typography variant="body2">{student.class_name}</Typography>
                         <Typography variant="caption" color="text.secondary">
-                          {student.parentPhone}
+                          {student.section ? `Section ${student.section}` : 'No Section'}
                         </Typography>
                       </Box>
                     </TableCell>
                     <TableCell>
-                      <Chip 
-                        label={student.status} 
-                        size="small" 
-                        color={student.status === 'Active' ? 'success' : 'default'}
+                      <Box>
+                        <Typography variant="body2">{student.father_name}</Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {student.father_phone || student.phone || 'No Phone'}
+                        </Typography>
+                      </Box>
+                    </TableCell>
+                    <TableCell>
+                      <Chip
+                        label={student.is_active ? 'Active' : 'Inactive'}
+                        color={student.is_active ? 'success' : 'default'}
+                        size="small"
                       />
                     </TableCell>
                     <TableCell>
-                      <IconButton size="small" onClick={() => handleOpenDialog(student)}>
+                      <IconButton size="small" onClick={() => handleOpenDialog('view', student)}>
                         <Visibility />
                       </IconButton>
-                      <IconButton size="small" onClick={() => handleOpenDialog(student)}>
+                      <IconButton size="small" onClick={() => handleOpenDialog('edit', student)}>
                         <Edit />
                       </IconButton>
                       <IconButton size="small" color="error" onClick={() => handleDelete(student.id)}>
@@ -397,50 +794,150 @@ const StudentProfiles: React.FC = () => {
           </TableContainer>
         </TabPanel>
 
-        <TabPanel value={tabValue} index={1}>
-          <Typography>Active students only</Typography>
-        </TabPanel>
-
         <TabPanel value={tabValue} index={2}>
-          <Typography>Inactive students only</Typography>
+          <TableContainer>
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell>Student</TableCell>
+                  <TableCell>Roll Number</TableCell>
+                  <TableCell>Class</TableCell>
+                  <TableCell>Parent Contact</TableCell>
+                  <TableCell>Status</TableCell>
+                  <TableCell>Actions</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {filteredStudents.filter(student => !student.is_active).map((student) => (
+                  <TableRow key={student.id}>
+                    <TableCell>
+                      <Box display="flex" alignItems="center">
+                        <Avatar sx={{ mr: 2, bgcolor: 'primary.main' }}>
+                          {student.first_name[0]}{student.last_name[0]}
+                        </Avatar>
+                        <Box>
+                          <Typography variant="subtitle2">
+                            {student.first_name} {student.last_name}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            {student.admission_number}
+                          </Typography>
+                        </Box>
+                      </Box>
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2">
+                        {student.roll_number || 'Not Assigned'}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Box>
+                        <Typography variant="body2">{student.class_name}</Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {student.section ? `Section ${student.section}` : 'No Section'}
+                        </Typography>
+                      </Box>
+                    </TableCell>
+                    <TableCell>
+                      <Box>
+                        <Typography variant="body2">{student.father_name}</Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {student.father_phone || student.phone || 'No Phone'}
+                        </Typography>
+                      </Box>
+                    </TableCell>
+                    <TableCell>
+                      <Chip
+                        label={student.is_active ? 'Active' : 'Inactive'}
+                        color={student.is_active ? 'success' : 'default'}
+                        size="small"
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <IconButton size="small" onClick={() => handleOpenDialog('view', student)}>
+                        <Visibility />
+                      </IconButton>
+                      <IconButton size="small" onClick={() => handleOpenDialog('edit', student)}>
+                        <Edit />
+                      </IconButton>
+                      <IconButton size="small" color="error" onClick={() => handleDelete(student.id)}>
+                        <Delete />
+                      </IconButton>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
         </TabPanel>
       </Paper>
 
       {/* Student Form Dialog */}
-      <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="md" fullWidth>
+      <Dialog
+        open={openDialog}
+        onClose={handleCloseDialog}
+        maxWidth="md"
+        fullWidth
+      >
         <DialogTitle>
-          {selectedStudent ? 'Edit Student Profile' : 'Add New Student'}
+          {dialogMode === 'view' ? 'View Student Details' :
+           dialogMode === 'edit' ? 'Edit Student' : 'Add New Student'}
         </DialogTitle>
         <DialogContent>
           <Grid container spacing={2} sx={{ mt: 1 }}>
             <Grid size={{ xs: 12, sm: 6 }}>
               <TextField
                 fullWidth
-                label="Roll Number"
-                name="rollNumber"
-                value={studentForm.rollNumber}
+                label="Admission Number"
+                name="admission_number"
+                value={studentForm.admission_number}
                 onChange={handleFormChange}
                 required
+                disabled={dialogMode === 'view'}
+                InputProps={{
+                  readOnly: dialogMode === 'view',
+                }}
+              />
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6 }}>
+              <TextField
+                fullWidth
+                label="Roll Number"
+                name="roll_number"
+                value={studentForm.roll_number}
+                onChange={handleFormChange}
+                disabled={dialogMode === 'view'}
+                InputProps={{
+                  readOnly: dialogMode === 'view',
+                }}
               />
             </Grid>
             <Grid size={{ xs: 12, sm: 6 }}>
               <TextField
                 fullWidth
                 label="First Name"
-                name="firstName"
-                value={studentForm.firstName}
+                name="first_name"
+                value={studentForm.first_name}
                 onChange={handleFormChange}
                 required
+                disabled={dialogMode === 'view'}
+                InputProps={{
+                  readOnly: dialogMode === 'view',
+                }}
               />
             </Grid>
             <Grid size={{ xs: 12, sm: 6 }}>
               <TextField
                 fullWidth
                 label="Last Name"
-                name="lastName"
-                value={studentForm.lastName}
+                name="last_name"
+                value={studentForm.last_name}
                 onChange={handleFormChange}
                 required
+                disabled={dialogMode === 'view'}
+                InputProps={{
+                  readOnly: dialogMode === 'view',
+                }}
               />
             </Grid>
             <Grid size={{ xs: 12, sm: 6 }}>
@@ -448,11 +945,15 @@ const StudentProfiles: React.FC = () => {
                 fullWidth
                 type="date"
                 label="Date of Birth"
-                name="dateOfBirth"
-                value={studentForm.dateOfBirth}
+                name="date_of_birth"
+                value={studentForm.date_of_birth}
                 onChange={handleFormChange}
                 InputLabelProps={{ shrink: true }}
                 required
+                disabled={dialogMode === 'view'}
+                InputProps={{
+                  readOnly: dialogMode === 'view',
+                }}
               />
             </Grid>
             <Grid size={{ xs: 12, sm: 4 }}>
@@ -460,6 +961,7 @@ const StudentProfiles: React.FC = () => {
                 value={studentForm.class_id}
                 onChange={(value) => setStudentForm(prev => ({ ...prev, class_id: value as string }))}
                 required
+                disabled={dialogMode === 'view'}
               />
             </Grid>
             <Grid size={{ xs: 12, sm: 4 }}>
@@ -471,6 +973,7 @@ const StudentProfiles: React.FC = () => {
                 value={studentForm.section}
                 onChange={handleFormChange}
                 required
+                disabled={dialogMode === 'view'}
               >
                 {sections.map((section) => (
                   <MenuItem key={section} value={section}>
@@ -484,6 +987,7 @@ const StudentProfiles: React.FC = () => {
                 value={studentForm.gender_id}
                 onChange={(value) => setStudentForm(prev => ({ ...prev, gender_id: value as string }))}
                 required
+                disabled={dialogMode === 'view'}
               />
             </Grid>
             <Grid size={{ xs: 12, sm: 4 }}>
@@ -491,6 +995,7 @@ const StudentProfiles: React.FC = () => {
                 value={studentForm.session_year_id}
                 onChange={(value) => setStudentForm(prev => ({ ...prev, session_year_id: value as string }))}
                 required
+                disabled={dialogMode === 'view'}
               />
             </Grid>
             <Grid size={{ xs: 12, sm: 6 }}>
@@ -498,9 +1003,10 @@ const StudentProfiles: React.FC = () => {
                 fullWidth
                 select
                 label="Blood Group"
-                name="bloodGroup"
-                value={studentForm.bloodGroup}
+                name="blood_group"
+                value={studentForm.blood_group}
                 onChange={handleFormChange}
+                disabled={dialogMode === 'view'}
               >
                 {bloodGroups.map((group) => (
                   <MenuItem key={group} value={group}>
@@ -514,12 +1020,31 @@ const StudentProfiles: React.FC = () => {
                 fullWidth
                 type="date"
                 label="Admission Date"
-                name="admissionDate"
-                value={studentForm.admissionDate}
+                name="admission_date"
+                value={studentForm.admission_date}
                 onChange={handleFormChange}
                 InputLabelProps={{ shrink: true }}
                 required
+                disabled={dialogMode === 'view'}
+                InputProps={{
+                  readOnly: dialogMode === 'view',
+                }}
               />
+            </Grid>
+
+            <Grid size={{ xs: 12, sm: 6 }}>
+              <TextField
+                fullWidth
+                select
+                label="Status"
+                name="is_active"
+                value={studentForm.is_active.toString()}
+                onChange={(e) => setStudentForm(prev => ({ ...prev, is_active: e.target.value === 'true' }))}
+                disabled={dialogMode === 'view'}
+              >
+                <MenuItem value="true">Active</MenuItem>
+                <MenuItem value="false">Inactive</MenuItem>
+              </TextField>
             </Grid>
             <Grid size={12}>
               <TextField
@@ -532,54 +1057,219 @@ const StudentProfiles: React.FC = () => {
                 rows={2}
               />
             </Grid>
-            <Grid size={{ xs: 12, sm: 6 }}>
+            <Grid size={{ xs: 12, sm: 4 }}>
               <TextField
                 fullWidth
-                label="Parent/Guardian Name"
-                name="parentName"
-                value={studentForm.parentName}
+                label="City"
+                name="city"
+                value={studentForm.city}
                 onChange={handleFormChange}
-                required
+              />
+            </Grid>
+            <Grid size={{ xs: 12, sm: 4 }}>
+              <TextField
+                fullWidth
+                label="State"
+                name="state"
+                value={studentForm.state}
+                onChange={handleFormChange}
+              />
+            </Grid>
+            <Grid size={{ xs: 12, sm: 4 }}>
+              <TextField
+                fullWidth
+                label="Postal Code"
+                name="postal_code"
+                value={studentForm.postal_code}
+                onChange={handleFormChange}
               />
             </Grid>
             <Grid size={{ xs: 12, sm: 6 }}>
               <TextField
                 fullWidth
-                label="Parent Phone"
-                name="parentPhone"
-                value={studentForm.parentPhone}
+                label="Student Phone"
+                name="phone"
+                value={studentForm.phone}
                 onChange={handleFormChange}
-                required
               />
             </Grid>
             <Grid size={{ xs: 12, sm: 6 }}>
               <TextField
                 fullWidth
                 type="email"
-                label="Parent Email"
-                name="parentEmail"
-                value={studentForm.parentEmail}
+                label="Student Email"
+                name="email"
+                value={studentForm.email}
+                onChange={handleFormChange}
+              />
+            </Grid>
+            <Grid size={12}>
+              <TextField
+                fullWidth
+                label="Previous School"
+                name="previous_school"
+                value={studentForm.previous_school}
                 onChange={handleFormChange}
               />
             </Grid>
             <Grid size={{ xs: 12, sm: 6 }}>
               <TextField
                 fullWidth
-                label="Emergency Contact"
-                name="emergencyContact"
-                value={studentForm.emergencyContact}
+                label="Father's Name"
+                name="father_name"
+                value={studentForm.father_name}
+                onChange={handleFormChange}
+                required
+                disabled={dialogMode === 'view'}
+                InputProps={{
+                  readOnly: dialogMode === 'view',
+                }}
+              />
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6 }}>
+              <TextField
+                fullWidth
+                label="Father's Phone"
+                name="father_phone"
+                value={studentForm.father_phone}
+                onChange={handleFormChange}
+              />
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6 }}>
+              <TextField
+                fullWidth
+                type="email"
+                label="Father's Email"
+                name="father_email"
+                value={studentForm.father_email}
+                onChange={handleFormChange}
+              />
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6 }}>
+              <TextField
+                fullWidth
+                label="Father's Occupation"
+                name="father_occupation"
+                value={studentForm.father_occupation}
+                onChange={handleFormChange}
+              />
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6 }}>
+              <TextField
+                fullWidth
+                label="Mother's Name"
+                name="mother_name"
+                value={studentForm.mother_name}
+                onChange={handleFormChange}
+                required
+                disabled={dialogMode === 'view'}
+                InputProps={{
+                  readOnly: dialogMode === 'view',
+                }}
+              />
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6 }}>
+              <TextField
+                fullWidth
+                label="Mother's Phone"
+                name="mother_phone"
+                value={studentForm.mother_phone}
+                onChange={handleFormChange}
+              />
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6 }}>
+              <TextField
+                fullWidth
+                type="email"
+                label="Mother's Email"
+                name="mother_email"
+                value={studentForm.mother_email}
+                onChange={handleFormChange}
+              />
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6 }}>
+              <TextField
+                fullWidth
+                label="Mother's Occupation"
+                name="mother_occupation"
+                value={studentForm.mother_occupation}
+                onChange={handleFormChange}
+              />
+            </Grid>
+            <Grid size={{ xs: 12, sm: 4 }}>
+              <TextField
+                fullWidth
+                label="Emergency Contact Name"
+                name="emergency_contact_name"
+                value={studentForm.emergency_contact_name}
+                onChange={handleFormChange}
+              />
+            </Grid>
+            <Grid size={{ xs: 12, sm: 4 }}>
+              <TextField
+                fullWidth
+                label="Emergency Contact Phone"
+                name="emergency_contact_phone"
+                value={studentForm.emergency_contact_phone}
+                onChange={handleFormChange}
+              />
+            </Grid>
+            <Grid size={{ xs: 12, sm: 4 }}>
+              <TextField
+                fullWidth
+                label="Emergency Contact Relation"
+                name="emergency_contact_relation"
+                value={studentForm.emergency_contact_relation}
                 onChange={handleFormChange}
               />
             </Grid>
           </Grid>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseDialog}>Cancel</Button>
-          <Button onClick={handleSubmit} variant="contained">
-            {selectedStudent ? 'Update' : 'Add'} Student
+          <Button onClick={handleCloseDialog}>
+            {dialogMode === 'view' ? 'Close' : 'Cancel'}
+          </Button>
+          {dialogMode !== 'view' && (
+            <Button onClick={handleSubmit} variant="contained">
+              {dialogMode === 'edit' ? 'Update' : 'Add'} Student
+            </Button>
+          )}
+        </DialogActions>
+      </Dialog>
+
+      {/* Conflict Dialog for Edit Mode */}
+      <Dialog
+        open={conflictDialog.open}
+        onClose={() => setConflictDialog({ ...conflictDialog, open: false })}
+        maxWidth="xs"
+      >
+        <DialogTitle>
+          {conflictDialog.type === 'duplicate' ? 'Duplicate Record' : 'Error'}
+        </DialogTitle>
+        <DialogContent>
+          <Typography>{conflictDialog.message}</Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConflictDialog({ ...conflictDialog, open: false })} variant="contained">
+            OK
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Snackbar for notifications */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+      >
+        <Alert
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
+          severity={snackbar.severity}
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
       </Box>
     </AdminLayout>
   );

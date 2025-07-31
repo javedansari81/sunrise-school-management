@@ -204,6 +204,14 @@ export const GenderFilter: React.FC<Omit<FilterDropdownProps, 'metadataType' | '
   <FilterDropdown metadataType="genders" label={label} allLabel={allLabel} {...props} />
 );
 
+export const SessionYearFilter: React.FC<Omit<FilterDropdownProps, 'metadataType' | 'label'> & { label?: string }> = ({
+  label = 'Session Year',
+  allLabel = 'All Session Years',
+  ...props
+}) => (
+  <FilterDropdown metadataType="sessionYears" label={label} allLabel={allLabel} {...props} />
+);
+
 export const PaymentStatusFilter: React.FC<Omit<FilterDropdownProps, 'metadataType' | 'label'> & { label?: string }> = ({
   label = 'Payment Status',
   allLabel = 'All Statuses',

@@ -14,6 +14,23 @@ from app.schemas.student import StudentCreate, StudentUpdate, ClassEnum, GenderE
 class CRUDStudent(CRUDBase[Student, StudentCreate, StudentUpdate]):
     def __init__(self):
         super().__init__(Student)
+
+    async def get_multi(
+        self, db: AsyncSession, *, skip: int = 0, limit: int = 100
+    ) -> List[Student]:
+        """Override to get all students (active and inactive) but exclude soft deleted"""
+        query = select(self.model)
+
+        # Only exclude soft deleted records, include both active and inactive
+        if hasattr(self.model, 'is_deleted'):
+            query = query.where(
+                (self.model.is_deleted == False) | (self.model.is_deleted.is_(None))
+            )
+
+        result = await db.execute(
+            query.offset(skip).limit(limit)
+        )
+        return result.scalars().all()
     async def get_by_admission_number(
         self, db: AsyncSession, *, admission_number: str
     ) -> Optional[Student]:
@@ -78,12 +95,22 @@ class CRUDStudent(CRUDBase[Student, StudentCreate, StudentUpdate]):
         section_filter: Optional[str] = None,
         gender_filter: Optional[str] = None,
         search: Optional[str] = None,
-        is_active: bool = True
+        is_active: Optional[bool] = None
     ) -> tuple[List[Student], int]:
         query = select(Student)
-        
+
         # Apply filters
-        conditions = [Student.is_active == is_active]
+        conditions = []
+
+        # Only filter by is_active if explicitly provided
+        if is_active is not None:
+            conditions.append(Student.is_active == is_active)
+
+        # Always exclude soft deleted records
+        if hasattr(Student, 'is_deleted'):
+            conditions.append(
+                (Student.is_deleted == False) | (Student.is_deleted.is_(None))
+            )
         
         if class_filter:
             conditions.append(Student.current_class == class_filter)

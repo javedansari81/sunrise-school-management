@@ -6,6 +6,9 @@ import math
 from app.core.database import get_db
 from app.crud.crud_student import CRUDStudent
 from app.crud import fee_record_crud
+
+# Initialize CRUD instance
+student_crud = CRUDStudent()
 from app.schemas.student import (
     Student, StudentCreate, StudentUpdate, StudentWithFees, StudentListResponse,
     ClassEnum, GenderEnum
@@ -22,7 +25,7 @@ async def get_students(
     section_filter: Optional[str] = Query(None, description="Filter by section"),
     gender_filter: Optional[str] = Query(None, description="Filter by gender"),
     search: Optional[str] = Query(None, description="Search by name, admission number, or parent name"),
-    is_active: bool = Query(True, description="Filter by active status"),
+    is_active: Optional[bool] = Query(None, description="Filter by active status (None = all, True = active only, False = inactive only)"),
     page: int = Query(1, ge=1),
     per_page: int = Query(20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
@@ -70,19 +73,17 @@ async def create_student(
     """
     Create a new student record with metadata validation
     """
-    student_crud = CRUDStudent()
-
-    # Check if admission number already exists
-    existing_student = await student_crud.get_by_admission_number(
-        db, admission_number=student_data.admission_number
-    )
-    if existing_student:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Student with this admission number already exists"
-        )
-
     try:
+        # Check if admission number already exists
+        existing_student = await student_crud.get_by_admission_number(
+            db, admission_number=student_data.admission_number
+        )
+        if existing_student:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Student with this admission number already exists"
+            )
+
         # Create student with metadata validation
         student = await student_crud.create_with_validation(db, obj_in=student_data)
         student_with_metadata = await student_crud.get_with_metadata(db, id=student.id)

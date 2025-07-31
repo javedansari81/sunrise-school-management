@@ -29,11 +29,16 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
     async def get_multi(
         self, db: AsyncSession, *, skip: int = 0, limit: int = 100
     ) -> List[ModelType]:
+        query = select(self.model).where(self.model.is_active == True)
+
+        # Also exclude soft deleted records if the model has is_deleted column
+        if hasattr(self.model, 'is_deleted'):
+            query = query.where(
+                (self.model.is_deleted == False) | (self.model.is_deleted.is_(None))
+            )
+
         result = await db.execute(
-            select(self.model)
-            .where(self.model.is_active == True)
-            .offset(skip)
-            .limit(limit)
+            query.offset(skip).limit(limit)
         )
         return result.scalars().all()
 
@@ -66,9 +71,15 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         return db_obj
 
     async def remove(self, db: AsyncSession, *, id: int) -> ModelType:
+        from datetime import datetime
         obj = await self.get(db, id=id)
         if obj:
+            # Soft delete using both old and new columns for compatibility
             obj.is_active = False
+            if hasattr(obj, 'is_deleted'):
+                obj.is_deleted = True
+            if hasattr(obj, 'deleted_date'):
+                obj.deleted_date = datetime.utcnow()
             db.add(obj)
             await db.commit()
             await db.refresh(obj)
