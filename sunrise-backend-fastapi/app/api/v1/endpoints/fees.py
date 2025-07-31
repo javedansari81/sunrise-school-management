@@ -60,7 +60,7 @@ async def get_fees(
             **fee.__dict__,
             "student_name": f"{fee.student.first_name} {fee.student.last_name}",
             "student_admission_number": fee.student.admission_number,
-            "student_class": fee.student.current_class
+            "student_class": fee.student.class_ref.name if fee.student.class_ref else None
         }
         fee_list.append(fee_dict)
 

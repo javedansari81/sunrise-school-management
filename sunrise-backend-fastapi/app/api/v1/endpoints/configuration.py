@@ -12,7 +12,7 @@ from app.core.database import get_db
 from app.api.deps import get_current_active_user
 from app.models.user import User
 from app.schemas.metadata import ConfigurationResponse
-from app.crud import get_all_metadata
+from app.crud import get_all_metadata_async
 
 router = APIRouter()
 
@@ -26,8 +26,8 @@ async def get_metadata_configuration(db: AsyncSession) -> Dict[str, Any]:
     Returns a comprehensive configuration object for frontend consumption
     """
 
-    # Use the new metadata CRUD helper
-    metadata = get_all_metadata(db)
+    # Use the new async metadata CRUD helper
+    metadata = await get_all_metadata_async(db)
 
     configuration = {
         "user_types": [{"id": item.id, "name": item.name, "description": item.description, "is_active": item.is_active} for item in metadata["user_types"]],

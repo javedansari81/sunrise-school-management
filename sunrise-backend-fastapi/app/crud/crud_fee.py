@@ -9,6 +9,7 @@ from app.crud.base import CRUDBase
 from app.models.fee import FeeStructure, FeeRecord, FeePayment
 from app.models.student import Student
 from app.models.user import User
+from app.models.metadata import SessionYear, PaymentStatus
 from app.schemas.fee import (
     FeeStructureCreate, FeeStructureUpdate,
     FeeRecordCreate, FeeRecordUpdate,
@@ -25,7 +26,7 @@ class CRUDFeeStructure(CRUDBase[FeeStructure, FeeStructureCreate, FeeStructureUp
             select(FeeStructure).where(
                 and_(
                     FeeStructure.class_name == class_name,
-                    FeeStructure.session_year == session_year
+                    FeeStructure.session_year.has(name=session_year)
                 )
             )
         )
@@ -46,32 +47,34 @@ class CRUDFeeRecord(CRUDBase[FeeRecord, FeeRecordCreate, FeeRecordUpdate]):
         return result.scalar_one_or_none()
 
     async def get_multi_with_filters(
-        self, 
-        db: AsyncSession, 
-        *, 
+        self,
+        db: AsyncSession,
+        *,
         filters: FeeFilters,
-        skip: int = 0, 
+        skip: int = 0,
         limit: int = 100
     ) -> tuple[List[FeeRecord], int]:
-        query = select(FeeRecord).options(joinedload(FeeRecord.student))
+        query = select(FeeRecord).options(
+            joinedload(FeeRecord.student).joinedload(Student.class_ref)
+        )
         
         # Apply filters
         conditions = []
         
         if filters.session_year:
-            conditions.append(FeeRecord.session_year == filters.session_year)
+            conditions.append(FeeRecord.session_year.has(name=filters.session_year.value))
         
         if filters.status:
-            conditions.append(FeeRecord.status == filters.status)
-        
+            conditions.append(FeeRecord.payment_status.has(name=filters.status.value))
+
         if filters.payment_type:
-            conditions.append(FeeRecord.payment_type == filters.payment_type)
+            conditions.append(FeeRecord.payment_type.has(name=filters.payment_type.value))
         
         if filters.student_id:
             conditions.append(FeeRecord.student_id == filters.student_id)
         
         if filters.class_name:
-            conditions.append(Student.current_class == filters.class_name)
+            conditions.append(Student.class_ref.has(name=filters.class_name))
             query = query.join(Student)
         
         if filters.from_date:
@@ -106,7 +109,7 @@ class CRUDFeeRecord(CRUDBase[FeeRecord, FeeRecordCreate, FeeRecordUpdate]):
         query = select(FeeRecord).where(FeeRecord.student_id == student_id)
         
         if session_year:
-            query = query.where(FeeRecord.session_year == session_year)
+            query = query.where(FeeRecord.session_year.has(name=session_year))
         
         query = query.order_by(FeeRecord.created_at.desc())
         result = await db.execute(query)
@@ -120,7 +123,7 @@ class CRUDFeeRecord(CRUDBase[FeeRecord, FeeRecordCreate, FeeRecordUpdate]):
             .where(
                 and_(
                     FeeRecord.due_date < today,
-                    FeeRecord.status.in_([PaymentStatusEnum.PENDING, PaymentStatusEnum.PARTIAL])
+                    FeeRecord.payment_status.has(PaymentStatus.name.in_([PaymentStatusEnum.PENDING.value, PaymentStatusEnum.PARTIAL.value]))
                 )
             )
             .order_by(FeeRecord.due_date)
@@ -136,14 +139,14 @@ class CRUDFeeRecord(CRUDBase[FeeRecord, FeeRecordCreate, FeeRecordUpdate]):
             func.count(FeeRecord.id).label('total_records'),
             func.count(
                 case(
-                    (FeeRecord.status == "Paid", 1),
+                    (FeeRecord.payment_status.has(name="Paid"), 1),
                     else_=None
                 )
             ).label('paid_records')
         )
         
         if session_year:
-            query = query.where(FeeRecord.session_year == session_year)
+            query = query.where(FeeRecord.session_year.has(name=session_year))
         
         result = await db.execute(query)
         summary = result.first()
@@ -164,10 +167,10 @@ class CRUDFeeRecord(CRUDBase[FeeRecord, FeeRecordCreate, FeeRecordUpdate]):
         fee_record.balance_amount = fee_record.total_amount - fee_record.paid_amount
         
         if fee_record.balance_amount <= 0:
-            fee_record.status = PaymentStatusEnum.PAID
+            fee_record.payment_status_id = PaymentStatusEnum.VALUE.PAID
             fee_record.balance_amount = 0
         elif fee_record.paid_amount > 0:
-            fee_record.status = PaymentStatusEnum.PARTIAL
+            fee_record.payment_status_id = PaymentStatusEnum.VALUE.PARTIAL
         
         db.add(fee_record)
         await db.commit()
@@ -213,10 +216,10 @@ class CRUDFeePayment(CRUDBase[FeePayment, FeePaymentCreate, FeePaymentUpdate]):
         fee_record.balance_amount = fee_record.total_amount - fee_record.paid_amount
         
         if fee_record.balance_amount <= 0:
-            fee_record.status = PaymentStatusEnum.PAID
+            fee_record.payment_status_id = PaymentStatusEnum.VALUE.PAID
             fee_record.balance_amount = 0
         elif fee_record.paid_amount > 0:
-            fee_record.status = PaymentStatusEnum.PARTIAL
+            fee_record.payment_status_id = PaymentStatusEnum.VALUE.PARTIAL
         
         fee_record.payment_method = obj_in.payment_method
         fee_record.transaction_id = obj_in.transaction_id
@@ -236,7 +239,7 @@ class CRUDFeePayment(CRUDBase[FeePayment, FeePaymentCreate, FeePaymentUpdate]):
         query = select(FeePayment).join(FeeRecord).where(FeeRecord.student_id == student_id)
 
         if session_year:
-            query = query.where(FeeRecord.session_year == session_year)
+            query = query.where(FeeRecord.session_year.has(name=session_year))
 
         query = query.order_by(FeePayment.payment_date.desc())
 

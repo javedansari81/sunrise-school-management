@@ -4,7 +4,9 @@ CRUD operations for metadata tables
 
 from typing import List, Optional, Dict, Any
 from sqlalchemy.orm import Session
-from sqlalchemy import and_
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import and_, select
+from sqlalchemy.future import select
 
 from app.models.metadata import (
     UserType, SessionYear, Gender, Class, PaymentType, PaymentStatus, PaymentMethod,
@@ -26,6 +28,15 @@ class MetadataCRUD:
         if active_only:
             query = query.filter(self.model_class.is_active == True)
         return query.order_by(self.model_class.id).all()
+
+    async def get_all_async(self, db: AsyncSession, active_only: bool = True) -> List[Any]:
+        """Get all records from metadata table (async version)"""
+        query = select(self.model_class)
+        if active_only:
+            query = query.filter(self.model_class.is_active == True)
+        query = query.order_by(self.model_class.id)
+        result = await db.execute(query)
+        return result.scalars().all()
     
     def get_by_id(self, db: Session, id: int) -> Optional[Any]:
         """Get record by ID"""
@@ -79,7 +90,7 @@ qualification_crud = MetadataCRUD(Qualification)
 
 
 def get_all_metadata(db: Session) -> Dict[str, List[Any]]:
-    """Get all metadata for configuration endpoint"""
+    """Get all metadata for configuration endpoint (sync version)"""
     return {
         "user_types": user_type_crud.get_all(db),
         "session_years": session_year_crud.get_all(db),
@@ -94,6 +105,25 @@ def get_all_metadata(db: Session) -> Dict[str, List[Any]]:
         "expense_statuses": expense_status_crud.get_all(db),
         "employment_statuses": employment_status_crud.get_all(db),
         "qualifications": qualification_crud.get_all(db)
+    }
+
+
+async def get_all_metadata_async(db: AsyncSession) -> Dict[str, List[Any]]:
+    """Get all metadata for configuration endpoint (async version)"""
+    return {
+        "user_types": await user_type_crud.get_all_async(db),
+        "session_years": await session_year_crud.get_all_async(db),
+        "genders": await gender_crud.get_all_async(db),
+        "classes": await class_crud.get_all_async(db),
+        "payment_types": await payment_type_crud.get_all_async(db),
+        "payment_statuses": await payment_status_crud.get_all_async(db),
+        "payment_methods": await payment_method_crud.get_all_async(db),
+        "leave_types": await leave_type_crud.get_all_async(db),
+        "leave_statuses": await leave_status_crud.get_all_async(db),
+        "expense_categories": await expense_category_crud.get_all_async(db),
+        "expense_statuses": await expense_status_crud.get_all_async(db),
+        "employment_statuses": await employment_status_crud.get_all_async(db),
+        "qualifications": await qualification_crud.get_all_async(db)
     }
 
 
