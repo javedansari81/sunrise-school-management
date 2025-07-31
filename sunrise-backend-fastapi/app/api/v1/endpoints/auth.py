@@ -9,7 +9,7 @@ from app.core.security import create_access_token, verify_password
 from app.core.config import settings
 from app.core.logging import log_auth_step
 from app.core.permissions import get_user_permissions, get_dashboard_permissions, filter_menu_items
-from app.crud.crud_user import user_crud
+from app.crud.crud_user import CRUDUser
 from app.crud import student_crud, teacher_crud
 from app.schemas.auth import LoginRequest, LoginResponse, Token
 from app.schemas.user import User as UserSchema, UserCreate, UserLoginResponse, UserProfile, UserTypeEnum
@@ -27,6 +27,7 @@ async def login(
     """
     Enhanced user login endpoint with role-based permissions
     """
+    user_crud = CRUDUser()
     user = await user_crud.authenticate(
         db, email=form_data.username, password=form_data.password
     )
@@ -36,7 +37,7 @@ async def login(
             detail="Incorrect email or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    elif not user_crud.is_active(user):
+    elif not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Inactive user"
@@ -51,36 +52,45 @@ async def login(
         subject=user.id, expires_delta=access_token_expires
     )
 
+    # Get user with metadata for permissions
+    user_with_metadata = await user_crud.get_with_metadata(db, id=user.id)
+    user_type_name = user_with_metadata.user_type.name if user_with_metadata.user_type else "STUDENT"
+
+    # Convert to enum for permissions (backward compatibility)
+    from app.models.user import UserTypeEnum
+    try:
+        user_type_enum = UserTypeEnum(user_type_name)
+    except ValueError:
+        user_type_enum = UserTypeEnum.STUDENT
+
     # Get user permissions
-    permissions = get_user_permissions(user.user_type_enum)
+    permissions = get_user_permissions(user_type_enum)
 
     # Get profile data based on user type
     profile_data = None
     try:
-        if user.user_type_enum == UserTypeEnum.STUDENT and user.student_id:
-            student_profile = await student_crud.get(db, id=user.student_id)
-            if student_profile:
-                profile_data = {
-                    "type": "student",
-                    "profile": {
-                        "id": student_profile.id,
-                        "admission_number": student_profile.admission_number,
-                        "first_name": student_profile.first_name,
-                        "last_name": student_profile.last_name,
-                        "current_class": student_profile.current_class,
-                        "section": getattr(student_profile, 'section', None)
-                    }
+        if user_type_enum == UserTypeEnum.STUDENT and user_with_metadata.student_profile:
+            student_profile = user_with_metadata.student_profile
+            profile_data = {
+                "type": "student",
+                "profile": {
+                    "id": student_profile.id,
+                    "admission_number": student_profile.admission_number,
+                    "first_name": student_profile.first_name,
+                    "last_name": student_profile.last_name,
+                    "class_name": student_profile.class_name if hasattr(student_profile, 'class_name') else None,
+                    "section": getattr(student_profile, 'section', None)
                 }
-        elif user.user_type_enum == UserTypeEnum.TEACHER and user.teacher_id:
-            teacher_profile = await teacher_crud.get(db, id=user.teacher_id)
-            if teacher_profile:
-                profile_data = {
-                    "type": "teacher",
-                    "profile": {
-                        "id": teacher_profile.id,
-                        "employee_id": teacher_profile.employee_id,
-                        "first_name": teacher_profile.first_name,
-                        "last_name": teacher_profile.last_name,
+            }
+        elif user_type_enum == UserTypeEnum.TEACHER and user_with_metadata.teacher_profile:
+            teacher_profile = user_with_metadata.teacher_profile
+            profile_data = {
+                "type": "teacher",
+                "profile": {
+                    "id": teacher_profile.id,
+                    "employee_id": teacher_profile.employee_id,
+                    "first_name": teacher_profile.first_name,
+                    "last_name": teacher_profile.last_name,
                         "department": getattr(teacher_profile, 'department', None),
                         "position": getattr(teacher_profile, 'position', None)
                     }
@@ -95,12 +105,14 @@ async def login(
         "id": user.id,
         "first_name": user.first_name,
         "last_name": user.last_name,
-        "mobile": user.mobile,
+        "mobile": user.phone,
         "email": user.email,
-        "user_type": user.user_type_enum,  # Return enum for API consistency
-        "student_id": user.student_id,
-        "teacher_id": user.teacher_id,
+        "user_type": user.user_type_enum.value.lower(),  # Return lowercase string for frontend
+        "user_type_id": user.user_type_id,  # Add missing field
+        "student_id": student_id,
+        "teacher_id": teacher_id,
         "is_active": user.is_active,
+        "is_verified": user.is_verified,  # Add missing field
         "last_login": user.last_login,
         "created_at": user.created_at,
         "updated_at": user.updated_at
@@ -125,6 +137,9 @@ async def login_json(
     """
     try:
         log_auth_step("LOGIN_START", f"Login attempt for email: {login_data.email}", email=login_data.email)
+
+        # Initialize user_crud instance
+        user_crud = CRUDUser()
 
         # Step 1: Authenticate user
         try:
@@ -226,17 +241,31 @@ async def login_json(
         # Use empty permissions as fallback
         permissions = []
 
+    # Step 6.5: Get student_id and teacher_id safely (temporarily disabled due to schema issues)
+    student_id = None
+    teacher_id = None
+    # try:
+    #     if hasattr(user, 'student_profile') and user.student_profile:
+    #         student_id = user.student_profile.id
+    # except:
+    #     pass
+    # try:
+    #     if hasattr(user, 'teacher_profile') and user.teacher_profile:
+    #         teacher_id = user.teacher_profile.id
+    # except:
+    #     pass
+
     # Step 7: Get profile data based on user type
     profile_data = None
     try:
         log_auth_step("GET_PROFILE", f"Getting profile data",
                      email=user.email, user_type=str(user.user_type_enum))
 
-        if user.user_type_enum == UserTypeEnum.STUDENT and user.student_id:
+        if user.user_type_enum == UserTypeEnum.STUDENT and student_id:
             log_auth_step("GET_PROFILE", f"Fetching student profile",
-                         email=user.email, student_id=user.student_id)
+                         email=user.email, student_id=student_id)
             try:
-                student_profile = await student_crud.get(db, id=user.student_id)
+                student_profile = await student_crud.get(db, id=student_id)
                 if student_profile:
                     profile_data = {
                         "type": "student",
@@ -253,16 +282,16 @@ async def login_json(
                                  email=user.email, student_name=f"{student_profile.first_name} {student_profile.last_name}")
                 else:
                     log_auth_step("GET_PROFILE", f"Student profile not found",
-                                 "warning", email=user.email, student_id=user.student_id)
+                                 "warning", email=user.email, student_id=student_id)
             except Exception as student_error:
                 log_auth_step("GET_PROFILE", f"Error fetching student profile: {str(student_error)}",
                              "error", email=user.email)
 
-        elif user.user_type_enum == UserTypeEnum.TEACHER and user.teacher_id:
+        elif user.user_type_enum == UserTypeEnum.TEACHER and teacher_id:
             log_auth_step("GET_PROFILE", f"Fetching teacher profile",
-                         email=user.email, teacher_id=user.teacher_id)
+                         email=user.email, teacher_id=teacher_id)
             try:
-                teacher_profile = await teacher_crud.get(db, id=user.teacher_id)
+                teacher_profile = await teacher_crud.get(db, id=teacher_id)
                 if teacher_profile:
                     profile_data = {
                         "type": "teacher",
@@ -279,7 +308,7 @@ async def login_json(
                                  email=user.email, teacher_name=f"{teacher_profile.first_name} {teacher_profile.last_name}")
                 else:
                     log_auth_step("GET_PROFILE", f"Teacher profile not found",
-                                 "warning", email=user.email, teacher_id=user.teacher_id)
+                                 "warning", email=user.email, teacher_id=teacher_id)
             except Exception as teacher_error:
                 log_auth_step("GET_PROFILE", f"Error fetching teacher profile: {str(teacher_error)}",
                              "error", email=user.email)
@@ -296,17 +325,33 @@ async def login_json(
     try:
         log_auth_step("CREATE_RESPONSE", f"Creating login response", email=user.email)
 
+        # Get student_id and teacher_id safely
+        student_id = None
+        teacher_id = None
+        try:
+            if hasattr(user, 'student_profile') and user.student_profile:
+                student_id = user.student_profile.id
+        except:
+            pass
+        try:
+            if hasattr(user, 'teacher_profile') and user.teacher_profile:
+                teacher_id = user.teacher_profile.id
+        except:
+            pass
+
         # Convert SQLAlchemy model to Pydantic schema
         user_dict = {
             "id": user.id,
             "first_name": user.first_name,
             "last_name": user.last_name,
-            "mobile": user.mobile,
+            "mobile": user.phone,
             "email": user.email,
             "user_type": user.user_type_enum,  # Return enum for API consistency
-            "student_id": user.student_id,
-            "teacher_id": user.teacher_id,
+            "user_type_id": user.user_type_id,  # Add missing field
+            "student_id": student_id,
+            "teacher_id": teacher_id,
             "is_active": user.is_active,
+            "is_verified": user.is_verified,  # Add missing field
             "last_login": user.last_login,
             "created_at": user.created_at,
             "updated_at": user.updated_at
@@ -338,6 +383,9 @@ async def register(
     """
     User registration endpoint
     """
+    # Initialize user_crud instance
+    user_crud = CRUDUser()
+
     # Check if user already exists
     existing_user = await user_crud.get_by_email(db, email=user_data.email)
     if existing_user:
@@ -423,7 +471,7 @@ async def get_user_profile(
             "first_name": current_user.first_name,
             "last_name": current_user.last_name,
             "email": current_user.email,
-            "mobile": current_user.mobile,
+            "mobile": current_user.phone,
             "user_type": current_user.user_type_enum,
             "last_login": current_user.last_login,
             "created_at": current_user.created_at

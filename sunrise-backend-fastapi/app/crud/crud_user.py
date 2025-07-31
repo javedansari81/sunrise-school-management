@@ -1,16 +1,20 @@
 from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+from sqlalchemy.orm import selectinload
 import logging
 
 from app.crud.base import CRUDBase
 from app.models.user import User, UserTypeEnum
+from app.models.metadata import UserType
 from app.schemas.user import UserCreate, UserUpdate
 from app.core.security import get_password_hash, verify_password
 from app.core.logging import log_crud_operation
 
 
 class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
+    def __init__(self):
+        super().__init__(User)
     async def get_by_email(self, db: AsyncSession, *, email: str) -> Optional[User]:
         try:
             log_crud_operation("GET_BY_EMAIL", f"Executing database query", email=email)
@@ -26,24 +30,65 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
             raise
 
     async def create(self, db: AsyncSession, *, obj_in: UserCreate) -> User:
+        # Validate user_type_id exists
+        user_type_result = await db.execute(select(UserType).where(UserType.id == obj_in.user_type_id))
+        user_type = user_type_result.scalar_one_or_none()
+        if not user_type:
+            raise ValueError(f"Invalid user_type_id: {obj_in.user_type_id}")
+
         db_obj = User(
+            email=obj_in.email,
+            hashed_password=get_password_hash(obj_in.password),
             first_name=obj_in.first_name,
             last_name=obj_in.last_name,
-            mobile=obj_in.mobile,
-            email=obj_in.email,
-            password=get_password_hash(obj_in.password),
-            user_type=obj_in.user_type,
+            phone=obj_in.phone,
+            user_type_id=obj_in.user_type_id
         )
         db.add(db_obj)
         await db.commit()
         await db.refresh(db_obj)
         return db_obj
 
+    async def get_with_metadata(self, db: AsyncSession, id: int) -> Optional[User]:
+        """Get user with metadata relationships loaded"""
+        try:
+            result = await db.execute(
+                select(User)
+                .options(selectinload(User.user_type))
+                .where(User.id == id)
+            )
+            return result.scalar_one_or_none()
+        except Exception as db_error:
+            log_crud_operation("GET_WITH_METADATA", f"Database error: {str(db_error)}",
+                             "error", user_id=id, error_type=type(db_error).__name__)
+            logging.exception("Full database error traceback:")
+            raise
+
+    async def get_by_email_with_metadata(self, db: AsyncSession, *, email: str) -> Optional[User]:
+        """Get user by email with metadata relationships loaded"""
+        try:
+            result = await db.execute(
+                select(User)
+                .options(
+                    selectinload(User.user_type)
+                    # Temporarily disabled due to schema issues:
+                    # selectinload(User.student_profile),
+                    # selectinload(User.teacher_profile)
+                )
+                .where(User.email == email)
+            )
+            return result.scalar_one_or_none()
+        except Exception as db_error:
+            log_crud_operation("GET_BY_EMAIL_WITH_METADATA", f"Database error: {str(db_error)}",
+                             "error", email=email, error_type=type(db_error).__name__)
+            logging.exception("Full database error traceback:")
+            raise
+
     async def authenticate(self, db: AsyncSession, *, email: str, password: str) -> Optional[User]:
         try:
             log_crud_operation("AUTHENTICATE", f"Authenticating user", email=email)
 
-            # Step 1: Get user by email
+            # Step 1: Get user by email (basic query to avoid schema issues)
             try:
                 user = await self.get_by_email(db, email=email)
                 log_crud_operation("AUTHENTICATE", f"User lookup completed",
@@ -62,7 +107,7 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
 
             # Step 2: Verify password
             try:
-                password_valid = verify_password(password, user.password)
+                password_valid = verify_password(password, user.hashed_password)
                 log_crud_operation("AUTHENTICATE", f"Password verification completed",
                                  email=email, valid=password_valid)
             except Exception as password_error:
@@ -90,4 +135,4 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
         return user.user_type_enum == UserTypeEnum.ADMIN
 
 
-user_crud = CRUDUser(User)
+user_crud = CRUDUser()

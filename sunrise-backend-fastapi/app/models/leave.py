@@ -29,7 +29,8 @@ class LeaveRequest(Base):
     student_id = Column(Integer, ForeignKey("students.id"), nullable=False)
     
     # Leave Details
-    leave_type = Column(Enum(LeaveTypeEnum), nullable=False)
+    leave_type_id = Column(Integer, ForeignKey("leave_types.id"), nullable=False)
+    leave_status_id = Column(Integer, ForeignKey("leave_statuses.id"), nullable=False)
     start_date = Column(Date, nullable=False)
     end_date = Column(Date, nullable=False)
     total_days = Column(Integer, nullable=False)
@@ -39,7 +40,6 @@ class LeaveRequest(Base):
     description = Column(Text, nullable=True)
     
     # Status and Approval
-    status = Column(Enum(LeaveStatusEnum), default=LeaveStatusEnum.PENDING)
     approved_by = Column(Integer, ForeignKey("users.id"), nullable=True)
     approved_at = Column(DateTime(timezone=True), nullable=True)
     rejection_reason = Column(Text, nullable=True)
@@ -55,5 +55,7 @@ class LeaveRequest(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
     # Relationships
-    student = relationship("Student", back_populates="leave_requests")
+    # student = relationship("Student", back_populates="leave_requests")
     approver = relationship("User", foreign_keys=[approved_by])
+    # leave_type = relationship("LeaveType", back_populates="leave_requests")
+    # leave_status = relationship("LeaveStatus", back_populates="leave_requests")

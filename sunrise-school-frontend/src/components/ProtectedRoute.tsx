@@ -40,8 +40,8 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     return <Navigate to="/" replace />;
   }
 
-  // Check if user has required role (case-insensitive)
-  if (requiredRole && user?.user_type?.toLowerCase() !== requiredRole.toLowerCase()) {
+  // Check if user has required role (case-insensitive, comparing with backend enum values)
+  if (requiredRole && user?.user_type?.toUpperCase() !== requiredRole.toUpperCase()) {
     console.log('ProtectedRoute: Insufficient role, redirecting to home');
     return <Navigate to="/" replace />;
   }

@@ -1,7 +1,8 @@
 -- =====================================================
--- Complete Database Creation Script
+-- Complete Database Creation Script - Metadata-Driven Architecture
 -- =====================================================
 -- This script creates the entire Sunrise School Management database schema
+-- with metadata-driven architecture
 
 -- Start transaction
 BEGIN;
@@ -10,15 +11,20 @@ BEGIN;
 -- 1. Create all tables in dependency order
 -- =====================================================
 
--- Note: In PostgreSQL, \i command requires absolute paths or relative to current directory
--- For manual execution, run each table creation script individually:
--- psql -d your_database -f ../Tables/02_users.sql
--- psql -d your_database -f ../Tables/03_students.sql
--- etc.
+-- IMPORTANT: Execute table creation scripts in this order:
+-- 1. First: ../Tables/00_metadata_tables.sql (metadata tables)
+-- 2. Then: ../Tables/02_users.sql (users with foreign keys to metadata)
+-- 3. Then: ../Tables/03_students.sql (students with foreign keys)
+-- 4. Then: ../Tables/04_teachers.sql (teachers with foreign keys)
+-- 5. Then: ../Tables/05_fees.sql (fees with foreign keys)
+-- 6. Then: ../Tables/07_leaves.sql (leaves with foreign keys)
+-- 7. Then: ../Tables/08_expenses.sql (expenses with foreign keys)
+-- 8. Finally: ../Tables/09_indexes.sql and ../Tables/10_constraints.sql
 
--- For this script, we'll include the essential table creation inline
--- Users and Authentication Tables (Essential core)
--- (Include essential table definitions here or reference the individual files)
+-- For manual execution:
+-- psql -d your_database -f ../Tables/00_metadata_tables.sql
+-- psql -d your_database -f ../Tables/02_users.sql
+-- etc.
 
 -- =====================================================
 -- 2. Create version tracking table
@@ -33,8 +39,8 @@ CREATE TABLE IF NOT EXISTS schema_versions (
 );
 
 -- Insert initial version
-INSERT INTO schema_versions (version, description) 
-VALUES ('1.0', 'Initial database schema creation with all core tables');
+INSERT INTO schema_versions (version, description)
+VALUES ('2.0', 'Metadata-driven architecture with foreign key references to metadata tables');
 
 -- =====================================================
 -- 3. Create additional utility functions (optional)
@@ -87,43 +93,55 @@ CREATE TRIGGER trigger_calculate_fee_balance
 -- 4. Create useful views
 -- =====================================================
 
--- Student summary view
+-- Student summary view - Updated for metadata-driven architecture
 CREATE OR REPLACE VIEW student_summary AS
-SELECT 
+SELECT
     s.id,
     s.admission_number,
     s.first_name || ' ' || s.last_name AS full_name,
-    s.class,
+    c.display_name AS class,
     s.section,
-    s.session_year,
+    sy.name AS session_year,
+    g.name AS gender,
     s.father_name,
     s.father_phone,
     s.mother_name,
     s.mother_phone,
     s.is_active,
     calculate_age(s.date_of_birth) AS age
-FROM students s;
+FROM students s
+LEFT JOIN classes c ON s.class_id = c.id
+LEFT JOIN session_years sy ON s.session_year_id = sy.id
+LEFT JOIN genders g ON s.gender_id = g.id;
 
--- Teacher summary view
+-- Teacher summary view - Updated for metadata-driven architecture
 CREATE OR REPLACE VIEW teacher_summary AS
-SELECT 
+SELECT
     t.id,
     t.employee_id,
     t.first_name || ' ' || t.last_name AS full_name,
     t.position,
     t.department,
-    t.class_teacher_of,
-    t.employment_type,
+    c.display_name AS class_teacher_of,
+    es.name AS employment_status,
+    q.name AS qualification,
+    g.name AS gender,
     t.experience_years,
     t.is_active,
     calculate_age(t.date_of_birth) AS age
-FROM teachers t;
+FROM teachers t
+LEFT JOIN classes c ON t.class_teacher_of_id = c.id
+LEFT JOIN employment_statuses es ON t.employment_status_id = es.id
+LEFT JOIN qualifications q ON t.qualification_id = q.id
+LEFT JOIN genders g ON t.gender_id = g.id;
 
--- Fee collection summary view
+-- Fee collection summary view - Updated for metadata-driven architecture
 CREATE OR REPLACE VIEW fee_collection_summary AS
-SELECT 
-    fr.session_year,
-    s.class,
+SELECT
+    sy.name AS session_year,
+    c.display_name AS class,
+    pt.name AS payment_type,
+    ps.name AS payment_status,
     COUNT(*) AS total_students,
     SUM(fr.total_amount) AS total_fees,
     SUM(fr.paid_amount) AS collected_amount,
@@ -131,7 +149,11 @@ SELECT
     ROUND((SUM(fr.paid_amount) * 100.0 / NULLIF(SUM(fr.total_amount), 0)), 2) AS collection_percentage
 FROM fee_records fr
 JOIN students s ON fr.student_id = s.id
-GROUP BY fr.session_year, s.class;
+JOIN session_years sy ON fr.session_year_id = sy.id
+JOIN classes c ON s.class_id = c.id
+JOIN payment_types pt ON fr.payment_type_id = pt.id
+JOIN payment_statuses ps ON fr.payment_status_id = ps.id
+GROUP BY sy.name, c.display_name, pt.name, ps.name;
 
 -- =====================================================
 -- 5. Grant permissions (adjust as needed)

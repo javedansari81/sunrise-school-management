@@ -7,15 +7,31 @@ from sqlalchemy import and_, or_, func, desc
 from app.crud.base import CRUDBase
 from app.models.student import Student
 from app.models.fee import FeeRecord
+from app.models.metadata import Gender, Class, SessionYear
 from app.schemas.student import StudentCreate, StudentUpdate, ClassEnum, GenderEnum
 
 
 class CRUDStudent(CRUDBase[Student, StudentCreate, StudentUpdate]):
+    def __init__(self):
+        super().__init__(Student)
     async def get_by_admission_number(
         self, db: AsyncSession, *, admission_number: str
     ) -> Optional[Student]:
         result = await db.execute(
             select(Student).where(Student.admission_number == admission_number)
+        )
+        return result.scalar_one_or_none()
+
+    async def get_with_metadata(self, db: AsyncSession, id: int) -> Optional[Student]:
+        """Get student with metadata relationships loaded"""
+        result = await db.execute(
+            select(Student)
+            .options(
+                selectinload(Student.gender),
+                selectinload(Student.class_ref),
+                selectinload(Student.session_year)
+            )
+            .where(Student.id == id)
         )
         return result.scalar_one_or_none()
 
@@ -26,6 +42,31 @@ class CRUDStudent(CRUDBase[Student, StudentCreate, StudentUpdate]):
             .where(Student.id == id)
         )
         return result.scalar_one_or_none()
+
+    async def create_with_validation(self, db: AsyncSession, *, obj_in: StudentCreate) -> Student:
+        """Create student with metadata validation"""
+        # Validate metadata IDs exist
+        if obj_in.gender_id:
+            gender_result = await db.execute(select(Gender).where(Gender.id == obj_in.gender_id))
+            if not gender_result.scalar_one_or_none():
+                raise ValueError(f"Invalid gender_id: {obj_in.gender_id}")
+
+        if obj_in.class_id:
+            class_result = await db.execute(select(Class).where(Class.id == obj_in.class_id))
+            if not class_result.scalar_one_or_none():
+                raise ValueError(f"Invalid class_id: {obj_in.class_id}")
+
+        if obj_in.session_year_id:
+            session_year_result = await db.execute(select(SessionYear).where(SessionYear.id == obj_in.session_year_id))
+            if not session_year_result.scalar_one_or_none():
+                raise ValueError(f"Invalid session_year_id: {obj_in.session_year_id}")
+
+        # Create student
+        db_obj = Student(**obj_in.dict())
+        db.add(db_obj)
+        await db.commit()
+        await db.refresh(db_obj)
+        return db_obj
 
     async def get_multi_with_filters(
         self,
@@ -225,4 +266,4 @@ class CRUDStudent(CRUDBase[Student, StudentCreate, StudentUpdate]):
 
 
 # Create instance
-student_crud = CRUDStudent(Student)
+student_crud = CRUDStudent()

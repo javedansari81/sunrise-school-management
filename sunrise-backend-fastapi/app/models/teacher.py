@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text, Date, Float
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text, Date, Float, ForeignKey, DECIMAL
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 import enum
@@ -59,30 +59,46 @@ class Teacher(Base):
     __tablename__ = "teachers"
 
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), unique=True, nullable=True)
 
     # Personal Information
-    employee_id = Column(String(20), unique=True, index=True, nullable=False)
+    employee_id = Column(String(50), unique=True, index=True, nullable=False)
     first_name = Column(String(100), nullable=False)
     last_name = Column(String(100), nullable=False)
-    date_of_birth = Column(Date, nullable=False)
-    gender = Column(String(10), nullable=False)
+    date_of_birth = Column(Date, nullable=True)
+
+    # Foreign key to metadata table
+    gender_id = Column(Integer, ForeignKey("genders.id"), nullable=True)
 
     # Contact Information
+    phone = Column(String(20), nullable=False)
     email = Column(String(255), unique=True, index=True, nullable=False)
-    phone = Column(String(15), nullable=False)
     address = Column(Text, nullable=True)
-    emergency_contact_name = Column(String(100), nullable=True)
-    emergency_contact_phone = Column(String(15), nullable=True)
+    city = Column(String(100), nullable=True)
+    state = Column(String(100), nullable=True)
+    postal_code = Column(String(20), nullable=True)
+    country = Column(String(100), default='India')
+
+    # Emergency Contact
+    emergency_contact_name = Column(String(200), nullable=True)
+    emergency_contact_phone = Column(String(20), nullable=True)
     emergency_contact_relation = Column(String(50), nullable=True)
 
     # Professional Information
     position = Column(String(100), nullable=False)
     department = Column(String(100), nullable=True)
     subjects = Column(Text, nullable=True)  # JSON array of subjects
-    qualification = Column(String(20), nullable=False)
+
+    # Foreign keys to metadata tables
+    qualification_id = Column(Integer, ForeignKey("qualifications.id"), nullable=True)
+    employment_status_id = Column(Integer, ForeignKey("employment_statuses.id"), default=1)
+
     experience_years = Column(Integer, default=0)
     joining_date = Column(Date, nullable=False)
-    employment_status = Column(String(20), default="FULL_TIME")
+
+    # Class Assignments
+    class_teacher_of_id = Column(Integer, ForeignKey("classes.id"), nullable=True)
+    classes_assigned = Column(Text, nullable=True)  # JSON array of class IDs
 
     # Salary Information
     salary = Column(Float, nullable=True)
@@ -101,7 +117,32 @@ class Teacher(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     # Relationships
-    # Note: Class relationships will be added when Class model is implemented
+    user = relationship("User", back_populates="teacher_profile")
+    gender = relationship("Gender", back_populates="teachers")
+    qualification = relationship("Qualification", back_populates="teachers")
+    employment_status = relationship("EmploymentStatus", back_populates="teachers")
+    class_teacher_of_ref = relationship("Class", back_populates="teachers")
+    # leave_requests = relationship("LeaveRequest", back_populates="teacher")
+
+    @property
+    def full_name(self) -> str:
+        """Get full name of teacher"""
+        return f"{self.first_name} {self.last_name}"
+
+    @property
+    def gender_name(self) -> str:
+        """Get gender name from relationship"""
+        return self.gender.name if self.gender else ""
+
+    @property
+    def qualification_name(self) -> str:
+        """Get qualification name from relationship"""
+        return self.qualification.name if self.qualification else ""
+
+    @property
+    def employment_status_name(self) -> str:
+        """Get employment status name from relationship"""
+        return self.employment_status.name if self.employment_status else ""
 
     @property
     def gender_enum(self) -> GenderEnum:

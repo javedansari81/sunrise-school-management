@@ -53,19 +53,29 @@ class Student(Base):
     __tablename__ = "students"
 
     id = Column(Integer, primary_key=True, index=True)
-    admission_number = Column(String(20), unique=True, index=True, nullable=False)
-    first_name = Column(String(50), nullable=False)
-    last_name = Column(String(50), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), unique=True, nullable=True)
+    admission_number = Column(String(50), unique=True, index=True, nullable=False)
+    first_name = Column(String(100), nullable=False)
+    last_name = Column(String(100), nullable=False)
     date_of_birth = Column(Date, nullable=False)
-    gender = Column(String(10), nullable=False)
-    current_class = Column(String(20), nullable=False)
+
+    # Foreign keys to metadata tables
+    gender_id = Column(Integer, ForeignKey("genders.id"), nullable=False)
+    class_id = Column(Integer, ForeignKey("classes.id"), nullable=False)
+    session_year_id = Column(Integer, ForeignKey("session_years.id"), nullable=False)
+
     section = Column(String(10), nullable=True)
     roll_number = Column(String(20), nullable=True)
-    
+    blood_group = Column(String(5), nullable=True)
+
     # Contact Information
-    email = Column(String(100), nullable=True)
-    phone = Column(String(15), nullable=True)
+    phone = Column(String(20), nullable=True)
+    email = Column(String(255), nullable=True)
     address = Column(Text, nullable=True)
+    city = Column(String(100), nullable=True)
+    state = Column(String(100), nullable=True)
+    postal_code = Column(String(20), nullable=True)
+    country = Column(String(100), default='India')
     
     # Parent Information
     father_name = Column(String(100), nullable=False)
@@ -95,8 +105,12 @@ class Student(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
     # Relationships
+    user = relationship("User", back_populates="student_profile")
+    gender = relationship("Gender", back_populates="students")
+    class_ref = relationship("Class", back_populates="students")
+    session_year = relationship("SessionYear", back_populates="students")
     fee_records = relationship("FeeRecord", back_populates="student")
-    leave_requests = relationship("LeaveRequest", back_populates="student")
+    # leave_requests = relationship("LeaveRequest", back_populates="student")
 
     @property
     def gender_enum(self) -> GenderEnum:

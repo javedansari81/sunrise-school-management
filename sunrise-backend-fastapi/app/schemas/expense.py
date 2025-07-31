@@ -5,32 +5,107 @@ from enum import Enum
 
 
 class ExpenseCategoryEnum(str, Enum):
-    OFFICE_SUPPLIES = "Office Supplies"
+    """
+    Expense Category Enum with metadata-driven values
+    These values correspond to the IDs in the expense_categories metadata table
+    """
+    INFRASTRUCTURE = "Infrastructure"
     MAINTENANCE = "Maintenance"
     UTILITIES = "Utilities"
-    TRANSPORT = "Transport"
-    FOOD_CATERING = "Food & Catering"
+    SUPPLIES = "Supplies"
     EQUIPMENT = "Equipment"
+    TRANSPORTATION = "Transportation"
+    EVENTS = "Events"
     MARKETING = "Marketing"
     STAFF_WELFARE = "Staff Welfare"
-    ACADEMIC_MATERIALS = "Academic Materials"
-    INFRASTRUCTURE = "Infrastructure"
+    ACADEMIC = "Academic"
+    SPORTS = "Sports"
+    LIBRARY = "Library"
+    LABORATORY = "Laboratory"
+    SECURITY = "Security"
+    CLEANING = "Cleaning"
     OTHER = "Other"
+
+    # Metadata table ID mappings
+    class VALUE:
+        INFRASTRUCTURE = 1
+        MAINTENANCE = 2
+        UTILITIES = 3
+        SUPPLIES = 4
+        EQUIPMENT = 5
+        TRANSPORTATION = 6
+        EVENTS = 7
+        MARKETING = 8
+        STAFF_WELFARE = 9
+        ACADEMIC = 10
+        SPORTS = 11
+        LIBRARY = 12
+        LABORATORY = 13
+        SECURITY = 14
+        CLEANING = 15
+        OTHER = 16
+
+    @classmethod
+    def get_id_by_name(cls, name: str) -> int:
+        """Get metadata table ID by enum name"""
+        name_upper = name.upper()
+        if hasattr(cls.VALUE, name_upper):
+            return getattr(cls.VALUE, name_upper)
+        return None
 
 
 class PaymentModeEnum(str, Enum):
+    """
+    Payment Mode Enum with metadata-driven values
+    These values correspond to the IDs in the payment_methods metadata table
+    """
     CASH = "Cash"
     CHEQUE = "Cheque"
-    ONLINE_TRANSFER = "Online Transfer"
+    ONLINE = "Online"
     UPI = "UPI"
     CARD = "Card"
 
+    # Metadata table ID mappings
+    class VALUE:
+        CASH = 1
+        CHEQUE = 2
+        ONLINE = 3
+        UPI = 4
+        CARD = 5
+
+    @classmethod
+    def get_id_by_name(cls, name: str) -> int:
+        """Get metadata table ID by enum name"""
+        name_upper = name.upper()
+        if hasattr(cls.VALUE, name_upper):
+            return getattr(cls.VALUE, name_upper)
+        return None
+
 
 class ExpenseStatusEnum(str, Enum):
+    """
+    Expense Status Enum with metadata-driven values
+    These values correspond to the IDs in the expense_statuses metadata table
+    """
     PENDING = "Pending"
     APPROVED = "Approved"
     REJECTED = "Rejected"
     PAID = "Paid"
+
+    # Metadata table ID mappings
+    class VALUE:
+        PENDING = 1
+        APPROVED = 2
+        REJECTED = 3
+        PAID = 4
+
+    @classmethod
+    def get_id_by_name(cls, name: str) -> int:
+        """Get metadata table ID by enum name"""
+        name_upper = name.upper()
+        if hasattr(cls.VALUE, name_upper):
+            return getattr(cls.VALUE, name_upper)
+        return None
 
 
 class ExpenseBase(BaseModel):

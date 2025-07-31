@@ -29,6 +29,13 @@ import {
   Tab,
 } from '@mui/material';
 import {
+  ClassDropdown,
+  GenderDropdown,
+  ClassFilter,
+  SessionYearDropdown
+} from '../../components/common/MetadataDropdown';
+import { useConfiguration } from '../../contexts/ConfigurationContext';
+import {
   Add,
   Edit,
   Delete,
@@ -64,6 +71,7 @@ function TabPanel(props: TabPanelProps) {
 }
 
 const StudentProfiles: React.FC = () => {
+  const { isLoaded, getCurrentSessionYear } = useConfiguration();
   const [tabValue, setTabValue] = useState(0);
   const [openDialog, setOpenDialog] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<any>(null);
@@ -74,10 +82,11 @@ const StudentProfiles: React.FC = () => {
     rollNumber: '',
     firstName: '',
     lastName: '',
-    class: '',
+    class_id: '',
+    session_year_id: getCurrentSessionYear()?.id || '',
     section: '',
     dateOfBirth: '',
-    gender: '',
+    gender_id: '',
     bloodGroup: '',
     address: '',
     parentName: '',
@@ -100,10 +109,11 @@ const StudentProfiles: React.FC = () => {
         rollNumber: '',
         firstName: '',
         lastName: '',
-        class: '',
+        class_id: '',
+        session_year_id: getCurrentSessionYear()?.id || '',
         section: '',
         dateOfBirth: '',
-        gender: '',
+        gender_id: '',
         bloodGroup: '',
         address: '',
         parentName: '',
@@ -196,7 +206,7 @@ const StudentProfiles: React.FC = () => {
     }
   ];
 
-  const classes = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
+  // Hardcoded sections and blood groups (these are not in metadata yet)
   const sections = ['A', 'B', 'C', 'D'];
   const bloodGroups = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
@@ -213,6 +223,17 @@ const StudentProfiles: React.FC = () => {
     if (searchTerm && !`${student.firstName} ${student.lastName} ${student.rollNumber}`.toLowerCase().includes(searchTerm.toLowerCase())) return false;
     return true;
   });
+
+  // Show loading state if configuration is not loaded
+  if (!isLoaded) {
+    return (
+      <AdminLayout>
+        <Box sx={{ py: 2, display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
+          <Typography>Loading configuration...</Typography>
+        </Box>
+      </AdminLayout>
+    );
+  }
 
   return (
     <AdminLayout>
@@ -268,21 +289,12 @@ const StudentProfiles: React.FC = () => {
             />
           </Grid>
           <Grid size={{ xs: 12, sm: 6, md: 2 }}>
-            <FormControl fullWidth size="small">
-              <InputLabel>Class</InputLabel>
-              <Select
-                value={filterClass}
-                label="Class"
-                onChange={(e) => setFilterClass(e.target.value)}
-              >
-                <MenuItem value="all">All Classes</MenuItem>
-                {classes.map((cls) => (
-                  <MenuItem key={cls} value={cls}>
-                    Class {cls}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+            <ClassFilter
+              value={filterClass}
+              onChange={(value) => setFilterClass(value as string)}
+              size="small"
+              allLabel="All Classes"
+            />
           </Grid>
           <Grid size={{ xs: 12, sm: 6, md: 2 }}>
             <FormControl fullWidth size="small">
@@ -444,21 +456,11 @@ const StudentProfiles: React.FC = () => {
               />
             </Grid>
             <Grid size={{ xs: 12, sm: 4 }}>
-              <TextField
-                fullWidth
-                select
-                label="Class"
-                name="class"
-                value={studentForm.class}
-                onChange={handleFormChange}
+              <ClassDropdown
+                value={studentForm.class_id}
+                onChange={(value) => setStudentForm(prev => ({ ...prev, class_id: value as string }))}
                 required
-              >
-                {classes.map((cls) => (
-                  <MenuItem key={cls} value={cls}>
-                    Class {cls}
-                  </MenuItem>
-                ))}
-              </TextField>
+              />
             </Grid>
             <Grid size={{ xs: 12, sm: 4 }}>
               <TextField
@@ -478,19 +480,18 @@ const StudentProfiles: React.FC = () => {
               </TextField>
             </Grid>
             <Grid size={{ xs: 12, sm: 4 }}>
-              <TextField
-                fullWidth
-                select
-                label="Gender"
-                name="gender"
-                value={studentForm.gender}
-                onChange={handleFormChange}
+              <GenderDropdown
+                value={studentForm.gender_id}
+                onChange={(value) => setStudentForm(prev => ({ ...prev, gender_id: value as string }))}
                 required
-              >
-                <MenuItem value="Male">Male</MenuItem>
-                <MenuItem value="Female">Female</MenuItem>
-                <MenuItem value="Other">Other</MenuItem>
-              </TextField>
+              />
+            </Grid>
+            <Grid size={{ xs: 12, sm: 4 }}>
+              <SessionYearDropdown
+                value={studentForm.session_year_id}
+                onChange={(value) => setStudentForm(prev => ({ ...prev, session_year_id: value as string }))}
+                required
+              />
             </Grid>
             <Grid size={{ xs: 12, sm: 6 }}>
               <TextField

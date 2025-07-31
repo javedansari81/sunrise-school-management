@@ -2,25 +2,25 @@
 -- Leave Management Tables
 -- =====================================================
 
--- Leave Requests table (Student and Teacher leave applications)
+-- Leave Requests table (Student and Teacher leave applications) - Updated for metadata-driven architecture
 CREATE TABLE IF NOT EXISTS leave_requests (
     id SERIAL PRIMARY KEY,
     applicant_id INTEGER NOT NULL, -- Can be student_id or teacher_id
     applicant_type VARCHAR(10) NOT NULL CHECK (applicant_type IN ('student', 'teacher')),
-    
+
     -- Leave Details
-    leave_type VARCHAR(30) NOT NULL CHECK (leave_type IN ('Sick Leave', 'Casual Leave', 'Emergency Leave', 'Medical Leave', 'Family Function', 'Other')),
+    leave_type_id INTEGER NOT NULL REFERENCES leave_types(id),
     start_date DATE NOT NULL,
     end_date DATE NOT NULL,
     total_days INTEGER NOT NULL,
     reason TEXT NOT NULL,
-    
+
     -- Supporting Documents
     medical_certificate_url VARCHAR(500),
     supporting_document_url VARCHAR(500),
-    
+
     -- Application Status
-    status VARCHAR(20) DEFAULT 'Pending' CHECK (status IN ('Pending', 'Approved', 'Rejected', 'Cancelled')),
+    leave_status_id INTEGER DEFAULT 1 REFERENCES leave_statuses(id),
     
     -- Approval Workflow
     applied_to INTEGER REFERENCES users(id), -- Teacher/Principal who should approve
@@ -50,11 +50,11 @@ CREATE TABLE IF NOT EXISTS leave_requests (
     updated_at TIMESTAMP WITH TIME ZONE
 );
 
--- Leave Balance table (Available leave balance for teachers)
+-- Leave Balance table (Available leave balance for teachers) - Updated for metadata-driven architecture
 CREATE TABLE IF NOT EXISTS leave_balance (
     id SERIAL PRIMARY KEY,
     teacher_id INTEGER UNIQUE NOT NULL REFERENCES teachers(id) ON DELETE CASCADE,
-    academic_year VARCHAR(10) NOT NULL CHECK (academic_year IN ('2022-23', '2023-24', '2024-25', '2025-26', '2026-27')),
+    session_year_id INTEGER NOT NULL REFERENCES session_years(id),
     
     -- Leave Entitlements
     casual_leave_total INTEGER DEFAULT 12,
@@ -85,15 +85,15 @@ CREATE TABLE IF NOT EXISTS leave_balance (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     
     -- Unique constraint
-    UNIQUE(teacher_id, academic_year)
+    UNIQUE(teacher_id, session_year_id)
 );
 
--- Leave Policies table (Leave policy configuration)
+-- Leave Policies table (Leave policy configuration) - Updated for metadata-driven architecture
 CREATE TABLE IF NOT EXISTS leave_policies (
     id SERIAL PRIMARY KEY,
     policy_name VARCHAR(100) UNIQUE NOT NULL,
     applicant_type VARCHAR(10) NOT NULL CHECK (applicant_type IN ('student', 'teacher', 'both')),
-    leave_type VARCHAR(30) NOT NULL,
+    leave_type_id INTEGER NOT NULL REFERENCES leave_types(id),
     
     -- Policy Rules
     max_days_per_application INTEGER,
@@ -120,11 +120,11 @@ CREATE TABLE IF NOT EXISTS leave_policies (
     created_by INTEGER REFERENCES users(id)
 );
 
--- Leave Approvers table (Who can approve different types of leaves)
+-- Leave Approvers table (Who can approve different types of leaves) - Updated for metadata-driven architecture
 CREATE TABLE IF NOT EXISTS leave_approvers (
     id SERIAL PRIMARY KEY,
     approver_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    leave_type VARCHAR(30) NOT NULL,
+    leave_type_id INTEGER NOT NULL REFERENCES leave_types(id),
     applicant_type VARCHAR(10) NOT NULL CHECK (applicant_type IN ('student', 'teacher')),
     
     -- Approval Limits
@@ -143,14 +143,14 @@ CREATE TABLE IF NOT EXISTS leave_approvers (
     assigned_by INTEGER REFERENCES users(id)
 );
 
--- Leave Calendar table (Leave calendar view)
+-- Leave Calendar table (Leave calendar view) - Updated for metadata-driven architecture
 CREATE TABLE IF NOT EXISTS leave_calendar (
     id SERIAL PRIMARY KEY,
     leave_request_id INTEGER NOT NULL REFERENCES leave_requests(id) ON DELETE CASCADE,
     leave_date DATE NOT NULL,
     applicant_id INTEGER NOT NULL,
     applicant_type VARCHAR(10) NOT NULL CHECK (applicant_type IN ('student', 'teacher')),
-    leave_type VARCHAR(30) NOT NULL,
+    leave_type_id INTEGER NOT NULL REFERENCES leave_types(id),
     is_half_day BOOLEAN DEFAULT FALSE,
     half_day_session VARCHAR(10) CHECK (half_day_session IN ('morning', 'afternoon')),
     
@@ -212,5 +212,9 @@ COMMENT ON TABLE leave_notifications IS 'Leave-related notifications and communi
 COMMENT ON TABLE leave_reports IS 'Generated leave management reports';
 
 COMMENT ON COLUMN leave_requests.applicant_type IS 'Type of applicant: student or teacher';
-COMMENT ON COLUMN leave_requests.status IS 'Application status: Pending, Approved, Rejected, Cancelled';
-COMMENT ON COLUMN leave_balance.academic_year IS 'Academic year for leave balance tracking';
+COMMENT ON COLUMN leave_requests.leave_type_id IS 'Foreign key reference to leave_types table';
+COMMENT ON COLUMN leave_requests.leave_status_id IS 'Foreign key reference to leave_statuses table';
+COMMENT ON COLUMN leave_balance.session_year_id IS 'Foreign key reference to session_years table';
+COMMENT ON COLUMN leave_policies.leave_type_id IS 'Foreign key reference to leave_types table';
+COMMENT ON COLUMN leave_approvers.leave_type_id IS 'Foreign key reference to leave_types table';
+COMMENT ON COLUMN leave_calendar.leave_type_id IS 'Foreign key reference to leave_types table';

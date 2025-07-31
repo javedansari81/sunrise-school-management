@@ -2,12 +2,12 @@
 -- Fee Management Tables
 -- =====================================================
 
--- Fee Structures table (Fee structure for different classes)
+-- Fee Structures table (Fee structure for different classes) - Updated for metadata-driven architecture
 CREATE TABLE IF NOT EXISTS fee_structures (
     id SERIAL PRIMARY KEY,
-    class_name VARCHAR(20) NOT NULL,
-    session_year VARCHAR(10) NOT NULL CHECK (session_year IN ('2022-23', '2023-24', '2024-25', '2025-26', '2026-27')),
-    
+    class_id INTEGER NOT NULL REFERENCES classes(id),
+    session_year_id INTEGER NOT NULL REFERENCES session_years(id),
+
     -- Fee Components
     tuition_fee DECIMAL(10,2) DEFAULT 0.0,
     admission_fee DECIMAL(10,2) DEFAULT 0.0,
@@ -18,38 +18,38 @@ CREATE TABLE IF NOT EXISTS fee_structures (
     lab_fee DECIMAL(10,2) DEFAULT 0.0,
     exam_fee DECIMAL(10,2) DEFAULT 0.0,
     other_fee DECIMAL(10,2) DEFAULT 0.0,
-    
+
     -- Total
     total_annual_fee DECIMAL(10,2) NOT NULL,
-    
+
     -- Timestamps
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE,
-    
+
     -- Unique constraint
-    UNIQUE(class_name, session_year)
+    UNIQUE(class_id, session_year_id)
 );
 
--- Fee Records table (Individual student fee records)
+-- Fee Records table (Individual student fee records) - Updated for metadata-driven architecture
 CREATE TABLE IF NOT EXISTS fee_records (
     id SERIAL PRIMARY KEY,
     student_id INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE,
-    session_year VARCHAR(10) NOT NULL CHECK (session_year IN ('2022-23', '2023-24', '2024-25', '2025-26', '2026-27')),
-    payment_type VARCHAR(20) NOT NULL CHECK (payment_type IN ('Monthly', 'Quarterly', 'Half Yearly', 'Yearly')),
-    
+    session_year_id INTEGER NOT NULL REFERENCES session_years(id),
+    payment_type_id INTEGER NOT NULL REFERENCES payment_types(id),
+
     -- Fee Details
     total_amount DECIMAL(10,2) NOT NULL,
     paid_amount DECIMAL(10,2) DEFAULT 0.0,
     balance_amount DECIMAL(10,2) NOT NULL,
-    
+
     -- Payment Status
-    status VARCHAR(20) DEFAULT 'Pending' CHECK (status IN ('Pending', 'Partial', 'Paid', 'Overdue')),
-    
+    payment_status_id INTEGER DEFAULT 1 REFERENCES payment_statuses(id),
+
     -- Due Date
     due_date DATE NOT NULL,
-    
+
     -- Payment Details (for single payment records)
-    payment_method VARCHAR(20) CHECK (payment_method IN ('Cash', 'Cheque', 'Online', 'UPI', 'Card')),
+    payment_method_id INTEGER REFERENCES payment_methods(id),
     transaction_id VARCHAR(100),
     payment_date DATE,
     
@@ -64,14 +64,14 @@ CREATE TABLE IF NOT EXISTS fee_records (
     updated_at TIMESTAMP WITH TIME ZONE
 );
 
--- Fee Payments table (Multiple payments for a single fee record)
+-- Fee Payments table (Multiple payments for a single fee record) - Updated for metadata-driven architecture
 CREATE TABLE IF NOT EXISTS fee_payments (
     id SERIAL PRIMARY KEY,
     fee_record_id INTEGER NOT NULL REFERENCES fee_records(id) ON DELETE CASCADE,
-    
+
     -- Payment Details
     amount DECIMAL(10,2) NOT NULL,
-    payment_method VARCHAR(20) NOT NULL CHECK (payment_method IN ('Cash', 'Cheque', 'Online', 'UPI', 'Card')),
+    payment_method_id INTEGER NOT NULL REFERENCES payment_methods(id),
     payment_date DATE NOT NULL,
     transaction_id VARCHAR(100),
     
@@ -94,11 +94,11 @@ CREATE TABLE IF NOT EXISTS fee_payments (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Fee Discounts table (Student-specific discounts)
+-- Fee Discounts table (Student-specific discounts) - Updated for metadata-driven architecture
 CREATE TABLE IF NOT EXISTS fee_discounts (
     id SERIAL PRIMARY KEY,
     student_id INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE,
-    session_year VARCHAR(10) NOT NULL CHECK (session_year IN ('2022-23', '2023-24', '2024-25', '2025-26', '2026-27')),
+    session_year_id INTEGER NOT NULL REFERENCES session_years(id),
     discount_type VARCHAR(50) NOT NULL, -- 'Scholarship', 'Sibling Discount', 'Merit', 'Financial Aid', etc.
     discount_name VARCHAR(200) NOT NULL,
     discount_percentage DECIMAL(5,2),
@@ -168,6 +168,11 @@ COMMENT ON TABLE fee_discounts IS 'Student-specific fee discounts and scholarshi
 COMMENT ON TABLE fee_reminders IS 'Payment reminder communications sent to parents';
 COMMENT ON TABLE fee_reports IS 'Generated fee reports and their metadata';
 
-COMMENT ON COLUMN fee_records.payment_type IS 'Payment frequency: Monthly, Quarterly, Half Yearly, Yearly';
-COMMENT ON COLUMN fee_records.status IS 'Payment status: Pending, Partial, Paid, Overdue';
-COMMENT ON COLUMN fee_payments.payment_method IS 'Payment method: Cash, Cheque, Online, UPI, Card';
+COMMENT ON COLUMN fee_structures.class_id IS 'Foreign key reference to classes table';
+COMMENT ON COLUMN fee_structures.session_year_id IS 'Foreign key reference to session_years table';
+COMMENT ON COLUMN fee_records.session_year_id IS 'Foreign key reference to session_years table';
+COMMENT ON COLUMN fee_records.payment_type_id IS 'Foreign key reference to payment_types table';
+COMMENT ON COLUMN fee_records.payment_status_id IS 'Foreign key reference to payment_statuses table';
+COMMENT ON COLUMN fee_records.payment_method_id IS 'Foreign key reference to payment_methods table';
+COMMENT ON COLUMN fee_payments.payment_method_id IS 'Foreign key reference to payment_methods table';
+COMMENT ON COLUMN fee_discounts.session_year_id IS 'Foreign key reference to session_years table';

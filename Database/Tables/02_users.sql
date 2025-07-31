@@ -2,7 +2,7 @@
 -- Users and Authentication Tables
 -- =====================================================
 
--- Users table (Main authentication table)
+-- Users table (Main authentication table) - Updated for metadata-driven architecture
 CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY,
     email VARCHAR(255) UNIQUE NOT NULL,
@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS users (
     first_name VARCHAR(100) NOT NULL,
     last_name VARCHAR(100) NOT NULL,
     phone VARCHAR(20),
-    role VARCHAR(20) NOT NULL CHECK (role IN ('admin', 'teacher', 'student', 'parent')),
+    user_type_id INTEGER NOT NULL REFERENCES user_types(id),
     is_active BOOLEAN DEFAULT TRUE,
     is_verified BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -49,12 +49,12 @@ CREATE TABLE IF NOT EXISTS email_verification_tokens (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- User Profiles table (Extended user information)
+-- User Profiles table (Extended user information) - Updated for metadata-driven architecture
 CREATE TABLE IF NOT EXISTS user_profiles (
     id SERIAL PRIMARY KEY,
     user_id INTEGER UNIQUE NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     date_of_birth DATE,
-    gender VARCHAR(10) CHECK (gender IN ('Male', 'Female', 'Other')),
+    gender_id INTEGER REFERENCES genders(id),
     address TEXT,
     city VARCHAR(100),
     state VARCHAR(100),
@@ -102,6 +102,7 @@ COMMENT ON TABLE email_verification_tokens IS 'Tokens for email verification';
 COMMENT ON TABLE user_permissions IS 'Granular user permissions';
 COMMENT ON TABLE user_audit_log IS 'Audit trail for user actions';
 
-COMMENT ON COLUMN users.role IS 'User role: admin, teacher, student, parent';
+COMMENT ON COLUMN users.user_type_id IS 'Foreign key reference to user_types table';
+COMMENT ON COLUMN user_profiles.gender_id IS 'Foreign key reference to genders table';
 COMMENT ON COLUMN users.is_active IS 'Whether the user account is active';
 COMMENT ON COLUMN users.is_verified IS 'Whether the user email is verified';

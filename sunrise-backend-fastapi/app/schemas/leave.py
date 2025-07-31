@@ -5,19 +5,57 @@ from enum import Enum
 
 
 class LeaveTypeEnum(str, Enum):
-    SICK = "Sick Leave"
-    CASUAL = "Casual Leave"
-    EMERGENCY = "Emergency Leave"
-    FAMILY = "Family Function"
-    MEDICAL = "Medical Leave"
-    OTHER = "Other"
+    """
+    Leave Type Enum with metadata-driven values
+    These values correspond to the IDs in the leave_types metadata table
+    """
+    SICK_LEAVE = "Sick Leave"
+    CASUAL_LEAVE = "Casual Leave"
+    EMERGENCY_LEAVE = "Emergency Leave"
+    MEDICAL_LEAVE = "Medical Leave"
+    PERSONAL_LEAVE = "Personal Leave"
+
+    # Metadata table ID mappings
+    class VALUE:
+        SICK_LEAVE = 1
+        CASUAL_LEAVE = 2
+        EMERGENCY_LEAVE = 3
+        MEDICAL_LEAVE = 4
+        PERSONAL_LEAVE = 5
+
+    @classmethod
+    def get_id_by_name(cls, name: str) -> int:
+        """Get metadata table ID by enum name"""
+        name_upper = name.upper()
+        if hasattr(cls.VALUE, name_upper):
+            return getattr(cls.VALUE, name_upper)
+        return None
 
 
 class LeaveStatusEnum(str, Enum):
+    """
+    Leave Status Enum with metadata-driven values
+    These values correspond to the IDs in the leave_statuses metadata table
+    """
     PENDING = "Pending"
     APPROVED = "Approved"
     REJECTED = "Rejected"
     CANCELLED = "Cancelled"
+
+    # Metadata table ID mappings
+    class VALUE:
+        PENDING = 1
+        APPROVED = 2
+        REJECTED = 3
+        CANCELLED = 4
+
+    @classmethod
+    def get_id_by_name(cls, name: str) -> int:
+        """Get metadata table ID by enum name"""
+        name_upper = name.upper()
+        if hasattr(cls.VALUE, name_upper):
+            return getattr(cls.VALUE, name_upper)
+        return None
 
 
 class LeaveRequestBase(BaseModel):

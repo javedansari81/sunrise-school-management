@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.security import verify_token
-from app.crud.crud_user import user_crud
+from app.crud.crud_user import CRUDUser
 from app.models.user import User
 
 security = HTTPBearer()
@@ -28,13 +28,15 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
     
-    user = await user_crud.get(db, id=int(user_id))
+    # Use the new CRUD instance and get user with metadata
+    user_crud = CRUDUser()
+    user = await user_crud.get_with_metadata(db, id=int(user_id))
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found"
         )
-    
+
     return user
 
 

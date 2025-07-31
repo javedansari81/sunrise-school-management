@@ -4,7 +4,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import math
 
 from app.core.database import get_db
-from app.crud import student_crud, fee_record_crud
+from app.crud.crud_student import CRUDStudent
+from app.crud import fee_record_crud
 from app.schemas.student import (
     Student, StudentCreate, StudentUpdate, StudentWithFees, StudentListResponse,
     ClassEnum, GenderEnum
@@ -28,8 +29,9 @@ async def get_students(
     current_user: User = Depends(get_current_active_user)
 ):
     """
-    Get all students with comprehensive filters
+    Get all students with comprehensive filters and metadata
     """
+    student_crud = CRUDStudent()
     skip = (page - 1) * per_page
     students, total = await student_crud.get_multi_with_filters(
         db,
@@ -42,10 +44,16 @@ async def get_students(
         is_active=is_active
     )
 
+    # Convert to response schema with metadata
+    result_students = []
+    for student in students:
+        student_with_metadata = await student_crud.get_with_metadata(db, id=student.id)
+        result_students.append(Student.from_orm_with_metadata(student_with_metadata))
+
     total_pages = math.ceil(total / per_page)
 
     return StudentListResponse(
-        students=students,
+        students=result_students,
         total=total,
         page=page,
         per_page=per_page,
@@ -60,8 +68,10 @@ async def create_student(
     current_user: User = Depends(get_current_active_user)
 ):
     """
-    Create a new student record
+    Create a new student record with metadata validation
     """
+    student_crud = CRUDStudent()
+
     # Check if admission number already exists
     existing_student = await student_crud.get_by_admission_number(
         db, admission_number=student_data.admission_number
@@ -72,8 +82,16 @@ async def create_student(
             detail="Student with this admission number already exists"
         )
 
-    student = await student_crud.create(db, obj_in=student_data)
-    return student
+    try:
+        # Create student with metadata validation
+        student = await student_crud.create_with_validation(db, obj_in=student_data)
+        student_with_metadata = await student_crud.get_with_metadata(db, id=student.id)
+        return Student.from_orm_with_metadata(student_with_metadata)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
 
 
 @router.get("/{student_id}", response_model=Student)
@@ -83,16 +101,17 @@ async def get_student(
     current_user: User = Depends(get_current_active_user)
 ):
     """
-    Get student details by ID
+    Get student details by ID with metadata
     """
-    student = await student_crud.get(db, id=student_id)
+    student_crud = CRUDStudent()
+    student = await student_crud.get_with_metadata(db, id=student_id)
     if not student:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Student not found"
         )
 
-    return student
+    return Student.from_orm_with_metadata(student)
 
 
 @router.put("/{student_id}", response_model=Student)

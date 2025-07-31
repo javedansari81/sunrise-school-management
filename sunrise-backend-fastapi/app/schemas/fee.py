@@ -1,53 +1,132 @@
 from typing import Optional, List
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from datetime import datetime, date
 from enum import Enum
+from decimal import Decimal
 
 
 class PaymentTypeEnum(str, Enum):
+    """
+    Payment Type Enum with metadata-driven values
+    These values correspond to the IDs in the payment_types metadata table
+    """
     MONTHLY = "Monthly"
     QUARTERLY = "Quarterly"
     HALF_YEARLY = "Half Yearly"
     YEARLY = "Yearly"
 
+    # Metadata table ID mappings
+    class VALUE:
+        MONTHLY = 1
+        QUARTERLY = 2
+        HALF_YEARLY = 3
+        YEARLY = 4
+
+    @classmethod
+    def get_id_by_name(cls, name: str) -> int:
+        """Get metadata table ID by enum name"""
+        name_upper = name.upper()
+        if hasattr(cls.VALUE, name_upper):
+            return getattr(cls.VALUE, name_upper)
+        return None
+
 
 class PaymentStatusEnum(str, Enum):
+    """
+    Payment Status Enum with metadata-driven values
+    These values correspond to the IDs in the payment_statuses metadata table
+    """
     PENDING = "Pending"
     PARTIAL = "Partial"
     PAID = "Paid"
     OVERDUE = "Overdue"
 
+    # Metadata table ID mappings
+    class VALUE:
+        PENDING = 1
+        PARTIAL = 2
+        PAID = 3
+        OVERDUE = 4
+
+    @classmethod
+    def get_id_by_name(cls, name: str) -> int:
+        """Get metadata table ID by enum name"""
+        name_upper = name.upper()
+        if hasattr(cls.VALUE, name_upper):
+            return getattr(cls.VALUE, name_upper)
+        return None
+
 
 class PaymentMethodEnum(str, Enum):
+    """
+    Payment Method Enum with metadata-driven values
+    These values correspond to the IDs in the payment_methods metadata table
+    """
     CASH = "Cash"
     CHEQUE = "Cheque"
     ONLINE = "Online"
     UPI = "UPI"
     CARD = "Card"
 
+    # Metadata table ID mappings
+    class VALUE:
+        CASH = 1
+        CHEQUE = 2
+        ONLINE = 3
+        UPI = 4
+        CARD = 5
+
+    @classmethod
+    def get_id_by_name(cls, name: str) -> int:
+        """Get metadata table ID by enum name"""
+        name_upper = name.upper()
+        if hasattr(cls.VALUE, name_upper):
+            return getattr(cls.VALUE, name_upper)
+        return None
+
 
 class SessionYearEnum(str, Enum):
+    """
+    Session Year Enum with metadata-driven values
+    These values correspond to the IDs in the session_years metadata table
+    """
     YEAR_2022_23 = "2022-23"
     YEAR_2023_24 = "2023-24"
     YEAR_2024_25 = "2024-25"
     YEAR_2025_26 = "2025-26"
     YEAR_2026_27 = "2026-27"
 
+    # Metadata table ID mappings
+    class VALUE:
+        YEAR_2022_23 = 1
+        YEAR_2023_24 = 2
+        YEAR_2024_25 = 3
+        YEAR_2025_26 = 4
+        YEAR_2026_27 = 5
+
+    @classmethod
+    def get_id_by_name(cls, name: str) -> int:
+        """Get metadata table ID by enum name"""
+        name_upper = name.upper()
+        if hasattr(cls.VALUE, name_upper):
+            return getattr(cls.VALUE, name_upper)
+        return None
+
 
 # Fee Structure Schemas
 class FeeStructureBase(BaseModel):
-    class_name: str
-    session_year: SessionYearEnum
-    tuition_fee: float = 0.0
-    admission_fee: float = 0.0
-    development_fee: float = 0.0
-    activity_fee: float = 0.0
-    transport_fee: float = 0.0
-    library_fee: float = 0.0
-    lab_fee: float = 0.0
-    exam_fee: float = 0.0
-    other_fee: float = 0.0
-    total_annual_fee: float
+    class_id: int = Field(..., description="Foreign key to classes table")
+    session_year_id: int = Field(..., description="Foreign key to session_years table")
+    tuition_fee: Decimal = Field(default=Decimal('0.0'), ge=0)
+    admission_fee: Decimal = Field(default=Decimal('0.0'), ge=0)
+    development_fee: Decimal = Field(default=Decimal('0.0'), ge=0)
+    activity_fee: Decimal = Field(default=Decimal('0.0'), ge=0)
+    transport_fee: Decimal = Field(default=Decimal('0.0'), ge=0)
+    library_fee: Decimal = Field(default=Decimal('0.0'), ge=0)
+    lab_fee: Decimal = Field(default=Decimal('0.0'), ge=0)
+    exam_fee: Decimal = Field(default=Decimal('0.0'), ge=0)
+    other_fee: Decimal = Field(default=Decimal('0.0'), ge=0)
+    total_annual_fee: Decimal = Field(..., ge=0)
 
 
 class FeeStructureCreate(FeeStructureBase):
@@ -55,18 +134,18 @@ class FeeStructureCreate(FeeStructureBase):
 
 
 class FeeStructureUpdate(BaseModel):
-    class_name: Optional[str] = None
-    session_year: Optional[SessionYearEnum] = None
-    tuition_fee: Optional[float] = None
-    admission_fee: Optional[float] = None
-    development_fee: Optional[float] = None
-    activity_fee: Optional[float] = None
-    transport_fee: Optional[float] = None
-    library_fee: Optional[float] = None
-    lab_fee: Optional[float] = None
-    exam_fee: Optional[float] = None
-    other_fee: Optional[float] = None
-    total_annual_fee: Optional[float] = None
+    class_id: Optional[int] = None
+    session_year_id: Optional[int] = None
+    tuition_fee: Optional[Decimal] = Field(None, ge=0)
+    admission_fee: Optional[Decimal] = Field(None, ge=0)
+    development_fee: Optional[Decimal] = Field(None, ge=0)
+    activity_fee: Optional[Decimal] = Field(None, ge=0)
+    transport_fee: Optional[Decimal] = Field(None, ge=0)
+    library_fee: Optional[Decimal] = Field(None, ge=0)
+    lab_fee: Optional[Decimal] = Field(None, ge=0)
+    exam_fee: Optional[Decimal] = Field(None, ge=0)
+    other_fee: Optional[Decimal] = Field(None, ge=0)
+    total_annual_fee: Optional[Decimal] = Field(None, ge=0)
 
 
 class FeeStructureInDBBase(FeeStructureBase):
@@ -79,16 +158,42 @@ class FeeStructureInDBBase(FeeStructureBase):
 
 
 class FeeStructure(FeeStructureInDBBase):
-    pass
+    # Computed fields for API responses
+    class_name: Optional[str] = Field(None, description="Resolved class name")
+    session_year_name: Optional[str] = Field(None, description="Resolved session year name")
+
+    @classmethod
+    def from_orm_with_metadata(cls, db_fee_structure):
+        """Create FeeStructure schema with resolved metadata values"""
+        fee_data = {
+            "id": db_fee_structure.id,
+            "class_id": db_fee_structure.class_id,
+            "session_year_id": db_fee_structure.session_year_id,
+            "tuition_fee": db_fee_structure.tuition_fee,
+            "admission_fee": db_fee_structure.admission_fee,
+            "development_fee": db_fee_structure.development_fee,
+            "activity_fee": db_fee_structure.activity_fee,
+            "transport_fee": db_fee_structure.transport_fee,
+            "library_fee": db_fee_structure.library_fee,
+            "lab_fee": db_fee_structure.lab_fee,
+            "exam_fee": db_fee_structure.exam_fee,
+            "other_fee": db_fee_structure.other_fee,
+            "total_annual_fee": db_fee_structure.total_annual_fee,
+            "created_at": db_fee_structure.created_at,
+            "updated_at": db_fee_structure.updated_at,
+            "class_name": db_fee_structure.class_ref.display_name if db_fee_structure.class_ref else None,
+            "session_year_name": db_fee_structure.session_year.name if db_fee_structure.session_year else None
+        }
+        return cls(**fee_data)
 
 
 # Fee Record Schemas
 class FeeRecordBase(BaseModel):
-    student_id: int
-    session_year: SessionYearEnum
-    payment_type: PaymentTypeEnum
-    total_amount: float
-    balance_amount: float
+    student_id: int = Field(..., description="Foreign key to students table")
+    session_year_id: int = Field(..., description="Foreign key to session_years table")
+    payment_type_id: int = Field(..., description="Foreign key to payment_types table")
+    total_amount: Decimal = Field(..., ge=0)
+    balance_amount: Decimal = Field(..., ge=0)
     due_date: date
     remarks: Optional[str] = None
 
@@ -99,20 +204,24 @@ class FeeRecordCreate(FeeRecordBase):
 
 class FeeRecordUpdate(BaseModel):
     student_id: Optional[int] = None
-    session_year: Optional[SessionYearEnum] = None
-    payment_type: Optional[PaymentTypeEnum] = None
-    total_amount: Optional[float] = None
-    balance_amount: Optional[float] = None
+    session_year_id: Optional[int] = None
+    payment_type_id: Optional[int] = None
+    payment_status_id: Optional[int] = None
+    payment_method_id: Optional[int] = None
+    total_amount: Optional[Decimal] = Field(None, ge=0)
+    paid_amount: Optional[Decimal] = Field(None, ge=0)
+    balance_amount: Optional[Decimal] = Field(None, ge=0)
     due_date: Optional[date] = None
-    status: Optional[PaymentStatusEnum] = None
+    transaction_id: Optional[str] = None
+    payment_date: Optional[date] = None
     remarks: Optional[str] = None
 
 
 class FeeRecordInDBBase(FeeRecordBase):
     id: int
-    paid_amount: float = 0.0
-    status: PaymentStatusEnum
-    payment_method: Optional[PaymentMethodEnum] = None
+    paid_amount: Decimal = Decimal('0.0')
+    payment_status_id: int = 1
+    payment_method_id: Optional[int] = None
     transaction_id: Optional[str] = None
     payment_date: Optional[date] = None
     created_at: datetime
@@ -123,7 +232,39 @@ class FeeRecordInDBBase(FeeRecordBase):
 
 
 class FeeRecord(FeeRecordInDBBase):
-    pass
+    # Computed fields for API responses
+    student_name: Optional[str] = Field(None, description="Student full name")
+    session_year_name: Optional[str] = Field(None, description="Resolved session year name")
+    payment_type_name: Optional[str] = Field(None, description="Resolved payment type name")
+    payment_status_name: Optional[str] = Field(None, description="Resolved payment status name")
+    payment_method_name: Optional[str] = Field(None, description="Resolved payment method name")
+
+    @classmethod
+    def from_orm_with_metadata(cls, db_fee_record):
+        """Create FeeRecord schema with resolved metadata values"""
+        fee_data = {
+            "id": db_fee_record.id,
+            "student_id": db_fee_record.student_id,
+            "session_year_id": db_fee_record.session_year_id,
+            "payment_type_id": db_fee_record.payment_type_id,
+            "payment_status_id": db_fee_record.payment_status_id,
+            "payment_method_id": db_fee_record.payment_method_id,
+            "total_amount": db_fee_record.total_amount,
+            "paid_amount": db_fee_record.paid_amount,
+            "balance_amount": db_fee_record.balance_amount,
+            "due_date": db_fee_record.due_date,
+            "transaction_id": db_fee_record.transaction_id,
+            "payment_date": db_fee_record.payment_date,
+            "remarks": db_fee_record.remarks,
+            "created_at": db_fee_record.created_at,
+            "updated_at": db_fee_record.updated_at,
+            "student_name": f"{db_fee_record.student.first_name} {db_fee_record.student.last_name}" if db_fee_record.student else None,
+            "session_year_name": db_fee_record.session_year.name if db_fee_record.session_year else None,
+            "payment_type_name": db_fee_record.payment_type.name if db_fee_record.payment_type else None,
+            "payment_status_name": db_fee_record.payment_status.name if db_fee_record.payment_status else None,
+            "payment_method_name": db_fee_record.payment_method.name if db_fee_record.payment_method else None
+        }
+        return cls(**fee_data)
 
 
 class FeeRecordWithStudent(FeeRecord):

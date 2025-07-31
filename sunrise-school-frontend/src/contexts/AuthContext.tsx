@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { authAPI } from '../services/api';
+import { configurationService } from '../services/configurationService';
 
 interface User {
   id: number;
@@ -56,25 +57,43 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     });
   }, [user, isAuthenticated]);
 
+  // Helper function to map user_type_id to user_type string (matching backend enum values)
+  const mapUserTypeIdToString = (user_type_id: number): string => {
+    switch (user_type_id) {
+      case 1: return 'ADMIN';    // Backend enum: ADMIN = "ADMIN"
+      case 2: return 'TEACHER';  // Backend enum: TEACHER = "TEACHER"
+      case 3: return 'STUDENT';  // Backend enum: STUDENT = "STUDENT"
+      default: return 'STUDENT';
+    }
+  };
+
   const login = async (email: string, password: string): Promise<LoginResponse> => {
     try {
       console.log('Login attempt for:', email);
       const response = await authAPI.login(email, password);
       const { access_token, user, permissions } = response.data;
       console.log('Login successful, token received:', !!access_token);
+      console.log('Raw user data from backend:', user);
 
       localStorage.setItem('authToken', access_token);
       console.log('Token stored in localStorage');
 
+      // Map user_type_id to user_type string for frontend compatibility
+      const mappedUser = {
+        ...user,
+        user_type: user.user_type || mapUserTypeIdToString(user.user_type_id)
+      };
+      console.log('Mapped user data:', mappedUser);
+
       // Set user immediately from login response
-      setUser(user);
-      localStorage.setItem('userRole', user.user_type);
+      setUser(mappedUser);
+      localStorage.setItem('userRole', mappedUser.user_type);
 
       // Return the full response for the caller
       return {
         access_token,
         token_type: 'bearer',
-        user,
+        user: mappedUser,
         permissions: permissions || []
       };
     } catch (error: any) {
@@ -87,6 +106,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     localStorage.removeItem('authToken');
     localStorage.removeItem('userRole');
     setUser(null);
+    // Clear configuration cache on logout
+    configurationService.clearConfiguration();
   };
 
   const refreshUser = async () => {
@@ -102,10 +123,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.log('Calling getCurrentUser API...');
       const response = await authAPI.getCurrentUser();
       console.log('getCurrentUser response:', response.data);
-      setUser(response.data);
+
+      // Map user_type_id to user_type string for frontend compatibility
+      const mappedUser = {
+        ...response.data,
+        user_type: response.data.user_type || mapUserTypeIdToString(response.data.user_type_id)
+      };
+      console.log('Mapped user data from refresh:', mappedUser);
+
+      setUser(mappedUser);
 
       // Update user role in localStorage
-      localStorage.setItem('userRole', response.data.user_type);
+      localStorage.setItem('userRole', mappedUser.user_type);
     } catch (error: any) {
       console.error('Failed to refresh user:', error);
       console.log('Error details:', error.response?.status, error.response?.data);

@@ -1,14 +1,18 @@
 -- =====================================================
--- Drop All Database Objects - Clean Slate
+-- Delete All Tables for Render Database - Metadata Migration
 -- =====================================================
--- WARNING: This script will delete ALL data and tables
--- Use with extreme caution and only for fresh installations
+-- This script is specifically for deleting old table structure
+-- from your render database to prepare for metadata-driven architecture
+-- Run this on your render database before creating new structure
+
+-- WARNING: This will delete ALL data and tables
+-- Make sure you have a backup if needed
 
 -- Start transaction
 BEGIN;
 
 -- =====================================================
--- 1. Drop all tables in dependency order
+-- 1. Drop all existing tables in dependency order
 -- =====================================================
 
 -- Drop reporting and audit tables first
@@ -38,21 +42,6 @@ DROP TABLE IF EXISTS attendance_settings CASCADE;
 DROP TABLE IF EXISTS leave_policies CASCADE;
 DROP TABLE IF EXISTS leave_approvers CASCADE;
 DROP TABLE IF EXISTS budgets CASCADE;
-
--- Drop metadata tables (new metadata-driven architecture)
-DROP TABLE IF EXISTS user_types CASCADE;
-DROP TABLE IF EXISTS session_years CASCADE;
-DROP TABLE IF EXISTS genders CASCADE;
-DROP TABLE IF EXISTS classes CASCADE;
-DROP TABLE IF EXISTS payment_types CASCADE;
-DROP TABLE IF EXISTS payment_statuses CASCADE;
-DROP TABLE IF EXISTS payment_methods CASCADE;
-DROP TABLE IF EXISTS leave_types CASCADE;
-DROP TABLE IF EXISTS leave_statuses CASCADE;
-DROP TABLE IF EXISTS expense_categories CASCADE;
-DROP TABLE IF EXISTS expense_statuses CASCADE;
-DROP TABLE IF EXISTS employment_statuses CASCADE;
-DROP TABLE IF EXISTS qualifications CASCADE;
 
 -- Drop main operational tables
 DROP TABLE IF EXISTS expenses CASCADE;
@@ -96,6 +85,9 @@ DROP TABLE IF EXISTS schema_versions CASCADE;
 
 DROP TYPE IF EXISTS user_role_enum CASCADE;
 DROP TYPE IF EXISTS gender_enum CASCADE;
+DROP TYPE IF EXISTS class_enum CASCADE;
+DROP TYPE IF EXISTS qualification_enum CASCADE;
+DROP TYPE IF EXISTS employment_status_enum CASCADE;
 DROP TYPE IF EXISTS session_year_enum CASCADE;
 DROP TYPE IF EXISTS payment_type_enum CASCADE;
 DROP TYPE IF EXISTS payment_status_enum CASCADE;
@@ -112,32 +104,23 @@ DROP TYPE IF EXISTS employment_type_enum CASCADE;
 -- =====================================================
 
 -- Most sequences are auto-created with SERIAL columns and will be dropped with tables
--- Add any custom sequences here if needed
+-- Drop any remaining sequences that might exist
+DROP SEQUENCE IF EXISTS users_id_seq CASCADE;
+DROP SEQUENCE IF EXISTS students_id_seq CASCADE;
+DROP SEQUENCE IF EXISTS teachers_id_seq CASCADE;
+DROP SEQUENCE IF EXISTS fee_structures_id_seq CASCADE;
+DROP SEQUENCE IF EXISTS fee_records_id_seq CASCADE;
+DROP SEQUENCE IF EXISTS fee_payments_id_seq CASCADE;
+DROP SEQUENCE IF EXISTS leave_requests_id_seq CASCADE;
+DROP SEQUENCE IF EXISTS expenses_id_seq CASCADE;
 
 -- =====================================================
--- 4. Drop all functions and procedures (if any)
--- =====================================================
-
--- Add any custom functions or stored procedures here
--- Example:
--- DROP FUNCTION IF EXISTS calculate_fee_balance() CASCADE;
--- DROP FUNCTION IF EXISTS generate_attendance_report() CASCADE;
-
--- =====================================================
--- 5. Drop all views (if any)
--- =====================================================
-
--- Add any views here
--- Example:
--- DROP VIEW IF EXISTS student_fee_summary CASCADE;
--- DROP VIEW IF EXISTS teacher_attendance_summary CASCADE;
-
--- =====================================================
--- 6. Verification - Check remaining objects
+-- 4. Verification - Check remaining objects
 -- =====================================================
 
 -- List any remaining tables
 SELECT 
+    'Remaining tables:' as info,
     schemaname,
     tablename
 FROM pg_tables 
@@ -146,6 +129,7 @@ ORDER BY tablename;
 
 -- List any remaining types
 SELECT 
+    'Remaining custom types:' as info,
     typname
 FROM pg_type 
 WHERE typnamespace = (SELECT oid FROM pg_namespace WHERE nspname = 'public')
@@ -154,6 +138,7 @@ ORDER BY typname;
 
 -- List any remaining sequences
 SELECT 
+    'Remaining sequences:' as info,
     schemaname,
     sequencename
 FROM pg_sequences 
@@ -167,15 +152,14 @@ COMMIT;
 -- Success Messages
 -- =====================================================
 
-SELECT 'Database cleanup completed successfully!' as result;
-SELECT 'All tables, types, and objects have been dropped' as details;
-SELECT 'Database is now ready for fresh installation' as next_step;
+SELECT 'Render database cleanup completed successfully!' as result;
+SELECT 'All old tables, types, and objects have been dropped' as details;
+SELECT 'Database is now ready for new metadata-driven structure' as next_step;
 
 -- =====================================================
--- IMPORTANT NOTES:
+-- NEXT STEPS:
 -- =====================================================
--- 1. This script drops ALL data - use only for fresh installations
--- 2. Always backup your database before running this script
--- 3. Run this script as a database superuser or owner
--- 4. After running this script, run 01_create_database.sql to recreate the schema
--- 5. Then run 02_load_initial_data.sql to populate with initial data
+-- 1. Run the new metadata table creation scripts
+-- 2. Run the new main table creation scripts with foreign keys
+-- 3. Load initial metadata data
+-- 4. Update your backend application to use new structure

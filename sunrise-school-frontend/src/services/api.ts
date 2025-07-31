@@ -140,6 +140,12 @@ export const expensesAPI = {
   getExpenseCategories: () => api.get('/expenses/categories'),
 };
 
+// Configuration API
+export const configurationAPI = {
+  getConfiguration: () => api.get('/configuration/'),
+  refreshConfiguration: () => api.post('/configuration/refresh'),
+};
+
 // Events API
 export const eventsAPI = {
   getEvents: () => api.get('/events'),

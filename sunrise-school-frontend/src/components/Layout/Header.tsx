@@ -136,7 +136,7 @@ const Header: React.FC = () => {
                   }}
                 >
                   {/* Show Dashboard only for admin users */}
-                  {user?.user_type?.toLowerCase() === 'admin' && (
+                  {user?.user_type?.toUpperCase() === 'ADMIN' && (
                     <MenuItem onClick={() => { handleMenuClose(); navigate('/admin/dashboard'); }}>
                       <DashboardIcon sx={{ mr: 1 }} />
                       Dashboard

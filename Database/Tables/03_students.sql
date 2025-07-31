@@ -2,7 +2,7 @@
 -- Student Management Tables
 -- =====================================================
 
--- Students table (Main student information)
+-- Students table (Main student information) - Updated for metadata-driven architecture
 CREATE TABLE IF NOT EXISTS students (
     id SERIAL PRIMARY KEY,
     user_id INTEGER UNIQUE REFERENCES users(id) ON DELETE CASCADE,
@@ -10,9 +10,9 @@ CREATE TABLE IF NOT EXISTS students (
     first_name VARCHAR(100) NOT NULL,
     last_name VARCHAR(100) NOT NULL,
     date_of_birth DATE NOT NULL,
-    gender VARCHAR(10) NOT NULL CHECK (gender IN ('Male', 'Female', 'Other')),
+    gender_id INTEGER NOT NULL REFERENCES genders(id),
     blood_group VARCHAR(5),
-    
+
     -- Contact Information
     phone VARCHAR(20),
     email VARCHAR(255),
@@ -21,13 +21,13 @@ CREATE TABLE IF NOT EXISTS students (
     state VARCHAR(100),
     postal_code VARCHAR(20),
     country VARCHAR(100) DEFAULT 'India',
-    
+
     -- Academic Information
-    class VARCHAR(20) NOT NULL,
+    class_id INTEGER NOT NULL REFERENCES classes(id),
     section VARCHAR(10),
     roll_number VARCHAR(20),
     admission_date DATE NOT NULL,
-    session_year VARCHAR(10) NOT NULL CHECK (session_year IN ('2022-23', '2023-24', '2024-25', '2025-26', '2026-27')),
+    session_year_id INTEGER NOT NULL REFERENCES session_years(id),
     
     -- Parent/Guardian Information
     father_name VARCHAR(200),
@@ -72,12 +72,12 @@ CREATE TABLE IF NOT EXISTS students (
     updated_at TIMESTAMP WITH TIME ZONE
 );
 
--- Student Academic History table
+-- Student Academic History table - Updated for metadata-driven architecture
 CREATE TABLE IF NOT EXISTS student_academic_history (
     id SERIAL PRIMARY KEY,
     student_id INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE,
-    session_year VARCHAR(10) NOT NULL CHECK (session_year IN ('2022-23', '2023-24', '2024-25', '2025-26', '2026-27')),
-    class VARCHAR(20) NOT NULL,
+    session_year_id INTEGER NOT NULL REFERENCES session_years(id),
+    class_id INTEGER NOT NULL REFERENCES classes(id),
     section VARCHAR(10),
     roll_number VARCHAR(20),
     promoted BOOLEAN DEFAULT FALSE,
@@ -122,7 +122,11 @@ COMMENT ON TABLE student_documents IS 'Student document storage and verification
 COMMENT ON TABLE student_notes IS 'Administrative notes about students';
 
 COMMENT ON COLUMN students.admission_number IS 'Unique student admission number';
-COMMENT ON COLUMN students.session_year IS 'Current academic session year';
+COMMENT ON COLUMN students.gender_id IS 'Foreign key reference to genders table';
+COMMENT ON COLUMN students.class_id IS 'Foreign key reference to classes table';
+COMMENT ON COLUMN students.session_year_id IS 'Foreign key reference to session_years table';
 COMMENT ON COLUMN students.is_active IS 'Whether the student is currently enrolled';
+COMMENT ON COLUMN student_academic_history.session_year_id IS 'Foreign key reference to session_years table';
+COMMENT ON COLUMN student_academic_history.class_id IS 'Foreign key reference to classes table';
 COMMENT ON COLUMN student_notes.note_type IS 'Type of note: academic, behavioral, medical, general';
 COMMENT ON COLUMN student_notes.is_confidential IS 'Whether the note is confidential';

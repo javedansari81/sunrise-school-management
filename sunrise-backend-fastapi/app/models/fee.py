@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, Date, Enum, ForeignKey, Text, DateTime, Boolean
+from sqlalchemy import Column, Integer, String, Date, ForeignKey, Text, DateTime, DECIMAL
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import enum
@@ -40,37 +40,42 @@ class FeeStructure(Base):
     __tablename__ = "fee_structures"
 
     id = Column(Integer, primary_key=True, index=True)
-    class_name = Column(String(20), nullable=False)
-    session_year = Column(String(10), nullable=False)
+
+    # Foreign keys to metadata tables
+    class_id = Column(Integer, ForeignKey("classes.id"), nullable=False)
+    session_year_id = Column(Integer, ForeignKey("session_years.id"), nullable=False)
     
     # Fee Components
-    tuition_fee = Column(Float, default=0.0)
-    admission_fee = Column(Float, default=0.0)
-    development_fee = Column(Float, default=0.0)
-    activity_fee = Column(Float, default=0.0)
-    transport_fee = Column(Float, default=0.0)
-    library_fee = Column(Float, default=0.0)
-    lab_fee = Column(Float, default=0.0)
-    exam_fee = Column(Float, default=0.0)
-    other_fee = Column(Float, default=0.0)
-    
+    tuition_fee = Column(DECIMAL(10, 2), default=0.0)
+    admission_fee = Column(DECIMAL(10, 2), default=0.0)
+    development_fee = Column(DECIMAL(10, 2), default=0.0)
+    activity_fee = Column(DECIMAL(10, 2), default=0.0)
+    transport_fee = Column(DECIMAL(10, 2), default=0.0)
+    library_fee = Column(DECIMAL(10, 2), default=0.0)
+    lab_fee = Column(DECIMAL(10, 2), default=0.0)
+    exam_fee = Column(DECIMAL(10, 2), default=0.0)
+    other_fee = Column(DECIMAL(10, 2), default=0.0)
+
     # Total
-    total_annual_fee = Column(Float, nullable=False)
+    total_annual_fee = Column(DECIMAL(10, 2), nullable=False)
     
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
+    # Relationships
+    class_ref = relationship("Class", back_populates="fee_structures")
+    session_year = relationship("SessionYear", back_populates="fee_structures")
+
     @property
-    def session_year_enum(self) -> SessionYearEnum:
-        """Convert string session_year to SessionYearEnum for application logic"""
-        try:
-            for member in SessionYearEnum:
-                if member.value == self.session_year:
-                    return member
-            return SessionYearEnum.YEAR_2024_25  # Default fallback
-        except (AttributeError, TypeError):
-            return SessionYearEnum.YEAR_2024_25
+    def class_name(self) -> str:
+        """Get class display name from relationship"""
+        return self.class_ref.display_name if self.class_ref else ""
+
+    @property
+    def session_year_name(self) -> str:
+        """Get session year name from relationship"""
+        return self.session_year.name if self.session_year else ""
 
 
 class FeeRecord(Base):
@@ -78,35 +83,59 @@ class FeeRecord(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     student_id = Column(Integer, ForeignKey("students.id"), nullable=False)
-    session_year = Column(String(10), nullable=False)
-    payment_type = Column(String(20), nullable=False)
+
+    # Foreign keys to metadata tables
+    session_year_id = Column(Integer, ForeignKey("session_years.id"), nullable=False)
+    payment_type_id = Column(Integer, ForeignKey("payment_types.id"), nullable=False)
+    payment_status_id = Column(Integer, ForeignKey("payment_statuses.id"), default=1)
+    payment_method_id = Column(Integer, ForeignKey("payment_methods.id"), nullable=True)
 
     # Fee Details
-    total_amount = Column(Float, nullable=False)
-    paid_amount = Column(Float, default=0.0)
-    balance_amount = Column(Float, nullable=False)
-
-    # Payment Status
-    status = Column(String(20), default="Pending")
+    total_amount = Column(DECIMAL(10, 2), nullable=False)
+    paid_amount = Column(DECIMAL(10, 2), default=0.0)
+    balance_amount = Column(DECIMAL(10, 2), nullable=False)
 
     # Due Date
     due_date = Column(Date, nullable=False)
 
-    # Payment Details
-    payment_method = Column(String(20), nullable=True)
+    # Payment Details (for single payment records)
     transaction_id = Column(String(100), nullable=True)
     payment_date = Column(Date, nullable=True)
-    
+
     # Additional Info
     remarks = Column(Text, nullable=True)
-    
+
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-    
+
     # Relationships
     student = relationship("Student", back_populates="fee_records")
+    session_year = relationship("SessionYear", back_populates="fee_records")
+    payment_type = relationship("PaymentType", back_populates="fee_records")
+    payment_status = relationship("PaymentStatus", back_populates="fee_records")
+    payment_method = relationship("PaymentMethod", back_populates="fee_records")
     payments = relationship("FeePayment", back_populates="fee_record")
+
+    @property
+    def session_year_name(self) -> str:
+        """Get session year name from relationship"""
+        return self.session_year.name if self.session_year else ""
+
+    @property
+    def payment_type_name(self) -> str:
+        """Get payment type name from relationship"""
+        return self.payment_type.name if self.payment_type else ""
+
+    @property
+    def payment_status_name(self) -> str:
+        """Get payment status name from relationship"""
+        return self.payment_status.name if self.payment_status else ""
+
+    @property
+    def payment_method_name(self) -> str:
+        """Get payment method name from relationship"""
+        return self.payment_method.name if self.payment_method else ""
 
 
 class FeePayment(Base):
@@ -114,13 +143,13 @@ class FeePayment(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     fee_record_id = Column(Integer, ForeignKey("fee_records.id"), nullable=False)
-    
+
     # Payment Details
-    amount = Column(Float, nullable=False)
-    payment_method = Column(String(20), nullable=False)
+    amount = Column(DECIMAL(10, 2), nullable=False)
+    payment_method_id = Column(Integer, ForeignKey("payment_methods.id"), nullable=False)
     payment_date = Column(Date, nullable=False)
     transaction_id = Column(String(100), nullable=True)
-    
+
     # Additional Info
     remarks = Column(Text, nullable=True)
     receipt_number = Column(String(50), nullable=True)
@@ -130,3 +159,9 @@ class FeePayment(Base):
     
     # Relationships
     fee_record = relationship("FeeRecord", back_populates="payments")
+    payment_method = relationship("PaymentMethod", back_populates="fee_payments")
+
+    @property
+    def payment_method_name(self) -> str:
+        """Get payment method name from relationship"""
+        return self.payment_method.name if self.payment_method else ""

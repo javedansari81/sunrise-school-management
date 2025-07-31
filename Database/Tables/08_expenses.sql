@@ -2,54 +2,50 @@
 -- Expense Management Tables
 -- =====================================================
 
--- Expenses table (School expense records)
+-- Expenses table (School expense records) - Updated for metadata-driven architecture
 CREATE TABLE IF NOT EXISTS expenses (
     id SERIAL PRIMARY KEY,
-    
+
     -- Basic Information
     expense_date DATE NOT NULL,
-    category VARCHAR(50) NOT NULL CHECK (category IN (
-        'Infrastructure', 'Maintenance', 'Utilities', 'Supplies', 'Equipment',
-        'Transportation', 'Events', 'Marketing', 'Staff Welfare', 'Academic',
-        'Sports', 'Library', 'Laboratory', 'Security', 'Cleaning', 'Other'
-    )),
+    expense_category_id INTEGER NOT NULL REFERENCES expense_categories(id),
     subcategory VARCHAR(100),
     description TEXT NOT NULL,
-    
+
     -- Financial Details
     amount DECIMAL(12,2) NOT NULL,
     tax_amount DECIMAL(10,2) DEFAULT 0.0,
     total_amount DECIMAL(12,2) NOT NULL,
     currency VARCHAR(3) DEFAULT 'INR',
-    
+
     -- Vendor Information
     vendor_name VARCHAR(200),
     vendor_contact VARCHAR(20),
     vendor_email VARCHAR(255),
     vendor_address TEXT,
     vendor_gst_number VARCHAR(20),
-    
+
     -- Payment Details
-    payment_method VARCHAR(20) NOT NULL CHECK (payment_method IN ('Cash', 'Cheque', 'Online Transfer', 'UPI', 'Card')),
-    payment_status VARCHAR(20) DEFAULT 'Pending' CHECK (payment_status IN ('Pending', 'Paid', 'Partially Paid', 'Overdue')),
+    payment_method_id INTEGER NOT NULL REFERENCES payment_methods(id),
+    payment_status_id INTEGER DEFAULT 1 REFERENCES payment_statuses(id),
     payment_date DATE,
     payment_reference VARCHAR(100),
-    
+
     -- Bank/Cheque Details
     bank_name VARCHAR(100),
     cheque_number VARCHAR(50),
     cheque_date DATE,
-    
+
     -- Approval Workflow
-    status VARCHAR(20) DEFAULT 'Pending' CHECK (status IN ('Pending', 'Approved', 'Rejected', 'Paid')),
+    expense_status_id INTEGER DEFAULT 1 REFERENCES expense_statuses(id),
     requested_by INTEGER NOT NULL REFERENCES users(id),
     approved_by INTEGER REFERENCES users(id),
     approved_at TIMESTAMP WITH TIME ZONE,
     approval_comments TEXT,
-    
+
     -- Budget Information
     budget_category VARCHAR(100),
-    budget_year VARCHAR(10) CHECK (budget_year IN ('2022-23', '2023-24', '2024-25', '2025-26', '2026-27')),
+    session_year_id INTEGER REFERENCES session_years(id),
     is_budgeted BOOLEAN DEFAULT FALSE,
     
     -- Documents
@@ -71,30 +67,8 @@ CREATE TABLE IF NOT EXISTS expenses (
     updated_at TIMESTAMP WITH TIME ZONE
 );
 
--- Expense Categories table (Expense category configuration)
-CREATE TABLE IF NOT EXISTS expense_categories (
-    id SERIAL PRIMARY KEY,
-    category_name VARCHAR(100) UNIQUE NOT NULL,
-    parent_category_id INTEGER REFERENCES expense_categories(id),
-    description TEXT,
-    
-    -- Budget Information
-    annual_budget DECIMAL(12,2) DEFAULT 0.0,
-    budget_year VARCHAR(10) CHECK (budget_year IN ('2022-23', '2023-24', '2024-25', '2025-26', '2026-27')),
-    
-    -- Approval Requirements
-    requires_approval BOOLEAN DEFAULT TRUE,
-    approval_limit DECIMAL(12,2), -- Amount above which approval is required
-    approver_role VARCHAR(50), -- Role that can approve expenses in this category
-    
-    -- Status
-    is_active BOOLEAN DEFAULT TRUE,
-    
-    -- Timestamps
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE,
-    created_by INTEGER REFERENCES users(id)
-);
+-- Note: This table is now replaced by the metadata expense_categories table
+-- The metadata expense_categories table is defined in 00_metadata_tables.sql
 
 -- Vendors table (Vendor/Supplier information)
 CREATE TABLE IF NOT EXISTS vendors (
@@ -205,11 +179,11 @@ CREATE TABLE IF NOT EXISTS purchase_order_items (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Budget table (Annual budget planning)
+-- Budget table (Annual budget planning) - Updated for metadata-driven architecture
 CREATE TABLE IF NOT EXISTS budgets (
     id SERIAL PRIMARY KEY,
-    budget_year VARCHAR(10) NOT NULL CHECK (budget_year IN ('2022-23', '2023-24', '2024-25', '2025-26', '2026-27')),
-    category VARCHAR(100) NOT NULL,
+    session_year_id INTEGER NOT NULL REFERENCES session_years(id),
+    expense_category_id INTEGER NOT NULL REFERENCES expense_categories(id),
     
     -- Budget Amounts
     allocated_amount DECIMAL(12,2) NOT NULL,
@@ -227,7 +201,7 @@ CREATE TABLE IF NOT EXISTS budgets (
     created_by INTEGER REFERENCES users(id),
     
     -- Unique constraint
-    UNIQUE(budget_year, category)
+    UNIQUE(session_year_id, expense_category_id)
 );
 
 -- Expense Reports table (Generated expense reports)
@@ -251,13 +225,16 @@ CREATE TABLE IF NOT EXISTS expense_reports (
 
 -- Comments and Notes
 COMMENT ON TABLE expenses IS 'School expense records and financial transactions';
-COMMENT ON TABLE expense_categories IS 'Expense category configuration and budgets';
 COMMENT ON TABLE vendors IS 'Vendor and supplier information';
 COMMENT ON TABLE purchase_orders IS 'Purchase order management';
 COMMENT ON TABLE purchase_order_items IS 'Items within purchase orders';
 COMMENT ON TABLE budgets IS 'Annual budget planning and tracking';
 COMMENT ON TABLE expense_reports IS 'Generated expense reports';
 
-COMMENT ON COLUMN expenses.category IS 'Expense category for classification';
-COMMENT ON COLUMN expenses.status IS 'Approval status: Pending, Approved, Rejected, Paid';
-COMMENT ON COLUMN expenses.payment_status IS 'Payment status: Pending, Paid, Partially Paid, Overdue';
+COMMENT ON COLUMN expenses.expense_category_id IS 'Foreign key reference to expense_categories metadata table';
+COMMENT ON COLUMN expenses.payment_method_id IS 'Foreign key reference to payment_methods metadata table';
+COMMENT ON COLUMN expenses.payment_status_id IS 'Foreign key reference to payment_statuses metadata table';
+COMMENT ON COLUMN expenses.expense_status_id IS 'Foreign key reference to expense_statuses metadata table';
+COMMENT ON COLUMN expenses.session_year_id IS 'Foreign key reference to session_years metadata table';
+COMMENT ON COLUMN budgets.session_year_id IS 'Foreign key reference to session_years metadata table';
+COMMENT ON COLUMN budgets.expense_category_id IS 'Foreign key reference to expense_categories metadata table';

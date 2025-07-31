@@ -26,6 +26,14 @@ import {
   Snackbar,
 } from '@mui/material';
 import {
+  PaymentTypeDropdown,
+  PaymentStatusDropdown,
+  PaymentMethodDropdown,
+  SessionYearDropdown,
+  PaymentStatusFilter
+} from '../../components/common/MetadataDropdown';
+import { useConfiguration } from '../../contexts/ConfigurationContext';
+import {
   Search,
   Payment,
   Visibility,
