@@ -21,7 +21,6 @@ import {
   Alert,
   Snackbar,
   Card,
-  CardContent,
   LinearProgress,
   Tooltip,
   Stack,
@@ -96,14 +95,18 @@ interface StudentMonthlyFeeHistory {
 const SimpleEnhancedFeeManagement: React.FC = () => {
   const { isAuthenticated, user } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [dialogLoading, setDialogLoading] = useState(false);
+  const [paymentHistoryLoading, setPaymentHistoryLoading] = useState(false);
   const [students, setStudents] = useState<EnhancedStudentFeeSummary[]>([]);
   const [selectedStudent, setSelectedStudent] = useState<StudentMonthlyFeeHistory | null>(null);
+  const [paymentHistory, setPaymentHistory] = useState<any>(null);
   const [filters, setFilters] = useState({
     session_year_id: '',
     class_id: 'all',
     search: '',
   });
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [paymentHistoryDialogOpen, setPaymentHistoryDialogOpen] = useState(false);
   const [enableTrackingDialog, setEnableTrackingDialog] = useState(false);
   const [selectedStudentIds, setSelectedStudentIds] = useState<number[]>([]);
   const [snackbar, setSnackbar] = useState({
@@ -187,7 +190,7 @@ const SimpleEnhancedFeeManagement: React.FC = () => {
       return;
     }
 
-    setLoading(true);
+    setDialogLoading(true);
     try {
       const response = await enhancedFeesAPI.getEnhancedMonthlyHistory(
         studentId,
@@ -230,7 +233,72 @@ const SimpleEnhancedFeeManagement: React.FC = () => {
         });
       }
     } finally {
-      setLoading(false);
+      setDialogLoading(false);
+    }
+  };
+
+  // Fetch payment history for a student
+  const fetchPaymentHistory = async (studentId: number) => {
+    if (!filters.session_year_id) {
+      setSnackbar({
+        open: true,
+        message: 'Please select a session year first',
+        severity: 'warning'
+      });
+      return;
+    }
+
+    setPaymentHistoryLoading(true);
+    try {
+      // Convert session_year_id to session year string
+      const sessionYearMap: { [key: string]: string } = {
+        '1': '2022-23',
+        '2': '2023-24',
+        '3': '2024-25',
+        '4': '2025-26',
+        '5': '2026-27'
+      };
+
+      const sessionYear = sessionYearMap[filters.session_year_id] || '2025-26';
+
+      const response = await enhancedFeesAPI.getPaymentHistory(studentId, sessionYear);
+
+      if (!response.data) {
+        setSnackbar({
+          open: true,
+          message: 'No payment history found for this student',
+          severity: 'info'
+        });
+        return;
+      }
+
+      setPaymentHistory(response.data);
+      setPaymentHistoryDialogOpen(true);
+    } catch (error: any) {
+      console.error('Error fetching payment history:', error);
+
+      if (error.response?.status === 404) {
+        setSnackbar({
+          open: true,
+          message: 'Payment history not found for this student',
+          severity: 'warning'
+        });
+      } else if (error.response?.status === 403) {
+        setSnackbar({
+          open: true,
+          message: 'You do not have permission to view this student\'s payment history',
+          severity: 'error'
+        });
+      } else {
+        const errorMessage = error.response?.data?.detail || error.message || 'Failed to fetch payment history';
+        setSnackbar({
+          open: true,
+          message: errorMessage,
+          severity: 'error'
+        });
+      }
+    } finally {
+      setPaymentHistoryLoading(false);
     }
   };
 
@@ -475,7 +543,11 @@ const SimpleEnhancedFeeManagement: React.FC = () => {
                           </IconButton>
                         </Tooltip>
                         <Tooltip title="Payment History">
-                          <IconButton size="small">
+                          <IconButton
+                            size="small"
+                            onClick={() => fetchPaymentHistory(student.student_id)}
+                            disabled={paymentHistoryLoading}
+                          >
                             <History />
                           </IconButton>
                         </Tooltip>
@@ -517,136 +589,215 @@ const SimpleEnhancedFeeManagement: React.FC = () => {
       <Dialog
         open={dialogOpen}
         onClose={() => setDialogOpen(false)}
-        maxWidth="lg"
+        maxWidth="md"
         fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 2,
+            boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
+            m: { xs: 1, sm: 2 },
+            maxHeight: { xs: '95vh', sm: '90vh' }
+          }
+        }}
       >
-        <DialogTitle>
+        <DialogTitle sx={{
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          color: 'white',
+          py: { xs: 1.5, sm: 2 },
+          px: { xs: 2, sm: 3 }
+        }}>
           <Box display="flex" justifyContent="space-between" alignItems="center">
-            <Typography variant="h6">
-              Monthly Fee History - {selectedStudent?.student_name}
-            </Typography>
-            <IconButton onClick={() => setDialogOpen(false)}>
+            <Box>
+              <Typography
+                variant="h5"
+                fontWeight="bold"
+                sx={{
+                  fontSize: { xs: '1.25rem', sm: '1.5rem' }
+                }}
+              >
+                Monthly Fee History
+              </Typography>
+              <Typography
+                variant="subtitle1"
+                sx={{
+                  opacity: 0.9,
+                  mt: 0.5,
+                  fontSize: { xs: '0.875rem', sm: '1rem' }
+                }}
+              >
+                {selectedStudent?.student_name} • {selectedStudent?.class_name}
+              </Typography>
+            </Box>
+            <IconButton
+              onClick={() => setDialogOpen(false)}
+              size="medium"
+              sx={{
+                color: 'white',
+                '&:hover': { backgroundColor: 'rgba(255,255,255,0.1)' },
+                width: { xs: 32, sm: 40 },
+                height: { xs: 32, sm: 40 }
+              }}
+            >
               <CloseIcon />
             </IconButton>
           </Box>
         </DialogTitle>
-        <DialogContent>
-          {selectedStudent && (
+        <DialogContent sx={{ p: 0 }}>
+          {dialogLoading ? (
+            <Box display="flex" flexDirection="column" justifyContent="center" alignItems="center" minHeight="300px">
+              <CircularProgress size={48} />
+              <Typography variant="body1" sx={{ mt: 2, color: 'text.secondary' }}>
+                Loading student fee history...
+              </Typography>
+            </Box>
+          ) : selectedStudent && (
             <Box>
-              {/* Student Summary */}
-              <Paper sx={{ p: 2, mb: 3, bgcolor: 'grey.50' }}>
-                <Grid container spacing={2}>
-                  <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                    <Typography variant="body2" color="textSecondary">Student</Typography>
-                    <Typography variant="body1" fontWeight="bold">
-                      {selectedStudent.student_name}
-                    </Typography>
-                    <Typography variant="caption" color="textSecondary">
-                      {selectedStudent.class_name} • {selectedStudent.session_year}
-                    </Typography>
+              {/* Compact Summary */}
+              <Box sx={{ p: { xs: 2, sm: 3 }, bgcolor: 'grey.50', borderBottom: '1px solid #e0e0e0' }}>
+                <Grid container spacing={{ xs: 1, sm: 2 }}>
+                  <Grid size={{ xs: 6, sm: 3 }}>
+                    <Box sx={{ textAlign: 'center', p: 1 }}>
+                      <Typography variant="caption" color="textSecondary">
+                        Total Paid
+                      </Typography>
+                      <Typography
+                        variant="h6"
+                        fontWeight="bold"
+                        color="success.main"
+                        sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }}
+                      >
+                        ₹{selectedStudent.total_paid?.toLocaleString() || 0}
+                      </Typography>
+                    </Box>
                   </Grid>
-                  <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                    <Typography variant="body2" color="textSecondary">Annual Fee</Typography>
-                    <Typography variant="h6" color="primary">
-                      ₹{selectedStudent.total_annual_fee?.toLocaleString()}
-                    </Typography>
+                  <Grid size={{ xs: 6, sm: 3 }}>
+                    <Box sx={{ textAlign: 'center', p: 1 }}>
+                      <Typography variant="caption" color="textSecondary">
+                        Balance
+                      </Typography>
+                      <Typography
+                        variant="h6"
+                        fontWeight="bold"
+                        color="error.main"
+                        sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }}
+                      >
+                        ₹{selectedStudent.total_balance?.toLocaleString() || 0}
+                      </Typography>
+                    </Box>
                   </Grid>
-                  <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                    <Typography variant="body2" color="textSecondary">Total Paid</Typography>
-                    <Typography variant="h6" color="success.main">
-                      ₹{selectedStudent.total_paid?.toLocaleString()}
-                    </Typography>
+                  <Grid size={{ xs: 6, sm: 3 }}>
+                    <Box sx={{ textAlign: 'center', p: 1 }}>
+                      <Typography variant="caption" color="textSecondary">
+                        Collection %
+                      </Typography>
+                      <Typography
+                        variant="h6"
+                        fontWeight="bold"
+                        color="info.main"
+                        sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }}
+                      >
+                        {selectedStudent.collection_percentage?.toFixed(1) || 0}%
+                      </Typography>
+                    </Box>
                   </Grid>
-                  <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                    <Typography variant="body2" color="textSecondary">Collection %</Typography>
-                    <Typography variant="h6" color="info.main">
-                      {selectedStudent.collection_percentage?.toFixed(1)}%
-                    </Typography>
+                  <Grid size={{ xs: 6, sm: 3 }}>
+                    <Box sx={{ textAlign: 'center', p: 1 }}>
+                      <Typography variant="caption" color="textSecondary">
+                        Paid Months
+                      </Typography>
+                      <Typography
+                        variant="h6"
+                        fontWeight="bold"
+                        color="primary.main"
+                        sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }}
+                      >
+                        {selectedStudent.paid_months}/{selectedStudent.total_months}
+                      </Typography>
+                    </Box>
                   </Grid>
                 </Grid>
-              </Paper>
+              </Box>
 
-              {/* Monthly Status Summary */}
-              <Grid container spacing={2} sx={{ mb: 3 }}>
-                <Grid size={{ xs: 6, sm: 3 }}>
-                  <Card sx={{ textAlign: 'center', p: 1 }}>
-                    <Typography variant="h6" color="success.main">
-                      {selectedStudent.paid_months}
-                    </Typography>
-                    <Typography variant="caption">Paid</Typography>
-                  </Card>
-                </Grid>
-                <Grid size={{ xs: 6, sm: 3 }}>
-                  <Card sx={{ textAlign: 'center', p: 1 }}>
-                    <Typography variant="h6" color="warning.main">
-                      {selectedStudent.pending_months}
-                    </Typography>
-                    <Typography variant="caption">Pending</Typography>
-                  </Card>
-                </Grid>
-                <Grid size={{ xs: 6, sm: 3 }}>
-                  <Card sx={{ textAlign: 'center', p: 1 }}>
-                    <Typography variant="h6" color="error.main">
-                      {selectedStudent.overdue_months}
-                    </Typography>
-                    <Typography variant="caption">Overdue</Typography>
-                  </Card>
-                </Grid>
-                <Grid size={{ xs: 6, sm: 3 }}>
-                  <Card sx={{ textAlign: 'center', p: 1 }}>
-                    <Typography variant="h6" color="primary.main">
-                      {selectedStudent.total_months}
-                    </Typography>
-                    <Typography variant="caption">Total</Typography>
-                  </Card>
-                </Grid>
-              </Grid>
+
 
               {/* Monthly History Table */}
-              <TableContainer component={Paper}>
-                <Table size="small">
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Month</TableCell>
-                      <TableCell>Due Date</TableCell>
-                      <TableCell align="right">Amount</TableCell>
-                      <TableCell align="right">Paid</TableCell>
-                      <TableCell align="right">Balance</TableCell>
-                      <TableCell>Status</TableCell>
-                      <TableCell align="right">Late Fee</TableCell>
-                    </TableRow>
-                  </TableHead>
+              <Box sx={{ p: { xs: 2, sm: 3 } }}>
+                <Typography
+                  variant="h6"
+                  gutterBottom
+                  sx={{
+                    mb: 2,
+                    fontWeight: 'bold',
+                    fontSize: { xs: '1rem', sm: '1.25rem' }
+                  }}
+                >
+                  Monthly Payment History
+                </Typography>
+                <TableContainer component={Paper} sx={{
+                  borderRadius: 2,
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                  border: '1px solid #e0e0e0'
+                }}>
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow sx={{ bgcolor: 'grey.100' }}>
+                        <TableCell sx={{ fontWeight: 'bold', fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>Month</TableCell>
+                        <TableCell align="right" sx={{ fontWeight: 'bold', fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>Amount</TableCell>
+                        <TableCell align="right" sx={{ fontWeight: 'bold', fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>Paid</TableCell>
+                        <TableCell align="right" sx={{ fontWeight: 'bold', fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>Balance</TableCell>
+                        <TableCell sx={{ fontWeight: 'bold', fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>Status</TableCell>
+                      </TableRow>
+                    </TableHead>
                   <TableBody>
                     {selectedStudent.monthly_history?.map((month, index) => (
-                      <TableRow key={index}>
+                      <TableRow
+                        key={index}
+                        sx={{
+                          '&:nth-of-type(odd)': { bgcolor: 'grey.25' },
+                          '&:hover': { bgcolor: 'grey.100' },
+                          transition: 'background-color 0.2s'
+                        }}
+                      >
                         <TableCell>
-                          <Typography variant="body2" fontWeight="bold">
+                          <Typography
+                            variant="body2"
+                            fontWeight="bold"
+                            color="primary.main"
+                            sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}
+                          >
                             {month.month_name} {month.year}
                           </Typography>
-                        </TableCell>
-                        <TableCell>
-                          <Typography variant="body2">
-                            {new Date(month.due_date).toLocaleDateString()}
-                          </Typography>
                           {month.is_overdue && month.days_overdue && (
-                            <Typography variant="caption" color="error">
+                            <Typography variant="caption" color="error" sx={{ display: 'block', mt: 0.5 }}>
                               {month.days_overdue} days overdue
                             </Typography>
                           )}
                         </TableCell>
                         <TableCell align="right">
-                          ₹{month.monthly_amount.toLocaleString()}
+                          <Typography
+                            variant="body2"
+                            fontWeight="medium"
+                            sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}
+                          >
+                            ₹{month.monthly_amount.toLocaleString()}
+                          </Typography>
                         </TableCell>
                         <TableCell align="right">
                           <Typography
+                            variant="body2"
+                            fontWeight="medium"
                             color={month.paid_amount > 0 ? 'success.main' : 'textSecondary'}
+                            sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}
                           >
                             ₹{month.paid_amount.toLocaleString()}
                           </Typography>
                         </TableCell>
                         <TableCell align="right">
                           <Typography
+                            variant="body2"
+                            fontWeight="medium"
                             color={month.balance_amount > 0 ? 'error.main' : 'success.main'}
+                            sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}
                           >
                             ₹{month.balance_amount.toLocaleString()}
                           </Typography>
@@ -658,27 +809,282 @@ const SimpleEnhancedFeeManagement: React.FC = () => {
                             sx={{
                               bgcolor: month.status_color,
                               color: 'white',
-                              fontWeight: 'bold'
+                              fontWeight: 'bold',
+                              borderRadius: 1.5,
+                              fontSize: { xs: '0.65rem', sm: '0.75rem' },
+                              height: { xs: 20, sm: 24 }
                             }}
                           />
-                        </TableCell>
-                        <TableCell align="right">
-                          {month.late_fee > 0 && (
-                            <Typography variant="body2" color="error">
-                              ₹{month.late_fee.toLocaleString()}
-                            </Typography>
-                          )}
                         </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
                 </Table>
               </TableContainer>
+              </Box>
             </Box>
           )}
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDialogOpen(false)}>Close</Button>
+        <DialogActions sx={{
+          p: { xs: 2, sm: 3 },
+          bgcolor: 'grey.50',
+          borderTop: '1px solid #e0e0e0',
+          justifyContent: 'center'
+        }}>
+          <Button
+            onClick={() => setDialogOpen(false)}
+            variant="contained"
+            size="large"
+            sx={{
+              minWidth: { xs: 100, sm: 120 },
+              borderRadius: 2,
+              textTransform: 'none',
+              fontWeight: 'bold',
+              fontSize: { xs: '0.875rem', sm: '1rem' },
+              py: { xs: 1, sm: 1.5 }
+            }}
+          >
+            Close
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Payment History Dialog */}
+      <Dialog
+        open={paymentHistoryDialogOpen}
+        onClose={() => setPaymentHistoryDialogOpen(false)}
+        maxWidth="lg"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 2,
+            boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
+          }
+        }}
+      >
+        <DialogTitle sx={{
+          background: 'linear-gradient(135deg, #4caf50 0%, #2e7d32 100%)',
+          color: 'white',
+          py: 2
+        }}>
+          <Box display="flex" justifyContent="space-between" alignItems="center">
+            <Box>
+              <Typography variant="h5" fontWeight="bold">
+                Payment History
+              </Typography>
+              <Typography variant="subtitle1" sx={{ opacity: 0.9, mt: 0.5 }}>
+                {paymentHistory?.student_name} • {paymentHistory?.class} • {paymentHistory?.session_year}
+              </Typography>
+            </Box>
+            <IconButton
+              onClick={() => setPaymentHistoryDialogOpen(false)}
+              sx={{
+                color: 'white',
+                '&:hover': { backgroundColor: 'rgba(255,255,255,0.1)' }
+              }}
+            >
+              <CloseIcon />
+            </IconButton>
+          </Box>
+        </DialogTitle>
+        <DialogContent sx={{ p: 0 }}>
+          {paymentHistoryLoading ? (
+            <Box display="flex" flexDirection="column" justifyContent="center" alignItems="center" minHeight="300px">
+              <CircularProgress size={48} />
+              <Typography variant="body1" sx={{ mt: 2, color: 'text.secondary' }}>
+                Loading payment history...
+              </Typography>
+            </Box>
+          ) : paymentHistory && (
+            <Box>
+              {/* Payment Summary Cards */}
+              <Box sx={{ p: 3, bgcolor: 'grey.50', borderBottom: '1px solid #e0e0e0' }}>
+                <Grid container spacing={3}>
+                  <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                    <Card sx={{
+                      p: 2.5,
+                      textAlign: 'center',
+                      border: '1px solid #e0e0e0',
+                      borderRadius: 2,
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                      '&:hover': { boxShadow: '0 4px 16px rgba(0,0,0,0.15)' }
+                    }}>
+                      <Typography variant="body2" color="textSecondary" gutterBottom>
+                        Total Paid
+                      </Typography>
+                      <Typography variant="h5" fontWeight="bold" color="success.main">
+                        ₹{paymentHistory.summary?.total_paid?.toLocaleString() || 0}
+                      </Typography>
+                    </Card>
+                  </Grid>
+                  <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                    <Card sx={{
+                      p: 2.5,
+                      textAlign: 'center',
+                      border: '1px solid #e0e0e0',
+                      borderRadius: 2,
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                      '&:hover': { boxShadow: '0 4px 16px rgba(0,0,0,0.15)' }
+                    }}>
+                      <Typography variant="body2" color="textSecondary" gutterBottom>
+                        Total Due
+                      </Typography>
+                      <Typography variant="h5" fontWeight="bold" color="error.main">
+                        ₹{paymentHistory.summary?.total_due?.toLocaleString() || 0}
+                      </Typography>
+                    </Card>
+                  </Grid>
+                  <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                    <Card sx={{
+                      p: 2.5,
+                      textAlign: 'center',
+                      border: '1px solid #e0e0e0',
+                      borderRadius: 2,
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                      '&:hover': { boxShadow: '0 4px 16px rgba(0,0,0,0.15)' }
+                    }}>
+                      <Typography variant="body2" color="textSecondary" gutterBottom>
+                        Total Records
+                      </Typography>
+                      <Typography variant="h5" fontWeight="bold" color="primary.main">
+                        {paymentHistory.summary?.total_records || 0}
+                      </Typography>
+                    </Card>
+                  </Grid>
+                  <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                    <Card sx={{
+                      p: 2.5,
+                      textAlign: 'center',
+                      border: '1px solid #e0e0e0',
+                      borderRadius: 2,
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                      '&:hover': { boxShadow: '0 4px 16px rgba(0,0,0,0.15)' }
+                    }}>
+                      <Typography variant="body2" color="textSecondary" gutterBottom>
+                        Total Payments
+                      </Typography>
+                      <Typography variant="h5" fontWeight="bold" color="info.main">
+                        {paymentHistory.summary?.total_payments || 0}
+                      </Typography>
+                    </Card>
+                  </Grid>
+                </Grid>
+              </Box>
+
+              {/* Payment History Table */}
+              <Box sx={{ p: 3 }}>
+                <Typography variant="h6" gutterBottom sx={{ mb: 2, fontWeight: 'bold' }}>
+                  Payment Records
+                </Typography>
+                <TableContainer component={Paper} sx={{
+                  borderRadius: 2,
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                  border: '1px solid #e0e0e0'
+                }}>
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow sx={{ bgcolor: 'grey.100' }}>
+                        <TableCell sx={{ fontWeight: 'bold', fontSize: '0.875rem' }}>Payment Type</TableCell>
+                        <TableCell sx={{ fontWeight: 'bold', fontSize: '0.875rem' }}>Due Date</TableCell>
+                        <TableCell align="right" sx={{ fontWeight: 'bold', fontSize: '0.875rem' }}>Total Amount</TableCell>
+                        <TableCell align="right" sx={{ fontWeight: 'bold', fontSize: '0.875rem' }}>Paid Amount</TableCell>
+                        <TableCell align="right" sx={{ fontWeight: 'bold', fontSize: '0.875rem' }}>Balance</TableCell>
+                        <TableCell sx={{ fontWeight: 'bold', fontSize: '0.875rem' }}>Status</TableCell>
+                        <TableCell sx={{ fontWeight: 'bold', fontSize: '0.875rem' }}>Payments</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {paymentHistory.payment_history?.map((record: any, index: number) => (
+                        <TableRow
+                          key={index}
+                          sx={{
+                            '&:nth-of-type(odd)': { bgcolor: 'grey.25' },
+                            '&:hover': { bgcolor: 'grey.100' },
+                            transition: 'background-color 0.2s'
+                          }}
+                        >
+                          <TableCell>
+                            <Typography variant="body2" fontWeight="bold" color="primary.main">
+                              {record.payment_type}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2">
+                              {new Date(record.due_date).toLocaleDateString()}
+                            </Typography>
+                          </TableCell>
+                          <TableCell align="right">
+                            <Typography variant="body2" fontWeight="medium">
+                              ₹{record.total_amount?.toLocaleString() || 0}
+                            </Typography>
+                          </TableCell>
+                          <TableCell align="right">
+                            <Typography
+                              variant="body2"
+                              fontWeight="medium"
+                              color="success.main"
+                            >
+                              ₹{record.paid_amount?.toLocaleString() || 0}
+                            </Typography>
+                          </TableCell>
+                          <TableCell align="right">
+                            <Typography
+                              variant="body2"
+                              fontWeight="medium"
+                              color={record.balance_amount > 0 ? 'error.main' : 'success.main'}
+                            >
+                              ₹{record.balance_amount?.toLocaleString() || 0}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Chip
+                              size="small"
+                              label={record.status}
+                              color={
+                                record.status === 'Paid' ? 'success' :
+                                record.status === 'Partial' ? 'warning' :
+                                record.status === 'Overdue' ? 'error' : 'default'
+                              }
+                              sx={{
+                                borderRadius: 1.5,
+                                fontSize: '0.75rem',
+                                fontWeight: 'bold'
+                              }}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2" color="textSecondary">
+                              {record.payments?.length || 0} payment(s)
+                            </Typography>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </Box>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions sx={{
+          p: 3,
+          bgcolor: 'grey.50',
+          borderTop: '1px solid #e0e0e0',
+          justifyContent: 'center'
+        }}>
+          <Button
+            onClick={() => setPaymentHistoryDialogOpen(false)}
+            variant="contained"
+            size="large"
+            sx={{
+              minWidth: 120,
+              borderRadius: 2,
+              textTransform: 'none',
+              fontWeight: 'bold'
+            }}
+          >
+            Close
+          </Button>
         </DialogActions>
       </Dialog>
 

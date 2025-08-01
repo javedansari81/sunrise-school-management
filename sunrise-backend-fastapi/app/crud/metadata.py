@@ -5,7 +5,7 @@ CRUD operations for metadata tables
 from typing import List, Optional, Dict, Any
 from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import and_, select
+from sqlalchemy import and_, select, text
 from sqlalchemy.future import select
 
 from app.models.metadata import (
@@ -109,22 +109,241 @@ def get_all_metadata(db: Session) -> Dict[str, List[Any]]:
 
 
 async def get_all_metadata_async(db: AsyncSession) -> Dict[str, List[Any]]:
-    """Get all metadata for configuration endpoint (async version)"""
-    return {
-        "user_types": await user_type_crud.get_all_async(db),
-        "session_years": await session_year_crud.get_all_async(db),
-        "genders": await gender_crud.get_all_async(db),
-        "classes": await class_crud.get_all_async(db),
-        "payment_types": await payment_type_crud.get_all_async(db),
-        "payment_statuses": await payment_status_crud.get_all_async(db),
-        "payment_methods": await payment_method_crud.get_all_async(db),
-        "leave_types": await leave_type_crud.get_all_async(db),
-        "leave_statuses": await leave_status_crud.get_all_async(db),
-        "expense_categories": await expense_category_crud.get_all_async(db),
-        "expense_statuses": await expense_status_crud.get_all_async(db),
-        "employment_statuses": await employment_status_crud.get_all_async(db),
-        "qualifications": await qualification_crud.get_all_async(db)
+    """Get all metadata for configuration endpoint (async version) - OPTIMIZED"""
+    import time
+    start_time = time.time()
+
+    # Single optimized query to fetch all metadata tables at once
+    query = text("""
+        SELECT 'user_types' as table_name, id, name, description, NULL as display_name,
+               NULL as sort_order, NULL as start_date, NULL as end_date, NULL as is_current,
+               NULL as max_days_per_year, NULL as requires_medical_certificate, NULL as budget_limit,
+               NULL as requires_approval, NULL as color_code, NULL as is_final, NULL as level_order,
+               is_active, created_at, updated_at
+        FROM user_types WHERE is_active = true
+
+        UNION ALL
+
+        SELECT 'session_years' as table_name, id, name, description, NULL as display_name,
+               NULL as sort_order, start_date, end_date, is_current,
+               NULL as max_days_per_year, NULL as requires_medical_certificate, NULL as budget_limit,
+               NULL as requires_approval, NULL as color_code, NULL as is_final, NULL as level_order,
+               is_active, created_at, updated_at
+        FROM session_years WHERE is_active = true
+
+        UNION ALL
+
+        SELECT 'genders' as table_name, id, name, description, NULL as display_name,
+               NULL as sort_order, NULL as start_date, NULL as end_date, NULL as is_current,
+               NULL as max_days_per_year, NULL as requires_medical_certificate, NULL as budget_limit,
+               NULL as requires_approval, NULL as color_code, NULL as is_final, NULL as level_order,
+               is_active, created_at, updated_at
+        FROM genders WHERE is_active = true
+
+        UNION ALL
+
+        SELECT 'classes' as table_name, id, name, description, display_name,
+               sort_order, NULL as start_date, NULL as end_date, NULL as is_current,
+               NULL as max_days_per_year, NULL as requires_medical_certificate, NULL as budget_limit,
+               NULL as requires_approval, NULL as color_code, NULL as is_final, NULL as level_order,
+               is_active, created_at, updated_at
+        FROM classes WHERE is_active = true
+
+        UNION ALL
+
+        SELECT 'payment_types' as table_name, id, name, description, NULL as display_name,
+               NULL as sort_order, NULL as start_date, NULL as end_date, NULL as is_current,
+               NULL as max_days_per_year, NULL as requires_medical_certificate, NULL as budget_limit,
+               NULL as requires_approval, NULL as color_code, NULL as is_final, NULL as level_order,
+               is_active, created_at, updated_at
+        FROM payment_types WHERE is_active = true
+
+        UNION ALL
+
+        SELECT 'payment_statuses' as table_name, id, name, description, NULL as display_name,
+               NULL as sort_order, NULL as start_date, NULL as end_date, NULL as is_current,
+               NULL as max_days_per_year, NULL as requires_medical_certificate, NULL as budget_limit,
+               NULL as requires_approval, color_code, is_final, NULL as level_order,
+               is_active, created_at, updated_at
+        FROM payment_statuses WHERE is_active = true
+
+        UNION ALL
+
+        SELECT 'payment_methods' as table_name, id, name, description, NULL as display_name,
+               NULL as sort_order, NULL as start_date, NULL as end_date, NULL as is_current,
+               NULL as max_days_per_year, NULL as requires_medical_certificate, NULL as budget_limit,
+               NULL as requires_approval, NULL as color_code, NULL as is_final, NULL as level_order,
+               is_active, created_at, updated_at
+        FROM payment_methods WHERE is_active = true
+
+        UNION ALL
+
+        SELECT 'leave_types' as table_name, id, name, description, NULL as display_name,
+               NULL as sort_order, NULL as start_date, NULL as end_date, NULL as is_current,
+               max_days_per_year, requires_medical_certificate, NULL as budget_limit,
+               NULL as requires_approval, NULL as color_code, NULL as is_final, NULL as level_order,
+               is_active, created_at, updated_at
+        FROM leave_types WHERE is_active = true
+
+        UNION ALL
+
+        SELECT 'leave_statuses' as table_name, id, name, description, NULL as display_name,
+               NULL as sort_order, NULL as start_date, NULL as end_date, NULL as is_current,
+               NULL as max_days_per_year, NULL as requires_medical_certificate, NULL as budget_limit,
+               NULL as requires_approval, color_code, is_final, NULL as level_order,
+               is_active, created_at, updated_at
+        FROM leave_statuses WHERE is_active = true
+
+        UNION ALL
+
+        SELECT 'expense_categories' as table_name, id, name, description, NULL as display_name,
+               NULL as sort_order, NULL as start_date, NULL as end_date, NULL as is_current,
+               NULL as max_days_per_year, NULL as requires_medical_certificate, budget_limit,
+               requires_approval, NULL as color_code, NULL as is_final, NULL as level_order,
+               is_active, created_at, updated_at
+        FROM expense_categories WHERE is_active = true
+
+        UNION ALL
+
+        SELECT 'expense_statuses' as table_name, id, name, description, NULL as display_name,
+               NULL as sort_order, NULL as start_date, NULL as end_date, NULL as is_current,
+               NULL as max_days_per_year, NULL as requires_medical_certificate, NULL as budget_limit,
+               NULL as requires_approval, color_code, is_final, NULL as level_order,
+               is_active, created_at, updated_at
+        FROM expense_statuses WHERE is_active = true
+
+        UNION ALL
+
+        SELECT 'employment_statuses' as table_name, id, name, description, NULL as display_name,
+               NULL as sort_order, NULL as start_date, NULL as end_date, NULL as is_current,
+               NULL as max_days_per_year, NULL as requires_medical_certificate, NULL as budget_limit,
+               NULL as requires_approval, NULL as color_code, NULL as is_final, NULL as level_order,
+               is_active, created_at, updated_at
+        FROM employment_statuses WHERE is_active = true
+
+        UNION ALL
+
+        SELECT 'qualifications' as table_name, id, name, description, NULL as display_name,
+               NULL as sort_order, NULL as start_date, NULL as end_date, NULL as is_current,
+               NULL as max_days_per_year, NULL as requires_medical_certificate, NULL as budget_limit,
+               NULL as requires_approval, NULL as color_code, NULL as is_final, level_order,
+               is_active, created_at, updated_at
+        FROM qualifications WHERE is_active = true
+
+        ORDER BY table_name, id
+    """)
+
+    query_start = time.time()
+    result = await db.execute(query)
+    rows = result.fetchall()
+    query_time_ms = (time.time() - query_start) * 1000
+
+    print(f"🗄️  Single UNION query executed in {query_time_ms:.2f}ms, fetched {len(rows)} rows")
+
+    # Group results by table name
+    metadata = {
+        "user_types": [],
+        "session_years": [],
+        "genders": [],
+        "classes": [],
+        "payment_types": [],
+        "payment_statuses": [],
+        "payment_methods": [],
+        "leave_types": [],
+        "leave_statuses": [],
+        "expense_categories": [],
+        "expense_statuses": [],
+        "employment_statuses": [],
+        "qualifications": []
     }
+
+    # Process results efficiently
+    for row in rows:
+        table_name = row.table_name
+
+        # Create object based on table type
+        if table_name == 'user_types':
+            obj = type('UserType', (), {
+                'id': row.id, 'name': row.name, 'description': row.description,
+                'is_active': row.is_active
+            })()
+        elif table_name == 'session_years':
+            obj = type('SessionYear', (), {
+                'id': row.id, 'name': row.name, 'description': row.description,
+                'start_date': row.start_date, 'end_date': row.end_date,
+                'is_current': row.is_current, 'is_active': row.is_active
+            })()
+        elif table_name == 'genders':
+            obj = type('Gender', (), {
+                'id': row.id, 'name': row.name, 'description': row.description,
+                'is_active': row.is_active
+            })()
+        elif table_name == 'classes':
+            obj = type('Class', (), {
+                'id': row.id, 'name': row.name, 'description': row.description,
+                'display_name': row.display_name, 'sort_order': row.sort_order,
+                'is_active': row.is_active
+            })()
+        elif table_name == 'payment_types':
+            obj = type('PaymentType', (), {
+                'id': row.id, 'name': row.name, 'description': row.description,
+                'is_active': row.is_active
+            })()
+        elif table_name == 'payment_statuses':
+            obj = type('PaymentStatus', (), {
+                'id': row.id, 'name': row.name, 'description': row.description,
+                'color_code': row.color_code, 'is_final': row.is_final,
+                'is_active': row.is_active
+            })()
+        elif table_name == 'payment_methods':
+            obj = type('PaymentMethod', (), {
+                'id': row.id, 'name': row.name, 'description': row.description,
+                'is_active': row.is_active
+            })()
+        elif table_name == 'leave_types':
+            obj = type('LeaveType', (), {
+                'id': row.id, 'name': row.name, 'description': row.description,
+                'max_days_per_year': row.max_days_per_year,
+                'requires_medical_certificate': row.requires_medical_certificate,
+                'is_active': row.is_active
+            })()
+        elif table_name == 'leave_statuses':
+            obj = type('LeaveStatus', (), {
+                'id': row.id, 'name': row.name, 'description': row.description,
+                'color_code': row.color_code, 'is_final': row.is_final,
+                'is_active': row.is_active
+            })()
+        elif table_name == 'expense_categories':
+            obj = type('ExpenseCategory', (), {
+                'id': row.id, 'name': row.name, 'description': row.description,
+                'budget_limit': row.budget_limit, 'requires_approval': row.requires_approval,
+                'is_active': row.is_active
+            })()
+        elif table_name == 'expense_statuses':
+            obj = type('ExpenseStatus', (), {
+                'id': row.id, 'name': row.name, 'description': row.description,
+                'color_code': row.color_code, 'is_final': row.is_final,
+                'is_active': row.is_active
+            })()
+        elif table_name == 'employment_statuses':
+            obj = type('EmploymentStatus', (), {
+                'id': row.id, 'name': row.name, 'description': row.description,
+                'is_active': row.is_active
+            })()
+        elif table_name == 'qualifications':
+            obj = type('Qualification', (), {
+                'id': row.id, 'name': row.name, 'description': row.description,
+                'level_order': row.level_order, 'is_active': row.is_active
+            })()
+        else:
+            continue
+
+        metadata[table_name].append(obj)
+
+    end_time = time.time()
+    print(f"⚡ Optimized metadata query completed in {(end_time - start_time) * 1000:.2f}ms")
+
+    return metadata
 
 
 def get_current_session_year(db: Session) -> Optional[SessionYear]:

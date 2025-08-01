@@ -4,15 +4,19 @@ Returns all metadata configuration as singleton for frontend consumption
 """
 
 from typing import Dict, Any, List
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Response, Request
+from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
+import json
+import gzip
 
 from app.core.database import get_db
 from app.api.deps import get_current_active_user
 from app.models.user import User
 from app.schemas.metadata import ConfigurationResponse
 from app.crud import get_all_metadata_async
+from app.utils.performance_monitor import ConfigurationPerformanceMonitor, timer
 
 router = APIRouter()
 
@@ -45,25 +49,39 @@ async def get_metadata_configuration(db: AsyncSession) -> Dict[str, Any]:
         "qualifications": [{"id": item.id, "name": item.name, "description": item.description, "level_order": item.level_order, "is_active": item.is_active} for item in metadata["qualifications"]],
         "metadata": {
             "last_updated": None,
-            "version": "2.0.0",
-            "architecture": "metadata-driven"
+            "version": "2.1.0",
+            "architecture": "metadata-driven-optimized",
+            "optimizations": [
+                "Single database query (UNION ALL)",
+                "Response compression (gzip)",
+                "Database indexes for metadata tables",
+                "Optimized caching (5min TTL)",
+                "Performance monitoring"
+            ]
         }
     }
 
     return configuration
 
 
-@router.get("/", response_model=Dict[str, Any])
+@router.get("/")
 async def get_configuration(
+    request: Request,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
     """
-    Get all metadata configuration for the application
-    
+    Get all metadata configuration for the application (OPTIMIZED)
+
     This endpoint returns all metadata tables as a single configuration object
     that can be used throughout the frontend application as a singleton.
-    
+
+    PERFORMANCE OPTIMIZATIONS:
+    - Single database query instead of 13 separate queries
+    - Response compression (gzip) for faster network transfer
+    - Optimized caching with 5-minute TTL
+    - Database indexes for faster metadata queries
+
     The configuration includes:
     - User types (admin, teacher, student, etc.)
     - Session years (academic years)
@@ -74,21 +92,69 @@ async def get_configuration(
     - Expense categories and statuses
     - Employment statuses
     - Qualifications
-    
+
     Returns:
-        Dict containing all metadata configuration
+        Compressed JSON response containing all metadata configuration
     """
-    
+
     import time
     global _configuration_cache, _cache_timestamp
-    
+
+    start_time = time.time()
+
     # Cache for 5 minutes (300 seconds)
     current_time = time.time()
+    cache_hit = False
+
     if current_time - _cache_timestamp > 300 or not _configuration_cache:
-        _configuration_cache = await get_metadata_configuration(db)
-        _cache_timestamp = current_time
-    
-    return _configuration_cache
+        with timer("Database Query", cache_status="MISS"):
+            _configuration_cache = await get_metadata_configuration(db)
+            _cache_timestamp = current_time
+    else:
+        cache_hit = True
+
+    # Check if client accepts gzip compression
+    accept_encoding = request.headers.get("accept-encoding", "")
+    use_compression = "gzip" in accept_encoding.lower()
+
+    # Prepare response data
+    response_data = _configuration_cache.copy()
+    response_data["metadata"]["cache_hit"] = cache_hit
+    response_data["metadata"]["response_time_ms"] = round((time.time() - start_time) * 1000, 2)
+
+    if use_compression:
+        # Compress the JSON response
+        compression_start = time.time()
+        json_str = json.dumps(response_data, default=str, separators=(',', ':'))
+        compressed_data = gzip.compress(json_str.encode('utf-8'))
+        compression_time_ms = (time.time() - compression_start) * 1000
+
+        # Log compression performance
+        ConfigurationPerformanceMonitor.log_compression_performance(
+            len(json_str), len(compressed_data), compression_time_ms
+        )
+
+        return Response(
+            content=compressed_data,
+            media_type="application/json",
+            headers={
+                "Content-Encoding": "gzip",
+                "Cache-Control": "public, max-age=300",  # 5 minutes
+                "X-Response-Time": f"{response_data['metadata']['response_time_ms']}ms",
+                "X-Cache-Status": "HIT" if cache_hit else "MISS",
+                "X-Compression-Ratio": f"{round((1 - len(compressed_data)/len(json_str)) * 100, 1)}%"
+            }
+        )
+    else:
+        # Return uncompressed response
+        return JSONResponse(
+            content=response_data,
+            headers={
+                "Cache-Control": "public, max-age=300",  # 5 minutes
+                "X-Response-Time": f"{response_data['metadata']['response_time_ms']}ms",
+                "X-Cache-Status": "HIT" if cache_hit else "MISS"
+            }
+        )
 
 
 @router.post("/refresh")

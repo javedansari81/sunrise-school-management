@@ -60,6 +60,11 @@ export const enhancedFeesAPI = {
       params: { session_year_id: sessionYearId }
     }),
 
+  getPaymentHistory: (studentId: number, sessionYear: string = '2025-26') =>
+    api.get(`/fees/payments/history/${studentId}`, {
+      params: { session_year: sessionYear }
+    }),
+
   enableMonthlyTracking: (data: any) =>
     api.post('/fees/enable-monthly-tracking', data),
 };

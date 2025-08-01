@@ -118,6 +118,21 @@ CREATE INDEX IF NOT EXISTS idx_fee_records_search ON fee_records(student_id, ses
 CREATE INDEX IF NOT EXISTS idx_fee_payments_search ON fee_payments(fee_record_id, payment_date, payment_method_id);
 CREATE INDEX IF NOT EXISTS idx_fee_structures_lookup ON fee_structures(class_id, session_year_id, total_annual_fee);
 
+-- Metadata tables performance indexes for configuration endpoint optimization
+CREATE INDEX IF NOT EXISTS idx_user_types_active_id ON user_types(is_active, id) WHERE is_active = true;
+CREATE INDEX IF NOT EXISTS idx_session_years_active_id ON session_years(is_active, id) WHERE is_active = true;
+CREATE INDEX IF NOT EXISTS idx_genders_active_id ON genders(is_active, id) WHERE is_active = true;
+CREATE INDEX IF NOT EXISTS idx_classes_active_id ON classes(is_active, id) WHERE is_active = true;
+CREATE INDEX IF NOT EXISTS idx_payment_types_active_id ON payment_types(is_active, id) WHERE is_active = true;
+CREATE INDEX IF NOT EXISTS idx_payment_statuses_active_id ON payment_statuses(is_active, id) WHERE is_active = true;
+CREATE INDEX IF NOT EXISTS idx_payment_methods_active_id ON payment_methods(is_active, id) WHERE is_active = true;
+CREATE INDEX IF NOT EXISTS idx_leave_types_active_id ON leave_types(is_active, id) WHERE is_active = true;
+CREATE INDEX IF NOT EXISTS idx_leave_statuses_active_id ON leave_statuses(is_active, id) WHERE is_active = true;
+CREATE INDEX IF NOT EXISTS idx_expense_categories_active_id ON expense_categories(is_active, id) WHERE is_active = true;
+CREATE INDEX IF NOT EXISTS idx_expense_statuses_active_id ON expense_statuses(is_active, id) WHERE is_active = true;
+CREATE INDEX IF NOT EXISTS idx_employment_statuses_active_id ON employment_statuses(is_active, id) WHERE is_active = true;
+CREATE INDEX IF NOT EXISTS idx_qualifications_active_id ON qualifications(is_active, id) WHERE is_active = true;
+
 -- Indexes for fee analytics and reporting
 CREATE INDEX IF NOT EXISTS idx_fee_records_analytics ON fee_records(session_year_id, payment_type_id, total_amount, paid_amount);
 CREATE INDEX IF NOT EXISTS idx_fee_payments_analytics ON fee_payments(payment_date, payment_method_id, amount);
