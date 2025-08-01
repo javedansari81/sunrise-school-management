@@ -65,9 +65,16 @@ const AdminDashboard: React.FC = () => {
 
   return (
     <AdminLayout>
+      <Box sx={{ p: 3 }}>
+        <Typography variant="h4" gutterBottom>
+          Dashboard Overview
+        </Typography>
+        <Typography variant="body1" color="textSecondary" sx={{ mb: 3 }}>
+          School operations summary and key metrics
+        </Typography>
 
         {/* Dashboard Cards */}
-        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3, mb: 4 }}>
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
           {dashboardCards.map((card, index) => (
             <Box key={index} sx={{ flex: '1 1 300px', minWidth: 300 }}>
               <Card
@@ -109,6 +116,7 @@ const AdminDashboard: React.FC = () => {
             </Box>
           ))}
         </Box>
+      </Box>
     </AdminLayout>
   );
 };

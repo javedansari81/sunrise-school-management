@@ -1,27 +1,35 @@
 from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import and_, or_, func, select
+from sqlalchemy.orm import joinedload
 from datetime import date
 import math
+import calendar
 
 from app.core.database import get_db
 from app.crud import fee_structure_crud, fee_record_crud, fee_payment_crud, student_crud
+from app.crud.crud_monthly_fee import monthly_fee_tracking_crud, monthly_payment_allocation_crud
 from app.schemas.fee import (
     FeeStructure, FeeStructureCreate, FeeStructureUpdate,
     FeeRecord, FeeRecordCreate, FeeRecordUpdate, FeeRecordWithStudent,
     FeePayment, FeePaymentCreate, FeePaymentUpdate,
     FeeFilters, FeeListResponse, FeeDashboard, FeeCollectionReport,
-    SessionYearEnum, PaymentStatusEnum, PaymentTypeEnum
+    SessionYearEnum, PaymentStatusEnum, PaymentTypeEnum,
+    EnhancedStudentFeeSummary, StudentMonthlyFeeHistory, EnhancedPaymentRequest,
+    EnableMonthlyTrackingRequest, MonthlyFeeTracking
 )
 from app.api.deps import get_current_active_user
 from app.models.user import User
+from app.models.student import Student
+from app.models.fee import FeeRecord as FeeRecordModel, FeePayment as FeePaymentModel, MonthlyFeeTracking as MonthlyFeeTrackingModel
 
 router = APIRouter()
 
 
 @router.get("/", response_model=FeeListResponse)
 async def get_fees(
-    session_year: Optional[SessionYearEnum] = None,
+    session_year: Optional[SessionYearEnum] = SessionYearEnum.YEAR_2025_26,
     class_name: Optional[str] = None,
     month: Optional[int] = Query(None, ge=1, le=12),
     status: Optional[PaymentStatusEnum] = None,
@@ -29,13 +37,17 @@ async def get_fees(
     student_id: Optional[int] = None,
     from_date: Optional[date] = None,
     to_date: Optional[date] = None,
+    search: Optional[str] = Query(None, description="Search by student name or admission number"),
+    sort_by: Optional[str] = Query("due_date", description="Sort by: due_date, student_name, amount, status"),
+    sort_order: Optional[str] = Query("asc", description="Sort order: asc or desc"),
     page: int = Query(1, ge=1),
     per_page: int = Query(20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
     """
-    Get fee records with comprehensive filters
+    Get fee records with comprehensive filters and enhanced search capabilities
+    Defaults to current financial year 2025-26
     """
     filters = FeeFilters(
         session_year=session_year,
@@ -50,22 +62,81 @@ async def get_fees(
 
     skip = (page - 1) * per_page
     fees, total = await fee_record_crud.get_multi_with_filters(
-        db, filters=filters, skip=skip, limit=per_page
+        db, filters=filters, skip=skip, limit=per_page, search=search, sort_by=sort_by, sort_order=sort_order
     )
 
-    # Convert to response format with student details
+    # Convert to enhanced response format with student details
     fee_list = []
     for fee in fees:
-        fee_dict = {
-            **fee.__dict__,
-            "student_name": f"{fee.student.first_name} {fee.student.last_name}",
-            "student_admission_number": fee.student.admission_number,
-            "student_class": fee.student.class_ref.name if fee.student.class_ref else None
-        }
-        fee_list.append(fee_dict)
+        # Use the schema method to properly convert the ORM object
+        try:
+            fee_record = FeeRecord.from_orm_with_metadata(fee)
+            # Add student details for the FeeRecordWithStudent schema
+            student_name = f"{fee.student.first_name} {fee.student.last_name}" if fee.student else "Unknown"
+            student_admission = fee.student.admission_number if fee.student else "Unknown"
+            student_class = fee.student.class_ref.name if fee.student and fee.student.class_ref else "Unknown"
 
-    # Get summary statistics
+            fee_dict = fee_record.dict()
+            fee_dict.update({
+                "student_name": student_name,
+                "student_admission_number": student_admission,
+                "student_class": student_class,
+                "is_overdue": fee.due_date < date.today() and fee.balance_amount > 0,
+                "days_overdue": (date.today() - fee.due_date).days if fee.due_date < date.today() and fee.balance_amount > 0 else 0
+            })
+            fee_list.append(fee_dict)
+        except Exception as e:
+            # Fallback to manual construction if schema method fails
+            student_name = f"{fee.student.first_name} {fee.student.last_name}" if fee.student else "Unknown"
+            student_admission = fee.student.admission_number if fee.student else "Unknown"
+            student_class = fee.student.class_ref.name if fee.student and fee.student.class_ref else "Unknown"
+
+            fee_dict = {
+                "id": fee.id,
+                "student_id": fee.student_id,
+                "session_year_id": fee.session_year_id,
+                "payment_type_id": fee.payment_type_id,
+                "payment_status_id": fee.payment_status_id,
+                "payment_method_id": fee.payment_method_id,
+                "total_amount": float(fee.total_amount),
+                "paid_amount": float(fee.paid_amount),
+                "balance_amount": float(fee.balance_amount),
+                "due_date": fee.due_date,
+                "payment_date": fee.payment_date,
+                "transaction_id": fee.transaction_id,
+                "remarks": fee.remarks,
+                "created_at": fee.created_at,
+                "updated_at": fee.updated_at,
+                "student_name": student_name,
+                "student_admission_number": student_admission,
+                "student_class": student_class,
+                "session_year_name": None,
+                "payment_type_name": None,
+                "payment_status_name": None,
+                "payment_method_name": None,
+                "is_overdue": fee.due_date < date.today() and fee.balance_amount > 0,
+                "days_overdue": (date.today() - fee.due_date).days if fee.due_date < date.today() and fee.balance_amount > 0 else 0
+            }
+            fee_list.append(fee_dict)
+
+    # Get enhanced summary statistics
     summary = await fee_record_crud.get_collection_summary(db, session_year=session_year)
+
+    # Add additional analytics
+    overdue_count = sum(1 for fee in fee_list if fee["is_overdue"])
+    total_overdue_amount = sum(fee["balance_amount"] for fee in fee_list if fee["is_overdue"])
+
+    # Safe division to avoid division by zero
+    total_amount = summary.get("total_amount", 0) or 0
+    paid_amount = summary.get("paid_amount", 0) or 0
+    collection_efficiency = round((paid_amount / total_amount) * 100, 2) if total_amount > 0 else 0
+
+    enhanced_summary = {
+        **summary,
+        "overdue_records": overdue_count,
+        "overdue_amount": float(total_overdue_amount),
+        "collection_efficiency": collection_efficiency
+    }
 
     total_pages = math.ceil(total / per_page)
 
@@ -75,18 +146,18 @@ async def get_fees(
         page=page,
         per_page=per_page,
         total_pages=total_pages,
-        summary=summary
+        summary=enhanced_summary
     )
 
 
-@router.post("/", response_model=FeeRecord)
+@router.post("/", response_model=FeeRecordWithStudent)
 async def create_fee_record(
     fee_data: FeeRecordCreate,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
     """
-    Create a new fee record for a student
+    Create a new fee record for a student with enhanced validation
     """
     # Verify student exists
     student = await student_crud.get(db, id=fee_data.student_id)
@@ -96,20 +167,125 @@ async def create_fee_record(
             detail="Student not found"
         )
 
+    # Validate amount
+    if fee_data.total_amount <= 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Total amount must be greater than 0"
+        )
+
+    # Validate balance amount matches total amount for new records
+    if hasattr(fee_data, 'balance_amount') and fee_data.balance_amount != fee_data.total_amount:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Balance amount must equal total amount for new fee records"
+        )
+
+    # Check for duplicate fee record for same student, session, and payment type
+    existing_record = await fee_record_crud.get_by_student_session_type(
+        db,
+        student_id=fee_data.student_id,
+        session_year_id=fee_data.session_year_id,
+        payment_type_id=fee_data.payment_type_id
+    )
+
+    if existing_record:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Fee record already exists for this student, session year, and payment type"
+        )
+
     # Create fee record
     fee_record = await fee_record_crud.create(db, obj_in=fee_data)
     return fee_record
 
 
+@router.post("/bulk-create/{student_id}")
+async def create_bulk_fee_records(
+    student_id: int,
+    bulk_data: dict,  # {"session_year_id": int, "payment_types": [{"payment_type_id": int, "total_amount": float, "due_date": "YYYY-MM-DD"}]}
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Create multiple fee records for a student with different payment types
+    Useful for creating monthly, quarterly, half-yearly, and yearly fee records
+    """
+    # Verify student exists
+    student = await student_crud.get(db, id=student_id)
+    if not student:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Student not found"
+        )
+
+    session_year_id = bulk_data.get("session_year_id")
+    payment_types = bulk_data.get("payment_types", [])
+
+    if not session_year_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="session_year_id is required"
+        )
+
+    if not payment_types:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="At least one payment type is required"
+        )
+
+    created_records = []
+    errors = []
+
+    for payment_type_data in payment_types:
+        try:
+            # Check for existing record
+            existing_record = await fee_record_crud.get_by_student_session_type(
+                db,
+                student_id=student_id,
+                session_year_id=session_year_id,
+                payment_type_id=payment_type_data["payment_type_id"]
+            )
+
+            if existing_record:
+                errors.append(f"Fee record already exists for payment type {payment_type_data['payment_type_id']}")
+                continue
+
+            # Create fee record data
+            fee_record_data = FeeRecordCreate(
+                student_id=student_id,
+                session_year_id=session_year_id,
+                payment_type_id=payment_type_data["payment_type_id"],
+                total_amount=payment_type_data["total_amount"],
+                balance_amount=payment_type_data["total_amount"],
+                due_date=payment_type_data["due_date"],
+                payment_status_id=1  # Pending
+            )
+
+            # Create fee record
+            fee_record = await fee_record_crud.create(db, obj_in=fee_record_data)
+            created_records.append(fee_record)
+
+        except Exception as e:
+            errors.append(f"Error creating record for payment type {payment_type_data.get('payment_type_id', 'unknown')}: {str(e)}")
+
+    return {
+        "message": f"Created {len(created_records)} fee records",
+        "created_records": created_records,
+        "errors": errors if errors else None
+    }
+
+
 @router.get("/student/{student_id}")
 async def get_student_fees(
     student_id: int,
-    session_year: Optional[SessionYearEnum] = None,
+    session_year: Optional[SessionYearEnum] = SessionYearEnum.YEAR_2025_26,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
     """
     Get all fee records for a specific student
+    Defaults to current financial year 2025-26
     """
     # Verify student exists
     student = await student_crud.get(db, id=student_id)
@@ -128,12 +304,12 @@ async def get_student_fees(
         "student_name": f"{student.first_name} {student.last_name}",
         "admission_number": student.admission_number,
         "current_class": student.current_class,
-        "current_session": session_year or "2024-25",
+        "current_session": session_year.value if session_year else "2025-26",
         "fee_records": fee_records
     }
 
 
-@router.post("/payment", response_model=FeePayment)
+@router.post("/payment")
 async def process_fee_payment(
     payment_data: FeePaymentCreate,
     db: AsyncSession = Depends(get_db),
@@ -169,6 +345,229 @@ async def process_fee_payment(
     )
 
     return payment
+
+
+@router.post("/student-submit/{student_id}")
+async def student_submit_fee(
+    student_id: int,
+    submission_data: dict,  # {"payment_type": str, "amount": float, "payment_method_id": int, "transaction_id": str, "remarks": str}
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Allow students to submit fee payments with different frequencies
+    Supports Monthly, Quarterly, Half Yearly, and Yearly payments
+    """
+    # Verify student exists and current user has permission
+    student = await student_crud.get(db, id=student_id)
+    if not student:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Student not found"
+        )
+
+    # Check if current user is the student or has admin/teacher role
+    if current_user.user_type_id not in [1, 2] and student.user_id != current_user.id:  # 1=admin, 2=teacher
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You can only submit fees for your own account"
+        )
+
+    payment_type = submission_data.get("payment_type")
+    amount = submission_data.get("amount", 0)
+    payment_method_id = submission_data.get("payment_method_id")
+    transaction_id = submission_data.get("transaction_id")
+    remarks = submission_data.get("remarks", "")
+
+    # Validate input
+    if not payment_type or payment_type not in ["Monthly", "Quarterly", "Half Yearly", "Yearly"]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid payment type. Must be one of: Monthly, Quarterly, Half Yearly, Yearly"
+        )
+
+    if amount <= 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Payment amount must be greater than 0"
+        )
+
+    if not payment_method_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Payment method is required"
+        )
+
+    # Get payment type ID from mapping
+    payment_type_mapping = {"Monthly": 1, "Quarterly": 2, "Half Yearly": 3, "Yearly": 4}
+    payment_type_id = payment_type_mapping.get(payment_type)
+    if not payment_type_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid payment type"
+        )
+
+    # Get current session year (2025-26)
+    current_session_id = 4  # 2025-26 session year ID
+
+    # Check if fee record exists for this student, session, and payment type
+    fee_record = await fee_record_crud.get_by_student_session_type(
+        db,
+        student_id=student_id,
+        session_year_id=current_session_id,
+        payment_type_id=payment_type_id
+    )
+
+    if not fee_record:
+        # Create new fee record if it doesn't exist
+        fee_record_data = FeeRecordCreate(
+            student_id=student_id,
+            session_year_id=current_session_id,
+            payment_type_id=payment_type_id,
+            total_amount=amount,
+            balance_amount=amount,
+            due_date=date.today(),
+            payment_status_id=1  # Pending
+        )
+        fee_record = await fee_record_crud.create(db, obj_in=fee_record_data)
+
+    # Validate payment amount doesn't exceed balance
+    if amount > fee_record.balance_amount:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Payment amount ({amount}) cannot exceed balance amount ({fee_record.balance_amount})"
+        )
+
+    # Create payment record
+    payment_data = FeePaymentCreate(
+        fee_record_id=fee_record.id,
+        amount=amount,
+        payment_method_id=payment_method_id,
+        payment_date=date.today(),
+        transaction_id=transaction_id,
+        remarks=remarks
+    )
+
+    # Process payment
+    payment = await fee_payment_crud.create_payment(
+        db, obj_in=payment_data, fee_record=fee_record
+    )
+
+    return {
+        "message": "Fee payment submitted successfully",
+        "payment": payment,
+        "fee_record": fee_record,
+        "remaining_balance": fee_record.balance_amount - amount
+    }
+
+
+@router.get("/student-options/{student_id}")
+async def get_student_fee_options(
+    student_id: int,
+    session_year: Optional[SessionYearEnum] = SessionYearEnum.YEAR_2025_26,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Get available fee payment options for a student
+    Shows different payment frequencies and their amounts
+    """
+    # Verify student exists and current user has permission
+    student = await student_crud.get(db, id=student_id)
+    if not student:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Student not found"
+        )
+
+    # Check if current user is the student or has admin/teacher role
+    if current_user.user_type_id not in [1, 2] and student.user_id != current_user.id:  # 1=admin, 2=teacher
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You can only view fee options for your own account"
+        )
+
+    # Get fee structure for student's class and session
+    fee_structure = await fee_structure_crud.get_by_class_and_session(
+        db,
+        class_name=student.class_ref.name if student.class_ref else "",
+        session_year=session_year.value
+    )
+
+    if not fee_structure:
+        return {
+            "student_id": student_id,
+            "student_name": f"{student.first_name} {student.last_name}",
+            "class": student.class_ref.name if student.class_ref else "",
+            "session_year": session_year.value,
+            "message": "No fee structure found for this class and session",
+            "payment_options": []
+        }
+
+    # Calculate payment amounts for different frequencies
+    annual_fee = fee_structure.total_annual_fee
+    payment_options = [
+        {
+            "payment_type": "Monthly",
+            "payment_type_id": 1,
+            "amount": round(annual_fee / 12, 2),
+            "frequency": "12 payments per year",
+            "description": "Pay monthly installments"
+        },
+        {
+            "payment_type": "Quarterly",
+            "payment_type_id": 2,
+            "amount": round(annual_fee / 4, 2),
+            "frequency": "4 payments per year",
+            "description": "Pay quarterly installments"
+        },
+        {
+            "payment_type": "Half Yearly",
+            "payment_type_id": 3,
+            "amount": round(annual_fee / 2, 2),
+            "frequency": "2 payments per year",
+            "description": "Pay half-yearly installments"
+        },
+        {
+            "payment_type": "Yearly",
+            "payment_type_id": 4,
+            "amount": annual_fee,
+            "frequency": "1 payment per year",
+            "description": "Pay full annual fee"
+        }
+    ]
+
+    # Get existing fee records to show current status
+    existing_records = await fee_record_crud.get_by_student(
+        db, student_id=student_id, session_year=session_year
+    )
+
+    # Add status to payment options
+    for option in payment_options:
+        existing_record = next(
+            (record for record in existing_records if record.payment_type_id == option["payment_type_id"]),
+            None
+        )
+        if existing_record:
+            option["status"] = existing_record.payment_status_name
+            option["paid_amount"] = existing_record.paid_amount
+            option["balance_amount"] = existing_record.balance_amount
+            option["due_date"] = existing_record.due_date
+        else:
+            option["status"] = "Not Created"
+            option["paid_amount"] = 0
+            option["balance_amount"] = option["amount"]
+            option["due_date"] = None
+
+    return {
+        "student_id": student_id,
+        "student_name": f"{student.first_name} {student.last_name}",
+        "admission_number": student.admission_number,
+        "class": student.class_ref.name if student.class_ref else "",
+        "session_year": session_year.value,
+        "annual_fee": annual_fee,
+        "payment_options": payment_options
+    }
 
 
 @router.post("/payments/lump-sum/{student_id}")
@@ -358,7 +757,7 @@ async def update_fee_structure(
 
 @router.get("/reports/pending")
 async def get_pending_fees_report(
-    session_year: Optional[SessionYearEnum] = None,
+    session_year: Optional[SessionYearEnum] = SessionYearEnum.YEAR_2025_26,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
@@ -396,7 +795,7 @@ async def get_pending_fees_report(
 
 @router.get("/reports/collection")
 async def get_fee_collection_report(
-    session_year: Optional[SessionYearEnum] = None,
+    session_year: Optional[SessionYearEnum] = SessionYearEnum.YEAR_2025_26,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
@@ -418,7 +817,7 @@ async def get_fee_collection_report(
     }
 
 
-@router.post("/records", response_model=FeeRecord)
+@router.post("/records", response_model=FeeRecordWithStudent)
 async def create_fee_record(
     fee_data: FeeRecordCreate,
     db: AsyncSession = Depends(get_db),
@@ -440,7 +839,7 @@ async def create_fee_record(
     return fee_record
 
 
-@router.put("/records/{fee_record_id}", response_model=FeeRecord)
+@router.put("/records/{fee_record_id}", response_model=FeeRecordWithStudent)
 async def update_fee_record(
     fee_record_id: int,
     fee_data: FeeRecordUpdate,
@@ -448,7 +847,7 @@ async def update_fee_record(
     current_user: User = Depends(get_current_active_user)
 ):
     """
-    Update an existing fee record
+    Update an existing fee record with enhanced validation
     """
     fee_record = await fee_record_crud.get(db, id=fee_record_id)
     if not fee_record:
@@ -456,6 +855,32 @@ async def update_fee_record(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Fee record not found"
         )
+
+    # Validate total amount if being updated
+    if hasattr(fee_data, 'total_amount') and fee_data.total_amount is not None:
+        if fee_data.total_amount <= 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Total amount must be greater than 0"
+            )
+
+        # Ensure total amount is not less than already paid amount
+        if fee_data.total_amount < fee_record.paid_amount:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Total amount cannot be less than already paid amount ({fee_record.paid_amount})"
+            )
+
+    # Validate balance amount if being updated
+    if hasattr(fee_data, 'balance_amount') and fee_data.balance_amount is not None:
+        total_amount = fee_data.total_amount if hasattr(fee_data, 'total_amount') and fee_data.total_amount is not None else fee_record.total_amount
+        expected_balance = total_amount - fee_record.paid_amount
+
+        if fee_data.balance_amount != expected_balance:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Balance amount must be {expected_balance} (total - paid)"
+            )
 
     updated_record = await fee_record_crud.update(db, db_obj=fee_record, obj_in=fee_data)
     return updated_record
@@ -491,12 +916,12 @@ async def delete_fee_record(
 @router.get("/payments/history/{student_id}")
 async def get_payment_history(
     student_id: int,
-    session_year: Optional[SessionYearEnum] = None,
+    session_year: Optional[SessionYearEnum] = SessionYearEnum.YEAR_2025_26,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
     """
-    Get complete payment history for a student
+    Get comprehensive payment history for a student with record-wise details
     """
     # Verify student exists
     student = await student_crud.get(db, id=student_id)
@@ -506,21 +931,152 @@ async def get_payment_history(
             detail="Student not found"
         )
 
-    # Get payment history
-    payments = await fee_payment_crud.get_student_payment_history(
+    # Check if current user has permission to view this student's history
+    if current_user.user_type_id not in [1, 2] and student.user_id != current_user.id:  # 1=admin, 2=teacher
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You can only view payment history for your own account"
+        )
+
+    # Get all fee records for the student in the specified session
+    fee_records = await fee_record_crud.get_by_student(
         db, student_id=student_id, session_year=session_year
     )
+
+    # Build comprehensive payment history
+    payment_history = []
+    total_paid = 0
+    total_due = 0
+
+    for fee_record in fee_records:
+        # Get all payments for this fee record
+        payments = await fee_payment_crud.get_by_fee_record(db, fee_record_id=fee_record.id)
+
+        record_info = {
+            "fee_record_id": fee_record.id,
+            "payment_type": fee_record.payment_type_name,
+            "payment_type_id": fee_record.payment_type_id,
+            "total_amount": fee_record.total_amount,
+            "paid_amount": fee_record.paid_amount,
+            "balance_amount": fee_record.balance_amount,
+            "due_date": fee_record.due_date,
+            "status": fee_record.payment_status_name,
+            "session_year": fee_record.session_year_name,
+            "payments": []
+        }
+
+        # Add individual payment details
+        for payment in payments:
+            payment_detail = {
+                "payment_id": payment.id,
+                "amount": payment.amount,
+                "payment_date": payment.payment_date,
+                "payment_method": payment.payment_method_name,
+                "transaction_id": payment.transaction_id,
+                "receipt_number": payment.receipt_number,
+                "remarks": payment.remarks,
+                "created_at": payment.created_at
+            }
+            record_info["payments"].append(payment_detail)
+
+        # Sort payments by date (most recent first)
+        record_info["payments"].sort(key=lambda x: x["payment_date"], reverse=True)
+
+        payment_history.append(record_info)
+        total_paid += fee_record.paid_amount
+        total_due += fee_record.balance_amount
+
+    # Sort fee records by payment type (Monthly, Quarterly, etc.)
+    payment_history.sort(key=lambda x: x["payment_type_id"])
 
     return {
         "student_id": student_id,
         "student_name": f"{student.first_name} {student.last_name}",
-        "payments": payments
+        "admission_number": student.admission_number,
+        "class": student.class_ref.name if student.class_ref else "",
+        "session_year": session_year.value,
+        "summary": {
+            "total_paid": total_paid,
+            "total_due": total_due,
+            "total_records": len(payment_history),
+            "total_payments": sum(len(record["payments"]) for record in payment_history)
+        },
+        "payment_history": payment_history
+    }
+
+
+@router.get("/payment-receipt/{payment_id}")
+async def get_payment_receipt(
+    payment_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Get detailed payment receipt information
+    """
+    # Get payment record
+    payment = await fee_payment_crud.get(db, id=payment_id)
+    if not payment:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Payment record not found"
+        )
+
+    # Get associated fee record and student
+    fee_record = await fee_record_crud.get_with_student(db, id=payment.fee_record_id)
+    if not fee_record:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Associated fee record not found"
+        )
+
+    student = fee_record.student
+
+    # Check if current user has permission to view this receipt
+    if current_user.user_type_id not in [1, 2] and student.user_id != current_user.id:  # 1=admin, 2=teacher
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You can only view receipts for your own payments"
+        )
+
+    return {
+        "receipt_info": {
+            "payment_id": payment.id,
+            "receipt_number": payment.receipt_number or f"RCP-{payment.id:06d}",
+            "payment_date": payment.payment_date,
+            "amount": payment.amount,
+            "payment_method": payment.payment_method_name,
+            "transaction_id": payment.transaction_id,
+            "remarks": payment.remarks
+        },
+        "student_info": {
+            "student_id": student.id,
+            "student_name": f"{student.first_name} {student.last_name}",
+            "admission_number": student.admission_number,
+            "class": student.class_ref.name if student.class_ref else "",
+            "session_year": fee_record.session_year_name
+        },
+        "fee_info": {
+            "fee_record_id": fee_record.id,
+            "payment_type": fee_record.payment_type_name,
+            "total_amount": fee_record.total_amount,
+            "paid_amount": fee_record.paid_amount,
+            "balance_amount": fee_record.balance_amount,
+            "due_date": fee_record.due_date,
+            "status": fee_record.payment_status_name
+        },
+        "school_info": {
+            "name": "Sunrise School",
+            "address": "School Address",
+            "phone": "School Phone",
+            "email": "school@sunriseschool.edu"
+        }
     }
 
 
 @router.get("/dashboard", response_model=FeeDashboard)
 async def get_fee_dashboard(
-    session_year: Optional[SessionYearEnum] = None,
+    session_year: Optional[SessionYearEnum] = SessionYearEnum.YEAR_2025_26,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
@@ -547,3 +1103,991 @@ async def get_fee_dashboard(
         class_wise_collection=[],  # TODO: Implement class-wise collection data
         payment_method_breakdown=[]  # TODO: Implement payment method breakdown
     )
+
+
+@router.get("/analytics")
+async def get_fee_analytics(
+    session_year: Optional[SessionYearEnum] = SessionYearEnum.YEAR_2025_26,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Get comprehensive fee analytics and statistics
+    """
+    # Get collection summary
+    summary = await fee_record_crud.get_collection_summary(db, session_year=session_year)
+
+    # Get overdue fees
+    overdue_fees = await fee_record_crud.get_overdue_fees(db)
+    overdue_amount = sum(fee.balance_amount for fee in overdue_fees)
+    overdue_count = len(overdue_fees)
+
+    # Calculate additional metrics
+    collection_efficiency = round((summary.get("paid_amount", 0) / summary.get("total_amount", 1)) * 100, 2)
+
+    # Get payment method breakdown (simplified version)
+    all_fees = await fee_record_crud.get_multi_with_filters(
+        db,
+        filters=FeeFilters(session_year=session_year),
+        skip=0,
+        limit=1000
+    )
+
+    payment_methods = {}
+    for fee_record, _ in [all_fees]:
+        for fee in fee_record:
+            if fee.payment_method_id:
+                method_name = fee.payment_method_name if hasattr(fee, 'payment_method_name') else 'Unknown'
+                if method_name not in payment_methods:
+                    payment_methods[method_name] = {"count": 0, "amount": 0}
+                payment_methods[method_name]["count"] += 1
+                payment_methods[method_name]["amount"] += fee.paid_amount
+
+    return {
+        "session_year": session_year.value,
+        "overall_summary": {
+            **summary,
+            "collection_efficiency": collection_efficiency,
+            "overdue_records": overdue_count,
+            "overdue_amount": overdue_amount
+        },
+        "payment_method_breakdown": [
+            {"method": method, "count": data["count"], "amount": data["amount"]}
+            for method, data in payment_methods.items()
+        ],
+        "generated_at": date.today()
+    }
+
+
+@router.get("/metadata")
+async def get_fee_metadata(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Get ALL metadata for fee management frontend
+    Returns comprehensive metadata including session years, classes, payment statuses, payment methods, etc.
+    """
+    from app.crud.metadata import (
+        session_year_crud, payment_status_crud, payment_method_crud,
+        class_crud, gender_crud, user_type_crud
+    )
+
+    # Get all metadata using async methods
+    session_years = await session_year_crud.get_all_async(db)
+    payment_statuses = await payment_status_crud.get_all_async(db)
+    payment_methods = await payment_method_crud.get_all_async(db)
+    classes = await class_crud.get_all_async(db)
+    genders = await gender_crud.get_all_async(db)
+    user_types = await user_type_crud.get_all_async(db)
+
+    # Define payment frequency options (replacing payment types)
+    payment_frequencies = [
+        {"id": "monthly", "name": "Monthly", "description": "Pay monthly fees"},
+        {"id": "quarterly", "name": "Quarterly", "description": "Pay quarterly fees (3 months)"},
+        {"id": "half_yearly", "name": "Half Yearly", "description": "Pay half-yearly fees (6 months)"},
+        {"id": "yearly", "name": "Yearly", "description": "Pay full year fees"}
+    ]
+
+    # Define months for payment tracking
+    months = [
+        {"id": 1, "name": "January", "short": "Jan"},
+        {"id": 2, "name": "February", "short": "Feb"},
+        {"id": 3, "name": "March", "short": "Mar"},
+        {"id": 4, "name": "April", "short": "Apr"},
+        {"id": 5, "name": "May", "short": "May"},
+        {"id": 6, "name": "June", "short": "Jun"},
+        {"id": 7, "name": "July", "short": "Jul"},
+        {"id": 8, "name": "August", "short": "Aug"},
+        {"id": 9, "name": "September", "short": "Sep"},
+        {"id": 10, "name": "October", "short": "Oct"},
+        {"id": 11, "name": "November", "short": "Nov"},
+        {"id": 12, "name": "December", "short": "Dec"}
+    ]
+
+    return {
+        "session_years": [{"id": sy.id, "name": sy.name, "is_current": getattr(sy, 'is_current', False)} for sy in session_years],
+        "classes": [{"id": c.id, "name": c.name, "display_name": getattr(c, 'display_name', c.name)} for c in classes],
+        "payment_statuses": [{"id": ps.id, "name": ps.name, "color_code": getattr(ps, 'color_code', '#000000')} for ps in payment_statuses],
+        "payment_methods": [{"id": pm.id, "name": pm.name, "requires_reference": getattr(pm, 'requires_reference', False)} for pm in payment_methods],
+        "genders": [{"id": g.id, "name": g.name} for g in genders],
+        "user_types": [{"id": ut.id, "name": ut.name} for ut in user_types],
+        "payment_frequencies": payment_frequencies,
+        "months": months,
+        "current_session_year": {"id": 4, "name": "2025-26"},
+        "current_month": date.today().month,
+        "current_year": date.today().year
+    }
+
+
+@router.get("/students-due")
+async def get_students_with_due_fees(
+    session_year: Optional[SessionYearEnum] = SessionYearEnum.YEAR_2025_26,
+    frequency: Optional[str] = Query("monthly", description="Payment frequency: monthly, quarterly, half_yearly, yearly"),
+    class_id: Optional[int] = None,
+    search: Optional[str] = Query(None, description="Search by student name or admission number"),
+    page: int = Query(1, ge=1),
+    per_page: int = Query(20, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Get all students with their fee due status based on selected frequency
+    Shows monthly/quarterly/half-yearly/yearly fee status for each student
+    """
+    from app.crud import student_crud
+    from datetime import datetime, date
+    import calendar
+
+    # Get current date info
+    current_date = date.today()
+    current_month = current_date.month
+    current_year = current_date.year
+
+    # Get students with filters
+    students_query = select(Student).options(
+        joinedload(Student.class_ref)
+    ).where(Student.is_active == True)
+
+    if class_id:
+        students_query = students_query.where(Student.class_id == class_id)
+
+    if search:
+        students_query = students_query.where(
+            or_(
+                func.concat(Student.first_name, ' ', Student.last_name).ilike(f"%{search}%"),
+                Student.admission_number.ilike(f"%{search}%")
+            )
+        )
+
+    # Get total count
+    count_result = await db.execute(select(func.count(Student.id)).where(students_query.whereclause))
+    total = count_result.scalar()
+
+    # Get paginated students
+    skip = (page - 1) * per_page
+    students_result = await db.execute(
+        students_query.offset(skip).limit(per_page)
+    )
+    students = students_result.scalars().all()
+
+    # Process each student's fee status
+    students_with_fees = []
+    for student in students:
+        # Get student's fee structure
+        fee_structure = await fee_structure_crud.get_by_class_and_session(
+            db,
+            class_name=student.class_ref.name if student.class_ref else "",
+            session_year=session_year.value
+        )
+
+        if not fee_structure:
+            continue
+
+        # Calculate monthly fee amount
+        monthly_fee = float(fee_structure.total_annual_fee) / 12
+
+        # Get student's payment history
+        payments_query = select(FeePaymentModel).join(FeeRecordModel).where(
+            and_(
+                FeeRecordModel.student_id == student.id,
+                FeeRecordModel.session_year_id == 4  # 2025-26
+            )
+        )
+        payments_result = await db.execute(payments_query)
+        payments = payments_result.scalars().all()
+
+        # Calculate fee status based on frequency
+        fee_status = calculate_fee_status(
+            frequency, monthly_fee, payments, current_date, fee_structure.total_annual_fee
+        )
+
+        student_data = {
+            "id": student.id,
+            "admission_number": student.admission_number,
+            "name": f"{student.first_name} {student.last_name}",
+            "class": student.class_ref.name if student.class_ref else "Unknown",
+            "section": student.section,
+            "phone": student.phone,
+            "email": student.email,
+            "monthly_fee": monthly_fee,
+            "annual_fee": float(fee_structure.total_annual_fee),
+            "fee_status": fee_status,
+            "total_paid": sum(p.amount for p in payments),
+            "total_due": fee_status.get("total_due", 0),
+            "overdue_amount": fee_status.get("overdue_amount", 0),
+            "status_summary": fee_status.get("status", "Unknown")
+        }
+
+        students_with_fees.append(student_data)
+
+    total_pages = math.ceil(total / per_page)
+
+    return {
+        "students": students_with_fees,
+        "total": total,
+        "page": page,
+        "per_page": per_page,
+        "total_pages": total_pages,
+        "frequency": frequency,
+        "session_year": session_year.value,
+        "current_month": current_month,
+        "current_year": current_year
+    }
+
+
+def calculate_fee_status(frequency: str, monthly_fee: float, payments: list, current_date: date, annual_fee: float):
+    """Calculate fee status based on payment frequency"""
+    from datetime import datetime
+    import calendar
+
+    current_month = current_date.month
+    current_year = current_date.year
+
+    # Calculate total paid amount
+    total_paid = sum(p.amount for p in payments)
+
+    if frequency == "monthly":
+        # For monthly, check each month from April to current month
+        months_status = []
+        total_due = 0
+        overdue_amount = 0
+
+        # Academic year starts from April
+        start_month = 4  # April
+        months_to_check = []
+
+        # Generate months from April of current academic year
+        for i in range(12):
+            month = ((start_month - 1 + i) % 12) + 1
+            year = current_year if month >= start_month else current_year + 1
+            months_to_check.append((month, year))
+
+            # Only check up to current month
+            if month == current_month and year == current_year:
+                break
+
+        for month, year in months_to_check:
+            month_due = monthly_fee
+            month_paid = 0  # Calculate from payments for this month
+
+            if month_paid >= month_due:
+                status = "paid"
+            elif month_paid > 0:
+                status = "partial"
+            elif month < current_month or year < current_year:
+                status = "overdue"
+                overdue_amount += (month_due - month_paid)
+            else:
+                status = "pending"
+
+            total_due += month_due
+
+            months_status.append({
+                "month": month,
+                "year": year,
+                "month_name": calendar.month_name[month],
+                "due_amount": month_due,
+                "paid_amount": month_paid,
+                "status": status
+            })
+
+        return {
+            "type": "monthly",
+            "months": months_status,
+            "total_due": total_due,
+            "total_paid": total_paid,
+            "overdue_amount": overdue_amount,
+            "status": "overdue" if overdue_amount > 0 else ("paid" if total_paid >= total_due else "pending")
+        }
+
+    elif frequency == "quarterly":
+        # For quarterly, divide year into 4 quarters
+        quarterly_fee = annual_fee / 4
+        quarters = [
+            {"name": "Q1 (Apr-Jun)", "months": [4, 5, 6], "due": quarterly_fee},
+            {"name": "Q2 (Jul-Sep)", "months": [7, 8, 9], "due": quarterly_fee},
+            {"name": "Q3 (Oct-Dec)", "months": [10, 11, 12], "due": quarterly_fee},
+            {"name": "Q4 (Jan-Mar)", "months": [1, 2, 3], "due": quarterly_fee}
+        ]
+
+        quarters_status = []
+        total_due = 0
+        overdue_amount = 0
+
+        for quarter in quarters:
+            # Check if this quarter is due based on current date
+            is_due = any(month <= current_month for month in quarter["months"])
+
+            if is_due:
+                quarter_paid = 0  # Calculate from payments
+                quarter_due = quarter["due"]
+
+                if quarter_paid >= quarter_due:
+                    status = "paid"
+                elif quarter_paid > 0:
+                    status = "partial"
+                else:
+                    # Check if overdue (past the quarter end)
+                    last_month = max(quarter["months"])
+                    if current_month > last_month:
+                        status = "overdue"
+                        overdue_amount += (quarter_due - quarter_paid)
+                    else:
+                        status = "pending"
+
+                total_due += quarter_due
+
+                quarters_status.append({
+                    "quarter": quarter["name"],
+                    "months": quarter["months"],
+                    "due_amount": quarter_due,
+                    "paid_amount": quarter_paid,
+                    "status": status
+                })
+
+        return {
+            "type": "quarterly",
+            "quarters": quarters_status,
+            "total_due": total_due,
+            "total_paid": total_paid,
+            "overdue_amount": overdue_amount,
+            "status": "overdue" if overdue_amount > 0 else ("paid" if total_paid >= total_due else "pending")
+        }
+
+    elif frequency == "half_yearly":
+        # For half-yearly, divide into 2 halves
+        half_yearly_fee = annual_fee / 2
+        halves = [
+            {"name": "First Half (Apr-Sep)", "months": [4, 5, 6, 7, 8, 9], "due": half_yearly_fee},
+            {"name": "Second Half (Oct-Mar)", "months": [10, 11, 12, 1, 2, 3], "due": half_yearly_fee}
+        ]
+
+        # Similar logic as quarterly
+        return {
+            "type": "half_yearly",
+            "halves": [],  # Implement similar to quarterly
+            "total_due": annual_fee if current_month >= 4 else half_yearly_fee,
+            "total_paid": total_paid,
+            "overdue_amount": 0,
+            "status": "paid" if total_paid >= annual_fee else "pending"
+        }
+
+    else:  # yearly
+        return {
+            "type": "yearly",
+            "total_due": annual_fee,
+            "total_paid": total_paid,
+            "overdue_amount": max(0, annual_fee - total_paid) if current_month > 6 else 0,  # Overdue after 6 months
+            "status": "paid" if total_paid >= annual_fee else ("overdue" if current_month > 6 else "pending")
+        }
+
+
+@router.get("/summary")
+async def get_fee_summary(
+    session_year: Optional[SessionYearEnum] = SessionYearEnum.YEAR_2025_26,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Get comprehensive fee collection summary for the dashboard
+    Shows total collected, pending, overdue amounts and student counts before any filters
+    """
+    from datetime import datetime, date
+
+    current_date = date.today()
+    current_month = current_date.month
+
+    # Get all active students for the session
+    students_query = select(Student).options(
+        joinedload(Student.class_ref)
+    ).where(
+        and_(
+            Student.is_active == True,
+            Student.session_year_id == 4  # 2025-26
+        )
+    )
+
+    students_result = await db.execute(students_query)
+    students = students_result.scalars().all()
+
+    # Initialize summary counters
+    summary = {
+        "total_students": len(students),
+        "total_expected_amount": 0,
+        "total_collected_amount": 0,
+        "total_pending_amount": 0,
+        "total_overdue_amount": 0,
+        "students_paid": 0,
+        "students_partial": 0,
+        "students_pending": 0,
+        "students_overdue": 0,
+        "monthly_breakdown": [],
+        "class_wise_summary": {},
+        "collection_efficiency": 0
+    }
+
+    # Get all payments for the session
+    payments_query = select(FeePaymentModel).join(FeeRecordModel).where(
+        FeeRecordModel.session_year_id == 4  # 2025-26
+    )
+    payments_result = await db.execute(payments_query)
+    all_payments = payments_result.scalars().all()
+
+    total_collected = sum(p.amount for p in all_payments)
+    summary["total_collected_amount"] = float(total_collected)
+
+    # Process each student
+    for student in students:
+        # Get student's fee structure
+        fee_structure = await fee_structure_crud.get_by_class_and_session(
+            db,
+            class_name=student.class_ref.name if student.class_ref else "",
+            session_year=session_year.value
+        )
+
+        if not fee_structure:
+            continue
+
+        annual_fee = float(fee_structure.total_annual_fee)
+        monthly_fee = annual_fee / 12
+
+        summary["total_expected_amount"] += annual_fee
+
+        # Get student's payments
+        student_payments = [p for p in all_payments if any(
+            fr.student_id == student.id for fr in [p.fee_record] if fr
+        )]
+
+        student_paid = sum(p.amount for p in student_payments)
+
+        # Calculate months due up to current month
+        months_due = current_month - 3 if current_month >= 4 else current_month + 9  # Academic year starts April
+        expected_till_now = monthly_fee * months_due
+
+        # Determine student status
+        if student_paid >= expected_till_now:
+            summary["students_paid"] += 1
+        elif student_paid > 0:
+            if student_paid < expected_till_now * 0.5:  # Less than 50% paid
+                summary["students_overdue"] += 1
+                summary["total_overdue_amount"] += (expected_till_now - student_paid)
+            else:
+                summary["students_partial"] += 1
+        else:
+            if months_due > 0:
+                summary["students_overdue"] += 1
+                summary["total_overdue_amount"] += expected_till_now
+            else:
+                summary["students_pending"] += 1
+
+        # Class-wise summary
+        class_name = student.class_ref.name if student.class_ref else "Unknown"
+        if class_name not in summary["class_wise_summary"]:
+            summary["class_wise_summary"][class_name] = {
+                "total_students": 0,
+                "total_expected": 0,
+                "total_collected": 0,
+                "students_paid": 0,
+                "students_pending": 0
+            }
+
+        summary["class_wise_summary"][class_name]["total_students"] += 1
+        summary["class_wise_summary"][class_name]["total_expected"] += annual_fee
+        summary["class_wise_summary"][class_name]["total_collected"] += student_paid
+
+        if student_paid >= expected_till_now:
+            summary["class_wise_summary"][class_name]["students_paid"] += 1
+        else:
+            summary["class_wise_summary"][class_name]["students_pending"] += 1
+
+    # Calculate pending amount
+    summary["total_pending_amount"] = summary["total_expected_amount"] - summary["total_collected_amount"] - summary["total_overdue_amount"]
+
+    # Calculate collection efficiency
+    if summary["total_expected_amount"] > 0:
+        summary["collection_efficiency"] = round(
+            (summary["total_collected_amount"] / summary["total_expected_amount"]) * 100, 2
+        )
+
+    # Monthly breakdown for current academic year
+    for month in range(1, 13):
+        month_name = calendar.month_name[month]
+        # Calculate expected collection for this month
+        expected_for_month = summary["total_students"] * (summary["total_expected_amount"] / summary["total_students"] / 12) if summary["total_students"] > 0 else 0
+
+        # Get actual collections for this month (simplified)
+        actual_for_month = 0  # Would need to calculate from payment dates
+
+        summary["monthly_breakdown"].append({
+            "month": month,
+            "month_name": month_name,
+            "expected": float(expected_for_month),
+            "collected": float(actual_for_month),
+            "efficiency": round((actual_for_month / expected_for_month * 100), 2) if expected_for_month > 0 else 0
+        })
+
+    return {
+        "summary": summary,
+        "session_year": session_year.value,
+        "current_month": current_month,
+        "generated_at": current_date
+    }
+
+
+@router.post("/pay-monthly-fee/{student_id}")
+async def pay_monthly_fee(
+    student_id: int,
+    from_month: int = Query(..., ge=1, le=12, description="Starting month (1-12)"),
+    to_month: int = Query(..., ge=1, le=12, description="Ending month (1-12)"),
+    payment_method_id: int = Query(..., description="Payment method ID"),
+    amount: float = Query(..., gt=0, description="Payment amount"),
+    transaction_id: Optional[str] = Query(None, description="Transaction reference ID"),
+    remarks: Optional[str] = Query(None, description="Payment remarks"),
+    session_year: Optional[SessionYearEnum] = SessionYearEnum.YEAR_2025_26,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Process monthly fee payment for a student for specified month range
+    Allows paying for multiple months at once (from_month to to_month)
+    """
+    from datetime import datetime, date
+
+    # Validate month range
+    if from_month > to_month:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="From month cannot be greater than to month"
+        )
+
+    # Get student
+    student = await student_crud.get(db, id=student_id)
+    if not student:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Student not found"
+        )
+
+    # Get student's fee structure
+    fee_structure = await fee_structure_crud.get_by_class_and_session(
+        db,
+        class_name=student.class_ref.name if student.class_ref else "",
+        session_year=session_year.value
+    )
+
+    if not fee_structure:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Fee structure not found for student's class"
+        )
+
+    # Calculate monthly fee and total months
+    monthly_fee = float(fee_structure.total_annual_fee) / 12
+    months_count = to_month - from_month + 1
+    expected_amount = monthly_fee * months_count
+
+    # Validate payment amount
+    if amount > expected_amount * 1.1:  # Allow 10% buffer for convenience
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Payment amount ({amount}) exceeds expected amount ({expected_amount}) by more than 10%"
+        )
+
+    # Get or create fee record for the student
+    existing_record = await fee_record_crud.get_by_student_and_session(
+        db, student_id=student_id, session_year=session_year.value
+    )
+
+    if not existing_record:
+        # Create new fee record
+        fee_record_data = FeeRecordCreate(
+            student_id=student_id,
+            session_year_id=4,  # 2025-26
+            payment_type_id=1,  # Default
+            payment_status_id=1,  # Pending
+            payment_method_id=payment_method_id,
+            total_amount=fee_structure.total_annual_fee,
+            paid_amount=0,
+            balance_amount=fee_structure.total_annual_fee,
+            due_date=date(2025, 4, 30),  # Default due date
+            remarks=f"Monthly fee payment for {calendar.month_name[from_month]} to {calendar.month_name[to_month]}"
+        )
+        fee_record = await fee_record_crud.create(db, obj_in=fee_record_data)
+    else:
+        fee_record = existing_record
+
+    # Create payment record
+    payment_data = FeePaymentCreate(
+        fee_record_id=fee_record.id,
+        amount=amount,
+        payment_method_id=payment_method_id,
+        payment_date=date.today(),
+        transaction_id=transaction_id,
+        remarks=f"Payment for months {from_month} to {to_month}: {remarks}" if remarks else f"Payment for months {from_month} to {to_month}"
+    )
+
+    payment = await fee_payment_crud.create(db, obj_in=payment_data)
+
+    # Update fee record amounts
+    fee_record.paid_amount += amount
+    fee_record.balance_amount = fee_record.total_amount - fee_record.paid_amount
+
+    # Update payment status based on balance
+    if fee_record.balance_amount <= 0:
+        fee_record.payment_status_id = 2  # Paid
+        fee_record.balance_amount = 0
+    elif fee_record.paid_amount > 0:
+        fee_record.payment_status_id = 3  # Partial
+
+    await db.commit()
+    await db.refresh(fee_record)
+    await db.refresh(payment)
+
+    # Calculate payment breakdown by month
+    amount_per_month = amount / months_count
+    months_paid = []
+
+    for month in range(from_month, to_month + 1):
+        months_paid.append({
+            "month": month,
+            "month_name": calendar.month_name[month],
+            "amount_paid": amount_per_month,
+            "expected_amount": monthly_fee,
+            "status": "paid" if amount_per_month >= monthly_fee else "partial"
+        })
+
+    return {
+        "success": True,
+        "message": f"Payment of ₹{amount} processed successfully for {months_count} month(s)",
+        "payment_id": payment.id,
+        "fee_record_id": fee_record.id,
+        "student": {
+            "id": student.id,
+            "name": f"{student.first_name} {student.last_name}",
+            "admission_number": student.admission_number,
+            "class": student.class_ref.name if student.class_ref else "Unknown"
+        },
+        "payment_details": {
+            "amount": amount,
+            "from_month": from_month,
+            "to_month": to_month,
+            "months_count": months_count,
+            "amount_per_month": amount_per_month,
+            "expected_per_month": monthly_fee,
+            "transaction_id": transaction_id,
+            "payment_date": date.today(),
+            "months_paid": months_paid
+        },
+        "updated_balance": {
+            "total_annual_fee": float(fee_record.total_amount),
+            "total_paid": float(fee_record.paid_amount),
+            "balance_remaining": float(fee_record.balance_amount),
+            "payment_status": "Paid" if fee_record.balance_amount <= 0 else ("Partial" if fee_record.paid_amount > 0 else "Pending")
+        }
+    }
+
+
+@router.get("/monthly-history/{student_id}")
+async def get_monthly_payment_history(
+    student_id: int,
+    session_year: Optional[SessionYearEnum] = SessionYearEnum.YEAR_2025_26,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Get detailed monthly payment history for a student
+    Shows which months are paid, due, overdue, or partially paid
+    """
+    from datetime import datetime, date
+
+    # Get student
+    student = await student_crud.get(db, id=student_id)
+    if not student:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Student not found"
+        )
+
+    # Get student's fee structure
+    fee_structure = await fee_structure_crud.get_by_class_and_session(
+        db,
+        class_name=student.class_ref.name if student.class_ref else "",
+        session_year=session_year.value
+    )
+
+    if not fee_structure:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Fee structure not found for student's class"
+        )
+
+    monthly_fee = float(fee_structure.total_annual_fee) / 12
+    current_date = date.today()
+    current_month = current_date.month
+    current_year = current_date.year
+
+    # Get all payments for the student
+    payments_query = select(FeePaymentModel).join(FeeRecordModel).where(
+        and_(
+            FeeRecordModel.student_id == student_id,
+            FeeRecordModel.session_year_id == 4  # 2025-26
+        )
+    ).order_by(FeePaymentModel.payment_date)
+
+    payments_result = await db.execute(payments_query)
+    payments = payments_result.scalars().all()
+
+    # Create monthly history (Academic year: April to March)
+    monthly_history = []
+    academic_months = [4, 5, 6, 7, 8, 9, 10, 11, 12, 1, 2, 3]  # Apr to Mar
+
+    total_paid = 0
+    total_due = 0
+    total_overdue = 0
+
+    for i, month in enumerate(academic_months):
+        # Determine year for this month
+        if month >= 4:  # Apr-Dec of current academic year
+            year = current_year if current_month >= 4 else current_year - 1
+        else:  # Jan-Mar of next calendar year
+            year = current_year + 1 if current_month >= 4 else current_year
+
+        # Check if this month is due (up to current month)
+        is_due = False
+        if year < current_year:
+            is_due = True
+        elif year == current_year:
+            is_due = month <= current_month
+
+        # Calculate payments for this month (simplified allocation)
+        # In a real system, you'd track payments per month more precisely
+        month_paid = 0
+        if payments and total_paid < (i + 1) * monthly_fee:
+            remaining_for_month = min(monthly_fee, sum(p.amount for p in payments) - i * monthly_fee)
+            month_paid = max(0, remaining_for_month)
+
+        # Determine status
+        if month_paid >= monthly_fee:
+            status = "paid"
+            status_color = "#10B981"  # Green
+        elif month_paid > 0:
+            status = "partial"
+            status_color = "#F59E0B"  # Yellow
+        elif is_due:
+            if month < current_month or year < current_year:
+                status = "overdue"
+                status_color = "#EF4444"  # Red
+                total_overdue += (monthly_fee - month_paid)
+            else:
+                status = "due"
+                status_color = "#F59E0B"  # Orange
+        else:
+            status = "upcoming"
+            status_color = "#6B7280"  # Gray
+
+        if is_due:
+            total_due += monthly_fee
+
+        total_paid += month_paid
+
+        # Find specific payments for this month
+        month_payments = []
+        for payment in payments:
+            # Simplified: assume payments are allocated chronologically
+            # In practice, you'd need more sophisticated month allocation
+            month_payments.append({
+                "id": payment.id,
+                "amount": float(payment.amount),
+                "payment_date": payment.payment_date,
+                "transaction_id": payment.transaction_id,
+                "remarks": payment.remarks
+            })
+
+        monthly_history.append({
+            "month": month,
+            "year": year,
+            "month_name": calendar.month_name[month],
+            "month_short": calendar.month_abbr[month],
+            "due_amount": monthly_fee,
+            "paid_amount": month_paid,
+            "balance": monthly_fee - month_paid,
+            "status": status,
+            "status_color": status_color,
+            "is_due": is_due,
+            "is_current": (month == current_month and year == current_year),
+            "payments": month_payments[:1] if month_payments else []  # Show first payment for simplicity
+        })
+
+    # Calculate summary
+    summary = {
+        "total_annual_fee": float(fee_structure.total_annual_fee),
+        "monthly_fee": monthly_fee,
+        "total_paid": sum(p.amount for p in payments),
+        "total_due": total_due,
+        "total_overdue": total_overdue,
+        "balance_remaining": float(fee_structure.total_annual_fee) - sum(p.amount for p in payments),
+        "months_paid": len([m for m in monthly_history if m["status"] == "paid"]),
+        "months_partial": len([m for m in monthly_history if m["status"] == "partial"]),
+        "months_overdue": len([m for m in monthly_history if m["status"] == "overdue"]),
+        "months_due": len([m for m in monthly_history if m["status"] == "due"]),
+        "payment_efficiency": round((sum(p.amount for p in payments) / total_due * 100), 2) if total_due > 0 else 0
+    }
+
+    return {
+        "student": {
+            "id": student.id,
+            "name": f"{student.first_name} {student.last_name}",
+            "admission_number": student.admission_number,
+            "class": student.class_ref.name if student.class_ref else "Unknown",
+            "section": student.section
+        },
+        "session_year": session_year.value,
+        "monthly_history": monthly_history,
+        "summary": summary,
+        "current_month": current_month,
+        "current_year": current_year,
+        "generated_at": current_date
+    }
+
+
+# =====================================================
+# Enhanced Monthly Fee Management Endpoints
+# =====================================================
+
+@router.get("/enhanced-students-summary")
+async def get_enhanced_students_summary(
+    session_year_id: int = Query(..., description="Session year ID"),
+    class_id: Optional[int] = Query(None, description="Filter by class ID"),
+    search: Optional[str] = Query(None, description="Search by student name or admission number"),
+    page: int = Query(1, ge=1, description="Page number"),
+    per_page: int = Query(20, ge=1, le=100, description="Items per page"),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Get enhanced student fee summary with both legacy and monthly tracking data
+    Shows comprehensive fee status for all students
+    """
+    offset = (page - 1) * per_page
+
+    summaries = await monthly_fee_tracking_crud.get_enhanced_student_summary(
+        db=db,
+        session_year_id=session_year_id,
+        class_id=class_id,
+        search=search,
+        limit=per_page,
+        offset=offset
+    )
+
+    # Get total count for pagination
+    total = len(summaries)  # This is approximate
+    total_pages = math.ceil(total / per_page)
+
+    return {
+        "students": summaries,
+        "total": total,
+        "page": page,
+        "per_page": per_page,
+        "total_pages": total_pages,
+        "has_monthly_tracking": any(s.has_monthly_tracking for s in summaries)
+    }
+
+
+@router.get("/enhanced-monthly-history/{student_id}")
+async def get_enhanced_student_monthly_history(
+    student_id: int,
+    session_year_id: int = Query(..., description="Session year ID"),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Get detailed monthly fee history for a specific student using enhanced tracking
+    Shows month-wise payment status and history
+    """
+    try:
+        history = await monthly_fee_tracking_crud.get_student_monthly_history(
+            db=db,
+            student_id=student_id,
+            session_year_id=session_year_id
+        )
+
+        if not history:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Monthly fee history not found for this student"
+            )
+
+        return history
+
+    except ValueError as e:
+        # Handle specific business logic errors
+        error_message = str(e)
+        if "not found" in error_message.lower():
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=error_message
+            )
+        elif "monthly tracking" in error_message.lower():
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=error_message
+            )
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=error_message
+            )
+
+    except Exception as e:
+        # Handle unexpected errors
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"An unexpected error occurred while fetching monthly history: {str(e)}"
+        )
+
+
+@router.post("/enable-monthly-tracking")
+async def enable_monthly_tracking(
+    request: EnableMonthlyTrackingRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Enable monthly tracking for existing fee records
+    This converts legacy fee records to use the new monthly tracking system
+    """
+    results = []
+
+    for fee_record_id in request.fee_record_ids:
+        try:
+            records_created = await monthly_fee_tracking_crud.enable_monthly_tracking(
+                db=db,
+                fee_record_id=fee_record_id,
+                start_month=request.start_month,
+                start_year=request.start_year
+            )
+
+            results.append({
+                "fee_record_id": fee_record_id,
+                "success": True,
+                "records_created": records_created,
+                "message": f"Created {records_created} monthly tracking records"
+            })
+
+        except Exception as e:
+            results.append({
+                "fee_record_id": fee_record_id,
+                "success": False,
+                "records_created": 0,
+                "message": str(e)
+            })
+
+    successful_count = sum(1 for r in results if r["success"])
+    total_records_created = sum(r["records_created"] for r in results if r["success"])
+
+    return {
+        "message": f"Monthly tracking enabled for {successful_count}/{len(request.fee_record_ids)} fee records",
+        "total_records_created": total_records_created,
+        "results": results
+    }

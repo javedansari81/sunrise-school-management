@@ -216,6 +216,7 @@ const StudentProfiles: React.FC = () => {
         filterSessionYear,
         willSet: currentSessionYear && filterSessionYear === 'all'
       });
+
       if (currentSessionYear && filterSessionYear === 'all') {
         setFilterSessionYear(currentSessionYear.id.toString());
         console.log('✅ Set default session year to:', currentSessionYear.id.toString());
@@ -253,7 +254,6 @@ const StudentProfiles: React.FC = () => {
     }
 
     setDialogMode(mode);
-
     if (student) {
       setStudentForm({
         admission_number: student.admission_number,
@@ -382,8 +382,6 @@ const StudentProfiles: React.FC = () => {
         previous_school: studentForm.previous_school || null,
       };
 
-
-
       if (selectedStudent) {
         // Update existing student
         await studentsAPI.updateStudent(selectedStudent.id, studentData);
@@ -402,11 +400,7 @@ const StudentProfiles: React.FC = () => {
 
       // Check if it's a conflict error (like duplicate admission number)
       if (error.response?.status === 400 && errorMessage.includes('already exists')) {
-        setConflictDialog({
-          open: true,
-          message: errorMessage,
-          type: 'duplicate'
-        });
+        setConflictDialog({ open: true, message: errorMessage, type: 'duplicate' });
       } else {
         setSnackbar({ open: true, message: errorMessage, severity: 'error' });
       }
@@ -435,11 +429,9 @@ const StudentProfiles: React.FC = () => {
   const studentStats = [
     { title: 'Total Students', value: validStudents.length.toString(), icon: <Person />, color: 'primary' },
     { title: 'Active Students', value: validStudents.filter(s => s.is_active).length.toString(), icon: <School />, color: 'success' },
-    { title: 'New Admissions', value: validStudents.filter(s => new Date(s.admission_date).getFullYear() === new Date().getFullYear()).length.toString(), icon: <Add />, color: 'info' },
-    { title: 'Classes', value: new Set(validStudents.map(s => s.class_name)).size.toString(), icon: <School />, color: 'warning' },
+    { title: 'New Admissions', value: validStudents.filter(s => new Date(s.admission_date).getFullYear() === new Date().getFullYear()).length.toString(), icon: <LocationOn />, color: 'info' },
+    { title: 'Classes', value: new Set(validStudents.map(s => s.class_name)).size.toString(), icon: <Email />, color: 'warning' },
   ];
-
-
 
   // Filter students based on search and filters
   const filteredStudents = students.filter(student => {
@@ -458,9 +450,7 @@ const StudentProfiles: React.FC = () => {
     const matchesClass = filterClass === 'all' || student.class_id.toString() === filterClass;
     const matchesSection = filterSection === 'all' || student.section === filterSection;
     const matchesSessionYear = filterSessionYear === 'all' || student.session_year_id.toString() === filterSessionYear;
-    const matchesTab = tabValue === 0 ||
-      (tabValue === 1 && student.is_active) ||
-      (tabValue === 2 && !student.is_active);
+    const matchesTab = tabValue === 0 || (tabValue === 1 && student.is_active) || (tabValue === 2 && !student.is_active);
 
     // Debug logging for first student
     if (student.id === students[0]?.id) {
@@ -489,21 +479,18 @@ const StudentProfiles: React.FC = () => {
     totalStudents: students.length,
     validStudents: validStudents.length,
     filteredStudents: filteredStudents.length,
-    currentFilters: {
-      filterClass,
-      filterSection,
-      filterSessionYear,
-      searchTerm,
-      tabValue
-    }
+    currentFilters: { filterClass, filterSection, filterSessionYear, searchTerm, tabValue }
   });
 
   // Show loading state if configuration is not loaded
   if (!isLoaded) {
     return (
       <AdminLayout>
-        <Box sx={{ py: 2, display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
-          <Typography>Loading configuration...</Typography>
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
+          <CircularProgress />
+          <Typography variant="h6" sx={{ ml: 2 }}>
+            Loading configuration...
+          </Typography>
         </Box>
       </AdminLayout>
     );
@@ -512,191 +499,271 @@ const StudentProfiles: React.FC = () => {
   return (
     <AdminLayout>
       <Box sx={{ py: 2 }}>
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
-        <Button
-          variant="contained"
-          startIcon={<Add />}
-          onClick={() => handleOpenDialog('create')}
-        >
-          Add Student
-        </Button>
-      </Box>
+        <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
+          <Typography variant="h4" gutterBottom>
+            Student Profiles Management
+          </Typography>
+          <Button
+            variant="contained"
+            startIcon={<Add />}
+            onClick={() => handleOpenDialog('create')}
+          >
+            Add Student
+          </Button>
+        </Box>
 
-      {/* Statistics Cards */}
-      <Grid container spacing={3} mb={4}>
-        {studentStats.map((stat, index) => (
-          <Grid key={index} size={{ xs: 12, sm: 6, md: 3 }}>
-            <Card elevation={3}>
-              <CardContent>
-                <Box display="flex" alignItems="center" justifyContent="space-between">
-                  <Box>
-                    <Typography variant="h4" fontWeight="bold" color={`${stat.color}.main`}>
-                      {stat.value}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      {stat.title}
-                    </Typography>
+        {/* Statistics Cards */}
+        <Grid container spacing={3} mb={4}>
+          {studentStats.map((stat, index) => (
+            <Grid key={index} size={{ xs: 12, sm: 6, md: 3 }}>
+              <Card elevation={3}>
+                <CardContent>
+                  <Box display="flex" alignItems="center" justifyContent="space-between">
+                    <Box>
+                      <Typography variant="h4" fontWeight="bold" color={`${stat.color}.main`}>
+                        {stat.value}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {stat.title}
+                      </Typography>
+                    </Box>
+                    <Box color={`${stat.color}.main`}>
+                      {React.cloneElement(stat.icon, { sx: { fontSize: 40 } })}
+                    </Box>
                   </Box>
-                  <Box color={`${stat.color}.main`}>
-                    {React.cloneElement(stat.icon, { sx: { fontSize: 40 } })}
-                  </Box>
-                </Box>
-              </CardContent>
-            </Card>
-          </Grid>
-        ))}
-      </Grid>
-
-      {/* Filters and Search */}
-      <Paper elevation={3} sx={{ p: 3, mb: 3 }}>
-        <Grid container spacing={2} alignItems="center">
-          <Grid size={{ xs: 12, sm: 6, md: 2 }}>
-            <FormControl fullWidth size="small">
-              <InputLabel>Session Year</InputLabel>
-              <Select
-                value={filterSessionYear}
-                label="Session Year"
-                onChange={(e) => {
-                  console.log('🔄 Session Year filter changed:', e.target.value);
-                  setFilterSessionYear(e.target.value);
-                }}
-              >
-                <MenuItem value="all">All Session Years</MenuItem>
-                {getSessionYears().map((sy: any) => (
-                  <MenuItem key={sy.id} value={sy.id.toString()}>
-                    {sy.name}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </Grid>
-          <Grid size={{ xs: 12, sm: 6, md: 2 }}>
-            <FormControl fullWidth size="small">
-              <InputLabel>Class</InputLabel>
-              <Select
-                value={filterClass}
-                label="Class"
-                onChange={(e) => {
-                  console.log('🔄 Class filter changed:', e.target.value);
-                  setFilterClass(e.target.value);
-                }}
-              >
-                <MenuItem value="all">All Classes</MenuItem>
-                {getClasses().map((cls: any) => (
-                  <MenuItem key={cls.id} value={cls.id.toString()}>
-                    {cls.display_name || cls.name}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </Grid>
-          <Grid size={{ xs: 12, sm: 6, md: 2 }}>
-            <FormControl fullWidth size="small">
-              <InputLabel>Section</InputLabel>
-              <Select
-                value={filterSection}
-                label="Section"
-                onChange={(e) => setFilterSection(e.target.value)}
-              >
-                <MenuItem value="all">All Sections</MenuItem>
-                {sections.map((section) => (
-                  <MenuItem key={section} value={section}>
-                    Section {section}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </Grid>
-          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-            <TextField
-              fullWidth
-              size="small"
-              placeholder="Search students..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              InputProps={{
-                startAdornment: <Search sx={{ mr: 1, color: 'text.secondary' }} />
-              }}
-            />
-          </Grid>
+                </CardContent>
+              </Card>
+            </Grid>
+          ))}
         </Grid>
-      </Paper>
 
-      {/* Student Table */}
-      <Paper elevation={3}>
-        <Tabs value={tabValue} onChange={handleTabChange}>
-          <Tab label="All Students" />
-          <Tab label="Active" />
-          <Tab label="Inactive" />
-        </Tabs>
+        {/* Filters and Search */}
+        <Paper elevation={3} sx={{ p: 3, mb: 3 }}>
+          <Grid container spacing={2} alignItems="center">
+            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+              <FormControl fullWidth>
+                <InputLabel>Session Year</InputLabel>
+                <Select
+                  value={filterSessionYear}
+                  label="Session Year"
+                  onChange={(e) => {
+                    console.log('🔄 Session Year filter changed:', e.target.value);
+                    setFilterSessionYear(e.target.value);
+                  }}
+                >
+                  <MenuItem value="all">All Session Years</MenuItem>
+                  {getSessionYears().map((sy: any) => (
+                    <MenuItem key={sy.id} value={sy.id.toString()}>
+                      {sy.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+              <FormControl fullWidth>
+                <InputLabel>Class</InputLabel>
+                <Select
+                  value={filterClass}
+                  label="Class"
+                  onChange={(e) => {
+                    console.log('🔄 Class filter changed:', e.target.value);
+                    setFilterClass(e.target.value);
+                  }}
+                >
+                  <MenuItem value="all">All Classes</MenuItem>
+                  {getClasses().map((cls: any) => (
+                    <MenuItem key={cls.id} value={cls.id.toString()}>
+                      {cls.display_name || cls.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+              <FormControl fullWidth>
+                <InputLabel>Section</InputLabel>
+                <Select
+                  value={filterSection}
+                  label="Section"
+                  onChange={(e) => setFilterSection(e.target.value)}
+                >
+                  <MenuItem value="all">All Sections</MenuItem>
+                  {sections.map((section) => (
+                    <MenuItem key={section} value={section}>
+                      Section {section}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+              <TextField
+                fullWidth
+                label="Search Students"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                InputProps={{
+                  startAdornment: <Search />
+                }}
+              />
+            </Grid>
+          </Grid>
+        </Paper>
 
-        <TabPanel value={tabValue} index={0}>
-          <TableContainer>
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell>Student</TableCell>
-                  <TableCell>Roll Number</TableCell>
-                  <TableCell>Class</TableCell>
-                  <TableCell>Parent Contact</TableCell>
-                  <TableCell>Status</TableCell>
-                  <TableCell>Actions</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {loading ? (
+        {/* Student Table */}
+        <Paper elevation={3}>
+          <Tabs value={tabValue} onChange={handleTabChange}>
+            <Tab label="All Students" />
+            <Tab label="Active Students" />
+            <Tab label="Inactive Students" />
+          </Tabs>
+
+          <TabPanel value={tabValue} index={0}>
+            <TableContainer>
+              <Table>
+                <TableHead>
                   <TableRow>
-                    <TableCell colSpan={6} align="center">
-                      <CircularProgress />
-                    </TableCell>
+                    <TableCell>Student</TableCell>
+                    <TableCell>Roll Number</TableCell>
+                    <TableCell>Class</TableCell>
+                    <TableCell>Parent Contact</TableCell>
+                    <TableCell>Status</TableCell>
+                    <TableCell>Actions</TableCell>
                   </TableRow>
-                ) : filteredStudents.length === 0 ? (
+                </TableHead>
+                <TableBody>
+                  {loading ? (
+                    <TableRow>
+                      <TableCell colSpan={6} align="center">
+                        <CircularProgress />
+                      </TableCell>
+                    </TableRow>
+                  ) : filteredStudents.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} align="center">
+                        <Typography variant="body2" color="text.secondary">
+                          No students found
+                        </Typography>
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    filteredStudents.map((student) => (
+                      <TableRow key={student.id}>
+                        <TableCell>
+                          <Box display="flex" alignItems="center" gap={2}>
+                            <Avatar sx={{ bgcolor: 'primary.main' }}>
+                              {student.first_name[0]}{student.last_name[0]}
+                            </Avatar>
+                            <Box>
+                              <Typography variant="body2" fontWeight="bold">
+                                {student.first_name} {student.last_name}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                DOB: {student.date_of_birth}
+                              </Typography>
+                            </Box>
+                          </Box>
+                        </TableCell>
+                        <TableCell>{student.admission_number}</TableCell>
+                        <TableCell>
+                          <Box>
+                            <Typography variant="body2">
+                              {student.class_name}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {student.section ? `Section ${student.section}` : 'No Section'}
+                            </Typography>
+                          </Box>
+                        </TableCell>
+                        <TableCell>
+                          <Box>
+                            <Typography variant="body2">
+                              {student.father_name}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {student.father_phone}
+                            </Typography>
+                          </Box>
+                        </TableCell>
+                        <TableCell>
+                          <Chip
+                            label={student.is_active ? 'Active' : 'Inactive'}
+                            color={student.is_active ? 'success' : 'default'}
+                            size="small"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <IconButton size="small" onClick={() => handleOpenDialog('view', student)}>
+                            <Visibility />
+                          </IconButton>
+                          <IconButton size="small" onClick={() => handleOpenDialog('edit', student)}>
+                            <Edit />
+                          </IconButton>
+                          <IconButton size="small" color="error" onClick={() => handleDelete(student.id)}>
+                            <Delete />
+                          </IconButton>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </TabPanel>
+
+          <TabPanel value={tabValue} index={1}>
+            <TableContainer>
+              <Table>
+                <TableHead>
                   <TableRow>
-                    <TableCell colSpan={6} align="center">
-                      No students found
-                    </TableCell>
+                    <TableCell>Student</TableCell>
+                    <TableCell>Roll Number</TableCell>
+                    <TableCell>Class</TableCell>
+                    <TableCell>Parent Contact</TableCell>
+                    <TableCell>Status</TableCell>
+                    <TableCell>Actions</TableCell>
                   </TableRow>
-                ) : (
-                  filteredStudents.map((student) => (
+                </TableHead>
+                <TableBody>
+                  {filteredStudents.filter(student => student.is_active).map((student) => (
                     <TableRow key={student.id}>
                       <TableCell>
-                        <Box display="flex" alignItems="center">
-                          <Avatar sx={{ mr: 2, bgcolor: 'primary.main' }}>
+                        <Box display="flex" alignItems="center" gap={2}>
+                          <Avatar sx={{ bgcolor: 'primary.main' }}>
                             {student.first_name[0]}{student.last_name[0]}
                           </Avatar>
                           <Box>
                             <Typography variant="body2" fontWeight="bold">
                               {student.first_name} {student.last_name}
                             </Typography>
-                            <Typography variant="caption" color="text.secondary">
-                              DOB: {student.date_of_birth}
-                            </Typography>
                           </Box>
                         </Box>
                       </TableCell>
                       <TableCell>{student.admission_number}</TableCell>
                       <TableCell>
-                        <Chip
-                          label={`${student.class_name || 'N/A'}-${student.section || 'N/A'}`}
-                          size="small"
-                          color="primary"
-                          variant="outlined"
-                        />
+                        <Box>
+                          <Typography variant="body2">{student.roll_number || 'Not Assigned'}</Typography>
+                        </Box>
+                      </TableCell>
+                      <TableCell>
+                        <Box>
+                          <Typography variant="body2">{student.class_name}</Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            {student.section ? `Section ${student.section}` : 'No Section'}
+                          </Typography>
+                        </Box>
                       </TableCell>
                       <TableCell>
                         <Box>
                           <Typography variant="body2">{student.father_name}</Typography>
                           <Typography variant="caption" color="text.secondary">
-                            {student.father_phone}
+                            {student.father_phone || student.phone || 'No Phone'}
                           </Typography>
                         </Box>
                       </TableCell>
                       <TableCell>
-                        <Chip
-                          label={student.is_active ? 'Active' : 'Inactive'}
-                          size="small"
-                          color={student.is_active ? 'success' : 'default'}
-                        />
+                        <Chip label="Active" color="success" size="small" />
                       </TableCell>
                       <TableCell>
                         <IconButton size="small" onClick={() => handleOpenDialog('view', student)}>
@@ -710,566 +777,486 @@ const StudentProfiles: React.FC = () => {
                         </IconButton>
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        </TabPanel>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </TabPanel>
 
-        <TabPanel value={tabValue} index={1}>
-          <TableContainer>
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell>Student</TableCell>
-                  <TableCell>Roll Number</TableCell>
-                  <TableCell>Class</TableCell>
-                  <TableCell>Parent Contact</TableCell>
-                  <TableCell>Status</TableCell>
-                  <TableCell>Actions</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {filteredStudents.filter(student => student.is_active).map((student) => (
-                  <TableRow key={student.id}>
-                    <TableCell>
-                      <Box display="flex" alignItems="center">
-                        <Avatar sx={{ mr: 2, bgcolor: 'primary.main' }}>
-                          {student.first_name[0]}{student.last_name[0]}
-                        </Avatar>
+          <TabPanel value={tabValue} index={2}>
+            <TableContainer>
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Student</TableCell>
+                    <TableCell>Roll Number</TableCell>
+                    <TableCell>Class</TableCell>
+                    <TableCell>Parent Contact</TableCell>
+                    <TableCell>Status</TableCell>
+                    <TableCell>Actions</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {filteredStudents.filter(student => !student.is_active).map((student) => (
+                    <TableRow key={student.id}>
+                      <TableCell>
+                        <Box display="flex" alignItems="center" gap={2}>
+                          <Avatar sx={{ bgcolor: 'grey.500' }}>
+                            {student.first_name[0]}{student.last_name[0]}
+                          </Avatar>
+                          <Box>
+                            <Typography variant="body2" fontWeight="bold">
+                              {student.first_name} {student.last_name}
+                            </Typography>
+                          </Box>
+                        </Box>
+                      </TableCell>
+                      <TableCell>{student.admission_number}</TableCell>
+                      <TableCell>
                         <Box>
-                          <Typography variant="subtitle2">
-                            {student.first_name} {student.last_name}
-                          </Typography>
+                          <Typography variant="body2">{student.roll_number || 'Not Assigned'}</Typography>
+                        </Box>
+                      </TableCell>
+                      <TableCell>
+                        <Box>
+                          <Typography variant="body2">{student.class_name}</Typography>
                           <Typography variant="caption" color="text.secondary">
-                            {student.admission_number}
+                            {student.section ? `Section ${student.section}` : 'No Section'}
                           </Typography>
                         </Box>
-                      </Box>
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant="body2">
-                        {student.roll_number || 'Not Assigned'}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Box>
-                        <Typography variant="body2">{student.class_name}</Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {student.section ? `Section ${student.section}` : 'No Section'}
-                        </Typography>
-                      </Box>
-                    </TableCell>
-                    <TableCell>
-                      <Box>
-                        <Typography variant="body2">{student.father_name}</Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {student.father_phone || student.phone || 'No Phone'}
-                        </Typography>
-                      </Box>
-                    </TableCell>
-                    <TableCell>
-                      <Chip
-                        label={student.is_active ? 'Active' : 'Inactive'}
-                        color={student.is_active ? 'success' : 'default'}
-                        size="small"
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <IconButton size="small" onClick={() => handleOpenDialog('view', student)}>
-                        <Visibility />
-                      </IconButton>
-                      <IconButton size="small" onClick={() => handleOpenDialog('edit', student)}>
-                        <Edit />
-                      </IconButton>
-                      <IconButton size="small" color="error" onClick={() => handleDelete(student.id)}>
-                        <Delete />
-                      </IconButton>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        </TabPanel>
-
-        <TabPanel value={tabValue} index={2}>
-          <TableContainer>
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell>Student</TableCell>
-                  <TableCell>Roll Number</TableCell>
-                  <TableCell>Class</TableCell>
-                  <TableCell>Parent Contact</TableCell>
-                  <TableCell>Status</TableCell>
-                  <TableCell>Actions</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {filteredStudents.filter(student => !student.is_active).map((student) => (
-                  <TableRow key={student.id}>
-                    <TableCell>
-                      <Box display="flex" alignItems="center">
-                        <Avatar sx={{ mr: 2, bgcolor: 'primary.main' }}>
-                          {student.first_name[0]}{student.last_name[0]}
-                        </Avatar>
+                      </TableCell>
+                      <TableCell>
                         <Box>
-                          <Typography variant="subtitle2">
-                            {student.first_name} {student.last_name}
-                          </Typography>
+                          <Typography variant="body2">{student.father_name}</Typography>
                           <Typography variant="caption" color="text.secondary">
-                            {student.admission_number}
+                            {student.father_phone || student.phone || 'No Phone'}
                           </Typography>
                         </Box>
-                      </Box>
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant="body2">
-                        {student.roll_number || 'Not Assigned'}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Box>
-                        <Typography variant="body2">{student.class_name}</Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {student.section ? `Section ${student.section}` : 'No Section'}
-                        </Typography>
-                      </Box>
-                    </TableCell>
-                    <TableCell>
-                      <Box>
-                        <Typography variant="body2">{student.father_name}</Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {student.father_phone || student.phone || 'No Phone'}
-                        </Typography>
-                      </Box>
-                    </TableCell>
-                    <TableCell>
-                      <Chip
-                        label={student.is_active ? 'Active' : 'Inactive'}
-                        color={student.is_active ? 'success' : 'default'}
-                        size="small"
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <IconButton size="small" onClick={() => handleOpenDialog('view', student)}>
-                        <Visibility />
-                      </IconButton>
-                      <IconButton size="small" onClick={() => handleOpenDialog('edit', student)}>
-                        <Edit />
-                      </IconButton>
-                      <IconButton size="small" color="error" onClick={() => handleDelete(student.id)}>
-                        <Delete />
-                      </IconButton>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        </TabPanel>
-      </Paper>
+                      </TableCell>
+                      <TableCell>
+                        <Chip label="Inactive" color="default" size="small" />
+                      </TableCell>
+                      <TableCell>
+                        <IconButton size="small" onClick={() => handleOpenDialog('view', student)}>
+                          <Visibility />
+                        </IconButton>
+                        <IconButton size="small" onClick={() => handleOpenDialog('edit', student)}>
+                          <Edit />
+                        </IconButton>
+                        <IconButton size="small" color="error" onClick={() => handleDelete(student.id)}>
+                          <Delete />
+                        </IconButton>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </TabPanel>
+        </Paper>
 
-      {/* Student Form Dialog */}
-      <Dialog
-        open={openDialog}
-        onClose={handleCloseDialog}
-        maxWidth="md"
-        fullWidth
-      >
-        <DialogTitle>
-          {dialogMode === 'view' ? 'View Student Details' :
-           dialogMode === 'edit' ? 'Edit Student' : 'Add New Student'}
-        </DialogTitle>
-        <DialogContent>
-          <Grid container spacing={2} sx={{ mt: 1 }}>
-            <Grid size={{ xs: 12, sm: 6 }}>
-              <TextField
-                fullWidth
-                label="Admission Number"
-                name="admission_number"
-                value={studentForm.admission_number}
-                onChange={handleFormChange}
-                required
-                disabled={dialogMode === 'view'}
-                InputProps={{
-                  readOnly: dialogMode === 'view',
-                }}
-              />
-            </Grid>
-            <Grid size={{ xs: 12, sm: 6 }}>
-              <TextField
-                fullWidth
-                label="Roll Number"
-                name="roll_number"
-                value={studentForm.roll_number}
-                onChange={handleFormChange}
-                disabled={dialogMode === 'view'}
-                InputProps={{
-                  readOnly: dialogMode === 'view',
-                }}
-              />
-            </Grid>
-            <Grid size={{ xs: 12, sm: 6 }}>
-              <TextField
-                fullWidth
-                label="First Name"
-                name="first_name"
-                value={studentForm.first_name}
-                onChange={handleFormChange}
-                required
-                disabled={dialogMode === 'view'}
-                InputProps={{
-                  readOnly: dialogMode === 'view',
-                }}
-              />
-            </Grid>
-            <Grid size={{ xs: 12, sm: 6 }}>
-              <TextField
-                fullWidth
-                label="Last Name"
-                name="last_name"
-                value={studentForm.last_name}
-                onChange={handleFormChange}
-                required
-                disabled={dialogMode === 'view'}
-                InputProps={{
-                  readOnly: dialogMode === 'view',
-                }}
-              />
-            </Grid>
-            <Grid size={{ xs: 12, sm: 6 }}>
-              <TextField
-                fullWidth
-                type="date"
-                label="Date of Birth"
-                name="date_of_birth"
-                value={studentForm.date_of_birth}
-                onChange={handleFormChange}
-                InputLabelProps={{ shrink: true }}
-                required
-                disabled={dialogMode === 'view'}
-                InputProps={{
-                  readOnly: dialogMode === 'view',
-                }}
-              />
-            </Grid>
-            <Grid size={{ xs: 12, sm: 4 }}>
-              <ClassDropdown
-                value={studentForm.class_id}
-                onChange={(value) => setStudentForm(prev => ({ ...prev, class_id: value as string }))}
-                required
-                disabled={dialogMode === 'view'}
-              />
-            </Grid>
-            <Grid size={{ xs: 12, sm: 4 }}>
-              <TextField
-                fullWidth
-                select
-                label="Section"
-                name="section"
-                value={studentForm.section}
-                onChange={handleFormChange}
-                required
-                disabled={dialogMode === 'view'}
-              >
-                {sections.map((section) => (
-                  <MenuItem key={section} value={section}>
-                    Section {section}
-                  </MenuItem>
-                ))}
-              </TextField>
-            </Grid>
-            <Grid size={{ xs: 12, sm: 4 }}>
-              <GenderDropdown
-                value={studentForm.gender_id}
-                onChange={(value) => setStudentForm(prev => ({ ...prev, gender_id: value as string }))}
-                required
-                disabled={dialogMode === 'view'}
-              />
-            </Grid>
-            <Grid size={{ xs: 12, sm: 4 }}>
-              <SessionYearDropdown
-                value={studentForm.session_year_id}
-                onChange={(value) => setStudentForm(prev => ({ ...prev, session_year_id: value as string }))}
-                required
-                disabled={dialogMode === 'view'}
-              />
-            </Grid>
-            <Grid size={{ xs: 12, sm: 6 }}>
-              <TextField
-                fullWidth
-                select
-                label="Blood Group"
-                name="blood_group"
-                value={studentForm.blood_group}
-                onChange={handleFormChange}
-                disabled={dialogMode === 'view'}
-              >
-                {bloodGroups.map((group) => (
-                  <MenuItem key={group} value={group}>
-                    {group}
-                  </MenuItem>
-                ))}
-              </TextField>
-            </Grid>
-            <Grid size={{ xs: 12, sm: 6 }}>
-              <TextField
-                fullWidth
-                type="date"
-                label="Admission Date"
-                name="admission_date"
-                value={studentForm.admission_date}
-                onChange={handleFormChange}
-                InputLabelProps={{ shrink: true }}
-                required
-                disabled={dialogMode === 'view'}
-                InputProps={{
-                  readOnly: dialogMode === 'view',
-                }}
-              />
-            </Grid>
+        {/* Student Form Dialog */}
+        <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="md" fullWidth>
+          <DialogTitle>
+            {dialogMode === 'view' ? 'View Student Details' :
+             dialogMode === 'edit' ? 'Edit Student' : 'Add New Student'}
+          </DialogTitle>
+          <DialogContent>
+            <Grid container spacing={2} sx={{ mt: 1 }}>
+              {/* Basic Information */}
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <TextField
+                  fullWidth
+                  label="Admission Number"
+                  name="admission_number"
+                  value={studentForm.admission_number}
+                  onChange={handleFormChange}
+                  required
+                  disabled={dialogMode === 'view'}
+                />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <TextField
+                  fullWidth
+                  label="Roll Number"
+                  name="roll_number"
+                  value={studentForm.roll_number}
+                  onChange={handleFormChange}
+                  disabled={dialogMode === 'view'}
+                />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <TextField
+                  fullWidth
+                  label="First Name"
+                  name="first_name"
+                  value={studentForm.first_name}
+                  onChange={handleFormChange}
+                  required
+                  disabled={dialogMode === 'view'}
+                />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <TextField
+                  fullWidth
+                  label="Last Name"
+                  name="last_name"
+                  value={studentForm.last_name}
+                  onChange={handleFormChange}
+                  required
+                  disabled={dialogMode === 'view'}
+                />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <TextField
+                  fullWidth
+                  type="date"
+                  label="Date of Birth"
+                  name="date_of_birth"
+                  value={studentForm.date_of_birth}
+                  onChange={handleFormChange}
+                  InputLabelProps={{ shrink: true }}
+                  required
+                  disabled={dialogMode === 'view'}
+                />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <TextField
+                  fullWidth
+                  type="date"
+                  label="Admission Date"
+                  name="admission_date"
+                  value={studentForm.admission_date}
+                  onChange={handleFormChange}
+                  InputLabelProps={{ shrink: true }}
+                  required
+                  disabled={dialogMode === 'view'}
+                />
+              </Grid>
 
-            <Grid size={{ xs: 12, sm: 6 }}>
-              <TextField
-                fullWidth
-                select
-                label="Status"
-                name="is_active"
-                value={studentForm.is_active.toString()}
-                onChange={(e) => setStudentForm(prev => ({ ...prev, is_active: e.target.value === 'true' }))}
-                disabled={dialogMode === 'view'}
-              >
-                <MenuItem value="true">Active</MenuItem>
-                <MenuItem value="false">Inactive</MenuItem>
-              </TextField>
+              {/* Class and Section */}
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <ClassDropdown
+                  value={studentForm.class_id}
+                  onChange={(value) => setStudentForm(prev => ({ ...prev, class_id: value as string }))}
+                  required
+                  disabled={dialogMode === 'view'}
+                />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <TextField
+                  fullWidth
+                  select
+                  label="Section"
+                  name="section"
+                  value={studentForm.section}
+                  onChange={handleFormChange}
+                  disabled={dialogMode === 'view'}
+                >
+                  <MenuItem value="">No Section</MenuItem>
+                  {sections.map((section) => (
+                    <MenuItem key={section} value={section}>
+                      Section {section}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </Grid>
+
+              {/* Gender and Session Year */}
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <GenderDropdown
+                  value={studentForm.gender_id}
+                  onChange={(value) => setStudentForm(prev => ({ ...prev, gender_id: value as string }))}
+                  required
+                  disabled={dialogMode === 'view'}
+                />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <SessionYearDropdown
+                  value={studentForm.session_year_id}
+                  onChange={(value) => setStudentForm(prev => ({ ...prev, session_year_id: value as string }))}
+                  required
+                  disabled={dialogMode === 'view'}
+                />
+              </Grid>
+
+              {/* Additional Information */}
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <TextField
+                  fullWidth
+                  select
+                  label="Blood Group"
+                  name="blood_group"
+                  value={studentForm.blood_group}
+                  onChange={handleFormChange}
+                  disabled={dialogMode === 'view'}
+                >
+                  <MenuItem value="">Not Specified</MenuItem>
+                  {bloodGroups.map((group) => (
+                    <MenuItem key={group} value={group}>
+                      {group}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <TextField
+                  fullWidth
+                  select
+                  label="Status"
+                  name="is_active"
+                  value={studentForm.is_active.toString()}
+                  onChange={(e) => setStudentForm(prev => ({ ...prev, is_active: e.target.value === 'true' }))}
+                  disabled={dialogMode === 'view'}
+                >
+                  <MenuItem value="true">Active</MenuItem>
+                  <MenuItem value="false">Inactive</MenuItem>
+                </TextField>
+              </Grid>
+
+              {/* Contact Information */}
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <TextField
+                  fullWidth
+                  label="Phone"
+                  name="phone"
+                  value={studentForm.phone}
+                  onChange={handleFormChange}
+                  disabled={dialogMode === 'view'}
+                />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <TextField
+                  fullWidth
+                  label="Email"
+                  name="email"
+                  type="email"
+                  value={studentForm.email}
+                  onChange={handleFormChange}
+                  disabled={dialogMode === 'view'}
+                />
+              </Grid>
+              <Grid size={12}>
+                <TextField
+                  fullWidth
+                  label="Address"
+                  name="address"
+                  multiline
+                  rows={2}
+                  value={studentForm.address}
+                  onChange={handleFormChange}
+                  disabled={dialogMode === 'view'}
+                />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <TextField
+                  fullWidth
+                  label="City"
+                  name="city"
+                  value={studentForm.city}
+                  onChange={handleFormChange}
+                  disabled={dialogMode === 'view'}
+                />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <TextField
+                  fullWidth
+                  label="State"
+                  name="state"
+                  value={studentForm.state}
+                  onChange={handleFormChange}
+                  disabled={dialogMode === 'view'}
+                />
+              </Grid>
+
+              {/* Father Information */}
+              <Grid size={12}>
+                <Typography variant="h6" sx={{ mt: 2, mb: 1 }}>Father Information</Typography>
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <TextField
+                  fullWidth
+                  label="Father Name"
+                  name="father_name"
+                  value={studentForm.father_name}
+                  onChange={handleFormChange}
+                  required
+                  disabled={dialogMode === 'view'}
+                />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <TextField
+                  fullWidth
+                  label="Father Phone"
+                  name="father_phone"
+                  value={studentForm.father_phone}
+                  onChange={handleFormChange}
+                  disabled={dialogMode === 'view'}
+                />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <TextField
+                  fullWidth
+                  label="Father Email"
+                  name="father_email"
+                  type="email"
+                  value={studentForm.father_email}
+                  onChange={handleFormChange}
+                  disabled={dialogMode === 'view'}
+                />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <TextField
+                  fullWidth
+                  label="Father Occupation"
+                  name="father_occupation"
+                  value={studentForm.father_occupation}
+                  onChange={handleFormChange}
+                  disabled={dialogMode === 'view'}
+                />
+              </Grid>
+
+              {/* Mother Information */}
+              <Grid size={12}>
+                <Typography variant="h6" sx={{ mt: 2, mb: 1 }}>Mother Information</Typography>
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <TextField
+                  fullWidth
+                  label="Mother Name"
+                  name="mother_name"
+                  value={studentForm.mother_name}
+                  onChange={handleFormChange}
+                  required
+                  disabled={dialogMode === 'view'}
+                />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <TextField
+                  fullWidth
+                  label="Mother Phone"
+                  name="mother_phone"
+                  value={studentForm.mother_phone}
+                  onChange={handleFormChange}
+                  disabled={dialogMode === 'view'}
+                />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <TextField
+                  fullWidth
+                  label="Mother Email"
+                  name="mother_email"
+                  type="email"
+                  value={studentForm.mother_email}
+                  onChange={handleFormChange}
+                  disabled={dialogMode === 'view'}
+                />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <TextField
+                  fullWidth
+                  label="Mother Occupation"
+                  name="mother_occupation"
+                  value={studentForm.mother_occupation}
+                  onChange={handleFormChange}
+                  disabled={dialogMode === 'view'}
+                />
+              </Grid>
+
+              {/* Emergency Contact */}
+              <Grid size={12}>
+                <Typography variant="h6" sx={{ mt: 2, mb: 1 }}>Emergency Contact</Typography>
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <TextField
+                  fullWidth
+                  label="Emergency Contact Name"
+                  name="emergency_contact_name"
+                  value={studentForm.emergency_contact_name}
+                  onChange={handleFormChange}
+                  disabled={dialogMode === 'view'}
+                />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <TextField
+                  fullWidth
+                  label="Emergency Contact Phone"
+                  name="emergency_contact_phone"
+                  value={studentForm.emergency_contact_phone}
+                  onChange={handleFormChange}
+                  disabled={dialogMode === 'view'}
+                />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <TextField
+                  fullWidth
+                  label="Emergency Contact Relation"
+                  name="emergency_contact_relation"
+                  value={studentForm.emergency_contact_relation}
+                  onChange={handleFormChange}
+                  disabled={dialogMode === 'view'}
+                />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <TextField
+                  fullWidth
+                  label="Previous School"
+                  name="previous_school"
+                  value={studentForm.previous_school}
+                  onChange={handleFormChange}
+                  disabled={dialogMode === 'view'}
+                />
+              </Grid>
             </Grid>
-            <Grid size={12}>
-              <TextField
-                fullWidth
-                label="Address"
-                name="address"
-                value={studentForm.address}
-                onChange={handleFormChange}
-                multiline
-                rows={2}
-              />
-            </Grid>
-            <Grid size={{ xs: 12, sm: 4 }}>
-              <TextField
-                fullWidth
-                label="City"
-                name="city"
-                value={studentForm.city}
-                onChange={handleFormChange}
-              />
-            </Grid>
-            <Grid size={{ xs: 12, sm: 4 }}>
-              <TextField
-                fullWidth
-                label="State"
-                name="state"
-                value={studentForm.state}
-                onChange={handleFormChange}
-              />
-            </Grid>
-            <Grid size={{ xs: 12, sm: 4 }}>
-              <TextField
-                fullWidth
-                label="Postal Code"
-                name="postal_code"
-                value={studentForm.postal_code}
-                onChange={handleFormChange}
-              />
-            </Grid>
-            <Grid size={{ xs: 12, sm: 6 }}>
-              <TextField
-                fullWidth
-                label="Student Phone"
-                name="phone"
-                value={studentForm.phone}
-                onChange={handleFormChange}
-              />
-            </Grid>
-            <Grid size={{ xs: 12, sm: 6 }}>
-              <TextField
-                fullWidth
-                type="email"
-                label="Student Email"
-                name="email"
-                value={studentForm.email}
-                onChange={handleFormChange}
-              />
-            </Grid>
-            <Grid size={12}>
-              <TextField
-                fullWidth
-                label="Previous School"
-                name="previous_school"
-                value={studentForm.previous_school}
-                onChange={handleFormChange}
-              />
-            </Grid>
-            <Grid size={{ xs: 12, sm: 6 }}>
-              <TextField
-                fullWidth
-                label="Father's Name"
-                name="father_name"
-                value={studentForm.father_name}
-                onChange={handleFormChange}
-                required
-                disabled={dialogMode === 'view'}
-                InputProps={{
-                  readOnly: dialogMode === 'view',
-                }}
-              />
-            </Grid>
-            <Grid size={{ xs: 12, sm: 6 }}>
-              <TextField
-                fullWidth
-                label="Father's Phone"
-                name="father_phone"
-                value={studentForm.father_phone}
-                onChange={handleFormChange}
-              />
-            </Grid>
-            <Grid size={{ xs: 12, sm: 6 }}>
-              <TextField
-                fullWidth
-                type="email"
-                label="Father's Email"
-                name="father_email"
-                value={studentForm.father_email}
-                onChange={handleFormChange}
-              />
-            </Grid>
-            <Grid size={{ xs: 12, sm: 6 }}>
-              <TextField
-                fullWidth
-                label="Father's Occupation"
-                name="father_occupation"
-                value={studentForm.father_occupation}
-                onChange={handleFormChange}
-              />
-            </Grid>
-            <Grid size={{ xs: 12, sm: 6 }}>
-              <TextField
-                fullWidth
-                label="Mother's Name"
-                name="mother_name"
-                value={studentForm.mother_name}
-                onChange={handleFormChange}
-                required
-                disabled={dialogMode === 'view'}
-                InputProps={{
-                  readOnly: dialogMode === 'view',
-                }}
-              />
-            </Grid>
-            <Grid size={{ xs: 12, sm: 6 }}>
-              <TextField
-                fullWidth
-                label="Mother's Phone"
-                name="mother_phone"
-                value={studentForm.mother_phone}
-                onChange={handleFormChange}
-              />
-            </Grid>
-            <Grid size={{ xs: 12, sm: 6 }}>
-              <TextField
-                fullWidth
-                type="email"
-                label="Mother's Email"
-                name="mother_email"
-                value={studentForm.mother_email}
-                onChange={handleFormChange}
-              />
-            </Grid>
-            <Grid size={{ xs: 12, sm: 6 }}>
-              <TextField
-                fullWidth
-                label="Mother's Occupation"
-                name="mother_occupation"
-                value={studentForm.mother_occupation}
-                onChange={handleFormChange}
-              />
-            </Grid>
-            <Grid size={{ xs: 12, sm: 4 }}>
-              <TextField
-                fullWidth
-                label="Emergency Contact Name"
-                name="emergency_contact_name"
-                value={studentForm.emergency_contact_name}
-                onChange={handleFormChange}
-              />
-            </Grid>
-            <Grid size={{ xs: 12, sm: 4 }}>
-              <TextField
-                fullWidth
-                label="Emergency Contact Phone"
-                name="emergency_contact_phone"
-                value={studentForm.emergency_contact_phone}
-                onChange={handleFormChange}
-              />
-            </Grid>
-            <Grid size={{ xs: 12, sm: 4 }}>
-              <TextField
-                fullWidth
-                label="Emergency Contact Relation"
-                name="emergency_contact_relation"
-                value={studentForm.emergency_contact_relation}
-                onChange={handleFormChange}
-              />
-            </Grid>
-          </Grid>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseDialog}>
-            {dialogMode === 'view' ? 'Close' : 'Cancel'}
-          </Button>
-          {dialogMode !== 'view' && (
-            <Button onClick={handleSubmit} variant="contained">
-              {dialogMode === 'edit' ? 'Update' : 'Add'} Student
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleCloseDialog}>
+              {dialogMode === 'view' ? 'Close' : 'Cancel'}
             </Button>
-          )}
-        </DialogActions>
-      </Dialog>
+            {dialogMode !== 'view' && (
+              <Button onClick={handleSubmit} variant="contained">
+                {dialogMode === 'edit' ? 'Update' : 'Add'} Student
+              </Button>
+            )}
+          </DialogActions>
+        </Dialog>
 
-      {/* Conflict Dialog for Edit Mode */}
-      <Dialog
-        open={conflictDialog.open}
-        onClose={() => setConflictDialog({ ...conflictDialog, open: false })}
-        maxWidth="xs"
-      >
-        <DialogTitle>
-          {conflictDialog.type === 'duplicate' ? 'Duplicate Record' : 'Error'}
-        </DialogTitle>
-        <DialogContent>
-          <Typography>{conflictDialog.message}</Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setConflictDialog({ ...conflictDialog, open: false })} variant="contained">
-            OK
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Snackbar for notifications */}
-      <Snackbar
-        open={snackbar.open}
-        autoHideDuration={6000}
-        onClose={() => setSnackbar({ ...snackbar, open: false })}
-      >
-        <Alert
-          onClose={() => setSnackbar({ ...snackbar, open: false })}
-          severity={snackbar.severity}
-          sx={{ width: '100%' }}
+        {/* Conflict Dialog for Edit Mode */}
+        <Dialog
+          open={conflictDialog.open}
+          onClose={() => setConflictDialog({ ...conflictDialog, open: false })}
+          maxWidth="xs"
         >
-          {snackbar.message}
-        </Alert>
-      </Snackbar>
+          <DialogTitle>
+            {conflictDialog.type === 'duplicate' ? 'Duplicate Record' : 'Error'}
+          </DialogTitle>
+          <DialogContent>
+            <Typography>{conflictDialog.message}</Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button
+              onClick={() => setConflictDialog({ ...conflictDialog, open: false })}
+              variant="contained"
+            >
+              OK
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Snackbar for notifications */}
+        <Snackbar
+          open={snackbar.open}
+          autoHideDuration={6000}
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
+        >
+          <Alert
+            onClose={() => setSnackbar({ ...snackbar, open: false })}
+            severity={snackbar.severity}
+            sx={{ width: '100%' }}
+          >
+            {snackbar.message}
+          </Alert>
+        </Snackbar>
       </Box>
     </AdminLayout>
   );

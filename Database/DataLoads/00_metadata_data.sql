@@ -28,8 +28,8 @@ ON CONFLICT (id) DO UPDATE SET
 INSERT INTO session_years (id, name, start_date, end_date, is_current, is_active) VALUES
 (1, '2022-23', '2022-04-01', '2023-03-31', FALSE, TRUE),
 (2, '2023-24', '2023-04-01', '2024-03-31', FALSE, TRUE),
-(3, '2024-25', '2024-04-01', '2025-03-31', TRUE, TRUE),
-(4, '2025-26', '2025-04-01', '2026-03-31', FALSE, TRUE),
+(3, '2024-25', '2024-04-01', '2025-03-31', FALSE, TRUE),
+(4, '2025-26', '2025-04-01', '2026-03-31', TRUE, TRUE),
 (5, '2026-27', '2026-04-01', '2027-03-31', FALSE, TRUE)
 ON CONFLICT (id) DO UPDATE SET
     name = EXCLUDED.name,

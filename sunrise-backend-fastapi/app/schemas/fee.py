@@ -346,3 +346,134 @@ class FeeDashboard(BaseModel):
     monthly_collection: List[dict]
     class_wise_collection: List[dict]
     payment_method_breakdown: List[dict]
+
+
+# Monthly Fee Tracking Schemas
+class MonthlyFeeTrackingBase(BaseModel):
+    academic_month: int = Field(..., ge=1, le=12, description="Academic month (1-12)")
+    academic_year: int = Field(..., description="Academic year")
+    month_name: str = Field(..., description="Month name (January, February, etc.)")
+    monthly_amount: float = Field(..., ge=0, description="Monthly fee amount")
+    paid_amount: float = Field(0, ge=0, description="Amount paid for this month")
+    due_date: date = Field(..., description="Due date for this month")
+    late_fee: float = Field(0, ge=0, description="Late fee amount")
+    discount_amount: float = Field(0, ge=0, description="Discount amount")
+
+
+class MonthlyFeeTrackingCreate(MonthlyFeeTrackingBase):
+    fee_record_id: int = Field(..., description="Foreign key to fee_records")
+    student_id: int = Field(..., description="Foreign key to students")
+    session_year_id: int = Field(..., description="Foreign key to session_years")
+    payment_status_id: int = Field(1, description="Payment status ID")
+
+
+class MonthlyFeeTrackingUpdate(BaseModel):
+    paid_amount: Optional[float] = Field(None, ge=0, description="Amount paid for this month")
+    payment_status_id: Optional[int] = Field(None, description="Payment status ID")
+    late_fee: Optional[float] = Field(None, ge=0, description="Late fee amount")
+    discount_amount: Optional[float] = Field(None, ge=0, description="Discount amount")
+
+
+class MonthlyFeeTracking(MonthlyFeeTrackingBase):
+    id: int
+    fee_record_id: int
+    student_id: int
+    session_year_id: int
+    payment_status_id: int
+    balance_amount: float = Field(..., description="Calculated balance amount")
+    status_name: str = Field(..., description="Payment status name")
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+# Enhanced Student Fee Summary
+class EnhancedStudentFeeSummary(BaseModel):
+    student_id: int
+    admission_number: str
+    student_name: str
+    class_name: str
+    session_year: str
+
+    # Legacy fee record data
+    fee_record_id: Optional[int] = None
+    annual_fee: Optional[float] = None
+    total_paid: Optional[float] = None
+    total_balance: Optional[float] = None
+
+    # Monthly tracking data
+    total_months_tracked: int = Field(0, description="Number of months with tracking")
+    paid_months: int = Field(0, description="Number of fully paid months")
+    pending_months: int = Field(0, description="Number of pending months")
+    overdue_months: int = Field(0, description="Number of overdue months")
+    monthly_total: Optional[float] = Field(None, description="Total monthly amounts")
+    monthly_paid: Optional[float] = Field(None, description="Total monthly payments")
+    monthly_balance: Optional[float] = Field(None, description="Total monthly balance")
+
+    # Calculated fields
+    collection_percentage: float = Field(0, description="Percentage of fees collected")
+    has_monthly_tracking: bool = Field(False, description="Whether student has monthly tracking enabled")
+
+    class Config:
+        from_attributes = True
+
+
+# Monthly Fee Status Response
+class MonthlyFeeStatus(BaseModel):
+    month: int
+    year: int
+    month_name: str
+    monthly_amount: float
+    paid_amount: float
+    balance_amount: float
+    due_date: date
+    status: str
+    status_color: str = Field(..., description="Color code for UI display")
+    is_overdue: bool
+    days_overdue: Optional[int] = None
+    late_fee: float = 0
+    discount_amount: float = 0
+
+
+class StudentMonthlyFeeHistory(BaseModel):
+    student_id: int
+    student_name: str
+    class_name: str
+    session_year: str
+    monthly_fee_amount: float
+    total_annual_fee: float
+    monthly_history: List[MonthlyFeeStatus]
+
+    # Summary statistics
+    total_months: int
+    paid_months: int
+    pending_months: int
+    overdue_months: int
+    total_paid: float
+    total_balance: float
+    collection_percentage: float
+
+    class Config:
+        from_attributes = True
+
+
+# Enhanced Payment Request
+class EnhancedPaymentRequest(BaseModel):
+    student_id: int
+    from_month: int = Field(..., ge=1, le=12, description="Starting month")
+    to_month: int = Field(..., ge=1, le=12, description="Ending month")
+    payment_method_id: int = Field(..., description="Payment method ID")
+    amount: float = Field(..., gt=0, description="Payment amount")
+    transaction_id: Optional[str] = Field(None, description="Transaction reference ID")
+    remarks: Optional[str] = Field(None, description="Payment remarks")
+    session_year_id: int = Field(..., description="Session year ID")
+    enable_monthly_tracking: bool = Field(True, description="Enable monthly tracking for this payment")
+
+
+# Monthly Tracking Enable Request
+class EnableMonthlyTrackingRequest(BaseModel):
+    fee_record_ids: List[int] = Field(..., description="List of fee record IDs to enable tracking for")
+    start_month: int = Field(4, ge=1, le=12, description="Starting academic month (default: April)")
+    start_year: Optional[int] = Field(None, description="Starting academic year (default: current year)")

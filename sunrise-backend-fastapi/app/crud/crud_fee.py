@@ -2,7 +2,7 @@ from typing import List, Optional, Dict, Any
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload, joinedload
-from sqlalchemy import and_, or_, func, extract, case
+from sqlalchemy import and_, or_, func, extract, case, exists
 from datetime import date, datetime
 
 from app.crud.base import CRUDBase
@@ -46,13 +46,36 @@ class CRUDFeeRecord(CRUDBase[FeeRecord, FeeRecordCreate, FeeRecordUpdate]):
         )
         return result.scalar_one_or_none()
 
+    async def get_by_student_session_type(
+        self,
+        db: AsyncSession,
+        *,
+        student_id: int,
+        session_year_id: int,
+        payment_type_id: int
+    ) -> Optional[FeeRecord]:
+        """Get fee record by student, session year, and payment type"""
+        result = await db.execute(
+            select(FeeRecord).where(
+                and_(
+                    FeeRecord.student_id == student_id,
+                    FeeRecord.session_year_id == session_year_id,
+                    FeeRecord.payment_type_id == payment_type_id
+                )
+            )
+        )
+        return result.scalar_one_or_none()
+
     async def get_multi_with_filters(
         self,
         db: AsyncSession,
         *,
         filters: FeeFilters,
         skip: int = 0,
-        limit: int = 100
+        limit: int = 100,
+        search: Optional[str] = None,
+        sort_by: Optional[str] = "due_date",
+        sort_order: Optional[str] = "asc"
     ) -> tuple[List[FeeRecord], int]:
         query = select(FeeRecord).options(
             joinedload(FeeRecord.student).joinedload(Student.class_ref)
@@ -85,20 +108,44 @@ class CRUDFeeRecord(CRUDBase[FeeRecord, FeeRecordCreate, FeeRecordUpdate]):
         
         if filters.month:
             conditions.append(extract('month', FeeRecord.due_date) == filters.month)
-        
+
+        # Add search functionality
+        if search:
+            search_conditions = or_(
+                func.concat(Student.first_name, ' ', Student.last_name).ilike(f"%{search}%"),
+                Student.admission_number.ilike(f"%{search}%")
+            )
+            conditions.append(search_conditions)
+            # Join is already handled by joinedload, so we don't need to add it again
+
         if conditions:
             query = query.where(and_(*conditions))
-        
+
+        # Add sorting
+        sort_column = FeeRecord.due_date  # default
+        if sort_by == "student_name":
+            sort_column = func.concat(Student.first_name, ' ', Student.last_name)
+            # Join is already handled by joinedload
+        elif sort_by == "amount":
+            sort_column = FeeRecord.total_amount
+        elif sort_by == "status":
+            sort_column = FeeRecord.payment_status_id
+        elif sort_by == "due_date":
+            sort_column = FeeRecord.due_date
+
+        if sort_order == "desc":
+            sort_column = sort_column.desc()
+
         # Get total count
         count_query = select(func.count(FeeRecord.id))
         if conditions:
             count_query = count_query.where(and_(*conditions))
-        
+
         total_result = await db.execute(count_query)
         total = total_result.scalar()
-        
+
         # Get paginated results
-        query = query.order_by(FeeRecord.created_at.desc()).offset(skip).limit(limit)
+        query = query.order_by(sort_column).offset(skip).limit(limit)
         result = await db.execute(query)
         
         return result.scalars().all(), total
@@ -133,31 +180,48 @@ class CRUDFeeRecord(CRUDBase[FeeRecord, FeeRecordCreate, FeeRecordUpdate]):
     async def get_collection_summary(
         self, db: AsyncSession, *, session_year: Optional[str] = None
     ) -> Dict[str, Any]:
+        from app.models.metadata import SessionYear, PaymentStatus
+
         query = select(
             func.sum(FeeRecord.total_amount).label('total_amount'),
             func.sum(FeeRecord.paid_amount).label('paid_amount'),
             func.count(FeeRecord.id).label('total_records'),
             func.count(
                 case(
-                    (FeeRecord.payment_status.has(name="Paid"), 1),
+                    (exists().where(
+                        and_(
+                            PaymentStatus.id == FeeRecord.payment_status_id,
+                            PaymentStatus.name == "Paid"
+                        )
+                    ), 1),
                     else_=None
                 )
             ).label('paid_records')
         )
-        
+
         if session_year:
-            query = query.where(FeeRecord.session_year.has(name=session_year))
-        
+            query = query.where(
+                exists().where(
+                    and_(
+                        SessionYear.id == FeeRecord.session_year_id,
+                        SessionYear.name == session_year
+                    )
+                )
+            )
+
         result = await db.execute(query)
         summary = result.first()
-        
+
+        total_amount = float(summary.total_amount or 0)
+        paid_amount = float(summary.paid_amount or 0)
+
         return {
-            'total_amount': float(summary.total_amount or 0),
-            'paid_amount': float(summary.paid_amount or 0),
-            'pending_amount': float((summary.total_amount or 0) - (summary.paid_amount or 0)),
+            'total_amount': total_amount,
+            'paid_amount': paid_amount,
+            'pending_amount': total_amount - paid_amount,
             'total_records': summary.total_records or 0,
             'paid_records': summary.paid_records or 0,
-            'collection_rate': (summary.paid_amount / summary.total_amount * 100) if summary.total_amount else 0
+            'collection_rate': (paid_amount / total_amount * 100) if total_amount > 0 else 0
         }
 
     async def update_payment_status(

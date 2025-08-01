@@ -50,47 +50,18 @@ export const authAPI = {
     api.post('/auth/logout'),
 };
 
-// Fees API
-export const feesAPI = {
-  // Get fees with filters
-  getFees: (params?: any) =>
-    api.get('/fees/', { params }),
+// Enhanced Fee Management APIs
+export const enhancedFeesAPI = {
+  getEnhancedStudentsSummary: (params: any) =>
+    api.get('/fees/enhanced-students-summary', { params }),
 
-  // CRUD operations for fee records
-  createFeeRecord: (feeData: any) =>
-    api.post('/fees/records', feeData),
-
-  updateFeeRecord: (id: number, feeData: any) =>
-    api.put(`/fees/records/${id}`, feeData),
-
-  deleteFeeRecord: (id: number) =>
-    api.delete(`/fees/records/${id}`),
-
-  // Payment operations
-  processPayment: (feeRecordId: number, paymentData: any) =>
-    api.post(`/fees/payment/${feeRecordId}`, paymentData),
-
-  processLumpSumPayment: (studentId: number, paymentData: any) =>
-    api.post(`/fees/payments/lump-sum/${studentId}`, paymentData),
-
-  // Payment history
-  getPaymentHistory: (studentId: number, sessionYear?: string) =>
-    api.get(`/fees/payments/history/${studentId}`, {
-      params: sessionYear ? { session_year: sessionYear } : {}
+  getEnhancedMonthlyHistory: (studentId: number, sessionYearId: number) =>
+    api.get(`/fees/enhanced-monthly-history/${studentId}`, {
+      params: { session_year_id: sessionYearId }
     }),
 
-  // Fee structures
-  getFeeStructures: () =>
-    api.get('/fees/structures'),
-
-  createFeeStructure: (structureData: any) =>
-    api.post('/fees/structure', structureData),
-
-  // Dashboard
-  getFeeDashboard: (sessionYear?: string) =>
-    api.get('/fees/dashboard', {
-      params: sessionYear ? { session_year: sessionYear } : {}
-    }),
+  enableMonthlyTracking: (data: any) =>
+    api.post('/fees/enable-monthly-tracking', data),
 };
 
 // Users API
