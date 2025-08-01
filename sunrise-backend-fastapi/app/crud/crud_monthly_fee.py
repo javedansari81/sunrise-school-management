@@ -294,13 +294,21 @@ class CRUDMonthlyPaymentAllocation(CRUDBase[MonthlyPaymentAllocation, dict, dict
         created_allocations = []
         
         for allocation in allocations:
-            allocation_obj = MonthlyPaymentAllocation(
-                fee_payment_id=payment_id,
-                monthly_tracking_id=allocation["monthly_tracking_id"],
-                allocated_amount=allocation["amount"]
+            # Check if allocation already exists to prevent duplicates
+            existing_allocation = await db.execute(
+                select(MonthlyPaymentAllocation).where(
+                    MonthlyPaymentAllocation.fee_payment_id == payment_id,
+                    MonthlyPaymentAllocation.monthly_tracking_id == allocation["monthly_tracking_id"]
+                )
             )
-            db.add(allocation_obj)
-            created_allocations.append(allocation_obj)
+            if existing_allocation.scalar_one_or_none() is None:
+                allocation_obj = MonthlyPaymentAllocation(
+                    fee_payment_id=payment_id,
+                    monthly_tracking_id=allocation["monthly_tracking_id"],
+                    allocated_amount=allocation["amount"]
+                )
+                db.add(allocation_obj)
+                created_allocations.append(allocation_obj)
             
             # Update the monthly tracking record
             await db.execute(

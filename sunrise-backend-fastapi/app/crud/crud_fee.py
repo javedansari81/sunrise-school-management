@@ -22,11 +22,31 @@ class CRUDFeeStructure(CRUDBase[FeeStructure, FeeStructureCreate, FeeStructureUp
     async def get_by_class_and_session(
         self, db: AsyncSession, *, class_name: str, session_year: str
     ) -> Optional[FeeStructure]:
+        # Import here to avoid circular imports
+        from app.models.metadata import Class, SessionYear
+
+        result = await db.execute(
+            select(FeeStructure)
+            .join(Class, FeeStructure.class_id == Class.id)
+            .join(SessionYear, FeeStructure.session_year_id == SessionYear.id)
+            .where(
+                and_(
+                    Class.name == class_name,
+                    SessionYear.name == session_year
+                )
+            )
+        )
+        return result.scalar_one_or_none()
+
+    async def get_by_class_id_and_session_id(
+        self, db: AsyncSession, *, class_id: int, session_year_id: int
+    ) -> Optional[FeeStructure]:
+        """Get fee structure by class ID and session year ID (more efficient)"""
         result = await db.execute(
             select(FeeStructure).where(
                 and_(
-                    FeeStructure.class_name == class_name,
-                    FeeStructure.session_year.has(name=session_year)
+                    FeeStructure.class_id == class_id,
+                    FeeStructure.session_year_id == session_year_id
                 )
             )
         )

@@ -35,6 +35,8 @@ import {
   Schedule,
   Error,
   Close as CloseIcon,
+  Payment,
+  AccountBalance,
 } from '@mui/icons-material';
 import {
   SessionYearDropdown,
@@ -92,6 +94,37 @@ interface StudentMonthlyFeeHistory {
   collection_percentage: number;
 }
 
+interface AvailableMonth {
+  month: number;
+  year: number;
+  month_name: string;
+  monthly_amount: number;
+  balance_amount: number;
+  due_date: string;
+  is_overdue: boolean;
+  days_overdue?: number;
+}
+
+interface AvailableMonthsData {
+  student: {
+    id: number;
+    name: string;
+    admission_number: string;
+    class: string;
+  };
+  session_year: string;
+  monthly_fee: number;
+  total_annual_fee: number;
+  available_months: AvailableMonth[];
+  paid_months: AvailableMonth[];
+  summary: {
+    total_months: number;
+    available_months: number;
+    paid_months: number;
+    total_pending_amount: number;
+  };
+}
+
 const SimpleEnhancedFeeManagement: React.FC = () => {
   const { isAuthenticated, user } = useAuth();
   const [loading, setLoading] = useState(false);
@@ -108,7 +141,17 @@ const SimpleEnhancedFeeManagement: React.FC = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [paymentHistoryDialogOpen, setPaymentHistoryDialogOpen] = useState(false);
   const [enableTrackingDialog, setEnableTrackingDialog] = useState(false);
+  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [selectedStudentIds, setSelectedStudentIds] = useState<number[]>([]);
+  const [availableMonthsData, setAvailableMonthsData] = useState<AvailableMonthsData | null>(null);
+  const [paymentForm, setPaymentForm] = useState({
+    amount: '',
+    selectedMonths: [] as number[],
+    paymentMethodId: 1,
+    transactionId: '',
+    remarks: ''
+  });
+  const [paymentLoading, setPaymentLoading] = useState(false);
   const [snackbar, setSnackbar] = useState({
     open: false,
     message: '',
@@ -299,6 +342,116 @@ const SimpleEnhancedFeeManagement: React.FC = () => {
       }
     } finally {
       setPaymentHistoryLoading(false);
+    }
+  };
+
+  // Fetch available months for payment
+  const fetchAvailableMonths = async (studentId: number) => {
+    if (!filters.session_year_id) {
+      setSnackbar({
+        open: true,
+        message: 'Please select a session year first',
+        severity: 'warning'
+      });
+      return;
+    }
+
+    setPaymentLoading(true);
+    try {
+      // Convert session_year_id to session year string
+      const sessionYearMap: { [key: string]: string } = {
+        '1': '2022-23',
+        '2': '2023-24',
+        '3': '2024-25',
+        '4': '2025-26',
+        '5': '2026-27'
+      };
+
+      const sessionYear = sessionYearMap[filters.session_year_id] || '2025-26';
+      const response = await enhancedFeesAPI.getAvailableMonths(studentId, sessionYear);
+
+      if (!response.data || !response.data.available_months) {
+        setSnackbar({
+          open: true,
+          message: 'No available months found for payment',
+          severity: 'info'
+        });
+        return;
+      }
+
+      setAvailableMonthsData(response.data);
+      setPaymentForm({
+        amount: '',
+        selectedMonths: [],
+        paymentMethodId: 1,
+        transactionId: '',
+        remarks: ''
+      });
+      setPaymentDialogOpen(true);
+    } catch (error: any) {
+      console.error('Error fetching available months:', error);
+      const errorMessage = error.response?.data?.detail || error.message || 'Failed to fetch available months';
+      setSnackbar({
+        open: true,
+        message: errorMessage,
+        severity: 'error'
+      });
+    } finally {
+      setPaymentLoading(false);
+    }
+  };
+
+  // Make enhanced payment
+  const makePayment = async () => {
+    if (!availableMonthsData || paymentForm.selectedMonths.length === 0 || !paymentForm.amount) {
+      setSnackbar({
+        open: true,
+        message: 'Please select months and enter payment amount',
+        severity: 'warning'
+      });
+      return;
+    }
+
+    setPaymentLoading(true);
+    try {
+      const sessionYearMap: { [key: string]: string } = {
+        '1': '2022-23',
+        '2': '2023-24',
+        '3': '2024-25',
+        '4': '2025-26',
+        '5': '2026-27'
+      };
+
+      const sessionYear = sessionYearMap[filters.session_year_id] || '2025-26';
+
+      const paymentData = {
+        amount: parseFloat(paymentForm.amount),
+        payment_method_id: paymentForm.paymentMethodId,
+        selected_months: paymentForm.selectedMonths,
+        session_year: sessionYear,
+        transaction_id: paymentForm.transactionId || `TXN${Date.now()}`,
+        remarks: paymentForm.remarks || 'Monthly fee payment'
+      };
+
+      const response = await enhancedFeesAPI.makeEnhancedPayment(availableMonthsData.student.id, paymentData);
+
+      setSnackbar({
+        open: true,
+        message: response.data.message || 'Payment processed successfully',
+        severity: 'success'
+      });
+      setPaymentDialogOpen(false);
+      fetchStudentsSummary(); // Refresh the data
+    } catch (error: any) {
+      console.error('Error making payment:', error);
+      const errorMessage = error.response?.data?.detail || error.message || 'Failed to process payment';
+      setSnackbar({
+        open: true,
+        message: errorMessage,
+        severity: 'error'
+      });
+    } finally {
+      setPaymentLoading(false);
     }
   };
 
@@ -534,6 +687,16 @@ const SimpleEnhancedFeeManagement: React.FC = () => {
                     </TableCell>
                     <TableCell>
                       <Stack direction="row" spacing={1}>
+                        <Tooltip title="Make Payment">
+                          <IconButton
+                            size="small"
+                            onClick={() => fetchAvailableMonths(student.student_id)}
+                            disabled={paymentLoading}
+                            color="primary"
+                          >
+                            <Payment />
+                          </IconButton>
+                        </Tooltip>
                         <Tooltip title="View Details">
                           <IconButton
                             size="small"
@@ -1084,6 +1247,181 @@ const SimpleEnhancedFeeManagement: React.FC = () => {
             }}
           >
             Close
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Enhanced Payment Dialog */}
+      <Dialog
+        open={paymentDialogOpen}
+        onClose={() => setPaymentDialogOpen(false)}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 2,
+            boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
+          }
+        }}
+      >
+        <DialogTitle sx={{
+          background: 'linear-gradient(135deg, #2196f3 0%, #1976d2 100%)',
+          color: 'white',
+          py: 2
+        }}>
+          <Box display="flex" justifyContent="space-between" alignItems="center">
+            <Box>
+              <Typography variant="h5" fontWeight="bold">
+                Make Payment
+              </Typography>
+              <Typography variant="subtitle1" sx={{ opacity: 0.9, mt: 0.5 }}>
+                {availableMonthsData?.student.name} • {availableMonthsData?.student.class}
+              </Typography>
+            </Box>
+            <IconButton
+              onClick={() => setPaymentDialogOpen(false)}
+              sx={{
+                color: 'white',
+                '&:hover': { backgroundColor: 'rgba(255,255,255,0.1)' }
+              }}
+            >
+              <CloseIcon />
+            </IconButton>
+          </Box>
+        </DialogTitle>
+        <DialogContent sx={{ p: 3 }}>
+          {paymentLoading ? (
+            <Box display="flex" flexDirection="column" justifyContent="center" alignItems="center" minHeight="200px">
+              <CircularProgress size={48} />
+              <Typography variant="body1" sx={{ mt: 2, color: 'text.secondary' }}>
+                Loading payment options...
+              </Typography>
+            </Box>
+          ) : availableMonthsData && (
+            <Box>
+              {/* Payment Summary */}
+              <Box sx={{ mb: 3, p: 2, bgcolor: 'grey.50', borderRadius: 2 }}>
+                <Grid container spacing={2}>
+                  <Grid size={{ xs: 6, sm: 3 }}>
+                    <Typography variant="caption" color="textSecondary">Monthly Fee</Typography>
+                    <Typography variant="h6" fontWeight="bold" color="primary.main">
+                      ₹{availableMonthsData.monthly_fee.toLocaleString()}
+                    </Typography>
+                  </Grid>
+                  <Grid size={{ xs: 6, sm: 3 }}>
+                    <Typography variant="caption" color="textSecondary">Available Months</Typography>
+                    <Typography variant="h6" fontWeight="bold" color="info.main">
+                      {availableMonthsData.summary.available_months}
+                    </Typography>
+                  </Grid>
+                  <Grid size={{ xs: 6, sm: 3 }}>
+                    <Typography variant="caption" color="textSecondary">Total Pending</Typography>
+                    <Typography variant="h6" fontWeight="bold" color="error.main">
+                      ₹{availableMonthsData.summary.total_pending_amount.toLocaleString()}
+                    </Typography>
+                  </Grid>
+                  <Grid size={{ xs: 6, sm: 3 }}>
+                    <Typography variant="caption" color="textSecondary">Session Year</Typography>
+                    <Typography variant="h6" fontWeight="bold" color="secondary.main">
+                      {availableMonthsData.session_year}
+                    </Typography>
+                  </Grid>
+                </Grid>
+              </Box>
+
+              {/* Available Months Selection */}
+              <Box sx={{ mb: 3 }}>
+                <Typography variant="h6" gutterBottom fontWeight="bold">
+                  Select Months to Pay
+                </Typography>
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                  {availableMonthsData.available_months.map((month) => (
+                    <Chip
+                      key={month.month}
+                      label={`${month.month_name} ${month.year} (₹${month.balance_amount})`}
+                      clickable
+                      color={paymentForm.selectedMonths.includes(month.month) ? 'primary' : 'default'}
+                      variant={paymentForm.selectedMonths.includes(month.month) ? 'filled' : 'outlined'}
+                      onClick={() => {
+                        const isSelected = paymentForm.selectedMonths.includes(month.month);
+                        setPaymentForm(prev => ({
+                          ...prev,
+                          selectedMonths: isSelected
+                            ? prev.selectedMonths.filter(m => m !== month.month)
+                            : [...prev.selectedMonths, month.month].sort()
+                        }));
+                      }}
+                      sx={{
+                        fontSize: '0.875rem',
+                        height: 36,
+                        '&:hover': { boxShadow: 2 }
+                      }}
+                    />
+                  ))}
+                </Box>
+              </Box>
+
+              {/* Payment Form */}
+              <Grid container spacing={2}>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <TextField
+                    fullWidth
+                    label="Payment Amount"
+                    type="number"
+                    value={paymentForm.amount}
+                    onChange={(e) => setPaymentForm(prev => ({ ...prev, amount: e.target.value }))}
+                    InputProps={{
+                      startAdornment: <Typography sx={{ mr: 1 }}>₹</Typography>,
+                    }}
+                    helperText="Enter the amount you want to pay"
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <TextField
+                    fullWidth
+                    label="Transaction ID"
+                    value={paymentForm.transactionId}
+                    onChange={(e) => setPaymentForm(prev => ({ ...prev, transactionId: e.target.value }))}
+                    helperText="Optional: Bank/UPI transaction ID"
+                  />
+                </Grid>
+                <Grid size={{ xs: 12 }}>
+                  <TextField
+                    fullWidth
+                    label="Remarks"
+                    multiline
+                    rows={2}
+                    value={paymentForm.remarks}
+                    onChange={(e) => setPaymentForm(prev => ({ ...prev, remarks: e.target.value }))}
+                    helperText="Optional: Additional notes about the payment"
+                  />
+                </Grid>
+              </Grid>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ p: 3, bgcolor: 'grey.50', borderTop: '1px solid #e0e0e0' }}>
+          <Button
+            onClick={() => setPaymentDialogOpen(false)}
+            variant="outlined"
+            size="large"
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={makePayment}
+            variant="contained"
+            size="large"
+            disabled={paymentLoading || !paymentForm.amount || paymentForm.selectedMonths.length === 0}
+            startIcon={paymentLoading ? <CircularProgress size={20} /> : <AccountBalance />}
+            sx={{
+              minWidth: 140,
+              borderRadius: 2,
+              textTransform: 'none',
+              fontWeight: 'bold'
+            }}
+          >
+            {paymentLoading ? 'Processing...' : 'Make Payment'}
           </Button>
         </DialogActions>
       </Dialog>

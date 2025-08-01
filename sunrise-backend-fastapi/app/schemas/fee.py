@@ -199,7 +199,16 @@ class FeeRecordBase(BaseModel):
 
 
 class FeeRecordCreate(FeeRecordBase):
-    pass
+    # Additional fields for creation
+    payment_status_id: int = Field(..., description="Foreign key to payment_statuses table")
+    payment_method_id: Optional[int] = None
+    fee_structure_id: Optional[int] = None
+    is_monthly_tracked: bool = Field(..., description="Whether this record uses monthly tracking")
+    academic_month: Optional[int] = None
+    academic_year: Optional[int] = None
+    paid_amount: Decimal = Field(default=Decimal('0.0'), ge=0, description="Amount already paid")
+    transaction_id: Optional[str] = None
+    payment_date: Optional[date] = None
 
 
 class FeeRecordUpdate(BaseModel):

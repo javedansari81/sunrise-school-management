@@ -2,7 +2,7 @@ from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import and_, or_, func, select
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, selectinload
 from datetime import date
 import math
 import calendar
@@ -949,8 +949,13 @@ async def get_payment_history(
     total_due = 0
 
     for fee_record in fee_records:
-        # Get all payments for this fee record
-        payments = await fee_payment_crud.get_by_fee_record(db, fee_record_id=fee_record.id)
+        # Get all payments for this fee record with payment method relationship
+        payments_query = select(FeePaymentModel).options(
+            selectinload(FeePaymentModel.payment_method)
+        ).where(FeePaymentModel.fee_record_id == fee_record.id).order_by(FeePaymentModel.created_at.desc())
+
+        payments_result = await db.execute(payments_query)
+        payments = payments_result.scalars().all()
 
         record_info = {
             "fee_record_id": fee_record.id,
@@ -971,7 +976,7 @@ async def get_payment_history(
                 "payment_id": payment.id,
                 "amount": payment.amount,
                 "payment_date": payment.payment_date,
-                "payment_method": payment.payment_method_name,
+                "payment_method": payment.payment_method.name if payment.payment_method else "Unknown",
                 "transaction_id": payment.transaction_id,
                 "receipt_number": payment.receipt_number,
                 "remarks": payment.remarks,
@@ -1730,7 +1735,9 @@ async def pay_monthly_fee(
     payment = await fee_payment_crud.create(db, obj_in=payment_data)
 
     # Update fee record amounts
-    fee_record.paid_amount += amount
+    # Convert amount to Decimal for compatibility with database field
+    from decimal import Decimal
+    fee_record.paid_amount += Decimal(str(amount))
     fee_record.balance_amount = fee_record.total_amount - fee_record.paid_amount
 
     # Update payment status based on balance
@@ -1784,6 +1791,514 @@ async def pay_monthly_fee(
             "total_paid": float(fee_record.paid_amount),
             "balance_remaining": float(fee_record.balance_amount),
             "payment_status": "Paid" if fee_record.balance_amount <= 0 else ("Partial" if fee_record.paid_amount > 0 else "Pending")
+        }
+    }
+
+
+@router.post("/pay-monthly-enhanced/{student_id}")
+async def pay_monthly_enhanced(
+    student_id: int,
+    payment_data: dict,  # {"amount": float, "payment_method_id": int, "selected_months": [4,5,6], "session_year": str, "transaction_id": str, "remarks": str}
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Enhanced monthly fee payment system that:
+    1. Accepts any payment amount (full/partial/multi-month)
+    2. Automatically allocates to months (e.g., 3200 rs = 3 full months + 200 rs partial)
+    3. Prevents duplicate payments for already-paid months
+    4. Supports session year filtering
+    5. Allows admin to select specific months to pay
+
+    Example: 3200 rs for 1000/month = 3 full months + 200 rs partial for 4th month
+    """
+    from datetime import datetime, date
+    import calendar
+
+    # Extract payment data
+    amount = float(payment_data.get("amount", 0))
+    payment_method = payment_data.get("payment_method", "CASH")  # Default to CASH
+    selected_months = payment_data.get("selected_months", [])  # Can be month names or numbers
+    session_year = payment_data.get("session_year", "2025-26")
+    transaction_id = payment_data.get("transaction_id")
+    remarks = payment_data.get("remarks", "")
+
+    # Map payment method string to ID (based on configuration endpoint)
+    payment_method_mapping = {
+        "CASH": 1,
+        "CHEQUE": 2,
+        "ONLINE": 3,
+        "UPI": 4,
+        "CARD": 5
+    }
+
+    # Ensure payment_method_id is always set to a valid value
+    if payment_method and isinstance(payment_method, str):
+        payment_method_upper = payment_method.upper()
+        payment_method_id = payment_method_mapping.get(payment_method_upper, 1)  # Default to CASH (ID: 1)
+    else:
+        payment_method_id = 1  # Default to CASH (ID: 1)
+
+    # Month name to number mapping
+    month_name_to_number = {
+        "January": 1, "February": 2, "March": 3, "April": 4,
+        "May": 5, "June": 6, "July": 7, "August": 8,
+        "September": 9, "October": 10, "November": 11, "December": 12
+    }
+
+    # Convert month names to numbers if needed
+    month_numbers = []
+    for month in selected_months:
+        if isinstance(month, str):
+            month_num = month_name_to_number.get(month)
+            if month_num:
+                month_numbers.append(month_num)
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Invalid month name: {month}"
+                )
+        elif isinstance(month, int):
+            if 1 <= month <= 12:
+                month_numbers.append(month)
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Invalid month number: {month}. Must be between 1 and 12"
+                )
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid month format: {month}. Must be month name or number"
+            )
+
+    # Validate inputs
+    if amount <= 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Payment amount must be greater than 0"
+        )
+
+    if not payment_method:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Payment method is required"
+        )
+
+    if not month_numbers:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="At least one valid month must be selected"
+        )
+
+    # Use month_numbers for the rest of the function
+    selected_months = month_numbers
+
+    # Get student
+    student = await student_crud.get(db, id=student_id)
+    if not student:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Student not found"
+        )
+
+    # Get session year ID
+    session_year_mapping = {
+        "2022-23": 1, "2023-24": 2, "2024-25": 3, "2025-26": 4, "2026-27": 5
+    }
+    session_year_id = session_year_mapping.get(session_year, 4)
+
+    # Get student's fee structure to calculate monthly fee
+    fee_structure = await fee_structure_crud.get_by_class_id_and_session_id(
+        db,
+        class_id=student.class_id,
+        session_year_id=session_year_id
+    )
+
+    if not fee_structure:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Fee structure not found for student's class"
+        )
+
+    monthly_fee = float(fee_structure.total_annual_fee) / 12
+
+    # Get existing monthly tracking records for selected months
+    existing_tracking = await db.execute(
+        select(MonthlyFeeTrackingModel)
+        .where(
+            and_(
+                MonthlyFeeTrackingModel.student_id == student_id,
+                MonthlyFeeTrackingModel.session_year_id == session_year_id,
+                MonthlyFeeTrackingModel.academic_month.in_(selected_months)
+            )
+        )
+        .order_by(MonthlyFeeTrackingModel.academic_month)
+    )
+    tracking_records = existing_tracking.scalars().all()
+
+    # Check for already fully paid months
+    fully_paid_months = []
+    available_months = []
+
+    for record in tracking_records:
+        if float(record.paid_amount) >= float(record.monthly_amount):
+            fully_paid_months.append({
+                "month": record.academic_month,
+                "month_name": calendar.month_name[record.academic_month],
+                "paid_amount": float(record.paid_amount),
+                "monthly_amount": float(record.monthly_amount)
+            })
+        else:
+            available_months.append(record)
+
+    # If some months are already fully paid, inform the user
+    if fully_paid_months:
+        paid_month_names = [m["month_name"] for m in fully_paid_months]
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"The following months are already fully paid: {', '.join(paid_month_names)}. Please select different months."
+        )
+
+    # If no tracking records exist for selected months, create them
+    if not available_months:
+        # Get or create fee record first
+        existing_fee_record = await fee_record_crud.get_by_student_session_type(
+            db, student_id=student_id, session_year_id=session_year_id, payment_type_id=1
+        )
+
+        if not existing_fee_record:
+            # Create new fee record
+            print(f"DEBUG: Creating fee record with payment_method_id={payment_method_id}, fee_structure.id={fee_structure.id}")
+            fee_record_data = FeeRecordCreate(
+                student_id=student_id,
+                session_year_id=session_year_id,
+                payment_type_id=1,  # Monthly
+                payment_status_id=1,  # Pending
+                payment_method_id=payment_method_id,
+                fee_structure_id=fee_structure.id,
+                is_monthly_tracked=True,
+                total_amount=fee_structure.total_annual_fee,
+                paid_amount=0,
+                balance_amount=fee_structure.total_annual_fee,
+                due_date=date(2025, 4, 30),
+                remarks="Enhanced monthly payment system"
+            )
+            print(f"DEBUG: FeeRecordCreate object: payment_method_id={fee_record_data.payment_method_id}, fee_structure_id={fee_record_data.fee_structure_id}, is_monthly_tracked={fee_record_data.is_monthly_tracked}")
+            fee_record = await fee_record_crud.create(db, obj_in=fee_record_data)
+        else:
+            fee_record = existing_fee_record
+
+        # Create monthly tracking records for selected months
+        available_months = []
+        for month in selected_months:
+            # Calculate due date (10th of each month)
+            year = 2025 if month >= 4 else 2026  # Academic year Apr 2025 - Mar 2026
+            due_date = date(year, month, 10)
+
+            monthly_tracking = MonthlyFeeTrackingModel(
+                fee_record_id=fee_record.id,
+                student_id=student_id,
+                session_year_id=session_year_id,
+                academic_month=month,
+                academic_year=year,
+                month_name=calendar.month_name[month],
+                monthly_amount=monthly_fee,
+                paid_amount=0,
+                due_date=due_date,
+                payment_status_id=1  # Pending
+            )
+            db.add(monthly_tracking)
+            available_months.append(monthly_tracking)
+
+        await db.commit()
+        # Refresh to get IDs
+        for record in available_months:
+            await db.refresh(record)
+
+    # Now allocate the payment amount to available months
+    # Sort months by academic order (April = 4 first, March = 3 last)
+    available_months.sort(key=lambda x: x.academic_month if x.academic_month >= 4 else x.academic_month + 12)
+
+    # Create the payment record first
+
+    # Create payment data object with the correct field name for database model
+    payment_data = {
+        "fee_record_id": available_months[0].fee_record_id,
+        "amount": amount,
+        "payment_method_id": payment_method_id,  # This should be an integer
+        "payment_date": date.today(),
+        "transaction_id": transaction_id,
+        "remarks": f"Enhanced monthly payment: {remarks}" if remarks else "Enhanced monthly payment"
+    }
+
+    # Create the payment record directly using the model
+    from app.models.fee import FeePayment
+    payment_record = FeePayment(**payment_data)
+    db.add(payment_record)
+    await db.flush()  # Get the ID without committing
+
+    # Use the payment_record as our payment object
+    payment = payment_record
+
+    # Allocate payment to months using the smart allocation logic
+    remaining_amount = amount
+    allocations = []
+    payment_breakdown = []
+    total_allocated = 0
+
+    for month_record in available_months:
+        if remaining_amount <= 0:
+            break
+
+        # Calculate how much this month needs
+        month_balance = float(month_record.monthly_amount) - float(month_record.paid_amount)
+
+        # Allocate the minimum of remaining amount or month balance
+        allocation_amount = min(remaining_amount, month_balance)
+
+        if allocation_amount > 0:
+            # Create allocation record
+            allocations.append({
+                "monthly_tracking_id": month_record.id,
+                "amount": allocation_amount
+            })
+
+            # Track for response
+            payment_breakdown.append({
+                "month": month_record.academic_month,
+                "month_name": month_record.month_name,
+                "monthly_fee": float(month_record.monthly_amount),
+                "previous_paid": float(month_record.paid_amount),
+                "allocated_amount": allocation_amount,
+                "new_paid_amount": float(month_record.paid_amount) + allocation_amount,
+                "remaining_balance": month_balance - allocation_amount,
+                "status": "Paid" if (month_balance - allocation_amount) <= 0.01 else "Partial"
+            })
+
+            remaining_amount -= allocation_amount
+            total_allocated += allocation_amount
+
+    # Process the allocations
+    if allocations:
+        await monthly_payment_allocation_crud.allocate_payment_to_months(
+            db, payment.id, allocations
+        )
+
+    # Update the main fee record with only the allocated amount
+    fee_record = await fee_record_crud.get(db, id=available_months[0].fee_record_id)
+    # Convert allocated amount to Decimal for compatibility with database field
+    from decimal import Decimal
+    fee_record.paid_amount += Decimal(str(total_allocated))
+    fee_record.balance_amount = fee_record.total_amount - fee_record.paid_amount
+
+    # Update payment status
+    if fee_record.balance_amount <= 0:
+        fee_record.payment_status_id = 2  # Paid
+        fee_record.balance_amount = 0
+    elif fee_record.paid_amount > 0:
+        fee_record.payment_status_id = 3  # Partial
+
+    await db.commit()
+    await db.refresh(fee_record)
+    await db.refresh(payment)
+
+    # Calculate summary
+    total_months_affected = len(payment_breakdown)
+    fully_paid_months = len([m for m in payment_breakdown if m["status"] == "Paid"])
+    partial_months = len([m for m in payment_breakdown if m["status"] == "Partial"])
+
+    return {
+        "success": True,
+        "message": f"Payment of ₹{amount} processed: ₹{total_allocated} allocated across {total_months_affected} month(s)" + (f", ₹{amount - total_allocated} remaining" if amount > total_allocated else ""),
+        "payment_id": payment.id,
+        "student": {
+            "id": student.id,
+            "name": f"{student.first_name} {student.last_name}",
+            "admission_number": student.admission_number,
+            "class": student.class_ref.name if student.class_ref else "Unknown"
+        },
+        "payment_summary": {
+            "total_amount": amount,
+            "amount_allocated": total_allocated,
+            "amount_remaining": amount - total_allocated,
+            "months_affected": total_months_affected,
+            "fully_paid_months": fully_paid_months,
+            "partial_months": partial_months,
+            "transaction_id": transaction_id,
+            "payment_date": date.today().isoformat()
+        },
+        "month_wise_breakdown": payment_breakdown,
+        "updated_balance": {
+            "total_annual_fee": float(fee_record.total_amount),
+            "total_paid": float(fee_record.paid_amount),
+            "balance_remaining": float(fee_record.balance_amount),
+            "payment_status": "Paid" if fee_record.balance_amount <= 0 else ("Partial" if fee_record.paid_amount > 0 else "Pending")
+        }
+    }
+
+
+@router.get("/available-months/{student_id}")
+async def get_available_months_for_payment(
+    student_id: int,
+    session_year: Optional[SessionYearEnum] = SessionYearEnum.YEAR_2025_26,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Get available months for payment (months that are not fully paid)
+    This helps the admin select which months to pay for
+    """
+    import calendar
+
+    # Get student
+    student = await student_crud.get(db, id=student_id)
+    if not student:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Student not found"
+        )
+
+    # Get session year ID
+    session_year_mapping = {
+        "2022-23": 1, "2023-24": 2, "2024-25": 3, "2025-26": 4, "2026-27": 5
+    }
+    session_year_id = session_year_mapping.get(session_year.value, 4)
+
+    # Get student's fee structure - try multiple approaches
+    fee_structure = None
+    monthly_fee = 1000.0  # Default fallback
+
+    try:
+        # First try to get fee structure by class and session
+        if student.class_ref:
+            fee_structure = await fee_structure_crud.get_by_class_and_session(
+                db,
+                class_name=student.class_ref.name,
+                session_year=session_year.value
+            )
+
+        if fee_structure:
+            monthly_fee = float(fee_structure.total_annual_fee) / 12
+        else:
+            # Fallback: try to get from existing monthly tracking records
+            existing_tracking = await db.execute(
+                select(MonthlyFeeTrackingModel.monthly_amount)
+                .where(
+                    and_(
+                        MonthlyFeeTrackingModel.student_id == student_id,
+                        MonthlyFeeTrackingModel.session_year_id == session_year_id
+                    )
+                )
+                .limit(1)
+            )
+            existing_amount = existing_tracking.scalar()
+            if existing_amount:
+                monthly_fee = float(existing_amount)
+            else:
+                # Final fallback: use default amount based on class
+                class_defaults = {
+                    "Class 1": 800, "Class 2": 800, "Class 3": 900, "Class 4": 900, "Class 5": 900,
+                    "Class 6": 1000, "Class 7": 1000, "Class 8": 1100, "Class 9": 1200, "Class 10": 1200,
+                    "Class 11": 1300, "Class 12": 1300
+                }
+                class_name = student.class_ref.name if student.class_ref else "Class 10"
+                monthly_fee = class_defaults.get(class_name, 1000.0)
+
+    except Exception as e:
+        print(f"Error getting fee structure: {e}")
+        # Use default monthly fee
+        monthly_fee = 1000.0
+
+    # Get existing monthly tracking records
+    existing_tracking = await db.execute(
+        select(MonthlyFeeTrackingModel)
+        .where(
+            and_(
+                MonthlyFeeTrackingModel.student_id == student_id,
+                MonthlyFeeTrackingModel.session_year_id == session_year_id
+            )
+        )
+        .order_by(MonthlyFeeTrackingModel.academic_month)
+    )
+    tracking_records = existing_tracking.scalars().all()
+
+    # Academic year months (April to March)
+    academic_months = [4, 5, 6, 7, 8, 9, 10, 11, 12, 1, 2, 3]
+
+    available_months = []
+    paid_months = []
+
+    # Create a lookup for existing records
+    tracking_lookup = {record.academic_month: record for record in tracking_records}
+
+    for month in academic_months:
+        month_name = calendar.month_name[month]
+
+        if month in tracking_lookup:
+            record = tracking_lookup[month]
+            paid_amount = float(record.paid_amount)
+            monthly_amount = float(record.monthly_amount)
+            balance = monthly_amount - paid_amount
+
+            if balance > 0.01:  # Not fully paid (allowing for small rounding differences)
+                # Calculate year for this month (academic year: Apr 2025 - Mar 2026)
+                year = 2025 if month >= 4 else 2026
+                available_months.append({
+                    "month": month,
+                    "month_name": month_name,
+                    "year": year,
+                    "monthly_fee": monthly_amount,
+                    "paid_amount": paid_amount,
+                    "balance_amount": balance,
+                    "status": "Partial" if paid_amount > 0 else "Pending",
+                    "can_pay": True
+                })
+            else:
+                # Calculate year for this month (academic year: Apr 2025 - Mar 2026)
+                year = 2025 if month >= 4 else 2026
+                paid_months.append({
+                    "month": month,
+                    "month_name": month_name,
+                    "year": year,
+                    "monthly_fee": monthly_amount,
+                    "paid_amount": paid_amount,
+                    "balance_amount": 0,
+                    "status": "Paid",
+                    "can_pay": False
+                })
+        else:
+            # No tracking record exists, so it's available for payment
+            # Calculate year for this month (academic year: Apr 2025 - Mar 2026)
+            year = 2025 if month >= 4 else 2026
+            available_months.append({
+                "month": month,
+                "month_name": month_name,
+                "year": year,
+                "monthly_fee": monthly_fee,
+                "paid_amount": 0,
+                "balance_amount": monthly_fee,
+                "status": "Pending",
+                "can_pay": True
+            })
+
+    return {
+        "student": {
+            "id": student.id,
+            "name": f"{student.first_name} {student.last_name}",
+            "admission_number": student.admission_number,
+            "class": student.class_ref.name if student.class_ref else "Unknown"
+        },
+        "session_year": session_year.value,
+        "monthly_fee": monthly_fee,
+        "total_annual_fee": float(fee_structure.total_annual_fee) if fee_structure else monthly_fee * 12,
+        "available_months": available_months,
+        "paid_months": paid_months,
+        "summary": {
+            "total_months": 12,
+            "available_months": len(available_months),
+            "paid_months": len(paid_months),
+            "total_pending_amount": sum(m["balance_amount"] for m in available_months)
         }
     }
 

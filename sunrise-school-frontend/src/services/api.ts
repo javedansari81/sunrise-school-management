@@ -67,6 +67,15 @@ export const enhancedFeesAPI = {
 
   enableMonthlyTracking: (data: any) =>
     api.post('/fees/enable-monthly-tracking', data),
+
+  // Enhanced Monthly Payment System APIs
+  getAvailableMonths: (studentId: number, sessionYear: string = '2025-26') =>
+    api.get(`/fees/available-months/${studentId}`, {
+      params: { session_year: sessionYear }
+    }),
+
+  makeEnhancedPayment: (studentId: number, data: any) =>
+    api.post(`/fees/pay-monthly-enhanced/${studentId}`, data),
 };
 
 // Users API
