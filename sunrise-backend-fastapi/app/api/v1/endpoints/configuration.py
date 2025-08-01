@@ -35,9 +35,9 @@ async def get_metadata_configuration(db: AsyncSession) -> Dict[str, Any]:
 
     configuration = {
         "user_types": [{"id": item.id, "name": item.name, "description": item.description, "is_active": item.is_active} for item in metadata["user_types"]],
-        "session_years": [{"id": item.id, "name": item.name, "start_date": item.start_date, "end_date": item.end_date, "is_current": item.is_current, "is_active": item.is_active} for item in metadata["session_years"]],
+        "session_years": [{"id": item.id, "name": item.name, "description": item.description, "start_date": item.start_date, "end_date": item.end_date, "is_current": item.is_current, "is_active": item.is_active} for item in metadata["session_years"]],
         "genders": [{"id": item.id, "name": item.name, "description": item.description, "is_active": item.is_active} for item in metadata["genders"]],
-        "classes": [{"id": item.id, "name": item.name, "display_name": item.display_name, "sort_order": item.sort_order, "is_active": item.is_active} for item in metadata["classes"]],
+        "classes": [{"id": item.id, "name": item.name, "description": item.description, "display_name": item.display_name, "sort_order": item.sort_order, "is_active": item.is_active} for item in metadata["classes"]],
         "payment_types": [{"id": item.id, "name": item.name, "description": item.description, "is_active": item.is_active} for item in metadata["payment_types"]],
         "payment_statuses": [{"id": item.id, "name": item.name, "description": item.description, "color_code": item.color_code, "is_active": item.is_active} for item in metadata["payment_statuses"]],
         "payment_methods": [{"id": item.id, "name": item.name, "description": item.description, "requires_reference": item.requires_reference, "is_active": item.is_active} for item in metadata["payment_methods"]],
@@ -146,9 +146,11 @@ async def get_configuration(
             }
         )
     else:
-        # Return uncompressed response
-        return JSONResponse(
-            content=response_data,
+        # Return uncompressed response with proper date serialization
+        json_str = json.dumps(response_data, default=str, separators=(',', ':'))
+        return Response(
+            content=json_str,
+            media_type="application/json",
             headers={
                 "Cache-Control": "public, max-age=300",  # 5 minutes
                 "X-Response-Time": f"{response_data['metadata']['response_time_ms']}ms",

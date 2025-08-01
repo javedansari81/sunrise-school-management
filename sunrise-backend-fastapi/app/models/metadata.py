@@ -29,6 +29,7 @@ class SessionYear(Base):
 
     id = Column(Integer, primary_key=True)
     name = Column(String(20), nullable=False, unique=True)
+    description = Column(Text, nullable=False)
     start_date = Column(Date, nullable=True)
     end_date = Column(Date, nullable=True)
     is_current = Column(Boolean, default=False)
@@ -62,6 +63,7 @@ class Class(Base):
 
     id = Column(Integer, primary_key=True)
     name = Column(String(20), nullable=False, unique=True)
+    description = Column(Text, nullable=False)
     display_name = Column(String(50), nullable=True)
     sort_order = Column(Integer, nullable=True)
     is_active = Column(Boolean, default=True)

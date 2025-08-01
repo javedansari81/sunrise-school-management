@@ -153,11 +153,15 @@ class CRUDFeeRecord(CRUDBase[FeeRecord, FeeRecordCreate, FeeRecordUpdate]):
     async def get_by_student(
         self, db: AsyncSession, *, student_id: int, session_year: Optional[str] = None
     ) -> List[FeeRecord]:
-        query = select(FeeRecord).where(FeeRecord.student_id == student_id)
-        
+        query = select(FeeRecord).options(
+            joinedload(FeeRecord.payment_type),
+            joinedload(FeeRecord.payment_status),
+            joinedload(FeeRecord.session_year)
+        ).where(FeeRecord.student_id == student_id)
+
         if session_year:
             query = query.where(FeeRecord.session_year.has(name=session_year))
-        
+
         query = query.order_by(FeeRecord.created_at.desc())
         result = await db.execute(query)
         return result.scalars().all()

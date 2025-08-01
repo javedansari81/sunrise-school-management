@@ -15,6 +15,15 @@ class CRUDStudent(CRUDBase[Student, StudentCreate, StudentUpdate]):
     def __init__(self):
         super().__init__(Student)
 
+    async def get(self, db: AsyncSession, id: Any) -> Optional[Student]:
+        """Override to include class relationship"""
+        result = await db.execute(
+            select(Student)
+            .options(joinedload(Student.class_ref))
+            .where(Student.id == id)
+        )
+        return result.scalar_one_or_none()
+
     async def get_multi(
         self, db: AsyncSession, *, skip: int = 0, limit: int = 100
     ) -> List[Student]:

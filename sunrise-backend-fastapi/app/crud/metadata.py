@@ -115,119 +115,119 @@ async def get_all_metadata_async(db: AsyncSession) -> Dict[str, List[Any]]:
 
     # Single optimized query to fetch all metadata tables at once
     query = text("""
-        SELECT 'user_types' as table_name, id, name, description, NULL as display_name,
-               NULL as sort_order, NULL as start_date, NULL as end_date, NULL as is_current,
-               NULL as max_days_per_year, NULL as requires_medical_certificate, NULL as budget_limit,
-               NULL as requires_approval, NULL as color_code, NULL as is_final, NULL as level_order,
-               is_active, created_at, updated_at
+        SELECT 'user_types' as table_name, id, name, description, NULL::VARCHAR as display_name,
+               NULL::INTEGER as sort_order, NULL::DATE as start_date, NULL::DATE as end_date, NULL::BOOLEAN as is_current,
+               NULL::INTEGER as max_days_per_year, NULL::BOOLEAN as requires_medical_certificate, NULL::DECIMAL as budget_limit,
+               NULL::BOOLEAN as requires_approval, NULL::VARCHAR as color_code, NULL::BOOLEAN as is_final, NULL::INTEGER as level_order,
+               NULL::BOOLEAN as requires_reference, is_active, created_at, updated_at
         FROM user_types WHERE is_active = true
 
         UNION ALL
 
-        SELECT 'session_years' as table_name, id, name, description, NULL as display_name,
-               NULL as sort_order, start_date, end_date, is_current,
-               NULL as max_days_per_year, NULL as requires_medical_certificate, NULL as budget_limit,
-               NULL as requires_approval, NULL as color_code, NULL as is_final, NULL as level_order,
-               is_active, created_at, updated_at
+        SELECT 'session_years' as table_name, id, name, description, NULL::VARCHAR as display_name,
+               NULL::INTEGER as sort_order, start_date, end_date, is_current,
+               NULL::INTEGER as max_days_per_year, NULL::BOOLEAN as requires_medical_certificate, NULL::DECIMAL as budget_limit,
+               NULL::BOOLEAN as requires_approval, NULL::VARCHAR as color_code, NULL::BOOLEAN as is_final, NULL::INTEGER as level_order,
+               NULL::BOOLEAN as requires_reference, is_active, created_at, updated_at
         FROM session_years WHERE is_active = true
 
         UNION ALL
 
-        SELECT 'genders' as table_name, id, name, description, NULL as display_name,
-               NULL as sort_order, NULL as start_date, NULL as end_date, NULL as is_current,
-               NULL as max_days_per_year, NULL as requires_medical_certificate, NULL as budget_limit,
-               NULL as requires_approval, NULL as color_code, NULL as is_final, NULL as level_order,
-               is_active, created_at, updated_at
+        SELECT 'genders' as table_name, id, name, description, NULL::VARCHAR as display_name,
+               NULL::INTEGER as sort_order, NULL::DATE as start_date, NULL::DATE as end_date, NULL::BOOLEAN as is_current,
+               NULL::INTEGER as max_days_per_year, NULL::BOOLEAN as requires_medical_certificate, NULL::DECIMAL as budget_limit,
+               NULL::BOOLEAN as requires_approval, NULL::VARCHAR as color_code, NULL::BOOLEAN as is_final, NULL::INTEGER as level_order,
+               NULL::BOOLEAN as requires_reference, is_active, created_at, updated_at
         FROM genders WHERE is_active = true
 
         UNION ALL
 
         SELECT 'classes' as table_name, id, name, description, display_name,
-               sort_order, NULL as start_date, NULL as end_date, NULL as is_current,
-               NULL as max_days_per_year, NULL as requires_medical_certificate, NULL as budget_limit,
-               NULL as requires_approval, NULL as color_code, NULL as is_final, NULL as level_order,
-               is_active, created_at, updated_at
+               sort_order, NULL::DATE as start_date, NULL::DATE as end_date, NULL::BOOLEAN as is_current,
+               NULL::INTEGER as max_days_per_year, NULL::BOOLEAN as requires_medical_certificate, NULL::DECIMAL as budget_limit,
+               NULL::BOOLEAN as requires_approval, NULL::VARCHAR as color_code, NULL::BOOLEAN as is_final, NULL::INTEGER as level_order,
+               NULL::BOOLEAN as requires_reference, is_active, created_at, updated_at
         FROM classes WHERE is_active = true
 
         UNION ALL
 
-        SELECT 'payment_types' as table_name, id, name, description, NULL as display_name,
-               NULL as sort_order, NULL as start_date, NULL as end_date, NULL as is_current,
-               NULL as max_days_per_year, NULL as requires_medical_certificate, NULL as budget_limit,
-               NULL as requires_approval, NULL as color_code, NULL as is_final, NULL as level_order,
-               is_active, created_at, updated_at
+        SELECT 'payment_types' as table_name, id, name, description, NULL::VARCHAR as display_name,
+               NULL::INTEGER as sort_order, NULL::DATE as start_date, NULL::DATE as end_date, NULL::BOOLEAN as is_current,
+               NULL::INTEGER as max_days_per_year, NULL::BOOLEAN as requires_medical_certificate, NULL::DECIMAL as budget_limit,
+               NULL::BOOLEAN as requires_approval, NULL::VARCHAR as color_code, NULL::BOOLEAN as is_final, NULL::INTEGER as level_order,
+               NULL::BOOLEAN as requires_reference, is_active, created_at, updated_at
         FROM payment_types WHERE is_active = true
 
         UNION ALL
 
-        SELECT 'payment_statuses' as table_name, id, name, description, NULL as display_name,
-               NULL as sort_order, NULL as start_date, NULL as end_date, NULL as is_current,
-               NULL as max_days_per_year, NULL as requires_medical_certificate, NULL as budget_limit,
-               NULL as requires_approval, color_code, is_final, NULL as level_order,
-               is_active, created_at, updated_at
+        SELECT 'payment_statuses' as table_name, id, name, description, NULL::VARCHAR as display_name,
+               NULL::INTEGER as sort_order, NULL::DATE as start_date, NULL::DATE as end_date, NULL::BOOLEAN as is_current,
+               NULL::INTEGER as max_days_per_year, NULL::BOOLEAN as requires_medical_certificate, NULL::DECIMAL as budget_limit,
+               NULL::BOOLEAN as requires_approval, color_code, NULL::BOOLEAN as is_final, NULL::INTEGER as level_order,
+               NULL::BOOLEAN as requires_reference, is_active, created_at, updated_at
         FROM payment_statuses WHERE is_active = true
 
         UNION ALL
 
-        SELECT 'payment_methods' as table_name, id, name, description, NULL as display_name,
-               NULL as sort_order, NULL as start_date, NULL as end_date, NULL as is_current,
-               NULL as max_days_per_year, NULL as requires_medical_certificate, NULL as budget_limit,
-               NULL as requires_approval, NULL as color_code, NULL as is_final, NULL as level_order,
-               is_active, created_at, updated_at
+        SELECT 'payment_methods' as table_name, id, name, description, NULL::VARCHAR as display_name,
+               NULL::INTEGER as sort_order, NULL::DATE as start_date, NULL::DATE as end_date, NULL::BOOLEAN as is_current,
+               NULL::INTEGER as max_days_per_year, NULL::BOOLEAN as requires_medical_certificate, NULL::DECIMAL as budget_limit,
+               NULL::BOOLEAN as requires_approval, NULL::VARCHAR as color_code, NULL::BOOLEAN as is_final, NULL::INTEGER as level_order,
+               requires_reference, is_active, created_at, updated_at
         FROM payment_methods WHERE is_active = true
 
         UNION ALL
 
-        SELECT 'leave_types' as table_name, id, name, description, NULL as display_name,
-               NULL as sort_order, NULL as start_date, NULL as end_date, NULL as is_current,
-               max_days_per_year, requires_medical_certificate, NULL as budget_limit,
-               NULL as requires_approval, NULL as color_code, NULL as is_final, NULL as level_order,
-               is_active, created_at, updated_at
+        SELECT 'leave_types' as table_name, id, name, description, NULL::VARCHAR as display_name,
+               NULL::INTEGER as sort_order, NULL::DATE as start_date, NULL::DATE as end_date, NULL::BOOLEAN as is_current,
+               max_days_per_year, requires_medical_certificate, NULL::DECIMAL as budget_limit,
+               NULL::BOOLEAN as requires_approval, NULL::VARCHAR as color_code, NULL::BOOLEAN as is_final, NULL::INTEGER as level_order,
+               NULL::BOOLEAN as requires_reference, is_active, created_at, updated_at
         FROM leave_types WHERE is_active = true
 
         UNION ALL
 
-        SELECT 'leave_statuses' as table_name, id, name, description, NULL as display_name,
-               NULL as sort_order, NULL as start_date, NULL as end_date, NULL as is_current,
-               NULL as max_days_per_year, NULL as requires_medical_certificate, NULL as budget_limit,
-               NULL as requires_approval, color_code, is_final, NULL as level_order,
-               is_active, created_at, updated_at
+        SELECT 'leave_statuses' as table_name, id, name, description, NULL::VARCHAR as display_name,
+               NULL::INTEGER as sort_order, NULL::DATE as start_date, NULL::DATE as end_date, NULL::BOOLEAN as is_current,
+               NULL::INTEGER as max_days_per_year, NULL::BOOLEAN as requires_medical_certificate, NULL::DECIMAL as budget_limit,
+               NULL::BOOLEAN as requires_approval, color_code, is_final, NULL::INTEGER as level_order,
+               NULL::BOOLEAN as requires_reference, is_active, created_at, updated_at
         FROM leave_statuses WHERE is_active = true
 
         UNION ALL
 
-        SELECT 'expense_categories' as table_name, id, name, description, NULL as display_name,
-               NULL as sort_order, NULL as start_date, NULL as end_date, NULL as is_current,
-               NULL as max_days_per_year, NULL as requires_medical_certificate, budget_limit,
-               requires_approval, NULL as color_code, NULL as is_final, NULL as level_order,
-               is_active, created_at, updated_at
+        SELECT 'expense_categories' as table_name, id, name, description, NULL::VARCHAR as display_name,
+               NULL::INTEGER as sort_order, NULL::DATE as start_date, NULL::DATE as end_date, NULL::BOOLEAN as is_current,
+               NULL::INTEGER as max_days_per_year, NULL::BOOLEAN as requires_medical_certificate, budget_limit,
+               requires_approval, NULL::VARCHAR as color_code, NULL::BOOLEAN as is_final, NULL::INTEGER as level_order,
+               NULL::BOOLEAN as requires_reference, is_active, created_at, updated_at
         FROM expense_categories WHERE is_active = true
 
         UNION ALL
 
-        SELECT 'expense_statuses' as table_name, id, name, description, NULL as display_name,
-               NULL as sort_order, NULL as start_date, NULL as end_date, NULL as is_current,
-               NULL as max_days_per_year, NULL as requires_medical_certificate, NULL as budget_limit,
-               NULL as requires_approval, color_code, is_final, NULL as level_order,
-               is_active, created_at, updated_at
+        SELECT 'expense_statuses' as table_name, id, name, description, NULL::VARCHAR as display_name,
+               NULL::INTEGER as sort_order, NULL::DATE as start_date, NULL::DATE as end_date, NULL::BOOLEAN as is_current,
+               NULL::INTEGER as max_days_per_year, NULL::BOOLEAN as requires_medical_certificate, NULL::DECIMAL as budget_limit,
+               NULL::BOOLEAN as requires_approval, color_code, is_final, NULL::INTEGER as level_order,
+               NULL::BOOLEAN as requires_reference, is_active, created_at, updated_at
         FROM expense_statuses WHERE is_active = true
 
         UNION ALL
 
-        SELECT 'employment_statuses' as table_name, id, name, description, NULL as display_name,
-               NULL as sort_order, NULL as start_date, NULL as end_date, NULL as is_current,
-               NULL as max_days_per_year, NULL as requires_medical_certificate, NULL as budget_limit,
-               NULL as requires_approval, NULL as color_code, NULL as is_final, NULL as level_order,
-               is_active, created_at, updated_at
+        SELECT 'employment_statuses' as table_name, id, name, description, NULL::VARCHAR as display_name,
+               NULL::INTEGER as sort_order, NULL::DATE as start_date, NULL::DATE as end_date, NULL::BOOLEAN as is_current,
+               NULL::INTEGER as max_days_per_year, NULL::BOOLEAN as requires_medical_certificate, NULL::DECIMAL as budget_limit,
+               NULL::BOOLEAN as requires_approval, NULL::VARCHAR as color_code, NULL::BOOLEAN as is_final, NULL::INTEGER as level_order,
+               NULL::BOOLEAN as requires_reference, is_active, created_at, updated_at
         FROM employment_statuses WHERE is_active = true
 
         UNION ALL
 
-        SELECT 'qualifications' as table_name, id, name, description, NULL as display_name,
-               NULL as sort_order, NULL as start_date, NULL as end_date, NULL as is_current,
-               NULL as max_days_per_year, NULL as requires_medical_certificate, NULL as budget_limit,
-               NULL as requires_approval, NULL as color_code, NULL as is_final, level_order,
-               is_active, created_at, updated_at
+        SELECT 'qualifications' as table_name, id, name, description, NULL::VARCHAR as display_name,
+               NULL::INTEGER as sort_order, NULL::DATE as start_date, NULL::DATE as end_date, NULL::BOOLEAN as is_current,
+               NULL::INTEGER as max_days_per_year, NULL::BOOLEAN as requires_medical_certificate, NULL::DECIMAL as budget_limit,
+               NULL::BOOLEAN as requires_approval, NULL::VARCHAR as color_code, NULL::BOOLEAN as is_final, level_order,
+               NULL::BOOLEAN as requires_reference, is_active, created_at, updated_at
         FROM qualifications WHERE is_active = true
 
         ORDER BY table_name, id
@@ -298,7 +298,7 @@ async def get_all_metadata_async(db: AsyncSession) -> Dict[str, List[Any]]:
         elif table_name == 'payment_methods':
             obj = type('PaymentMethod', (), {
                 'id': row.id, 'name': row.name, 'description': row.description,
-                'is_active': row.is_active
+                'requires_reference': row.requires_reference, 'is_active': row.is_active
             })()
         elif table_name == 'leave_types':
             obj = type('LeaveType', (), {

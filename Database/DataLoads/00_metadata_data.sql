@@ -25,14 +25,15 @@ ON CONFLICT (id) DO UPDATE SET
 -- =====================================================
 -- Session Years Data
 -- =====================================================
-INSERT INTO session_years (id, name, start_date, end_date, is_current, is_active) VALUES
-(1, '2022-23', '2022-04-01', '2023-03-31', FALSE, TRUE),
-(2, '2023-24', '2023-04-01', '2024-03-31', FALSE, TRUE),
-(3, '2024-25', '2024-04-01', '2025-03-31', FALSE, TRUE),
-(4, '2025-26', '2025-04-01', '2026-03-31', TRUE, TRUE),
-(5, '2026-27', '2026-04-01', '2027-03-31', FALSE, TRUE)
+INSERT INTO session_years (id, name, description, start_date, end_date, is_current, is_active) VALUES
+(1, '2022-23', 'Academic session from April 2022 to March 2023', '2022-04-01', '2023-03-31', FALSE, TRUE),
+(2, '2023-24', 'Academic session from April 2023 to March 2024', '2023-04-01', '2024-03-31', FALSE, TRUE),
+(3, '2024-25', 'Academic session from April 2024 to March 2025', '2024-04-01', '2025-03-31', FALSE, TRUE),
+(4, '2025-26', 'Academic session from April 2025 to March 2026', '2025-04-01', '2026-03-31', TRUE, TRUE),
+(5, '2026-27', 'Academic session from April 2026 to March 2027', '2026-04-01', '2027-03-31', FALSE, TRUE)
 ON CONFLICT (id) DO UPDATE SET
     name = EXCLUDED.name,
+    description = EXCLUDED.description,
     start_date = EXCLUDED.start_date,
     end_date = EXCLUDED.end_date,
     is_current = EXCLUDED.is_current,
@@ -55,25 +56,26 @@ ON CONFLICT (id) DO UPDATE SET
 -- =====================================================
 -- Classes Data
 -- =====================================================
-INSERT INTO classes (id, name, display_name, sort_order, is_active) VALUES
-(1, 'PG', 'Pre-Nursery', 1, TRUE),
-(2, 'NURSERY', 'Nursery', 2, TRUE),
-(3, 'LKG', 'Lower Kindergarten', 3, TRUE),
-(4, 'UKG', 'Upper Kindergarten', 4, TRUE),
-(5, 'CLASS_1', 'Class 1', 5, TRUE),
-(6, 'CLASS_2', 'Class 2', 6, TRUE),
-(7, 'CLASS_3', 'Class 3', 7, TRUE),
-(8, 'CLASS_4', 'Class 4', 8, TRUE),
-(9, 'CLASS_5', 'Class 5', 9, TRUE),
-(10, 'CLASS_6', 'Class 6', 10, TRUE),
-(11, 'CLASS_7', 'Class 7', 11, TRUE),
-(12, 'CLASS_8', 'Class 8', 12, TRUE),
-(13, 'CLASS_9', 'Class 9', 13, TRUE),
-(14, 'CLASS_10', 'Class 10', 14, TRUE),
-(15, 'CLASS_11', 'Class 11', 15, TRUE),
-(16, 'CLASS_12', 'Class 12', 16, TRUE)
+INSERT INTO classes (id, name, description, display_name, sort_order, is_active) VALUES
+(1, 'PG', 'Pre-primary education for ages 2-3 years', 'Pre-Nursery', 1, TRUE),
+(2, 'NURSERY', 'Pre-primary education for ages 3-4 years', 'Nursery', 2, TRUE),
+(3, 'LKG', 'Lower Kindergarten for ages 4-5 years', 'Lower Kindergarten', 3, TRUE),
+(4, 'UKG', 'Upper Kindergarten for ages 5-6 years', 'Upper Kindergarten', 4, TRUE),
+(5, 'CLASS_1', 'Primary education - Grade 1', 'Class 1', 5, TRUE),
+(6, 'CLASS_2', 'Primary education - Grade 2', 'Class 2', 6, TRUE),
+(7, 'CLASS_3', 'Primary education - Grade 3', 'Class 3', 7, TRUE),
+(8, 'CLASS_4', 'Primary education - Grade 4', 'Class 4', 8, TRUE),
+(9, 'CLASS_5', 'Primary education - Grade 5', 'Class 5', 9, TRUE),
+(10, 'CLASS_6', 'Middle school - Grade 6', 'Class 6', 10, TRUE),
+(11, 'CLASS_7', 'Middle school - Grade 7', 'Class 7', 11, TRUE),
+(12, 'CLASS_8', 'Middle school - Grade 8', 'Class 8', 12, TRUE),
+(13, 'CLASS_9', 'Secondary education - Grade 9', 'Class 9', 13, TRUE),
+(14, 'CLASS_10', 'Secondary education - Grade 10', 'Class 10', 14, TRUE),
+(15, 'CLASS_11', 'Higher secondary education - Grade 11', 'Class 11', 15, TRUE),
+(16, 'CLASS_12', 'Higher secondary education - Grade 12', 'Class 12', 16, TRUE)
 ON CONFLICT (id) DO UPDATE SET
     name = EXCLUDED.name,
+    description = EXCLUDED.description,
     display_name = EXCLUDED.display_name,
     sort_order = EXCLUDED.sort_order,
     is_active = EXCLUDED.is_active,

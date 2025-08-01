@@ -25,6 +25,7 @@ COMMENT ON COLUMN user_types.id IS 'Non-auto-increment primary key for user type
 CREATE TABLE IF NOT EXISTS session_years (
     id INTEGER PRIMARY KEY,
     name VARCHAR(20) NOT NULL UNIQUE,
+    description TEXT NOT NULL,
     start_date DATE,
     end_date DATE,
     is_current BOOLEAN DEFAULT FALSE,
@@ -35,6 +36,7 @@ CREATE TABLE IF NOT EXISTS session_years (
 
 COMMENT ON TABLE session_years IS 'Reference table for academic session years';
 COMMENT ON COLUMN session_years.id IS 'Non-auto-increment primary key for session year';
+COMMENT ON COLUMN session_years.description IS 'Detailed description of the academic session period';
 COMMENT ON COLUMN session_years.is_current IS 'Indicates if this is the current active session';
 
 -- =====================================================
@@ -58,6 +60,7 @@ COMMENT ON COLUMN genders.id IS 'Non-auto-increment primary key for gender';
 CREATE TABLE IF NOT EXISTS classes (
     id INTEGER PRIMARY KEY,
     name VARCHAR(20) NOT NULL UNIQUE,
+    description TEXT NOT NULL,
     display_name VARCHAR(50),
     sort_order INTEGER,
     is_active BOOLEAN DEFAULT TRUE,
@@ -67,6 +70,7 @@ CREATE TABLE IF NOT EXISTS classes (
 
 COMMENT ON TABLE classes IS 'Reference table for class/grade levels';
 COMMENT ON COLUMN classes.id IS 'Non-auto-increment primary key for class';
+COMMENT ON COLUMN classes.description IS 'Detailed description of the academic class/grade level';
 COMMENT ON COLUMN classes.sort_order IS 'Order for displaying classes (PG=1, LKG=2, etc.)';
 
 -- =====================================================
