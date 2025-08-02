@@ -1,9 +1,13 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Card,
   CardContent,
   Typography,
+  Button,
+  Alert,
+  CircularProgress,
+  Chip,
 } from '@mui/material';
 import {
   People,
@@ -12,11 +16,45 @@ import {
   EventNote,
   AccountBalance,
   TrendingUp,
+  Visibility,
 } from '@mui/icons-material';
+import { useNavigate } from 'react-router-dom';
 import AdminLayout from '../../components/Layout/AdminLayout';
+import { leaveAPI } from '../../services/api';
 
 const AdminDashboard: React.FC = () => {
-  const dashboardCards = [
+  const navigate = useNavigate();
+  const [leaveStats, setLeaveStats] = useState<any>(null);
+  const [pendingLeaves, setPendingLeaves] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    loadDashboardData();
+  }, []);
+
+  const loadDashboardData = async () => {
+    try {
+      setLoading(true);
+      const [statsResponse, pendingResponse] = await Promise.all([
+        leaveAPI.getLeaveStatistics(),
+        leaveAPI.getPendingLeaves()
+      ]);
+
+      setLeaveStats(statsResponse);
+      setPendingLeaves(Array.isArray(pendingResponse) ? pendingResponse : []);
+      setError(null);
+    } catch (err: any) {
+      console.error('Error loading dashboard data:', err);
+      setError('Failed to load dashboard data');
+      setLeaveStats(null);
+      setPendingLeaves([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getDashboardCards = () => [
     {
       title: 'Total Students',
       value: '245',
@@ -40,10 +78,12 @@ const AdminDashboard: React.FC = () => {
     },
     {
       title: 'Leave Requests',
-      value: '8',
+      value: leaveStats?.summary?.total_requests?.toString() || '0',
       icon: <EventNote fontSize="large" />,
       color: '#7b1fa2',
-      change: '3 pending approval',
+      change: `${leaveStats?.summary?.pending_requests || 0} pending approval`,
+      clickable: true,
+      onClick: () => navigate('/admin/leaves'),
     },
     {
       title: 'Monthly Expenses',
@@ -75,7 +115,7 @@ const AdminDashboard: React.FC = () => {
 
         {/* Dashboard Cards */}
         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
-          {dashboardCards.map((card, index) => (
+          {getDashboardCards().map((card, index) => (
             <Box key={index} sx={{ flex: '1 1 300px', minWidth: 300 }}>
               <Card
                 sx={{
@@ -116,6 +156,71 @@ const AdminDashboard: React.FC = () => {
             </Box>
           ))}
         </Box>
+
+        {/* Pending Leave Requests Section */}
+        {!loading && pendingLeaves.length > 0 && (
+          <Card sx={{ mb: 3 }}>
+            <CardContent>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                <Typography variant="h6" fontWeight="bold">
+                  Pending Leave Requests ({pendingLeaves.length})
+                </Typography>
+                <Button
+                  variant="outlined"
+                  startIcon={<Visibility />}
+                  onClick={() => navigate('/admin/leaves')}
+                >
+                  View All
+                </Button>
+              </Box>
+
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                {pendingLeaves.slice(0, 5).map((leave) => (
+                  <Box
+                    key={leave.id}
+                    sx={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      p: 2,
+                      border: '1px solid #e0e0e0',
+                      borderRadius: 1,
+                      '&:hover': {
+                        backgroundColor: '#f5f5f5',
+                      },
+                    }}
+                  >
+                    <Box>
+                      <Typography variant="subtitle1" fontWeight="bold">
+                        {leave.applicant_name}
+                      </Typography>
+                      <Typography variant="body2" color="textSecondary">
+                        {leave.applicant_details} • {leave.leave_type_name}
+                      </Typography>
+                      <Typography variant="body2" color="textSecondary">
+                        {leave.start_date} to {leave.end_date} ({leave.total_days} days)
+                      </Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Chip
+                        label={leave.leave_status_name}
+                        color="warning"
+                        size="small"
+                      />
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        onClick={() => navigate('/admin/leaves')}
+                      >
+                        Review
+                      </Button>
+                    </Box>
+                  </Box>
+                ))}
+              </Box>
+            </CardContent>
+          </Card>
+        )}
       </Box>
     </AdminLayout>
   );

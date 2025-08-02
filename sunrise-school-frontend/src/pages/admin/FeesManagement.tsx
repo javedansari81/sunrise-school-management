@@ -5,6 +5,7 @@ import {
 } from '@mui/material';
 import AdminLayout from '../../components/Layout/AdminLayout';
 import SimpleEnhancedFeeManagement from '../../components/fees/SimpleEnhancedFeeManagement';
+import ServiceConfigurationLoader from '../../components/common/ServiceConfigurationLoader';
 
 const FeesManagement: React.FC = () => {
   return (
@@ -17,7 +18,9 @@ const FeesManagement: React.FC = () => {
           Manage student fees with monthly tracking and payment history
         </Typography>
 
-        <SimpleEnhancedFeeManagement />
+        <ServiceConfigurationLoader service="fee-management">
+          <SimpleEnhancedFeeManagement />
+        </ServiceConfigurationLoader>
       </Box>
     </AdminLayout>
   );

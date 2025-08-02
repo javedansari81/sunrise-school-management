@@ -4,7 +4,8 @@ import {
   Box,
 } from '@mui/material';
 import AdminLayout from '../../components/Layout/AdminLayout';
-import EmbeddedLeaveManagement from '../../components/admin/EmbeddedLeaveManagement';
+import LeaveManagementSystem from '../../components/admin/LeaveManagementSystem';
+import ServiceConfigurationLoader from '../../components/common/ServiceConfigurationLoader';
 
 const LeaveManagement: React.FC = () => {
   return (
@@ -17,7 +18,9 @@ const LeaveManagement: React.FC = () => {
           Manage employee leave requests and approvals
         </Typography>
 
-        <EmbeddedLeaveManagement />
+        <ServiceConfigurationLoader service="leave-management">
+          <LeaveManagementSystem />
+        </ServiceConfigurationLoader>
       </Box>
     </AdminLayout>
   );

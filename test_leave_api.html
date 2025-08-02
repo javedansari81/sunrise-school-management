@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Leave API Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ccc; }
+        .success { color: green; }
+        .error { color: red; }
+        .info { color: blue; }
+        button { margin: 5px; padding: 10px; }
+        pre { background: #f5f5f5; padding: 10px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>Leave Management API Test</h1>
+    
+    <div class="test-section">
+        <h2>API Endpoint Tests</h2>
+        <button onclick="testGetLeaves()">Test GET /leaves</button>
+        <button onclick="testCreateLeave()">Test POST /leaves</button>
+        <button onclick="testConfiguration()">Test Configuration</button>
+        <div id="results"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8000/api/v1';
+        
+        function log(message, type = 'info') {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = type;
+            div.innerHTML = `<strong>${new Date().toLocaleTimeString()}</strong>: ${message}`;
+            results.appendChild(div);
+        }
+
+        function logJson(data, title) {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.innerHTML = `<strong>${title}:</strong><pre>${JSON.stringify(data, null, 2)}</pre>`;
+            results.appendChild(div);
+        }
+
+        async function testGetLeaves() {
+            try {
+                log('Testing GET /leaves endpoint...', 'info');
+                const response = await fetch(`${API_BASE}/leaves/`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                log('GET /leaves successful', 'success');
+                logJson(data, 'Response Data');
+                
+            } catch (error) {
+                log(`GET /leaves failed: ${error.message}`, 'error');
+                if (error.message.includes('Failed to fetch')) {
+                    log('Backend server appears to be down. Please start the FastAPI server.', 'error');
+                }
+            }
+        }
+
+        async function testCreateLeave() {
+            try {
+                log('Testing POST /leaves endpoint...', 'info');
+                
+                const testData = {
+                    applicant_id: 1,
+                    applicant_type: "student",
+                    leave_type_id: 1,
+                    start_date: "2024-02-20",
+                    end_date: "2024-02-22",
+                    total_days: 3,
+                    reason: "Test leave request from API test",
+                    parent_consent: true,
+                    emergency_contact_name: "Test Parent",
+                    emergency_contact_phone: "1234567890"
+                };
+                
+                logJson(testData, 'Request Payload');
+                
+                const response = await fetch(`${API_BASE}/leaves/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(testData)
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.text();
+                    throw new Error(`HTTP ${response.status}: ${errorData}`);
+                }
+                
+                const data = await response.json();
+                log('POST /leaves successful', 'success');
+                logJson(data, 'Response Data');
+                
+            } catch (error) {
+                log(`POST /leaves failed: ${error.message}`, 'error');
+                if (error.message.includes('Failed to fetch')) {
+                    log('Backend server appears to be down. Please start the FastAPI server.', 'error');
+                }
+            }
+        }
+
+        async function testConfiguration() {
+            try {
+                log('Testing configuration endpoint...', 'info');
+                const response = await fetch(`${API_BASE}/configuration/`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                log('Configuration endpoint successful', 'success');
+                logJson(data, 'Configuration Data');
+                
+                // Check for leave types and statuses
+                if (data.leave_types) {
+                    log(`Found ${data.leave_types.length} leave types`, 'success');
+                } else {
+                    log('No leave_types found in configuration', 'error');
+                }
+                
+                if (data.leave_statuses) {
+                    log(`Found ${data.leave_statuses.length} leave statuses`, 'success');
+                } else {
+                    log('No leave_statuses found in configuration', 'error');
+                }
+                
+            } catch (error) {
+                log(`Configuration test failed: ${error.message}`, 'error');
+                if (error.message.includes('Failed to fetch')) {
+                    log('Backend server appears to be down. Please start the FastAPI server.', 'error');
+                }
+            }
+        }
+
+        // Auto-run basic connectivity test
+        window.onload = function() {
+            log('Starting API connectivity test...', 'info');
+            testConfiguration();
+        };
+    </script>
+</body>
+</html>

@@ -5,7 +5,14 @@ import { AuthProvider, useAuth } from '../AuthContext';
 import * as api from '../../services/api';
 
 // Mock the API
-jest.mock('../../services/api');
+jest.mock('../../services/api', () => ({
+  authAPI: {
+    login: jest.fn(),
+    getCurrentUser: jest.fn(),
+    logout: jest.fn(),
+  }
+}));
+
 const mockedApi = api as jest.Mocked<typeof api>;
 
 // Test component that uses the auth context
@@ -64,7 +71,7 @@ describe('AuthContext', () => {
   });
 
   it('should handle successful login', async () => {
-    const user = userEvent.setup();
+
     const mockLoginResponse = {
       data: {
         access_token: 'mock-token',
@@ -82,8 +89,8 @@ describe('AuthContext', () => {
       }
     };
 
-    mockedApi.authAPI.login.mockResolvedValue(mockLoginResponse);
-    mockedApi.authAPI.getCurrentUser.mockResolvedValue(mockUserResponse);
+    (mockedApi.authAPI.login as jest.Mock).mockResolvedValue(mockLoginResponse);
+    (mockedApi.authAPI.getCurrentUser as jest.Mock).mockResolvedValue(mockUserResponse);
 
     renderWithAuthProvider(<TestComponent />);
 
@@ -91,7 +98,7 @@ describe('AuthContext', () => {
       expect(screen.getByTestId('auth-status')).toHaveTextContent('Not Authenticated');
     });
 
-    await user.click(screen.getByTestId('login-button'));
+    await userEvent.click(screen.getByTestId('login-button'));
 
     await waitFor(() => {
       expect(screen.getByTestId('auth-status')).toHaveTextContent('Authenticated');
@@ -103,10 +110,9 @@ describe('AuthContext', () => {
   });
 
   it('should handle login failure', async () => {
-    const user = userEvent.setup();
     const mockError = new Error('Invalid credentials');
-    
-    mockedApi.authAPI.login.mockRejectedValue(mockError);
+
+    (mockedApi.authAPI.login as jest.Mock).mockRejectedValue(mockError);
 
     renderWithAuthProvider(<TestComponent />);
 
@@ -115,14 +121,14 @@ describe('AuthContext', () => {
     });
 
     await expect(async () => {
-      await user.click(screen.getByTestId('login-button'));
+      await userEvent.click(screen.getByTestId('login-button'));
     }).rejects.toThrow('Invalid credentials');
 
     expect(localStorage.getItem('authToken')).toBeNull();
   });
 
   it('should handle logout', async () => {
-    const user = userEvent.setup();
+
     
     // Set up initial authenticated state
     localStorage.setItem('authToken', 'mock-token');
@@ -139,7 +145,7 @@ describe('AuthContext', () => {
       }
     };
 
-    mockedApi.authAPI.getCurrentUser.mockResolvedValue(mockUserResponse);
+    (mockedApi.authAPI.getCurrentUser as jest.Mock).mockResolvedValue(mockUserResponse);
 
     renderWithAuthProvider(<TestComponent />);
 
@@ -147,7 +153,7 @@ describe('AuthContext', () => {
       expect(screen.getByTestId('auth-status')).toHaveTextContent('Authenticated');
     });
 
-    await user.click(screen.getByTestId('logout-button'));
+    await userEvent.click(screen.getByTestId('logout-button'));
 
     await waitFor(() => {
       expect(screen.getByTestId('auth-status')).toHaveTextContent('Not Authenticated');
@@ -171,7 +177,7 @@ describe('AuthContext', () => {
       }
     };
 
-    mockedApi.authAPI.getCurrentUser.mockResolvedValue(mockUserResponse);
+    (mockedApi.authAPI.getCurrentUser as jest.Mock).mockResolvedValue(mockUserResponse);
 
     renderWithAuthProvider(<TestComponent />);
 
@@ -186,7 +192,7 @@ describe('AuthContext', () => {
   it('should handle API error during token refresh', async () => {
     localStorage.setItem('authToken', 'invalid-token');
     
-    mockedApi.authAPI.getCurrentUser.mockRejectedValue(new Error('Unauthorized'));
+    (mockedApi.authAPI.getCurrentUser as jest.Mock).mockRejectedValue(new Error('Unauthorized'));
 
     renderWithAuthProvider(<TestComponent />);
 

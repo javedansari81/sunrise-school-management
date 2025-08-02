@@ -1,93 +1,218 @@
-from sqlalchemy import Column, Integer, String, Float, Date, Enum, ForeignKey, Text, DateTime, Boolean
+from sqlalchemy import Column, Integer, String, DECIMAL, Date, ForeignKey, Text, DateTime, Boolean, JSON
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
-import enum
 
 from app.core.database import Base
 
 
-class ExpenseCategoryEnum(str, enum.Enum):
-    INFRASTRUCTURE = "Infrastructure"
-    MAINTENANCE = "Maintenance"
-    UTILITIES = "Utilities"
-    SUPPLIES = "Supplies"
-    EQUIPMENT = "Equipment"
-    TRANSPORTATION = "Transportation"
-    EVENTS = "Events"
-    MARKETING = "Marketing"
-    STAFF_WELFARE = "Staff Welfare"
-    ACADEMIC = "Academic"
-    SPORTS = "Sports"
-    LIBRARY = "Library"
-    LABORATORY = "Laboratory"
-    SECURITY = "Security"
-    CLEANING = "Cleaning"
-    OTHER = "Other"
-
-
-class PaymentModeEnum(str, enum.Enum):
-    CASH = "Cash"
-    CHEQUE = "Cheque"
-    ONLINE = "Online Transfer"
-    UPI = "UPI"
-    CARD = "Card"
-
-
-class ExpenseStatusEnum(str, enum.Enum):
-    PENDING = "Pending"
-    APPROVED = "Approved"
-    PAID = "Paid"
-    REJECTED = "Rejected"
-
-
 class Expense(Base):
+    """
+    Expense model aligned with metadata-driven architecture
+    Uses expense_categories, expense_statuses, and payment_methods metadata tables
+    """
     __tablename__ = "expenses"
 
     id = Column(Integer, primary_key=True, index=True)
-    
+
     # Basic Information
-    title = Column(String(200), nullable=False)
-    description = Column(Text, nullable=True)
-    category = Column(Enum(ExpenseCategoryEnum), nullable=False)
-    
-    # Amount Details
-    amount = Column(Float, nullable=False)
-    tax_amount = Column(Float, default=0.0)
-    total_amount = Column(Float, nullable=False)
-    
-    # Vendor/Supplier Information
+    expense_date = Column(Date, nullable=False)
+    expense_category_id = Column(Integer, ForeignKey("expense_categories.id"), nullable=False)
+    subcategory = Column(String(100), nullable=True)
+    description = Column(Text, nullable=False)
+
+    # Financial Details
+    amount = Column(DECIMAL(12, 2), nullable=False)
+    tax_amount = Column(DECIMAL(10, 2), default=0.0)
+    total_amount = Column(DECIMAL(12, 2), nullable=False)
+    currency = Column(String(3), default='INR')
+
+    # Vendor Information
     vendor_name = Column(String(200), nullable=True)
-    vendor_contact = Column(String(15), nullable=True)
+    vendor_contact = Column(String(20), nullable=True)
+    vendor_email = Column(String(255), nullable=True)
     vendor_address = Column(Text, nullable=True)
-    
-    # Payment Information
-    payment_mode = Column(Enum(PaymentModeEnum), nullable=True)
+    vendor_gst_number = Column(String(20), nullable=True)
+
+    # Payment Details
+    payment_method_id = Column(Integer, ForeignKey("payment_methods.id"), nullable=False)
+    payment_status_id = Column(Integer, ForeignKey("payment_statuses.id"), default=1)
     payment_date = Column(Date, nullable=True)
-    transaction_id = Column(String(100), nullable=True)
+    payment_reference = Column(String(100), nullable=True)
+
+    # Bank/Cheque Details
+    bank_name = Column(String(100), nullable=True)
     cheque_number = Column(String(50), nullable=True)
-    
-    # Invoice/Bill Information
-    invoice_number = Column(String(100), nullable=True)
-    invoice_date = Column(Date, nullable=True)
-    bill_attachment_url = Column(String(500), nullable=True)
-    
+    cheque_date = Column(Date, nullable=True)
+
     # Approval Workflow
-    status = Column(Enum(ExpenseStatusEnum), default=ExpenseStatusEnum.PENDING)
+    expense_status_id = Column(Integer, ForeignKey("expense_statuses.id"), default=1)
     requested_by = Column(Integer, ForeignKey("users.id"), nullable=False)
     approved_by = Column(Integer, ForeignKey("users.id"), nullable=True)
     approved_at = Column(DateTime(timezone=True), nullable=True)
-    rejection_reason = Column(Text, nullable=True)
-    
+    approval_comments = Column(Text, nullable=True)
+
+    # Budget Information
+    budget_category = Column(String(100), nullable=True)
+    session_year_id = Column(Integer, ForeignKey("session_years.id"), nullable=True)
+    is_budgeted = Column(Boolean, default=False)
+
+    # Documents
+    invoice_url = Column(String(500), nullable=True)
+    receipt_url = Column(String(500), nullable=True)
+    supporting_documents = Column(JSON, nullable=True)  # Array of document URLs
+
     # Additional Information
-    remarks = Column(Text, nullable=True)
     is_recurring = Column(Boolean, default=False)
-    recurring_frequency = Column(String(50), nullable=True)  # Monthly, Quarterly, Yearly
-    
+    recurring_frequency = Column(String(20), nullable=True)  # Monthly, Quarterly, Half Yearly, Yearly
+    next_due_date = Column(Date, nullable=True)
+
+    # Priority and Urgency
+    priority = Column(String(10), default='Medium')  # Low, Medium, High, Urgent
+    is_emergency = Column(Boolean, default=False)
+
     # Timestamps
-    expense_date = Column(Date, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-    
+
     # Relationships
+    expense_category = relationship("ExpenseCategory", foreign_keys=[expense_category_id])
+    expense_status = relationship("ExpenseStatus", foreign_keys=[expense_status_id])
+    payment_method = relationship("PaymentMethod", foreign_keys=[payment_method_id])
+    payment_status = relationship("PaymentStatus", foreign_keys=[payment_status_id])
+    session_year = relationship("SessionYear", foreign_keys=[session_year_id])
     requester = relationship("User", foreign_keys=[requested_by])
     approver = relationship("User", foreign_keys=[approved_by])
+
+
+class Vendor(Base):
+    """
+    Vendor/Supplier management for expenses
+    """
+    __tablename__ = "vendors"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    # Basic Information
+    vendor_name = Column(String(200), nullable=False, unique=True)
+    vendor_code = Column(String(50), nullable=True, unique=True)
+    contact_person = Column(String(200), nullable=True)
+
+    # Contact Information
+    phone = Column(String(20), nullable=True)
+    email = Column(String(255), nullable=True)
+    website = Column(String(255), nullable=True)
+
+    # Address Information
+    address_line1 = Column(String(255), nullable=True)
+    address_line2 = Column(String(255), nullable=True)
+    city = Column(String(100), nullable=True)
+    state = Column(String(100), nullable=True)
+    postal_code = Column(String(20), nullable=True)
+    country = Column(String(100), default='India')
+
+    # Business Information
+    gst_number = Column(String(20), nullable=True)
+    pan_number = Column(String(20), nullable=True)
+    business_type = Column(String(100), nullable=True)
+
+    # Banking Information
+    bank_name = Column(String(200), nullable=True)
+    account_number = Column(String(50), nullable=True)
+    ifsc_code = Column(String(20), nullable=True)
+
+    # Status and Categories
+    is_active = Column(Boolean, default=True)
+    vendor_categories = Column(JSON, nullable=True)  # Array of category IDs
+
+    # Credit Terms
+    credit_limit = Column(DECIMAL(12, 2), nullable=True)
+    credit_days = Column(Integer, default=30)
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+
+class Budget(Base):
+    """
+    Budget planning and tracking
+    """
+    __tablename__ = "budgets"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    # Budget Information
+    budget_name = Column(String(200), nullable=False)
+    session_year_id = Column(Integer, ForeignKey("session_years.id"), nullable=False)
+    expense_category_id = Column(Integer, ForeignKey("expense_categories.id"), nullable=False)
+
+    # Budget Amounts
+    allocated_amount = Column(DECIMAL(12, 2), nullable=False)
+    spent_amount = Column(DECIMAL(12, 2), default=0.0)
+    committed_amount = Column(DECIMAL(12, 2), default=0.0)  # For pending approvals
+    available_amount = Column(DECIMAL(12, 2), nullable=False)
+
+    # Budget Period
+    start_date = Column(Date, nullable=False)
+    end_date = Column(Date, nullable=False)
+
+    # Status and Approval
+    is_active = Column(Boolean, default=True)
+    approved_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    approved_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Additional Information
+    description = Column(Text, nullable=True)
+    notes = Column(Text, nullable=True)
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships
+    session_year = relationship("SessionYear", foreign_keys=[session_year_id])
+    expense_category = relationship("ExpenseCategory", foreign_keys=[expense_category_id])
+    approver = relationship("User", foreign_keys=[approved_by])
+
+
+class ExpenseReport(Base):
+    """
+    Generated expense reports
+    """
+    __tablename__ = "expense_reports"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    # Report Information
+    report_name = Column(String(200), nullable=False)
+    report_type = Column(String(50), nullable=False)  # Monthly, Quarterly, Yearly, Custom
+
+    # Report Period
+    start_date = Column(Date, nullable=False)
+    end_date = Column(Date, nullable=False)
+    session_year_id = Column(Integer, ForeignKey("session_years.id"), nullable=True)
+
+    # Report Data
+    total_expenses = Column(DECIMAL(12, 2), default=0.0)
+    total_approved = Column(DECIMAL(12, 2), default=0.0)
+    total_pending = Column(DECIMAL(12, 2), default=0.0)
+    total_rejected = Column(DECIMAL(12, 2), default=0.0)
+
+    # Report Content
+    report_data = Column(JSON, nullable=True)  # Detailed report data
+    report_url = Column(String(500), nullable=True)  # Generated report file URL
+
+    # Generation Information
+    generated_by = Column(Integer, ForeignKey("users.id"), nullable=False)
+    generated_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Status
+    is_published = Column(Boolean, default=False)
+
+    # Timestamps
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships
+    session_year = relationship("SessionYear", foreign_keys=[session_year_id])
+    generator = relationship("User", foreign_keys=[generated_by])

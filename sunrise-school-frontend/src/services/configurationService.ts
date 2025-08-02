@@ -1,7 +1,8 @@
 /**
- * Configuration Service - Singleton Pattern
- * Manages metadata configuration from the backend API
- * Stores configuration in memory for the duration of user session
+ * Configuration Service - Singleton Pattern (Service-Aware)
+ * Manages service-specific metadata configuration from the backend API
+ * Stores configurations in memory for the duration of user session
+ * Optimized for reduced payload sizes and faster loading
  */
 
 import api from './api';
@@ -66,25 +67,41 @@ export interface Qualification extends MetadataItem {
 }
 
 export interface Configuration {
-  user_types: UserType[];
-  session_years: SessionYear[];
-  genders: Gender[];
-  classes: Class[];
-  payment_types: PaymentType[];
-  payment_statuses: PaymentStatus[];
-  payment_methods: PaymentMethod[];
-  leave_types: LeaveType[];
-  leave_statuses: LeaveStatus[];
-  expense_categories: ExpenseCategory[];
-  expense_statuses: ExpenseStatus[];
-  employment_statuses: EmploymentStatus[];
-  qualifications: Qualification[];
+  user_types?: UserType[];
+  session_years?: SessionYear[];
+  genders?: Gender[];
+  classes?: Class[];
+  payment_types?: PaymentType[];
+  payment_statuses?: PaymentStatus[];
+  payment_methods?: PaymentMethod[];
+  leave_types?: LeaveType[];
+  leave_statuses?: LeaveStatus[];
+  expense_categories?: ExpenseCategory[];
+  expense_statuses?: ExpenseStatus[];
+  employment_statuses?: EmploymentStatus[];
+  qualifications?: Qualification[];
   metadata: {
+    service?: string;
     last_updated?: string;
     version?: string;
     architecture?: string;
+    metadata_types?: string[];
   };
 }
+
+// Service-specific configuration interfaces
+export interface ServiceConfiguration extends Configuration {
+  service: string;
+}
+
+// Service type definitions
+export type ServiceType =
+  | 'fee-management'
+  | 'student-management'
+  | 'leave-management'
+  | 'expense-management'
+  | 'teacher-management'
+  | 'common';
 
 // Dropdown option interface for UI components
 export interface DropdownOption {
@@ -96,9 +113,12 @@ export interface DropdownOption {
 
 class ConfigurationService {
   private static instance: ConfigurationService;
-  private configuration: Configuration | null = null;
+  private configuration: Configuration | null = null; // Legacy full configuration
+  private serviceConfigurations: Map<ServiceType, Configuration> = new Map(); // Service-specific configurations
   private isLoading = false;
+  private serviceLoadingStates: Map<ServiceType, boolean> = new Map();
   private loadPromise: Promise<Configuration> | null = null;
+  private serviceLoadPromises: Map<ServiceType, Promise<Configuration>> = new Map();
 
   private constructor() {}
 
@@ -113,92 +133,197 @@ class ConfigurationService {
   }
 
   /**
-   * Load configuration from API
+   * Load service-specific configuration from API
    */
-  public async loadConfiguration(): Promise<Configuration> {
+  public async loadServiceConfiguration(service: ServiceType): Promise<Configuration> {
     // If already loaded, return cached configuration
-    if (this.configuration) {
-      return this.configuration;
+    if (this.serviceConfigurations.has(service)) {
+      return this.serviceConfigurations.get(service)!;
     }
 
     // If currently loading, return the existing promise
-    if (this.isLoading && this.loadPromise) {
-      return this.loadPromise;
+    if (this.serviceLoadingStates.get(service) && this.serviceLoadPromises.has(service)) {
+      return this.serviceLoadPromises.get(service)!;
     }
 
     // Start loading
-    this.isLoading = true;
-    this.loadPromise = this.fetchConfiguration();
+    this.serviceLoadingStates.set(service, true);
+    const loadPromise = this.fetchServiceConfiguration(service);
+    this.serviceLoadPromises.set(service, loadPromise);
 
     try {
-      this.configuration = await this.loadPromise;
-      console.log('✅ Configuration loaded successfully:', this.configuration.metadata);
-      return this.configuration;
+      const configuration = await loadPromise;
+      this.serviceConfigurations.set(service, configuration);
+      console.log(`✅ ${service} configuration loaded successfully:`, configuration.metadata);
+      return configuration;
     } catch (error) {
-      console.error('❌ Failed to load configuration:', error);
+      console.error(`❌ Failed to load ${service} configuration:`, error);
       throw error;
     } finally {
-      this.isLoading = false;
-      this.loadPromise = null;
+      this.serviceLoadingStates.set(service, false);
+      this.serviceLoadPromises.delete(service);
     }
   }
 
   /**
-   * Fetch configuration from API
+   * Load configuration from API (DEPRECATED - Use loadServiceConfiguration instead)
+   * @deprecated Use loadServiceConfiguration() with specific service names instead
+   */
+  public async loadConfiguration(): Promise<Configuration> {
+    console.warn('⚠️ DEPRECATED: loadConfiguration() is deprecated. Use loadServiceConfiguration() instead.');
+    throw new Error('Legacy configuration loading is deprecated. Use service-specific configuration loading instead.');
+  }
+
+  /**
+   * Fetch service-specific configuration from API
+   */
+  private async fetchServiceConfiguration(service: ServiceType): Promise<Configuration> {
+    try {
+      console.log(`🔄 Fetching ${service} configuration from /configuration/${service}/`);
+      const response = await api.get(`/configuration/${service}/`);
+      console.log(`✅ ${service} configuration fetched successfully:`, {
+        status: response.status,
+        dataKeys: Object.keys(response.data),
+        metadata: response.data.metadata
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error(`❌ Error fetching ${service} configuration:`, {
+        error,
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        url: `/configuration/${service}/`
+      });
+
+      // Provide more specific error messages
+      if (error.response?.status === 404) {
+        throw new Error(`${service} configuration endpoint not found. Please check if the service is properly configured.`);
+      } else if (error.response?.status === 401) {
+        throw new Error(`Authentication required to load ${service} configuration.`);
+      } else if (error.response?.status >= 500) {
+        throw new Error(`Server error while loading ${service} configuration. Please try again later.`);
+      } else {
+        throw new Error(`Failed to load ${service} configuration: ${error.message}`);
+      }
+    }
+  }
+
+  /**
+   * Fetch configuration from API (DEPRECATED)
+   * @deprecated This method is deprecated and will be removed
    */
   private async fetchConfiguration(): Promise<Configuration> {
-    try {
-      const response = await api.get('/configuration/');
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching configuration:', error);
-      throw new Error('Failed to load application configuration');
-    }
+    throw new Error('Legacy configuration fetching is deprecated. Use service-specific endpoints instead.');
   }
 
   /**
-   * Get cached configuration (returns null if not loaded)
+   * Get cached service configuration (returns null if not loaded)
+   */
+  public getServiceConfiguration(service: ServiceType): Configuration | null {
+    return this.serviceConfigurations.get(service) || null;
+  }
+
+  /**
+   * Get cached configuration (DEPRECATED - Use getServiceConfiguration instead)
+   * @deprecated Use getServiceConfiguration() with specific service names instead
    */
   public getConfiguration(): Configuration | null {
-    return this.configuration;
+    console.warn('⚠️ DEPRECATED: getConfiguration() is deprecated. Use getServiceConfiguration() instead.');
+    return null;
   }
 
   /**
-   * Force refresh configuration from API
+   * Force refresh service-specific configuration from API
+   */
+  public async refreshServiceConfiguration(service: ServiceType): Promise<Configuration> {
+    this.serviceConfigurations.delete(service);
+    return this.loadServiceConfiguration(service);
+  }
+
+  /**
+   * Force refresh configuration from API (DEPRECATED - Use refreshServiceConfiguration instead)
+   * @deprecated Use refreshServiceConfiguration() with specific service names instead
    */
   public async refreshConfiguration(): Promise<Configuration> {
-    this.configuration = null;
-    return this.loadConfiguration();
+    console.warn('⚠️ DEPRECATED: refreshConfiguration() is deprecated. Use refreshServiceConfiguration() instead.');
+    throw new Error('Legacy configuration refresh is deprecated. Use service-specific configuration refresh instead.');
   }
 
   /**
-   * Clear cached configuration (useful for logout)
+   * Clear cached configurations (useful for logout)
    */
   public clearConfiguration(): void {
     this.configuration = null;
+    this.serviceConfigurations.clear();
+    this.serviceLoadingStates.clear();
+    this.serviceLoadPromises.clear();
   }
 
-  // Helper methods for getting specific metadata as dropdown options
+  /**
+   * Check if service configuration is loaded
+   */
+  public isServiceConfigurationLoaded(service: ServiceType): boolean {
+    return this.serviceConfigurations.has(service);
+  }
 
   /**
-   * Get user types as dropdown options
+   * Check if service configuration is currently loading
+   */
+  public isServiceConfigurationLoading(service: ServiceType): boolean {
+    return this.serviceLoadingStates.get(service) || false;
+  }
+
+  // Service-aware helper methods for getting specific metadata as dropdown options
+
+  /**
+   * Get metadata from service configurations or fallback to legacy
+   */
+  private getMetadataFromServices<T extends MetadataItem>(
+    metadataKey: keyof Configuration
+  ): T[] {
+    // Try to get from any loaded service configuration
+    const configs = Array.from(this.serviceConfigurations.values());
+    for (const config of configs) {
+      const metadata = config[metadataKey] as T[] | undefined;
+      if (metadata && metadata.length > 0) {
+        return metadata;
+      }
+    }
+
+    // Fallback to legacy configuration
+    return (this.configuration?.[metadataKey] as T[]) || [];
+  }
+
+  /**
+   * Get user types as dropdown options (service-aware)
    */
   public getUserTypes(): DropdownOption[] {
-    return this.getDropdownOptions(this.configuration?.user_types || []);
+    return this.getDropdownOptions(this.getMetadataFromServices<UserType>('user_types'));
   }
 
   /**
-   * Get session years as dropdown options
+   * Get session years as dropdown options (service-aware)
    */
   public getSessionYears(): DropdownOption[] {
-    return this.getDropdownOptions(this.configuration?.session_years || []);
+    return this.getDropdownOptions(this.getMetadataFromServices<SessionYear>('session_years'));
   }
 
   /**
-   * Get current session year
+   * Get current session year (service-aware)
    */
   public getCurrentSessionYear(): SessionYear | null {
-    return this.configuration?.session_years.find(sy => sy.is_current) || null;
+    // Try to get from any loaded service configuration that has session_years
+    const configs = Array.from(this.serviceConfigurations.values());
+    for (const config of configs) {
+      if (config.session_years) {
+        const current = config.session_years.find((sy: SessionYear) => sy.is_current);
+        if (current) return current;
+      }
+    }
+
+    // Fallback to legacy configuration
+    return this.configuration?.session_years?.find((sy: SessionYear) => sy.is_current) || null;
   }
 
   /**
@@ -224,66 +349,66 @@ class ConfigurationService {
   }
 
   /**
-   * Get payment types as dropdown options
+   * Get payment types as dropdown options (service-aware)
    */
   public getPaymentTypes(): DropdownOption[] {
-    return this.getDropdownOptions(this.configuration?.payment_types || []);
+    return this.getDropdownOptions(this.getMetadataFromServices<PaymentType>('payment_types'));
   }
 
   /**
-   * Get payment statuses as dropdown options
+   * Get payment statuses as dropdown options (service-aware)
    */
   public getPaymentStatuses(): DropdownOption[] {
-    return this.getDropdownOptions(this.configuration?.payment_statuses || []);
+    return this.getDropdownOptions(this.getMetadataFromServices<PaymentStatus>('payment_statuses'));
   }
 
   /**
-   * Get payment methods as dropdown options
+   * Get payment methods as dropdown options (service-aware)
    */
   public getPaymentMethods(): DropdownOption[] {
-    return this.getDropdownOptions(this.configuration?.payment_methods || []);
+    return this.getDropdownOptions(this.getMetadataFromServices<PaymentMethod>('payment_methods'));
   }
 
   /**
    * Get leave types as dropdown options
    */
   public getLeaveTypes(): DropdownOption[] {
-    return this.getDropdownOptions(this.configuration?.leave_types || []);
+    return this.getDropdownOptions(this.getMetadataFromServices<LeaveType>('leave_types'));
   }
 
   /**
    * Get leave statuses as dropdown options
    */
   public getLeaveStatuses(): DropdownOption[] {
-    return this.getDropdownOptions(this.configuration?.leave_statuses || []);
+    return this.getDropdownOptions(this.getMetadataFromServices<LeaveStatus>('leave_statuses'));
   }
 
   /**
    * Get expense categories as dropdown options
    */
   public getExpenseCategories(): DropdownOption[] {
-    return this.getDropdownOptions(this.configuration?.expense_categories || []);
+    return this.getDropdownOptions(this.getMetadataFromServices<ExpenseCategory>('expense_categories'));
   }
 
   /**
-   * Get expense statuses as dropdown options
+   * Get expense statuses as dropdown options (service-aware)
    */
   public getExpenseStatuses(): DropdownOption[] {
-    return this.getDropdownOptions(this.configuration?.expense_statuses || []);
+    return this.getDropdownOptions(this.getMetadataFromServices<ExpenseStatus>('expense_statuses'));
   }
 
   /**
-   * Get employment statuses as dropdown options
+   * Get employment statuses as dropdown options (service-aware)
    */
   public getEmploymentStatuses(): DropdownOption[] {
-    return this.getDropdownOptions(this.configuration?.employment_statuses || []);
+    return this.getDropdownOptions(this.getMetadataFromServices<EmploymentStatus>('employment_statuses'));
   }
 
   /**
-   * Get qualifications as dropdown options
+   * Get qualifications as dropdown options (service-aware)
    */
   public getQualifications(): DropdownOption[] {
-    const qualifications = this.configuration?.qualifications || [];
+    const qualifications = this.getMetadataFromServices<Qualification>('qualifications');
     return qualifications
       .sort((a, b) => (a.level_order || 0) - (b.level_order || 0))
       .map(qual => ({
@@ -331,10 +456,32 @@ class ConfigurationService {
 // Export singleton instance
 export const configurationService = ConfigurationService.getInstance();
 
-// Export API function for configuration endpoint
+// Export API functions for configuration endpoints
 export const configurationAPI = {
-  getConfiguration: () => api.get('/configuration/'),
-  refreshConfiguration: () => api.post('/configuration/refresh'),
+  // Service-specific endpoints (RECOMMENDED)
+  getFeeManagementConfiguration: () => api.get('/configuration/fee-management/'),
+  getStudentManagementConfiguration: () => api.get('/configuration/student-management/'),
+  getLeaveManagementConfiguration: () => api.get('/configuration/leave-management/'),
+  getExpenseManagementConfiguration: () => api.get('/configuration/expense-management/'),
+  getTeacherManagementConfiguration: () => api.get('/configuration/teacher-management/'),
+  getCommonConfiguration: () => api.get('/configuration/common/'),
+
+  // Service-specific refresh
+  refreshServiceConfiguration: (service?: string) =>
+    api.post('/configuration/refresh', null, { params: { service } }),
+
+  // Get available services
+  getAvailableServices: () => api.get('/configuration/services/'),
+
+  // DEPRECATED: Legacy endpoints (will be removed)
+  getConfiguration: () => {
+    console.warn('⚠️ DEPRECATED: getConfiguration() is deprecated. Use service-specific endpoints instead.');
+    return Promise.reject(new Error('This endpoint has been deprecated. Use service-specific configuration endpoints.'));
+  },
+  refreshConfiguration: () => {
+    console.warn('⚠️ DEPRECATED: refreshConfiguration() is deprecated. Use refreshServiceConfiguration() instead.');
+    return api.post('/configuration/refresh');
+  },
 };
 
 export default configurationService;

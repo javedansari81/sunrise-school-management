@@ -2,30 +2,96 @@ from typing import List, Optional, Dict, Any
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload, joinedload
-from sqlalchemy import and_, or_, func, desc, extract
+from sqlalchemy import and_, or_, func, desc, extract, text
 from datetime import date, datetime
 
 from app.crud.base import CRUDBase
-from app.models.leave import LeaveRequest
+from app.models.leave import LeaveRequest, LeaveBalance, LeavePolicy, LeaveApprover, LeaveCalendar
 from app.models.student import Student
+from app.models.teacher import Teacher
 from app.models.user import User
+from app.models.metadata import LeaveType, LeaveStatus
 from app.schemas.leave import (
     LeaveRequestCreate, LeaveRequestUpdate, LeaveFilters,
-    LeaveStatusEnum, LeaveTypeEnum
+    ApplicantTypeEnum, LeaveRequestWithDetails
 )
 
 
 class CRUDLeaveRequest(CRUDBase[LeaveRequest, LeaveRequestCreate, LeaveRequestUpdate]):
-    async def get_with_student(self, db: AsyncSession, id: int) -> Optional[LeaveRequest]:
-        result = await db.execute(
-            select(LeaveRequest)
-            .options(
-                joinedload(LeaveRequest.student),
-                joinedload(LeaveRequest.approver)
-            )
-            .where(LeaveRequest.id == id)
+    """CRUD operations for Leave Requests with metadata-driven architecture"""
+
+    async def create(self, db: AsyncSession, *, obj_in: LeaveRequestCreate) -> LeaveRequest:
+        """Create a new leave request with automatic total days calculation"""
+        # Calculate total days if not provided
+        if not obj_in.total_days:
+            total_days = (obj_in.end_date - obj_in.start_date).days + 1
+            obj_in.total_days = total_days
+
+        # Set default status to Pending (ID = 1)
+        db_obj = LeaveRequest(
+            **obj_in.dict(),
+            leave_status_id=1,  # Pending status
+            created_at=datetime.utcnow()
         )
-        return result.scalar_one_or_none()
+        db.add(db_obj)
+        await db.commit()
+        await db.refresh(db_obj)
+
+        # Create leave calendar entries for approved leaves
+        if db_obj.leave_status_id == 2:  # Approved
+            await self._create_calendar_entries(db, db_obj)
+
+        return db_obj
+
+    async def get_with_details(self, db: AsyncSession, id: int) -> Optional[LeaveRequestWithDetails]:
+        """Get leave request with all related details"""
+        query = """
+        SELECT
+            lr.*,
+            CASE
+                WHEN lr.applicant_type = 'student' THEN
+                    'Roll ' || LPAD(COALESCE(s.roll_number, '000'), 3, '0') || ': ' || s.first_name || ' ' || s.last_name
+                WHEN lr.applicant_type = 'teacher' THEN
+                    t.first_name || ' ' || t.last_name || ' (' || t.employee_id || ')'
+            END as applicant_name,
+            CASE
+                WHEN lr.applicant_type = 'student' THEN c.name
+                WHEN lr.applicant_type = 'teacher' THEN t.department
+            END as applicant_details,
+            lt.name as leave_type_name,
+            ls.name as leave_status_name,
+            ls.color_code as leave_status_color,
+            u.first_name || ' ' || u.last_name as reviewer_name
+        FROM leave_requests lr
+        LEFT JOIN students s ON lr.applicant_type = 'student' AND lr.applicant_id = s.id
+        LEFT JOIN classes c ON lr.applicant_type = 'student' AND s.class_id = c.id
+        LEFT JOIN teachers t ON lr.applicant_type = 'teacher' AND lr.applicant_id = t.id
+        LEFT JOIN leave_types lt ON lr.leave_type_id = lt.id
+        LEFT JOIN leave_statuses ls ON lr.leave_status_id = ls.id
+        LEFT JOIN users u ON lr.reviewed_by = u.id
+        WHERE lr.id = :leave_id
+        """
+
+        result = await db.execute(text(query), {"leave_id": id})
+        row = result.fetchone()
+
+        if not row:
+            return None
+
+        # Convert row to dictionary using _asdict() if available, otherwise manual conversion
+        try:
+            if hasattr(row, '_asdict'):
+                row_dict = row._asdict()
+            else:
+                # Manual conversion for raw SQL results
+                row_dict = dict(zip(result.keys(), row))
+
+            return LeaveRequestWithDetails(**row_dict)
+        except Exception as e:
+            print(f"Error converting row to LeaveRequestWithDetails: {e}")
+            print(f"Row data: {row}")
+            print(f"Row type: {type(row)}")
+            return None
 
     async def get_multi_with_filters(
         self,
@@ -34,169 +100,312 @@ class CRUDLeaveRequest(CRUDBase[LeaveRequest, LeaveRequestCreate, LeaveRequestUp
         filters: LeaveFilters,
         skip: int = 0,
         limit: int = 100
-    ) -> tuple[List[LeaveRequest], int]:
-        query = select(LeaveRequest).options(
-            joinedload(LeaveRequest.student),
-            joinedload(LeaveRequest.approver)
-        )
-        
-        # Apply filters
-        conditions = []
-        
-        if filters.student_id:
-            conditions.append(LeaveRequest.student_id == filters.student_id)
-        
-        if filters.leave_type:
-            conditions.append(LeaveRequest.leave_type == filters.leave_type)
-        
-        if filters.status:
-            conditions.append(LeaveRequest.status == filters.status)
-        
+    ) -> tuple[List[LeaveRequestWithDetails], int]:
+        """Get leave requests with filters and pagination"""
+
+        # Build WHERE conditions
+        where_conditions = []
+        params = {}
+
+        if filters.applicant_id:
+            where_conditions.append("lr.applicant_id = :applicant_id")
+            params["applicant_id"] = filters.applicant_id
+
+        if filters.applicant_type:
+            where_conditions.append("lr.applicant_type = :applicant_type")
+            params["applicant_type"] = filters.applicant_type.value
+
+        if filters.leave_type_id:
+            where_conditions.append("lr.leave_type_id = :leave_type_id")
+            params["leave_type_id"] = filters.leave_type_id
+
+        if filters.leave_status_id:
+            where_conditions.append("lr.leave_status_id = :leave_status_id")
+            params["leave_status_id"] = filters.leave_status_id
+
         if filters.from_date:
-            conditions.append(LeaveRequest.start_date >= filters.from_date)
-        
+            where_conditions.append("lr.start_date >= :from_date")
+            params["from_date"] = filters.from_date
+
         if filters.to_date:
-            conditions.append(LeaveRequest.end_date <= filters.to_date)
-        
+            where_conditions.append("lr.end_date <= :to_date")
+            params["to_date"] = filters.to_date
+
         if filters.class_name:
-            conditions.append(Student.current_class == filters.class_name)
-            query = query.join(Student)
-        
-        if conditions:
-            query = query.where(and_(*conditions))
-        
-        # Get total count
-        count_query = select(func.count(LeaveRequest.id))
-        if conditions:
-            count_query = count_query.where(and_(*conditions))
-        
-        total_result = await db.execute(count_query)
-        total = total_result.scalar()
-        
-        # Get paginated results
-        query = query.order_by(desc(LeaveRequest.created_at)).offset(skip).limit(limit)
-        result = await db.execute(query)
-        
-        return result.scalars().all(), total
+            where_conditions.append("c.name = :class_name")
+            params["class_name"] = filters.class_name
 
-    async def get_by_student(
-        self, db: AsyncSession, *, student_id: int, limit: int = 50
-    ) -> List[LeaveRequest]:
-        result = await db.execute(
-            select(LeaveRequest)
-            .options(joinedload(LeaveRequest.approver))
-            .where(LeaveRequest.student_id == student_id)
-            .order_by(desc(LeaveRequest.created_at))
-            .limit(limit)
-        )
-        return result.scalars().all()
+        if filters.department:
+            where_conditions.append("t.department = :department")
+            params["department"] = filters.department
 
-    async def get_pending_requests(self, db: AsyncSession) -> List[LeaveRequest]:
-        result = await db.execute(
-            select(LeaveRequest)
-            .options(
-                joinedload(LeaveRequest.student),
-                joinedload(LeaveRequest.approver)
-            )
-            .where(LeaveRequest.status == LeaveStatusEnum.PENDING)
-            .order_by(LeaveRequest.created_at)
-        )
-        return result.scalars().all()
+        where_clause = "WHERE " + " AND ".join(where_conditions) if where_conditions else ""
 
-    async def get_requests_by_date_range(
+        # Count query
+        count_query = f"""
+        SELECT COUNT(DISTINCT lr.id)
+        FROM leave_requests lr
+        LEFT JOIN students s ON lr.applicant_type = 'student' AND lr.applicant_id = s.id
+        LEFT JOIN classes c ON lr.applicant_type = 'student' AND s.class_id = c.id
+        LEFT JOIN teachers t ON lr.applicant_type = 'teacher' AND lr.applicant_id = t.id
+        {where_clause}
+        """
+
+        count_result = await db.execute(text(count_query), params)
+        total = count_result.scalar()
+
+        # Main query with details
+        main_query = f"""
+        SELECT
+            lr.*,
+            CASE
+                WHEN lr.applicant_type = 'student' THEN
+                    'Roll ' || LPAD(COALESCE(s.roll_number, '000'), 3, '0') || ': ' || s.first_name || ' ' || s.last_name
+                WHEN lr.applicant_type = 'teacher' THEN
+                    t.first_name || ' ' || t.last_name || ' (' || t.employee_id || ')'
+            END as applicant_name,
+            CASE
+                WHEN lr.applicant_type = 'student' THEN c.name
+                WHEN lr.applicant_type = 'teacher' THEN t.department
+            END as applicant_details,
+            lt.name as leave_type_name,
+            ls.name as leave_status_name,
+            ls.color_code as leave_status_color,
+            u.first_name || ' ' || u.last_name as reviewer_name
+        FROM leave_requests lr
+        LEFT JOIN students s ON lr.applicant_type = 'student' AND lr.applicant_id = s.id
+        LEFT JOIN classes c ON lr.applicant_type = 'student' AND s.class_id = c.id
+        LEFT JOIN teachers t ON lr.applicant_type = 'teacher' AND lr.applicant_id = t.id
+        LEFT JOIN leave_types lt ON lr.leave_type_id = lt.id
+        LEFT JOIN leave_statuses ls ON lr.leave_status_id = ls.id
+        LEFT JOIN users u ON lr.reviewed_by = u.id
+        {where_clause}
+        ORDER BY lr.created_at DESC
+        LIMIT :limit OFFSET :skip
+        """
+
+        params.update({"limit": limit, "skip": skip})
+        result = await db.execute(text(main_query), params)
+        rows = result.fetchall()
+
+        leaves = []
+        for row in rows:
+            try:
+                if hasattr(row, '_asdict'):
+                    row_dict = row._asdict()
+                else:
+                    row_dict = dict(zip(result.keys(), row))
+                leaves.append(LeaveRequestWithDetails(**row_dict))
+            except Exception as e:
+                print(f"Error converting row: {e}")
+                continue
+
+        return leaves, total
+
+    async def get_by_applicant(
         self,
         db: AsyncSession,
         *,
-        start_date: date,
-        end_date: date,
-        status: Optional[LeaveStatusEnum] = None
-    ) -> List[LeaveRequest]:
-        query = select(LeaveRequest).options(
-            joinedload(LeaveRequest.student),
-            joinedload(LeaveRequest.approver)
-        ).where(
-            and_(
-                LeaveRequest.start_date <= end_date,
-                LeaveRequest.end_date >= start_date
-            )
-        )
-        
-        if status:
-            query = query.where(LeaveRequest.status == status)
-        
-        result = await db.execute(query.order_by(LeaveRequest.start_date))
-        return result.scalars().all()
+        applicant_id: int,
+        applicant_type: ApplicantTypeEnum,
+        limit: int = 50
+    ) -> List[LeaveRequestWithDetails]:
+        """Get leave requests by applicant (student or teacher)"""
+        query = """
+        SELECT
+            lr.*,
+            CASE
+                WHEN lr.applicant_type = 'student' THEN s.first_name || ' ' || s.last_name
+                WHEN lr.applicant_type = 'teacher' THEN t.first_name || ' ' || t.last_name
+            END as applicant_name,
+            CASE
+                WHEN lr.applicant_type = 'student' THEN c.name
+                WHEN lr.applicant_type = 'teacher' THEN t.department
+            END as applicant_details,
+            lt.name as leave_type_name,
+            ls.name as leave_status_name,
+            ls.color_code as leave_status_color,
+            u.first_name || ' ' || u.last_name as reviewer_name
+        FROM leave_requests lr
+        LEFT JOIN students s ON lr.applicant_type = 'student' AND lr.applicant_id = s.id
+        LEFT JOIN classes c ON lr.applicant_type = 'student' AND s.class_id = c.id
+        LEFT JOIN teachers t ON lr.applicant_type = 'teacher' AND lr.applicant_id = t.id
+        LEFT JOIN leave_types lt ON lr.leave_type_id = lt.id
+        LEFT JOIN leave_statuses ls ON lr.leave_status_id = ls.id
+        LEFT JOIN users u ON lr.reviewed_by = u.id
+        WHERE lr.applicant_id = :applicant_id AND lr.applicant_type = :applicant_type
+        ORDER BY lr.created_at DESC
+        LIMIT :limit
+        """
+
+        result = await db.execute(text(query), {
+            "applicant_id": applicant_id,
+            "applicant_type": applicant_type.value,
+            "limit": limit
+        })
+        rows = result.fetchall()
+
+        leaves = []
+        for row in rows:
+            try:
+                if hasattr(row, '_asdict'):
+                    row_dict = row._asdict()
+                else:
+                    row_dict = dict(zip(result.keys(), row))
+                leaves.append(LeaveRequestWithDetails(**row_dict))
+            except Exception as e:
+                print(f"Error converting row: {e}")
+                continue
+        return leaves
+
+    async def get_pending_requests(self, db: AsyncSession) -> List[LeaveRequestWithDetails]:
+        """Get all pending leave requests"""
+        query = """
+        SELECT
+            lr.*,
+            CASE
+                WHEN lr.applicant_type = 'student' THEN
+                    'Roll ' || LPAD(COALESCE(s.roll_number, '000'), 3, '0') || ': ' || s.first_name || ' ' || s.last_name
+                WHEN lr.applicant_type = 'teacher' THEN
+                    t.first_name || ' ' || t.last_name || ' (' || t.employee_id || ')'
+            END as applicant_name,
+            CASE
+                WHEN lr.applicant_type = 'student' THEN c.name
+                WHEN lr.applicant_type = 'teacher' THEN t.department
+            END as applicant_details,
+            lt.name as leave_type_name,
+            ls.name as leave_status_name,
+            ls.color_code as leave_status_color,
+            u.first_name || ' ' || u.last_name as reviewer_name
+        FROM leave_requests lr
+        LEFT JOIN students s ON lr.applicant_type = 'student' AND lr.applicant_id = s.id
+        LEFT JOIN classes c ON lr.applicant_type = 'student' AND s.class_id = c.id
+        LEFT JOIN teachers t ON lr.applicant_type = 'teacher' AND lr.applicant_id = t.id
+        LEFT JOIN leave_types lt ON lr.leave_type_id = lt.id
+        LEFT JOIN leave_statuses ls ON lr.leave_status_id = ls.id
+        LEFT JOIN users u ON lr.reviewed_by = u.id
+        WHERE lr.leave_status_id = 1
+        ORDER BY lr.created_at ASC
+        """
+
+        result = await db.execute(text(query))
+        rows = result.fetchall()
+
+        leaves = []
+        for row in rows:
+            try:
+                if hasattr(row, '_asdict'):
+                    row_dict = row._asdict()
+                else:
+                    row_dict = dict(zip(result.keys(), row))
+                leaves.append(LeaveRequestWithDetails(**row_dict))
+            except Exception as e:
+                print(f"Error converting row: {e}")
+                continue
+        return leaves
 
     async def approve_request(
         self,
         db: AsyncSession,
         *,
         leave_request: LeaveRequest,
-        approver_id: int,
-        status: LeaveStatusEnum,
-        rejection_reason: Optional[str] = None
+        reviewer_id: int,
+        leave_status_id: int,
+        review_comments: Optional[str] = None
     ) -> LeaveRequest:
-        leave_request.status = status
-        leave_request.approved_by = approver_id
-        leave_request.approved_at = datetime.utcnow()
-        
-        if rejection_reason:
-            leave_request.rejection_reason = rejection_reason
-        
+        """Approve or reject a leave request"""
+        leave_request.leave_status_id = leave_status_id
+        leave_request.reviewed_by = reviewer_id
+        leave_request.reviewed_at = datetime.utcnow()
+
+        if review_comments:
+            leave_request.review_comments = review_comments
+
         db.add(leave_request)
         await db.commit()
         await db.refresh(leave_request)
+
+        # Create leave calendar entries for approved leaves
+        if leave_status_id == 2:  # Approved
+            await self._create_calendar_entries(db, leave_request)
+
         return leave_request
+
+    async def _create_calendar_entries(self, db: AsyncSession, leave_request: LeaveRequest):
+        """Create calendar entries for approved leave requests"""
+        current_date = leave_request.start_date
+        while current_date <= leave_request.end_date:
+            calendar_entry = LeaveCalendar(
+                leave_request_id=leave_request.id,
+                leave_date=current_date,
+                applicant_id=leave_request.applicant_id,
+                applicant_type=leave_request.applicant_type,
+                leave_type_id=leave_request.leave_type_id,
+                is_half_day=leave_request.is_half_day,
+                half_day_session=leave_request.half_day_session,
+                year=current_date.year,
+                month=current_date.month,
+                day_of_week=current_date.weekday() + 1  # Monday = 1
+            )
+            db.add(calendar_entry)
+            current_date += datetime.timedelta(days=1)
+
+        await db.commit()
 
     async def get_leave_statistics(
         self, db: AsyncSession, *, year: Optional[int] = None
     ) -> Dict[str, Any]:
-        query = select(
-            func.count(LeaveRequest.id).label('total_requests'),
-            func.count(
-                func.case(
-                    (LeaveRequest.status == LeaveStatusEnum.APPROVED, 1),
-                    else_=None
-                )
-            ).label('approved_requests'),
-            func.count(
-                func.case(
-                    (LeaveRequest.status == LeaveStatusEnum.REJECTED, 1),
-                    else_=None
-                )
-            ).label('rejected_requests'),
-            func.count(
-                func.case(
-                    (LeaveRequest.status == LeaveStatusEnum.PENDING, 1),
-                    else_=None
-                )
-            ).label('pending_requests'),
-            func.sum(LeaveRequest.total_days).label('total_days')
-        )
-        
-        if year:
-            query = query.where(extract('year', LeaveRequest.start_date) == year)
-        
-        result = await db.execute(query)
-        stats = result.first()
-        
+        """Get comprehensive leave statistics"""
+        where_clause = f"WHERE EXTRACT(year FROM lr.start_date) = {year}" if year else ""
+
+        query = f"""
+        SELECT
+            COUNT(lr.id) as total_requests,
+            COUNT(CASE WHEN lr.leave_status_id = 2 THEN 1 END) as approved_requests,
+            COUNT(CASE WHEN lr.leave_status_id = 3 THEN 1 END) as rejected_requests,
+            COUNT(CASE WHEN lr.leave_status_id = 1 THEN 1 END) as pending_requests,
+            SUM(lr.total_days) as total_days
+        FROM leave_requests lr
+        {where_clause}
+        """
+
+        result = await db.execute(text(query))
+        stats = result.fetchone()
+
         # Get leave type breakdown
-        type_query = select(
-            LeaveRequest.leave_type,
-            func.count(LeaveRequest.id).label('count')
-        )
-        
-        if year:
-            type_query = type_query.where(extract('year', LeaveRequest.start_date) == year)
-        
-        type_query = type_query.group_by(LeaveRequest.leave_type)
-        type_result = await db.execute(type_query)
-        
+        type_query = f"""
+        SELECT
+            lt.name as leave_type_name,
+            COUNT(lr.id) as count
+        FROM leave_requests lr
+        JOIN leave_types lt ON lr.leave_type_id = lt.id
+        {where_clause}
+        GROUP BY lt.id, lt.name
+        ORDER BY count DESC
+        """
+
+        type_result = await db.execute(text(type_query))
         type_breakdown = [
-            {'leave_type': row.leave_type, 'count': row.count}
+            {'leave_type': row.leave_type_name, 'count': row.count}
             for row in type_result
         ]
-        
+
+        # Get applicant type breakdown
+        applicant_query = f"""
+        SELECT
+            lr.applicant_type,
+            COUNT(lr.id) as count
+        FROM leave_requests lr
+        {where_clause}
+        GROUP BY lr.applicant_type
+        """
+
+        applicant_result = await db.execute(text(applicant_query))
+        applicant_breakdown = [
+            {'applicant_type': row.applicant_type, 'count': row.count}
+            for row in applicant_result
+        ]
+
         return {
             'total_requests': stats.total_requests or 0,
             'approved_requests': stats.approved_requests or 0,
@@ -204,56 +413,96 @@ class CRUDLeaveRequest(CRUDBase[LeaveRequest, LeaveRequestCreate, LeaveRequestUp
             'pending_requests': stats.pending_requests or 0,
             'total_days': stats.total_days or 0,
             'approval_rate': (stats.approved_requests / stats.total_requests * 100) if stats.total_requests else 0,
-            'leave_type_breakdown': type_breakdown
+            'leave_type_breakdown': type_breakdown,
+            'applicant_type_breakdown': applicant_breakdown
         }
 
-    async def get_monthly_leave_trend(
-        self, db: AsyncSession, *, year: int
-    ) -> List[Dict[str, Any]]:
+
+class CRUDLeaveBalance(CRUDBase[LeaveBalance, dict, dict]):
+    """CRUD operations for Leave Balance"""
+
+    async def get_by_teacher_and_type(
+        self,
+        db: AsyncSession,
+        *,
+        teacher_id: int,
+        leave_type_id: int,
+        session_year_id: int
+    ) -> Optional[LeaveBalance]:
+        """Get leave balance for specific teacher, leave type, and session year"""
         result = await db.execute(
-            select(
-                extract('month', LeaveRequest.start_date).label('month'),
-                func.count(LeaveRequest.id).label('count'),
-                func.sum(LeaveRequest.total_days).label('total_days')
+            select(LeaveBalance)
+            .where(
+                and_(
+                    LeaveBalance.teacher_id == teacher_id,
+                    LeaveBalance.leave_type_id == leave_type_id,
+                    LeaveBalance.session_year_id == session_year_id
+                )
             )
-            .where(extract('year', LeaveRequest.start_date) == year)
-            .group_by(extract('month', LeaveRequest.start_date))
-            .order_by(extract('month', LeaveRequest.start_date))
         )
-        
-        return [
-            {
-                'month': int(row.month),
-                'count': row.count,
-                'total_days': row.total_days or 0
-            }
-            for row in result
-        ]
+        return result.scalar_one_or_none()
 
-    async def get_class_wise_leave_stats(
-        self, db: AsyncSession, *, year: Optional[int] = None
-    ) -> List[Dict[str, Any]]:
-        query = select(
-            Student.current_class,
-            func.count(LeaveRequest.id).label('total_requests'),
-            func.sum(LeaveRequest.total_days).label('total_days')
-        ).join(Student)
-        
-        if year:
-            query = query.where(extract('year', LeaveRequest.start_date) == year)
-        
-        query = query.group_by(Student.current_class).order_by(Student.current_class)
-        result = await db.execute(query)
-        
-        return [
-            {
-                'class_name': row.current_class,
-                'total_requests': row.total_requests,
-                'total_days': row.total_days or 0
-            }
-            for row in result
-        ]
+    async def get_by_teacher(
+        self,
+        db: AsyncSession,
+        *,
+        teacher_id: int,
+        session_year_id: int
+    ) -> List[LeaveBalance]:
+        """Get all leave balances for a teacher in a session year"""
+        result = await db.execute(
+            select(LeaveBalance)
+            .options(
+                joinedload(LeaveBalance.leave_type),
+                joinedload(LeaveBalance.session_year)
+            )
+            .where(
+                and_(
+                    LeaveBalance.teacher_id == teacher_id,
+                    LeaveBalance.session_year_id == session_year_id
+                )
+            )
+        )
+        return result.scalars().all()
 
 
-# Create instance
+class CRUDLeavePolicy(CRUDBase[LeavePolicy, dict, dict]):
+    """CRUD operations for Leave Policy"""
+
+    async def get_active_policies(self, db: AsyncSession) -> List[LeavePolicy]:
+        """Get all active leave policies"""
+        result = await db.execute(
+            select(LeavePolicy)
+            .options(joinedload(LeavePolicy.leave_type))
+            .where(LeavePolicy.is_active == True)
+            .order_by(LeavePolicy.policy_name)
+        )
+        return result.scalars().all()
+
+    async def get_by_applicant_type(
+        self,
+        db: AsyncSession,
+        *,
+        applicant_type: ApplicantTypeEnum
+    ) -> List[LeavePolicy]:
+        """Get policies for specific applicant type"""
+        result = await db.execute(
+            select(LeavePolicy)
+            .options(joinedload(LeavePolicy.leave_type))
+            .where(
+                and_(
+                    LeavePolicy.is_active == True,
+                    or_(
+                        LeavePolicy.applicant_type == applicant_type.value,
+                        LeavePolicy.applicant_type == 'both'
+                    )
+                )
+            )
+        )
+        return result.scalars().all()
+
+
+# Create instances
 leave_request_crud = CRUDLeaveRequest(LeaveRequest)
+leave_balance_crud = CRUDLeaveBalance(LeaveBalance)
+leave_policy_crud = CRUDLeavePolicy(LeavePolicy)

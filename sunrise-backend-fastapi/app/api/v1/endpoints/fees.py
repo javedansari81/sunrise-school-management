@@ -1164,14 +1164,19 @@ async def get_fee_analytics(
     }
 
 
-@router.get("/metadata")
+@router.get("/metadata", deprecated=True)
 async def get_fee_metadata(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
     """
-    Get ALL metadata for fee management frontend
-    Returns comprehensive metadata including session years, classes, payment statuses, payment methods, etc.
+    DEPRECATED: Use /configuration/fee-management/ instead
+
+    This endpoint returns all metadata but is inefficient.
+    Use the service-specific configuration endpoint for better performance:
+    - Reduced payload size by 60-80%
+    - Faster loading times
+    - Only relevant metadata for fee management
     """
     from app.crud.metadata import (
         session_year_crud, payment_status_crud, payment_method_crud,

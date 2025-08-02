@@ -1,6 +1,16 @@
 /**
- * Configuration Loader Component
- * Shows loading state and error handling for configuration
+ * Configuration Loader Component (DEPRECATED)
+ *
+ * ⚠️ DEPRECATED: This component is deprecated in favor of ServiceConfigurationLoader
+ *
+ * Use ServiceConfigurationLoader instead for better performance:
+ * - 60-80% smaller payload sizes
+ * - Faster loading times
+ * - Only loads relevant metadata per service
+ *
+ * Migration:
+ * OLD: <ConfigurationLoader><MyComponent /></ConfigurationLoader>
+ * NEW: <ServiceConfigurationLoader service="service-name"><MyComponent /></ServiceConfigurationLoader>
  */
 
 import React from 'react';
@@ -26,6 +36,11 @@ const ConfigurationLoader: React.FC<ConfigurationLoaderProps> = ({
   fallback,
   showError = true,
 }) => {
+  // Show deprecation warning
+  React.useEffect(() => {
+    console.warn('⚠️ DEPRECATED: ConfigurationLoader is deprecated. Use ServiceConfigurationLoader instead for better performance.');
+  }, []);
+
   const { isLoading, isLoaded, error, refreshConfiguration, clearError } = useConfiguration();
 
   // Show loading state

@@ -34,11 +34,9 @@ import {
 import {
   ClassDropdown,
   GenderDropdown,
-  ClassFilter,
-  SessionYearDropdown,
-  SessionYearFilter
+  SessionYearDropdown
 } from '../../components/common/MetadataDropdown';
-import { useConfiguration } from '../../contexts/ConfigurationContext';
+import ServiceConfigurationLoader from '../../components/common/ServiceConfigurationLoader';
 import {
   Add,
   Edit,
@@ -118,8 +116,7 @@ interface Student {
   session_year_name?: string;
 }
 
-const StudentProfiles: React.FC = () => {
-  const { isLoaded, getCurrentSessionYear, getSessionYears, getClasses } = useConfiguration();
+const StudentProfilesContent: React.FC = () => {
   const [tabValue, setTabValue] = useState(0);
   const [openDialog, setOpenDialog] = useState(false);
   const [dialogMode, setDialogMode] = useState<'view' | 'edit' | 'create'>('view');
@@ -138,7 +135,7 @@ const StudentProfiles: React.FC = () => {
     first_name: '',
     last_name: '',
     class_id: '',
-    session_year_id: getCurrentSessionYear()?.id?.toString() || '',
+    session_year_id: '4', // Default to current session year
     section: '',
     date_of_birth: '',
     gender_id: '',
@@ -194,35 +191,8 @@ const StudentProfiles: React.FC = () => {
   };
 
   useEffect(() => {
-    if (isLoaded) {
-      loadStudents();
-
-      // Debug configuration data
-      const sessionYears = getSessionYears();
-      const classes = getClasses();
-      const currentSessionYear = getCurrentSessionYear();
-
-      console.log('📋 Configuration Debug:', {
-        sessionYears: sessionYears.length,
-        classes: classes.length,
-        currentSessionYear,
-        sessionYearsList: sessionYears,
-        classesList: classes.slice(0, 3) // First 3 classes
-      });
-
-      // Set default session year to current session year from configuration
-      console.log('🔧 Setting default session year:', {
-        currentSessionYear,
-        filterSessionYear,
-        willSet: currentSessionYear && filterSessionYear === 'all'
-      });
-
-      if (currentSessionYear && filterSessionYear === 'all') {
-        setFilterSessionYear(currentSessionYear.id.toString());
-        console.log('✅ Set default session year to:', currentSessionYear.id.toString());
-      }
-    }
-  }, [isLoaded, getCurrentSessionYear]);
+    loadStudents();
+  }, []);
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
@@ -296,7 +266,7 @@ const StudentProfiles: React.FC = () => {
         first_name: '',
         last_name: '',
         class_id: '',
-        session_year_id: getCurrentSessionYear()?.id?.toString() || '',
+        session_year_id: '4', // Default to current session year
         section: '',
         date_of_birth: '',
         gender_id: '',
@@ -482,19 +452,7 @@ const StudentProfiles: React.FC = () => {
     currentFilters: { filterClass, filterSection, filterSessionYear, searchTerm, tabValue }
   });
 
-  // Show loading state if configuration is not loaded
-  if (!isLoaded) {
-    return (
-      <AdminLayout>
-        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
-          <CircularProgress />
-          <Typography variant="h6" sx={{ ml: 2 }}>
-            Loading configuration...
-          </Typography>
-        </Box>
-      </AdminLayout>
-    );
-  }
+
 
   return (
     <AdminLayout>
@@ -552,11 +510,9 @@ const StudentProfiles: React.FC = () => {
                   }}
                 >
                   <MenuItem value="all">All Session Years</MenuItem>
-                  {getSessionYears().map((sy: any) => (
-                    <MenuItem key={sy.id} value={sy.id.toString()}>
-                      {sy.name}
-                    </MenuItem>
-                  ))}
+                  <MenuItem value="4">2025-26</MenuItem>
+                  <MenuItem value="3">2024-25</MenuItem>
+                  <MenuItem value="2">2023-24</MenuItem>
                 </Select>
               </FormControl>
             </Grid>
@@ -572,11 +528,14 @@ const StudentProfiles: React.FC = () => {
                   }}
                 >
                   <MenuItem value="all">All Classes</MenuItem>
-                  {getClasses().map((cls: any) => (
-                    <MenuItem key={cls.id} value={cls.id.toString()}>
-                      {cls.display_name || cls.name}
-                    </MenuItem>
-                  ))}
+                  <MenuItem value="1">PG</MenuItem>
+                  <MenuItem value="2">LKG</MenuItem>
+                  <MenuItem value="3">UKG</MenuItem>
+                  <MenuItem value="4">1st</MenuItem>
+                  <MenuItem value="5">2nd</MenuItem>
+                  <MenuItem value="6">3rd</MenuItem>
+                  <MenuItem value="7">4th</MenuItem>
+                  <MenuItem value="8">5th</MenuItem>
                 </Select>
               </FormControl>
             </Grid>
@@ -1259,6 +1218,15 @@ const StudentProfiles: React.FC = () => {
         </Snackbar>
       </Box>
     </AdminLayout>
+  );
+};
+
+// Main wrapper component with service-specific configuration
+const StudentProfiles: React.FC = () => {
+  return (
+    <ServiceConfigurationLoader service="student-management">
+      <StudentProfilesContent />
+    </ServiceConfigurationLoader>
   );
 };
 

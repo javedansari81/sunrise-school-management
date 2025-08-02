@@ -107,27 +107,144 @@ export const studentsAPI = {
 
 
 
-// Leave API (to be implemented in backend)
+// Leave Management API
 export const leaveAPI = {
-  getLeaves: (filters?: any) => api.get('/leaves', { params: filters }),
-  createLeave: (leaveData: any) => api.post('/leaves', leaveData),
-  updateLeave: (id: number, leaveData: any) => api.put(`/leaves/${id}`, leaveData),
-  approveLeave: (id: number) => api.patch(`/leaves/${id}/approve`),
-  rejectLeave: (id: number) => api.patch(`/leaves/${id}/reject`),
+  // Get leave requests with filters and pagination
+  getLeaves: (params?: URLSearchParams) =>
+    api.get('/leaves', { params }).then(response => response.data),
+
+  // Get single leave request with details
+  getLeave: (id: number) =>
+    api.get(`/leaves/${id}`).then(response => response.data),
+
+  // Create new leave request
+  createLeave: (leaveData: any) =>
+    api.post('/leaves', leaveData).then(response => response.data),
+
+  // Update leave request
+  updateLeave: (id: number, leaveData: any) =>
+    api.put(`/leaves/${id}`, leaveData).then(response => response.data),
+
+  // Delete leave request
+  deleteLeave: (id: number) =>
+    api.delete(`/leaves/${id}`).then(response => response.data),
+
+  // Approve/reject leave request
+  approveLeave: (id: number, approvalData: { leave_status_id: number, review_comments?: string }) =>
+    api.patch(`/leaves/${id}/approve`, approvalData).then(response => response.data),
+
+  // Get pending leave requests
+  getPendingLeaves: () =>
+    api.get('/leaves/pending').then(response => response.data),
+
+  // Get leave requests by applicant
+  getLeavesByApplicant: (applicantType: string, applicantId: number, limit: number = 50) =>
+    api.get(`/leaves/applicant/${applicantType}/${applicantId}`, { params: { limit } }).then(response => response.data),
+
+  // Get leave statistics
+  getLeaveStatistics: (year?: number) =>
+    api.get('/leaves/statistics', { params: year ? { year } : {} }).then(response => response.data),
+
+  // Get leave balance
+  getLeaveBalance: (applicantType: string, applicantId: number) =>
+    api.get(`/leaves/balance/${applicantType}/${applicantId}`).then(response => response.data),
+
+  // Get leave policies
+  getLeavePolicies: (applicantType?: string) =>
+    api.get('/leaves/policies', { params: applicantType ? { applicant_type: applicantType } : {} }).then(response => response.data),
+
+  // Get leave summary report
+  getLeaveSummaryReport: (year?: number) =>
+    api.get('/leaves/reports/summary', { params: year ? { year } : {} }).then(response => response.data),
 };
 
-// Expenses API (to be implemented in backend)
-export const expensesAPI = {
-  getExpenses: (filters?: any) => api.get('/expenses', { params: filters }),
-  createExpense: (expenseData: any) => api.post('/expenses', expenseData),
-  updateExpense: (id: number, expenseData: any) => api.put(`/expenses/${id}`, expenseData),
-  deleteExpense: (id: number) => api.delete(`/expenses/${id}`),
-  getExpenseCategories: () => api.get('/expenses/categories'),
+// Expense Management API
+export const expenseAPI = {
+  // Get expenses with filters and pagination
+  getExpenses: (params?: URLSearchParams) =>
+    api.get('/expenses', { params }).then(response => response.data),
+
+  // Get single expense with details
+  getExpense: (id: number) =>
+    api.get(`/expenses/${id}`).then(response => response.data),
+
+  // Create new expense
+  createExpense: (expenseData: any) =>
+    api.post('/expenses', expenseData).then(response => response.data),
+
+  // Update expense
+  updateExpense: (id: number, expenseData: any) =>
+    api.put(`/expenses/${id}`, expenseData).then(response => response.data),
+
+  // Delete expense
+  deleteExpense: (id: number) =>
+    api.delete(`/expenses/${id}`).then(response => response.data),
+
+  // Approve/reject expense
+  approveExpense: (id: number, approvalData: { expense_status_id: number, approval_comments?: string }) =>
+    api.patch(`/expenses/${id}/approve`, approvalData).then(response => response.data),
+
+  // Get expense statistics
+  getStatistics: () =>
+    api.get('/expenses/statistics').then(response => response.data),
+
+  // Get pending expenses
+  getPendingExpenses: () =>
+    api.get('/expenses/pending').then(response => response.data),
+
+  // Get user's expenses
+  getMyExpenses: (limit: number = 50) =>
+    api.get('/expenses/my-expenses', { params: { limit } }).then(response => response.data),
+
+  // Get expense dashboard data
+  getDashboard: () =>
+    api.get('/expenses/dashboard').then(response => response.data),
+
+  // Get monthly report
+  getMonthlyReport: (year: number) =>
+    api.get('/expenses/reports/monthly', { params: { year } }).then(response => response.data),
+
+  // Get yearly report
+  getYearlyReport: (year?: number) =>
+    api.get('/expenses/reports/yearly', { params: year ? { year } : {} }).then(response => response.data),
 };
 
-// Configuration API
+// Vendor Management API
+export const vendorAPI = {
+  // Get all vendors
+  getVendors: () =>
+    api.get('/expenses/vendors').then(response => response.data),
+
+  // Get single vendor
+  getVendor: (id: number) =>
+    api.get(`/expenses/vendors/${id}`).then(response => response.data),
+
+  // Create vendor
+  createVendor: (vendorData: any) =>
+    api.post('/expenses/vendors', vendorData).then(response => response.data),
+
+  // Update vendor
+  updateVendor: (id: number, vendorData: any) =>
+    api.put(`/expenses/vendors/${id}`, vendorData).then(response => response.data),
+
+  // Delete vendor
+  deleteVendor: (id: number) =>
+    api.delete(`/expenses/vendors/${id}`).then(response => response.data),
+
+  // Get active vendors
+  getActiveVendors: () =>
+    api.get('/expenses/vendors/active').then(response => response.data),
+};
+
+// Configuration API (DEPRECATED - Use service-specific endpoints instead)
+// These endpoints are deprecated and will be removed in a future version
+// Use configurationAPI from configurationService.ts for service-specific endpoints
 export const configurationAPI = {
-  getConfiguration: () => api.get('/configuration/'),
+  // DEPRECATED: Use service-specific endpoints instead
+  getConfiguration: () => {
+    console.warn('⚠️ DEPRECATED: getConfiguration() is deprecated. Use service-specific configuration endpoints instead.');
+    return Promise.reject(new Error('This endpoint has been deprecated. Use service-specific configuration endpoints.'));
+  },
   refreshConfiguration: () => api.post('/configuration/refresh'),
 };
 

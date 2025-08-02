@@ -2,14 +2,16 @@ from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import date
+from decimal import Decimal
 import math
 
 from app.core.database import get_db
-from app.crud import expense_crud
+from app.crud.crud_expense import expense_crud, vendor_crud
+from app.crud import user_crud
 from app.schemas.expense import (
-    Expense, ExpenseCreate, ExpenseUpdate, ExpenseWithUsers,
-    ExpenseApproval, ExpenseFilters, ExpenseListResponse, ExpenseReport, ExpenseDashboard,
-    ExpenseStatusEnum, ExpenseCategoryEnum
+    Expense, ExpenseCreate, ExpenseUpdate, ExpenseWithDetails,
+    ExpenseApproval, ExpenseFilters, ExpenseListResponse, ExpenseReport,
+    ExpenseDashboard, Vendor, VendorCreate, VendorUpdate
 )
 from app.api.deps import get_current_active_user
 from app.models.user import User
@@ -19,31 +21,43 @@ router = APIRouter()
 
 @router.get("/", response_model=ExpenseListResponse)
 async def get_expenses(
-    category: Optional[ExpenseCategoryEnum] = None,
-    status: Optional[ExpenseStatusEnum] = None,
+    expense_category_id: Optional[int] = None,
+    expense_status_id: Optional[int] = None,
+    payment_status_id: Optional[int] = None,
+    payment_method_id: Optional[int] = None,
     from_date: Optional[date] = None,
     to_date: Optional[date] = None,
     vendor_name: Optional[str] = None,
     requested_by: Optional[int] = None,
-    min_amount: Optional[float] = None,
-    max_amount: Optional[float] = None,
+    min_amount: Optional[Decimal] = None,
+    max_amount: Optional[Decimal] = None,
+    session_year_id: Optional[int] = None,
+    priority: Optional[str] = None,
+    is_emergency: Optional[bool] = None,
+    is_recurring: Optional[bool] = None,
     page: int = Query(1, ge=1),
     per_page: int = Query(20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
     """
-    Get expenses with comprehensive filters
+    Get expenses with comprehensive filters using metadata-driven architecture
     """
     filters = ExpenseFilters(
-        category=category,
-        status=status,
+        expense_category_id=expense_category_id,
+        expense_status_id=expense_status_id,
+        payment_status_id=payment_status_id,
+        payment_method_id=payment_method_id,
         from_date=from_date,
         to_date=to_date,
         vendor_name=vendor_name,
         requested_by=requested_by,
         min_amount=min_amount,
-        max_amount=max_amount
+        max_amount=max_amount,
+        session_year_id=session_year_id,
+        priority=priority,
+        is_emergency=is_emergency,
+        is_recurring=is_recurring
     )
 
     skip = (page - 1) * per_page
@@ -51,23 +65,13 @@ async def get_expenses(
         db, filters=filters, skip=skip, limit=per_page
     )
 
-    # Convert to response format with user details
-    expense_list = []
-    for expense in expenses:
-        expense_dict = {
-            **expense.__dict__,
-            "requester_name": f"{expense.requester.first_name} {expense.requester.last_name}",
-            "approver_name": f"{expense.approver.first_name} {expense.approver.last_name}" if expense.approver else None
-        }
-        expense_list.append(expense_dict)
-
     # Get summary statistics
     summary = await expense_crud.get_expense_statistics(db)
 
     total_pages = math.ceil(total / per_page)
 
     return ExpenseListResponse(
-        expenses=expense_list,
+        expenses=expenses,
         total=total,
         page=page,
         per_page=per_page,
@@ -92,22 +96,22 @@ async def create_expense(
             detail="Total amount must equal amount plus tax amount"
         )
 
-    expense = await expense_crud.create_expense(
+    expense = await expense_crud.create(
         db, obj_in=expense_data, requested_by=current_user.id
     )
     return expense
 
 
-@router.get("/{expense_id}", response_model=Expense)
+@router.get("/{expense_id}", response_model=ExpenseWithDetails)
 async def get_expense(
     expense_id: int,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
     """
-    Get specific expense details
+    Get specific expense details with all related information
     """
-    expense = await expense_crud.get_with_users(db, id=expense_id)
+    expense = await expense_crud.get_with_details(db, id=expense_id)
     if not expense:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -115,6 +119,75 @@ async def get_expense(
         )
 
     return expense
+
+
+@router.put("/{expense_id}", response_model=Expense)
+async def update_expense(
+    expense_id: int,
+    expense_data: ExpenseUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Update an expense record (only allowed for pending expenses)
+    """
+    expense = await expense_crud.get(db, id=expense_id)
+    if not expense:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Expense not found"
+        )
+
+    # Only allow updates for pending expenses
+    if expense.expense_status_id != 1:  # Not pending
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Can only update pending expenses"
+        )
+
+    # Only allow the requester to update their own expense
+    if expense.requested_by != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Can only update your own expenses"
+        )
+
+    updated_expense = await expense_crud.update(db, db_obj=expense, obj_in=expense_data)
+    return updated_expense
+
+
+@router.delete("/{expense_id}")
+async def delete_expense(
+    expense_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Delete an expense record (only allowed for pending expenses)
+    """
+    expense = await expense_crud.get(db, id=expense_id)
+    if not expense:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Expense not found"
+        )
+
+    # Only allow deletion for pending expenses
+    if expense.expense_status_id != 1:  # Not pending
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Can only delete pending expenses"
+        )
+
+    # Only allow the requester to delete their own expense
+    if expense.requested_by != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Can only delete your own expenses"
+        )
+
+    await expense_crud.remove(db, id=expense_id)
+    return {"message": "Expense deleted successfully"}
 
 
 @router.put("/{expense_id}", response_model=Expense)
@@ -135,7 +208,7 @@ async def update_expense(
         )
 
     # Only allow updates if status is pending or user is the requester
-    if expense.status != ExpenseStatusEnum.PENDING and expense.requested_by != current_user.id:
+    if expense.expense_status_id != 1 and expense.requested_by != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Cannot update expense that is not pending or not requested by you"
@@ -176,7 +249,7 @@ async def delete_expense(
         )
 
     # Only allow deletion if status is pending and user is the requester
-    if expense.status != ExpenseStatusEnum.PENDING or expense.requested_by != current_user.id:
+    if expense.expense_status_id != 1 or expense.requested_by != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Cannot delete expense that is not pending or not requested by you"
@@ -204,25 +277,18 @@ async def approve_expense(
         )
 
     # Only allow approval/rejection if status is pending
-    if expense.status != ExpenseStatusEnum.PENDING:
+    if expense.expense_status_id != 1:  # Not pending
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Expense is not pending"
-        )
-
-    # Validate rejection reason if rejecting
-    if approval_data.status == ExpenseStatusEnum.REJECTED and not approval_data.rejection_reason:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Rejection reason is required when rejecting an expense"
         )
 
     updated_expense = await expense_crud.approve_expense(
         db,
         expense=expense,
         approver_id=current_user.id,
-        status=approval_data.status,
-        rejection_reason=approval_data.rejection_reason
+        expense_status_id=approval_data.expense_status_id,
+        approval_comments=approval_data.approval_comments
     )
 
     return updated_expense
