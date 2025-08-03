@@ -513,6 +513,7 @@ const ExpenseManagement: React.FC = () => {
   const expenseStats = [
     {
       title: 'Total Expenses',
+      subtitle: '(Excludes Rejected)',
       value: `₹${(statistics.total_amount || 0).toLocaleString()}`,
       icon: <AttachMoney />,
       color: 'primary',
@@ -537,7 +538,7 @@ const ExpenseManagement: React.FC = () => {
       value: statistics.rejected_expenses || 0,
       icon: <Cancel />,
       color: 'error',
-      count: statistics.rejected_expenses || 0
+      amount: `₹${(statistics.rejected_amount || 0).toLocaleString()}`
     },
   ];
 
@@ -590,6 +591,11 @@ const ExpenseManagement: React.FC = () => {
                     <Typography variant="body2" color="text.secondary">
                       {stat.title}
                     </Typography>
+                    {stat.subtitle && (
+                      <Typography variant="caption" color="text.secondary" display="block">
+                        {stat.subtitle}
+                      </Typography>
+                    )}
                     {stat.amount && (
                       <Typography variant="caption" color="text.secondary">
                         {stat.amount}

@@ -480,11 +480,13 @@ class CRUDExpense(CRUDBase[Expense, ExpenseCreate, ExpenseUpdate]):
 
         query = f"""
         SELECT
-            COUNT(e.id) as total_expenses,
+            -- Total expenses excludes rejected expenses (status_id = 3)
+            COUNT(CASE WHEN e.expense_status_id != 3 THEN 1 END) as total_expenses,
             COUNT(CASE WHEN e.expense_status_id = 2 THEN 1 END) as approved_expenses,
             COUNT(CASE WHEN e.expense_status_id = 3 THEN 1 END) as rejected_expenses,
             COUNT(CASE WHEN e.expense_status_id = 1 THEN 1 END) as pending_expenses,
-            SUM(e.total_amount) as total_amount,
+            -- Total amount excludes rejected expenses
+            SUM(CASE WHEN e.expense_status_id != 3 THEN e.total_amount ELSE 0 END) as total_amount,
             SUM(CASE WHEN e.expense_status_id = 2 THEN e.total_amount ELSE 0 END) as approved_amount,
             SUM(CASE WHEN e.expense_status_id = 3 THEN e.total_amount ELSE 0 END) as rejected_amount,
             SUM(CASE WHEN e.expense_status_id = 1 THEN e.total_amount ELSE 0 END) as pending_amount
@@ -512,7 +514,10 @@ class CRUDExpense(CRUDBase[Expense, ExpenseCreate, ExpenseUpdate]):
                 'payment_method_breakdown': []
             }
 
-        # Get category breakdown
+        # Get category breakdown (excluding rejected expenses)
+        category_where_conditions = where_conditions + ["e.expense_status_id != 3"]
+        category_where_clause = "WHERE " + " AND ".join(category_where_conditions)
+
         category_query = f"""
         SELECT
             ec.name as category_name,
@@ -520,7 +525,7 @@ class CRUDExpense(CRUDBase[Expense, ExpenseCreate, ExpenseUpdate]):
             SUM(e.total_amount) as amount
         FROM expenses e
         JOIN expense_categories ec ON e.expense_category_id = ec.id
-        {where_clause}
+        {category_where_clause}
         GROUP BY ec.id, ec.name
         ORDER BY amount DESC
         """
@@ -535,7 +540,10 @@ class CRUDExpense(CRUDBase[Expense, ExpenseCreate, ExpenseUpdate]):
             for row in category_result
         ]
 
-        # Get payment method breakdown
+        # Get payment method breakdown (excluding rejected expenses)
+        payment_where_conditions = where_conditions + ["e.expense_status_id != 3"]
+        payment_where_clause = "WHERE " + " AND ".join(payment_where_conditions)
+
         payment_query = f"""
         SELECT
             pm.name as payment_method_name,
@@ -543,7 +551,7 @@ class CRUDExpense(CRUDBase[Expense, ExpenseCreate, ExpenseUpdate]):
             SUM(e.total_amount) as amount
         FROM expenses e
         JOIN payment_methods pm ON e.payment_method_id = pm.id
-        {where_clause}
+        {payment_where_clause}
         GROUP BY pm.id, pm.name
         ORDER BY amount DESC
         """

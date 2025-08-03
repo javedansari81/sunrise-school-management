@@ -11,7 +11,7 @@ from app.crud import user_crud
 from app.schemas.expense import (
     Expense, ExpenseCreate, ExpenseUpdate, ExpenseWithDetails,
     ExpenseApproval, ExpenseFilters, ExpenseListResponse, ExpenseReport,
-    ExpenseDashboard, Vendor, VendorCreate, VendorUpdate
+    ExpenseDashboard, ExpenseSummary, Vendor, VendorCreate, VendorUpdate
 )
 from app.api.deps import get_current_active_user
 from app.models.user import User
@@ -66,7 +66,26 @@ async def get_expenses(
     )
 
     # Get summary statistics
-    summary = await expense_crud.get_expense_statistics(db)
+    print(f"🔍 Getting summary statistics for expenses endpoint...")
+    summary_data = await expense_crud.get_expense_statistics(db)
+    print(f"📊 Summary statistics for expenses endpoint: {summary_data}")
+    print(f"📊 Rejected amount in summary: {summary_data.get('rejected_amount', 'MISSING')}")
+
+    # Create proper ExpenseSummary object
+    summary = ExpenseSummary(
+        total_expenses=summary_data.get('total_expenses', 0),
+        approved_expenses=summary_data.get('approved_expenses', 0),
+        rejected_expenses=summary_data.get('rejected_expenses', 0),
+        pending_expenses=summary_data.get('pending_expenses', 0),
+        total_amount=summary_data.get('total_amount', 0.0),
+        approved_amount=summary_data.get('approved_amount', 0.0),
+        rejected_amount=summary_data.get('rejected_amount', 0.0),
+        pending_amount=summary_data.get('pending_amount', 0.0),
+        category_breakdown=summary_data.get('category_breakdown', []),
+        payment_method_breakdown=summary_data.get('payment_method_breakdown', [])
+    )
+
+    print(f"📊 ExpenseSummary object created with rejected_amount: {summary.rejected_amount}")
 
     total_pages = math.ceil(total / per_page)
 

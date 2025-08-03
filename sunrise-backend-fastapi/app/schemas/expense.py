@@ -178,6 +178,20 @@ class ExpenseFilters(BaseModel):
     is_recurring: Optional[bool] = None
 
 
+class ExpenseSummary(BaseModel):
+    """Summary statistics for expenses"""
+    total_expenses: int
+    approved_expenses: int
+    rejected_expenses: int
+    pending_expenses: int
+    total_amount: float
+    approved_amount: float
+    rejected_amount: float
+    pending_amount: float
+    category_breakdown: List[dict] = []
+    payment_method_breakdown: List[dict] = []
+
+
 class ExpenseListResponse(BaseModel):
     """Response schema for expense list"""
     expenses: List[ExpenseWithDetails]
@@ -185,7 +199,7 @@ class ExpenseListResponse(BaseModel):
     page: int
     per_page: int
     total_pages: int
-    summary: dict
+    summary: ExpenseSummary
 
 
 class ExpenseReport(BaseModel):
