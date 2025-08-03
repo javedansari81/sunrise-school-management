@@ -103,11 +103,11 @@ class Teacher(Base):
     # Salary Information
     salary = Column(Float, nullable=True)
 
-    # Additional Information
-    bio = Column(Text, nullable=True)
-    specializations = Column(Text, nullable=True)  # JSON array of specializations
-    certifications = Column(Text, nullable=True)  # JSON array of certifications
-    img = Column(Text, nullable=True)  # Base64 encoded image or URL
+    # Additional Information (commented out until database schema is updated)
+    # bio = Column(Text, nullable=True)
+    # specializations = Column(Text, nullable=True)  # JSON array of specializations
+    # certifications = Column(Text, nullable=True)  # JSON array of certifications
+    # img = Column(Text, nullable=True)  # Base64 encoded image or URL
 
     # Status
     is_active = Column(Boolean, default=True)

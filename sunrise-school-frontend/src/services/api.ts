@@ -121,6 +121,10 @@ export const leaveAPI = {
   createLeave: (leaveData: any) =>
     api.post('/leaves', leaveData).then(response => response.data),
 
+  // Create new leave request with friendly identifiers
+  createLeaveFriendly: (leaveData: any) =>
+    api.post('/leaves/friendly', leaveData).then(response => response.data),
+
   // Update leave request
   updateLeave: (id: number, leaveData: any) =>
     api.put(`/leaves/${id}`, leaveData).then(response => response.data),

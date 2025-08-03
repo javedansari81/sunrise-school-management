@@ -76,7 +76,7 @@ class LeaveRequestCreateFriendly(BaseModel):
     """User-friendly schema for creating leave requests using human-readable identifiers"""
     applicant_identifier: str = Field(
         ...,
-        description="Composite identifier: 'Roll 001: John Doe' for students or 'John Smith (EMP001)' for teachers. Also supports legacy admission numbers and employee IDs."
+        description="Human-readable identifier: 'Roll 001 - Class 5A' for students or 'EMP001' for teachers. Also supports legacy formats."
     )
     applicant_type: ApplicantTypeEnum = Field(..., description="Type of applicant: student or teacher")
     leave_type_id: int = Field(..., description="Leave type ID from metadata")

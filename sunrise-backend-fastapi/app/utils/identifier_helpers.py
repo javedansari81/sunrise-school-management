@@ -15,15 +15,27 @@ from app.schemas.leave import ApplicantTypeEnum
 def parse_student_identifier(identifier: str) -> Dict[str, Any]:
     """
     Parse student identifier in various formats:
+    - "Roll 001 - Class 5A" (new frontend format)
     - "Roll 001: John Doe" (preferred composite format)
     - "001 - John Doe" (alternative composite format)
     - "STU001" (legacy admission number)
     - "001" (roll number only)
 
     Returns:
-        Dict with parsed components: {'type': 'composite|roll|admission', 'roll_number': str, 'name': str, 'admission_number': str}
+        Dict with parsed components: {'type': 'frontend|composite|roll|admission', 'roll_number': str, 'name': str, 'class_name': str, 'admission_number': str}
     """
     identifier = identifier.strip()
+
+    # Pattern 0: "Roll 001 - Class 5A" (new frontend format)
+    pattern0 = re.match(r'^Roll\s*(\d+)\s*-\s*Class\s*(.+)$', identifier, re.IGNORECASE)
+    if pattern0:
+        return {
+            'type': 'frontend',
+            'roll_number': pattern0.group(1).zfill(3),  # Ensure 3 digits
+            'class_name': pattern0.group(2).strip(),
+            'name': None,
+            'admission_number': None
+        }
 
     # Pattern 1: "Roll 001: John Doe" or "Roll001: John Doe"
     pattern1 = re.match(r'^Roll\s*(\d+):\s*(.+)$', identifier, re.IGNORECASE)
@@ -32,6 +44,7 @@ def parse_student_identifier(identifier: str) -> Dict[str, Any]:
             'type': 'composite',
             'roll_number': pattern1.group(1).zfill(3),  # Ensure 3 digits
             'name': pattern1.group(2).strip(),
+            'class_name': None,
             'admission_number': None
         }
 
@@ -42,6 +55,7 @@ def parse_student_identifier(identifier: str) -> Dict[str, Any]:
             'type': 'composite',
             'roll_number': pattern2.group(1).zfill(3),  # Ensure 3 digits
             'name': pattern2.group(2).strip(),
+            'class_name': None,
             'admission_number': None
         }
 
@@ -51,6 +65,7 @@ def parse_student_identifier(identifier: str) -> Dict[str, Any]:
             'type': 'admission',
             'roll_number': None,
             'name': None,
+            'class_name': None,
             'admission_number': identifier.upper()
         }
 
@@ -60,6 +75,7 @@ def parse_student_identifier(identifier: str) -> Dict[str, Any]:
             'type': 'roll',
             'roll_number': identifier.zfill(3),  # Ensure 3 digits
             'name': None,
+            'class_name': None,
             'admission_number': None
         }
 
@@ -68,6 +84,7 @@ def parse_student_identifier(identifier: str) -> Dict[str, Any]:
         'type': 'name',
         'roll_number': None,
         'name': identifier,
+        'class_name': None,
         'admission_number': None
     }
 
@@ -184,7 +201,15 @@ async def _resolve_student_identifier(db: AsyncSession, identifier: str) -> Tupl
     """
     parsed = parse_student_identifier(identifier)
 
-    if parsed['type'] == 'composite':
+    if parsed['type'] == 'frontend':
+        # New frontend format: "Roll 001 - Class 5A"
+        student = await _find_student_by_roll_and_class(
+            db, parsed['roll_number'], parsed['class_name']
+        )
+        if student:
+            return student.id, f"{student.first_name} {student.last_name}"
+
+    elif parsed['type'] == 'composite':
         # Search by roll number and name combination
         student = await _find_student_by_roll_and_name(
             db, parsed['roll_number'], parsed['name']
@@ -223,7 +248,7 @@ async def _resolve_student_identifier(db: AsyncSession, identifier: str) -> Tupl
     # If we get here, no student was found
     raise HTTPException(
         status_code=status.HTTP_404_NOT_FOUND,
-        detail=f"Student not found for identifier '{identifier}'. Try formats like 'Roll 001: John Doe' or 'STU001'"
+        detail=f"Student not found for identifier '{identifier}'. Try formats like 'Roll 001 - Class 5A', 'Roll 001: John Doe' or 'STU001'"
     )
 
 
@@ -268,6 +293,55 @@ async def _resolve_teacher_identifier(db: AsyncSession, identifier: str) -> Tupl
         status_code=status.HTTP_404_NOT_FOUND,
         detail=f"Teacher not found for identifier '{identifier}'. Try formats like 'John Smith (EMP001)' or 'EMP001'"
     )
+
+
+async def _find_student_by_roll_and_class(
+    db: AsyncSession,
+    roll_number: str,
+    class_name: str
+) -> Optional[any]:
+    """Find student by roll number and class name combination (new frontend format)"""
+    from sqlalchemy import and_, select, join
+    from app.models.student import Student
+    from app.models.metadata import Class
+
+    # First, find the class by name
+    class_result = await db.execute(
+        select(Class).where(
+            and_(
+                Class.name.ilike(class_name),
+                Class.is_active == True
+            )
+        )
+    )
+    class_obj = class_result.scalar_one_or_none()
+
+    if not class_obj:
+        # If exact class name not found, try partial match
+        class_result = await db.execute(
+            select(Class).where(
+                and_(
+                    Class.name.ilike(f"%{class_name}%"),
+                    Class.is_active == True
+                )
+            )
+        )
+        class_obj = class_result.scalar_one_or_none()
+
+    if not class_obj:
+        return None
+
+    # Now find student by roll number and class
+    result = await db.execute(
+        select(Student).where(
+            and_(
+                Student.roll_number == roll_number,
+                Student.class_id == class_obj.id,
+                Student.is_active == True
+            )
+        )
+    )
+    return result.scalar_one_or_none()
 
 
 async def _find_student_by_roll_and_name(

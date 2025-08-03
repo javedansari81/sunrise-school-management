@@ -27,7 +27,10 @@ import {
   Tooltip,
   Alert,
   CircularProgress,
-  Snackbar
+  Snackbar,
+  Card,
+  CardContent,
+  Stack
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -38,7 +41,11 @@ import {
   Delete as DeleteIcon,
   School,
   Work,
-  FilterList
+  FilterList,
+  EventNote,
+  Schedule,
+  CheckCircle,
+  Cancel
 } from '@mui/icons-material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
@@ -46,6 +53,7 @@ import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { useServiceConfiguration, useConfiguration } from '../../contexts/ConfigurationContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { leaveAPI } from '../../services/api';
+import { ClassDropdown } from '../../components/common/MetadataDropdown';
 
 // Types
 interface LeaveRequest {
@@ -66,31 +74,6 @@ interface LeaveRequest {
   review_comments?: string;
   reviewer_name?: string;
   created_at: string;
-}
-
-interface Configuration {
-  leave_types: Array<{
-    id: number;
-    name: string;
-    description: string;
-    max_days_per_year: number;
-    requires_medical_certificate: boolean;
-    is_active: boolean;
-  }>;
-  leave_statuses: Array<{
-    id: number;
-    name: string;
-    description: string;
-    color_code: string;
-    is_final: boolean;
-    is_active: boolean;
-  }>;
-  classes: Array<{
-    id: number;
-    name: string;
-    display_name: string;
-    is_active: boolean;
-  }>;
 }
 
 interface TabPanelProps {
@@ -129,13 +112,20 @@ const LeaveManagementSystem: React.FC = () => {
   const [isViewMode, setIsViewMode] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
   const [statistics, setStatistics] = useState<any>({});
+  const [searchInput, setSearchInput] = useState('');
 
 
   
-  // Form state
+  // Form state - Updated for user-friendly identifiers
   const [leaveForm, setLeaveForm] = useState({
-    applicant_id: '',
+    // Removed applicant_id - replaced with user-friendly identifiers
     applicant_type: 'student' as 'student' | 'teacher',
+    // Student identifiers
+    roll_number: '',
+    class_id: '',
+    // Teacher identifier
+    employee_id: '',
+    // Common fields
     leave_type_id: '',
     start_date: null as Date | null,
     end_date: null as Date | null,
@@ -152,7 +142,7 @@ const LeaveManagementSystem: React.FC = () => {
     applicant_type: '',
     leave_status_id: '',
     leave_type_id: '',
-    class_name: '',
+    applicant_name: '',
     department: ''
   });
 
@@ -230,6 +220,15 @@ const LeaveManagementSystem: React.FC = () => {
     }
   }, [configLoading, configLoaded, configError, isAuthenticated, filters, loadLeaveRequests, loadStatistics]);
 
+  // Debounced search effect
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setFilters(prev => ({ ...prev, applicant_name: searchInput }));
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchInput]);
+
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
   };
@@ -237,9 +236,13 @@ const LeaveManagementSystem: React.FC = () => {
   const handleOpenDialog = (leave?: LeaveRequest, viewMode = false) => {
     if (leave) {
       setSelectedLeave(leave);
+      // For editing existing leave requests, we'll need to resolve the IDs back to identifiers
+      // For now, we'll show the existing data in view mode and disable editing of identifiers
       setLeaveForm({
-        applicant_id: leave.applicant_id.toString(),
         applicant_type: leave.applicant_type,
+        roll_number: '', // TODO: Resolve from applicant_id when editing
+        class_id: '', // TODO: Resolve from applicant_id when editing
+        employee_id: '', // TODO: Resolve from applicant_id when editing
         leave_type_id: leave.leave_type_id.toString(),
         start_date: new Date(leave.start_date),
         end_date: new Date(leave.end_date),
@@ -253,8 +256,10 @@ const LeaveManagementSystem: React.FC = () => {
     } else {
       setSelectedLeave(null);
       setLeaveForm({
-        applicant_id: '',
         applicant_type: 'student',
+        roll_number: '',
+        class_id: '',
+        employee_id: '',
         leave_type_id: '',
         start_date: null,
         end_date: null,
@@ -284,11 +289,27 @@ const LeaveManagementSystem: React.FC = () => {
   };
 
   const handleSubmit = async () => {
-    // Form validation
-    if (!leaveForm.applicant_id || !leaveForm.leave_type_id || !leaveForm.start_date || !leaveForm.end_date || !leaveForm.reason.trim()) {
+    // Form validation - Updated for user-friendly identifiers
+    let validationError = '';
+
+    if (leaveForm.applicant_type === 'student') {
+      if (!leaveForm.roll_number.trim() || !leaveForm.class_id) {
+        validationError = 'Please provide both Roll Number and Class for student requests';
+      }
+    } else if (leaveForm.applicant_type === 'teacher') {
+      if (!leaveForm.employee_id.trim()) {
+        validationError = 'Please provide Employee ID for teacher requests';
+      }
+    }
+
+    if (!leaveForm.leave_type_id || !leaveForm.start_date || !leaveForm.end_date || !leaveForm.reason.trim()) {
+      validationError = validationError || 'Please fill in all required fields';
+    }
+
+    if (validationError) {
       setSnackbar({
         open: true,
-        message: 'Please fill in all required fields',
+        message: validationError,
         severity: 'error'
       });
       return;
@@ -296,26 +317,47 @@ const LeaveManagementSystem: React.FC = () => {
 
     try {
       setLoading(true);
-      const submitData = {
-        ...leaveForm,
+
+      // Prepare data for the friendly API endpoint
+      const submitData: any = {
+        applicant_type: leaveForm.applicant_type,
+        leave_type_id: parseInt(leaveForm.leave_type_id),
         start_date: leaveForm.start_date?.toISOString().split('T')[0],
         end_date: leaveForm.end_date?.toISOString().split('T')[0],
-        applicant_id: parseInt(leaveForm.applicant_id),
-        leave_type_id: parseInt(leaveForm.leave_type_id),
+        reason: leaveForm.reason,
+        parent_consent: leaveForm.parent_consent,
+        emergency_contact_name: leaveForm.emergency_contact_name,
+        emergency_contact_phone: leaveForm.emergency_contact_phone,
+        substitute_arranged: leaveForm.substitute_arranged,
         total_days: leaveForm.start_date && leaveForm.end_date
           ? Math.ceil((leaveForm.end_date.getTime() - leaveForm.start_date.getTime()) / (1000 * 60 * 60 * 24)) + 1
           : 1
       };
 
+      // Add applicant identifier based on type
+      if (leaveForm.applicant_type === 'student') {
+        // Create composite identifier for student: "Roll {roll_number} - Class {class_name}"
+        const selectedClass = configuration?.classes?.find(c => c.id.toString() === leaveForm.class_id);
+        const className = selectedClass?.name || leaveForm.class_id;
+        submitData.applicant_identifier = `Roll ${leaveForm.roll_number} - Class ${className}`;
+      } else {
+        // Use employee ID directly for teacher
+        submitData.applicant_identifier = leaveForm.employee_id;
+      }
+
       if (selectedLeave) {
-        await leaveAPI.updateLeave(selectedLeave.id, submitData);
+        // For updates, we'll need to convert back to the old format or implement friendly update
+        // For now, disable editing of existing requests with identifiers
         setSnackbar({
           open: true,
-          message: 'Leave request updated successfully',
-          severity: 'success'
+          message: 'Editing existing leave requests is temporarily disabled during the identifier system update',
+          severity: 'error'
         });
+        setLoading(false);
+        return;
       } else {
-        await leaveAPI.createLeave(submitData);
+        // Use the friendly endpoint for new requests
+        await leaveAPI.createLeaveFriendly(submitData);
         setSnackbar({
           open: true,
           message: 'Leave request created successfully',
@@ -446,56 +488,51 @@ const LeaveManagementSystem: React.FC = () => {
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns}>
       <Box sx={{ width: '100%' }}>
-        <Paper sx={{ width: '100%', mb: { xs: 2, sm: 3 } }}>
-          <Tabs
-            value={tabValue}
-            onChange={handleTabChange}
-            aria-label="leave management tabs"
-            variant="scrollable"
-            scrollButtons="auto"
-            allowScrollButtonsMobile
+        {/* Header Section with Title and New Request Button */}
+        <Box
+          display="flex"
+          justifyContent="space-between"
+          alignItems={{ xs: 'flex-start', sm: 'center' }}
+          flexDirection={{ xs: 'column', sm: 'row' }}
+          gap={{ xs: 2, sm: 0 }}
+          mb={{ xs: 3, sm: 4 }}
+        >
+          <Typography
+            variant="h4"
+            fontWeight="bold"
             sx={{
-              '& .MuiTab-root': {
-                fontSize: { xs: '0.75rem', sm: '0.875rem' },
-                minHeight: { xs: 40, sm: 48 },
-                minWidth: { xs: 80, sm: 120 },
-                textTransform: 'none',
-                fontWeight: 500,
-              },
-              '& .Mui-selected': {
-                fontWeight: 600,
-              }
+              fontSize: { xs: '1.5rem', sm: '2rem', md: '2.125rem' }
             }}
           >
-            <Tab label="All Requests" />
-            <Tab label="Pending Approval" />
-            <Tab label="My Requests" />
-            <Tab label="Statistics" />
-          </Tabs>
-        </Paper>
+            Leave Management
+          </Typography>
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={() => handleOpenDialog()}
+            sx={{
+              fontSize: { xs: '0.875rem', sm: '1rem' },
+              padding: { xs: '6px 12px', sm: '8px 16px' },
+              alignSelf: { xs: 'flex-end', sm: 'auto' }
+            }}
+          >
+            New Leave Request
+          </Button>
+        </Box>
 
-        <TabPanel value={tabValue} index={0}>
-          {/* All Requests Tab - Mobile Responsive */}
+        {/* Filters Section - Above Tabs */}
+        <Paper elevation={3} sx={{ p: 3, mb: 3 }}>
+          <Typography variant="h6" fontWeight="bold" mb={2}>
+            <FilterList sx={{ mr: 1 }} />
+            Filters
+          </Typography>
           <Box sx={{
-            mb: { xs: 2, sm: 3 },
             display: 'flex',
             gap: { xs: 1.5, sm: 2 },
             alignItems: { xs: 'stretch', sm: 'center' },
             flexWrap: 'wrap',
             flexDirection: { xs: 'column', sm: 'row' }
           }}>
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              onClick={() => handleOpenDialog()}
-              sx={{
-                fontSize: { xs: '0.875rem', sm: '1rem' },
-                padding: { xs: '6px 12px', sm: '8px 16px' },
-                order: { xs: 1, sm: 0 }
-              }}
-            >
-              New Leave Request
-            </Button>
 
             <FormControl
               size="small"
@@ -539,51 +576,115 @@ const LeaveManagementSystem: React.FC = () => {
               </Select>
             </FormControl>
 
-            <Button
-              variant="outlined"
-              startIcon={<FilterList />}
-              onClick={loadLeaveRequests}
+            <FormControl
+              size="small"
               sx={{
-                fontSize: { xs: '0.875rem', sm: '1rem' },
-                padding: { xs: '6px 12px', sm: '8px 16px' },
-                order: { xs: 4, sm: 0 },
-                minWidth: { xs: '100%', sm: 'auto' }
+                minWidth: { xs: '100%', sm: 120 },
+                order: { xs: 4, sm: 0 }
               }}
             >
-              Apply Filters
-            </Button>
-          </Box>
+              <InputLabel>Leave Type</InputLabel>
+              <Select
+                value={filters.leave_type_id}
+                label="Leave Type"
+                onChange={(e) => setFilters(prev => ({ ...prev, leave_type_id: e.target.value }))}
+              >
+                <MenuItem value="">All</MenuItem>
+                {configuration?.leave_types && Array.isArray(configuration.leave_types) ?
+                  configuration.leave_types.map((type: any) => (
+                    <MenuItem key={type.id} value={type.id.toString()}>
+                      {type.name}
+                    </MenuItem>
+                  )) : null}
+              </Select>
+            </FormControl>
 
+            <TextField
+              size="small"
+              label="Search by Name"
+              placeholder="Enter applicant name..."
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              sx={{
+                minWidth: { xs: '100%', sm: 200 },
+                order: { xs: 4, sm: 0 }
+              }}
+            />
+
+
+          </Box>
+        </Paper>
+
+        {/* Tabs Section */}
+        <Paper sx={{ width: '100%', mb: { xs: 2, sm: 3 } }}>
+          <Tabs
+            value={tabValue}
+            onChange={handleTabChange}
+            aria-label="leave management tabs"
+            variant="scrollable"
+            scrollButtons="auto"
+            allowScrollButtonsMobile
+            sx={{
+              '& .MuiTab-root': {
+                fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                minHeight: { xs: 40, sm: 48 },
+                minWidth: { xs: 80, sm: 120 },
+                textTransform: 'none',
+                fontWeight: 500,
+              },
+              '& .Mui-selected': {
+                fontWeight: 600,
+              }
+            }}
+          >
+            <Tab label="All Requests" />
+            <Tab label="Pending Approval" />
+            <Tab label="My Requests" />
+            <Tab label="Statistics" />
+          </Tabs>
+        </Paper>
+
+        <TabPanel value={tabValue} index={0}>
+          {/* All Requests Tab */}
           {loading ? (
             <Box display="flex" justifyContent="center" p={{ xs: 2, sm: 4 }}>
               <CircularProgress />
             </Box>
           ) : (
-            <TableContainer
-              component={Paper}
-              sx={{
-                maxHeight: { xs: '60vh', sm: '70vh' },
-                overflow: 'auto'
-              }}
-            >
+            <Paper elevation={3} sx={{ p: 3 }}>
+              <Typography variant="h6" fontWeight="bold" mb={2}>
+                All Leave Requests ({Array.isArray(leaveRequests) ? leaveRequests.length : 0})
+              </Typography>
+              <TableContainer
+                sx={{
+                  maxHeight: { xs: '60vh', sm: '70vh' },
+                  overflow: 'auto'
+                }}
+              >
               <Table
-                size="small"
+                stickyHeader
                 sx={{
                   '& .MuiTableCell-root': {
-                    fontSize: { xs: '0.75rem', sm: '0.875rem' },
-                    padding: { xs: '8px', sm: '16px' }
+                    fontSize: '0.875rem',
+                    padding: '12px 16px',
+                    borderBottom: '1px solid rgba(224, 224, 224, 1)'
+                  },
+                  '& .MuiTableHead-root .MuiTableCell-root': {
+                    backgroundColor: 'grey.50',
+                    fontWeight: 600,
+                    fontSize: '0.875rem'
                   }
                 }}
               >
                 <TableHead>
                   <TableRow>
-                    <TableCell sx={{ fontWeight: 'bold' }}>Applicant</TableCell>
-                    <TableCell sx={{ fontWeight: 'bold', display: { xs: 'none', sm: 'table-cell' } }}>Type</TableCell>
-                    <TableCell sx={{ fontWeight: 'bold' }}>Leave Type</TableCell>
-                    <TableCell sx={{ fontWeight: 'bold', display: { xs: 'none', md: 'table-cell' } }}>Duration</TableCell>
+                    <TableCell>Applicant</TableCell>
+                    <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>Type</TableCell>
+                    <TableCell>Leave Type</TableCell>
+                    <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>Duration</TableCell>
                     <TableCell>Days</TableCell>
                     <TableCell>Status</TableCell>
-                    <TableCell>Actions</TableCell>
+                    <TableCell align="center">Actions</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -680,6 +781,462 @@ const LeaveManagementSystem: React.FC = () => {
                 </TableBody>
               </Table>
             </TableContainer>
+            </Paper>
+          )}
+        </TabPanel>
+
+        <TabPanel value={tabValue} index={1}>
+          {/* Pending Approval Tab */}
+          {loading ? (
+            <Box display="flex" justifyContent="center" p={{ xs: 2, sm: 4 }}>
+              <CircularProgress />
+            </Box>
+          ) : (
+            <Paper elevation={3} sx={{ p: 3 }}>
+              <Typography variant="h6" fontWeight="bold" mb={2} color="warning.main">
+                Pending Approval ({Array.isArray(leaveRequests) ? leaveRequests.filter(leave => leave.leave_status_name === 'Pending').length : 0})
+              </Typography>
+              <TableContainer
+                sx={{
+                  maxHeight: { xs: '60vh', sm: '70vh' },
+                  overflow: 'auto'
+                }}
+              >
+              <Table
+                stickyHeader
+                sx={{
+                  '& .MuiTableCell-root': {
+                    fontSize: '0.875rem',
+                    padding: '12px 16px',
+                    borderBottom: '1px solid rgba(224, 224, 224, 1)'
+                  },
+                  '& .MuiTableHead-root .MuiTableCell-root': {
+                    backgroundColor: 'grey.50',
+                    fontWeight: 600,
+                    fontSize: '0.875rem'
+                  }
+                }}
+              >
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Applicant</TableCell>
+                    <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>Type</TableCell>
+                    <TableCell>Leave Type</TableCell>
+                    <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>Duration</TableCell>
+                    <TableCell>Days</TableCell>
+                    <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>Submitted</TableCell>
+                    <TableCell align="center">Actions</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {Array.isArray(leaveRequests) && leaveRequests.length > 0 ? (
+                    leaveRequests
+                      .filter(leave => leave && typeof leave === 'object' && leave.id && leave.leave_status_name === 'Pending')
+                      .map((leave) => (
+                        <TableRow key={leave.id}>
+                          <TableCell>
+                            <Stack spacing={0.5}>
+                              <Typography variant="body2" fontWeight={600} noWrap>
+                                {leave.applicant_name || 'Unknown'}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary" noWrap>
+                                {leave.applicant_details || ''}
+                              </Typography>
+                            </Stack>
+                          </TableCell>
+                          <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
+                            <Chip
+                              icon={leave.applicant_type === 'student' ? <School /> : <Work />}
+                              label={leave.applicant_type === 'student' ? 'Student' : 'Teacher'}
+                              size="small"
+                              variant="outlined"
+                            />
+                          </TableCell>
+                          <TableCell>{leave.leave_type_name || 'Unknown'}</TableCell>
+                          <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
+                            <Stack spacing={0.5}>
+                              <Typography variant="body2" noWrap>
+                                {leave.start_date ? new Date(leave.start_date).toLocaleDateString() : 'N/A'}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary" noWrap>
+                                to {leave.end_date ? new Date(leave.end_date).toLocaleDateString() : 'N/A'}
+                              </Typography>
+                            </Stack>
+                          </TableCell>
+                          <TableCell>{leave.total_days || 0}</TableCell>
+                          <TableCell>
+                            <Typography variant="caption" color="textSecondary">
+                              {leave.created_at ? new Date(leave.created_at).toLocaleDateString() : 'N/A'}
+                            </Typography>
+                          </TableCell>
+                          <TableCell align="center">
+                            <Stack direction="row" spacing={0.5} justifyContent="center">
+                              <Tooltip title="View Details">
+                                <IconButton
+                                  size="small"
+                                  onClick={() => handleOpenDialog(leave, true)}
+                                  sx={{ color: 'primary.main' }}
+                                >
+                                  <ViewIcon />
+                                </IconButton>
+                              </Tooltip>
+                              {leave.leave_status_name === 'Pending' && (
+                                <>
+                                  <Tooltip title="Approve Request">
+                                    <IconButton
+                                      size="small"
+                                      onClick={() => handleApprove(leave.id, 2, 'Approved')}
+                                      sx={{ color: 'success.main' }}
+                                    >
+                                      <ApproveIcon />
+                                    </IconButton>
+                                  </Tooltip>
+                                  <Tooltip title="Reject Request">
+                                    <IconButton
+                                      size="small"
+                                      onClick={() => handleApprove(leave.id, 3, 'Rejected')}
+                                      sx={{ color: 'error.main' }}
+                                    >
+                                      <RejectIcon />
+                                    </IconButton>
+                                  </Tooltip>
+                                  <Tooltip title="Edit Request">
+                                    <IconButton
+                                      size="small"
+                                      onClick={() => handleOpenDialog(leave, false)}
+                                      sx={{ color: 'warning.main' }}
+                                    >
+                                      <EditIcon />
+                                    </IconButton>
+                                  </Tooltip>
+                                </>
+                              )}
+                            </Stack>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={7} align="center">
+                        <Typography variant="body2" color="textSecondary" sx={{ py: 4 }}>
+                          No pending leave requests found
+                        </Typography>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
+            </Paper>
+          )}
+        </TabPanel>
+
+        <TabPanel value={tabValue} index={2}>
+          {/* My Requests Tab */}
+          {loading ? (
+            <Box display="flex" justifyContent="center" p={{ xs: 2, sm: 4 }}>
+              <CircularProgress />
+            </Box>
+          ) : (
+            <Paper elevation={3} sx={{ p: 3 }}>
+              <Typography variant="h6" fontWeight="bold" mb={2} color="primary.main">
+                My Leave Requests ({Array.isArray(leaveRequests) ? leaveRequests.filter(leave =>
+                  leave.applicant_id === user?.id &&
+                  ((user?.user_type === 'student' && leave.applicant_type === 'student') ||
+                   (user?.user_type === 'teacher' && leave.applicant_type === 'teacher') ||
+                   (user?.user_type === 'admin'))
+                ).length : 0})
+              </Typography>
+              <TableContainer
+                sx={{
+                  maxHeight: { xs: '60vh', sm: '70vh' },
+                  overflow: 'auto'
+                }}
+              >
+              <Table
+                stickyHeader
+                sx={{
+                  '& .MuiTableCell-root': {
+                    fontSize: '0.875rem',
+                    padding: '12px 16px',
+                    borderBottom: '1px solid rgba(224, 224, 224, 1)'
+                  },
+                  '& .MuiTableHead-root .MuiTableCell-root': {
+                    backgroundColor: 'grey.50',
+                    fontWeight: 600,
+                    fontSize: '0.875rem'
+                  }
+                }}
+              >
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Leave Type</TableCell>
+                    <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>Duration</TableCell>
+                    <TableCell>Days</TableCell>
+                    <TableCell>Status</TableCell>
+                    <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>Submitted</TableCell>
+                    <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>Reviewed By</TableCell>
+                    <TableCell align="center">Actions</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {Array.isArray(leaveRequests) && leaveRequests.length > 0 ? (
+                    leaveRequests
+                      .filter(leave =>
+                        leave && typeof leave === 'object' && leave.id &&
+                        leave.applicant_id === user?.id &&
+                        ((user?.user_type === 'student' && leave.applicant_type === 'student') ||
+                         (user?.user_type === 'teacher' && leave.applicant_type === 'teacher') ||
+                         (user?.user_type === 'admin'))
+                      )
+                      .map((leave) => (
+                        <TableRow key={leave.id}>
+                          <TableCell>
+                            <Stack spacing={0.5}>
+                              <Typography variant="body2" fontWeight={600} noWrap>
+                                {leave.leave_type_name || 'Unknown'}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary" noWrap>
+                                {leave.reason ? (leave.reason.length > 50 ? `${leave.reason.substring(0, 50)}...` : leave.reason) : 'No reason provided'}
+                              </Typography>
+                            </Stack>
+                          </TableCell>
+                          <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
+                            <Stack spacing={0.5}>
+                              <Typography variant="body2" noWrap>
+                                {leave.start_date ? new Date(leave.start_date).toLocaleDateString() : 'N/A'}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary" noWrap>
+                                to {leave.end_date ? new Date(leave.end_date).toLocaleDateString() : 'N/A'}
+                              </Typography>
+                            </Stack>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2" fontWeight="bold">
+                              {leave.total_days || 0}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Chip
+                              label={leave.leave_status_name || 'Unknown'}
+                              size="small"
+                              sx={{
+                                backgroundColor: getStatusColor(leave.leave_status_name || 'Unknown', leave.leave_status_color),
+                                color: 'white'
+                              }}
+                            />
+                          </TableCell>
+                          <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
+                            <Typography variant="caption" color="textSecondary">
+                              {leave.created_at ? new Date(leave.created_at).toLocaleDateString() : 'N/A'}
+                            </Typography>
+                          </TableCell>
+                          <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
+                            <Typography variant="caption" color="textSecondary">
+                              {leave.reviewer_name || (leave.leave_status_name === 'Pending' ? 'Pending' : 'N/A')}
+                            </Typography>
+                          </TableCell>
+                          <TableCell align="center">
+                            <Stack direction="row" spacing={0.5} justifyContent="center">
+                              <Tooltip title="View Details">
+                                <IconButton
+                                  size="small"
+                                  onClick={() => handleOpenDialog(leave, true)}
+                                  sx={{ color: 'primary.main' }}
+                                >
+                                  <ViewIcon />
+                                </IconButton>
+                              </Tooltip>
+                              {leave.leave_status_name === 'Pending' && (
+                                <Tooltip title="Edit Request">
+                                  <IconButton
+                                    size="small"
+                                    onClick={() => handleOpenDialog(leave, false)}
+                                    sx={{ color: 'warning.main' }}
+                                  >
+                                    <EditIcon />
+                                  </IconButton>
+                                </Tooltip>
+                              )}
+                            </Stack>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={7} align="center">
+                        <Typography variant="body2" color="textSecondary" sx={{ py: 4 }}>
+                          You have not submitted any leave requests yet
+                        </Typography>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
+            </Paper>
+          )}
+        </TabPanel>
+
+        <TabPanel value={tabValue} index={3}>
+          {/* Statistics Tab */}
+          <Box sx={{ mb: 3 }}>
+            <Typography variant="h6" color="info.main" sx={{ mb: 2 }}>
+              Leave Management Statistics
+            </Typography>
+          </Box>
+
+          {loading ? (
+            <Box display="flex" justifyContent="center" p={{ xs: 2, sm: 4 }}>
+              <CircularProgress />
+            </Box>
+          ) : (
+            <>
+              {/* Statistics Cards */}
+              <Grid container spacing={3} mb={4}>
+                {[
+                  {
+                    title: 'Total Requests',
+                    value: statistics.total_requests || 0,
+                    icon: <EventNote />,
+                    color: 'primary',
+                    subtitle: `${statistics.total_days || 0} total days`
+                  },
+                  {
+                    title: 'Pending Approval',
+                    value: statistics.pending_requests || 0,
+                    icon: <Schedule />,
+                    color: 'warning',
+                    subtitle: 'Awaiting review'
+                  },
+                  {
+                    title: 'Approved',
+                    value: statistics.approved_requests || 0,
+                    icon: <CheckCircle />,
+                    color: 'success',
+                    subtitle: `${statistics.approval_rate ? statistics.approval_rate.toFixed(1) : 0}% approval rate`
+                  },
+                  {
+                    title: 'Rejected',
+                    value: statistics.rejected_requests || 0,
+                    icon: <Cancel />,
+                    color: 'error',
+                    subtitle: 'Not approved'
+                  }
+                ].map((stat, index) => (
+                  <Grid key={index} size={{ xs: 12, sm: 6, md: 3 }}>
+                    <Card elevation={3}>
+                      <CardContent>
+                        <Box display="flex" alignItems="center" justifyContent="space-between">
+                          <Box>
+                            <Typography variant="h4" fontWeight="bold" color={`${stat.color}.main`}>
+                              {stat.value}
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary">
+                              {stat.title}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {stat.subtitle}
+                            </Typography>
+                          </Box>
+                          <Box color={`${stat.color}.main`}>
+                            {React.cloneElement(stat.icon, { sx: { fontSize: 40 } })}
+                          </Box>
+                        </Box>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                ))}
+              </Grid>
+
+              {/* Breakdown Charts */}
+              <Grid container spacing={3}>
+                {/* Leave Type Breakdown */}
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <Card elevation={3}>
+                    <CardContent>
+                      <Typography variant="h6" fontWeight="bold" mb={2}>
+                        Leave Type Breakdown
+                      </Typography>
+                      {statistics.leave_type_breakdown && statistics.leave_type_breakdown.length > 0 ? (
+                        <Box>
+                          {statistics.leave_type_breakdown.map((item: any, index: number) => (
+                            <Box key={index} sx={{ mb: 2 }}>
+                              <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
+                                <Typography variant="body2" fontWeight="bold">
+                                  {item.leave_type}
+                                </Typography>
+                                <Typography variant="body2" color="primary.main">
+                                  {item.count} requests
+                                </Typography>
+                              </Box>
+                              <Box sx={{ width: '100%', bgcolor: 'grey.200', borderRadius: 1, height: 8 }}>
+                                <Box
+                                  sx={{
+                                    width: `${statistics.total_requests ? (item.count / statistics.total_requests) * 100 : 0}%`,
+                                    bgcolor: 'primary.main',
+                                    height: '100%',
+                                    borderRadius: 1,
+                                  }}
+                                />
+                              </Box>
+                            </Box>
+                          ))}
+                        </Box>
+                      ) : (
+                        <Typography variant="body2" color="text.secondary">
+                          No leave type data available
+                        </Typography>
+                      )}
+                    </CardContent>
+                  </Card>
+                </Grid>
+
+                {/* Applicant Type Breakdown */}
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <Card elevation={3}>
+                    <CardContent>
+                      <Typography variant="h6" fontWeight="bold" mb={2}>
+                        Applicant Type Breakdown
+                      </Typography>
+                      {statistics.applicant_type_breakdown && statistics.applicant_type_breakdown.length > 0 ? (
+                        <Box>
+                          {statistics.applicant_type_breakdown.map((item: any, index: number) => (
+                            <Box key={index} sx={{ mb: 2 }}>
+                              <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
+                                <Box display="flex" alignItems="center" gap={1}>
+                                  {item.applicant_type === 'student' ? <School /> : <Work />}
+                                  <Typography variant="body2" fontWeight="bold" sx={{ textTransform: 'capitalize' }}>
+                                    {item.applicant_type}s
+                                  </Typography>
+                                </Box>
+                                <Typography variant="body2" color="primary.main">
+                                  {item.count} requests
+                                </Typography>
+                              </Box>
+                              <Box sx={{ width: '100%', bgcolor: 'grey.200', borderRadius: 1, height: 8 }}>
+                                <Box
+                                  sx={{
+                                    width: `${statistics.total_requests ? (item.count / statistics.total_requests) * 100 : 0}%`,
+                                    bgcolor: item.applicant_type === 'student' ? 'info.main' : 'success.main',
+                                    height: '100%',
+                                    borderRadius: 1,
+                                  }}
+                                />
+                              </Box>
+                            </Box>
+                          ))}
+                        </Box>
+                      ) : (
+                        <Typography variant="body2" color="text.secondary">
+                          No applicant type data available
+                        </Typography>
+                      )}
+                    </CardContent>
+                  </Card>
+                </Grid>
+              </Grid>
+            </>
           )}
         </TabPanel>
 
@@ -704,19 +1261,51 @@ const LeaveManagementSystem: React.FC = () => {
                 </FormControl>
               </Grid>
 
-              <Grid size={{ xs: 12, sm: 6 }}>
-                <TextField
-                  fullWidth
-                  label="Applicant ID"
-                  type="number"
-                  value={leaveForm.applicant_id}
-                  onChange={(e) => handleFormChange('applicant_id', e.target.value)}
-                  disabled={isViewMode}
-                  required
-                  error={!leaveForm.applicant_id}
-                  helperText={!leaveForm.applicant_id ? 'Applicant ID is required' : ''}
-                />
-              </Grid>
+              {/* Student Fields */}
+              {leaveForm.applicant_type === 'student' && (
+                <>
+                  <Grid size={{ xs: 12, sm: 6 }}>
+                    <TextField
+                      fullWidth
+                      label="Roll Number"
+                      value={leaveForm.roll_number}
+                      onChange={(e) => handleFormChange('roll_number', e.target.value)}
+                      disabled={isViewMode}
+                      required
+                      error={!leaveForm.roll_number.trim()}
+                      helperText={!leaveForm.roll_number.trim() ? 'Roll Number is required' : ''}
+                      placeholder="e.g., 001, STU001, etc."
+                    />
+                  </Grid>
+                  <Grid size={{ xs: 12, sm: 6 }}>
+                    <ClassDropdown
+                      value={leaveForm.class_id}
+                      onChange={(value) => handleFormChange('class_id', value)}
+                      disabled={isViewMode}
+                      required
+                      error={!leaveForm.class_id}
+                      helperText={!leaveForm.class_id ? 'Class is required' : ''}
+                    />
+                  </Grid>
+                </>
+              )}
+
+              {/* Teacher Fields */}
+              {leaveForm.applicant_type === 'teacher' && (
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <TextField
+                    fullWidth
+                    label="Employee ID"
+                    value={leaveForm.employee_id}
+                    onChange={(e) => handleFormChange('employee_id', e.target.value)}
+                    disabled={isViewMode}
+                    required
+                    error={!leaveForm.employee_id.trim()}
+                    helperText={!leaveForm.employee_id.trim() ? 'Employee ID is required' : ''}
+                    placeholder="e.g., EMP001, TCH001, etc."
+                  />
+                </Grid>
+              )}
 
               <Grid size={{ xs: 12, sm: 6 }}>
                 <FormControl fullWidth disabled={isViewMode}>
