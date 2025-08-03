@@ -15,7 +15,153 @@ from app.schemas.expense import (
 
 
 class CRUDExpense(CRUDBase[Expense, ExpenseCreate, ExpenseUpdate]):
-    """CRUD operations for Expense with metadata-driven architecture"""
+    """CRUD operations for Expense with metadata-driven architecture and soft delete support"""
+
+    async def get(self, db: AsyncSession, id: Any) -> Optional[Expense]:
+        """Override to exclude soft-deleted records"""
+        result = await db.execute(
+            select(Expense)
+            .where(
+                Expense.id == id,
+                (Expense.is_deleted == False) | (Expense.is_deleted.is_(None))
+            )
+        )
+        return result.scalar_one_or_none()
+
+    async def get_multi(
+        self, db: AsyncSession, *, skip: int = 0, limit: int = 100
+    ) -> List[Expense]:
+        """Override to exclude soft-deleted records"""
+        result = await db.execute(
+            select(Expense)
+            .where(Expense.is_deleted == False)
+            .offset(skip)
+            .limit(limit)
+            .order_by(Expense.created_at.desc())
+        )
+        return result.scalars().all()
+
+    async def remove(self, db: AsyncSession, *, id: int) -> Expense:
+        """Override to perform soft delete instead of hard delete"""
+        from datetime import datetime
+
+        print(f"🔧 CRUDExpense.remove() called for expense ID: {id}")
+
+        try:
+            # Get the record without soft delete filtering for deletion
+            result = await db.execute(
+                select(Expense).where(Expense.id == id)
+            )
+            obj = result.scalar_one_or_none()
+
+            print(f"🔍 Found expense object: {obj}")
+            if obj:
+                print(f"🔍 Before soft delete - is_deleted: {obj.is_deleted}, deleted_date: {obj.deleted_date}")
+
+                # Check if already deleted
+                if obj.is_deleted:
+                    print(f"⚠️ Expense {id} is already soft deleted")
+                    return obj
+
+                # Soft delete: set flags and timestamp
+                obj.is_deleted = True
+                obj.deleted_date = datetime.utcnow()
+
+                print(f"🔍 After setting flags - is_deleted: {obj.is_deleted}, deleted_date: {obj.deleted_date}")
+
+                # Use merge instead of add to handle potential session conflicts
+                db.add(obj)
+                print(f"🔧 Added object to session, committing...")
+
+                await db.commit()
+                print(f"🔧 Commit completed, refreshing object...")
+
+                await db.refresh(obj)
+                print(f"🗑️ Soft deleted expense {id}: is_deleted={obj.is_deleted}, deleted_date={obj.deleted_date}")
+
+                # Verify the change was persisted
+                verify_result = await db.execute(
+                    select(Expense).where(Expense.id == id)
+                )
+                verify_obj = verify_result.scalar_one_or_none()
+                if verify_obj:
+                    print(f"✅ Verification - DB shows is_deleted: {verify_obj.is_deleted}, deleted_date: {verify_obj.deleted_date}")
+                else:
+                    print(f"❌ Verification failed - could not find expense {id} in DB")
+
+            else:
+                print(f"❌ No expense found with ID {id}")
+
+            return obj
+
+        except Exception as e:
+            print(f"❌ Error in CRUDExpense.remove(): {str(e)}")
+            import traceback
+            traceback.print_exc()
+            await db.rollback()
+            raise
+
+    async def soft_delete_expense(self, db: AsyncSession, *, expense_id: int) -> Optional[Expense]:
+        """Dedicated method for soft deleting expenses (bypasses base class)"""
+        from datetime import datetime
+        from sqlalchemy import update
+
+        print(f"🔧 soft_delete_expense() called for expense ID: {expense_id}")
+
+        try:
+            # First, get the current expense to verify it exists and is not already deleted
+            result = await db.execute(
+                select(Expense).where(Expense.id == expense_id)
+            )
+            expense = result.scalar_one_or_none()
+
+            if not expense:
+                print(f"❌ Expense {expense_id} not found")
+                return None
+
+            if expense.is_deleted:
+                print(f"⚠️ Expense {expense_id} is already deleted")
+                return expense
+
+            print(f"🔍 Found expense: {expense.id}, current is_deleted: {expense.is_deleted}")
+
+            # Use UPDATE statement for more reliable transaction handling
+            delete_time = datetime.utcnow()
+
+            update_stmt = (
+                update(Expense)
+                .where(Expense.id == expense_id)
+                .values(
+                    is_deleted=True,
+                    deleted_date=delete_time
+                )
+            )
+
+            print(f"🔧 Executing UPDATE statement...")
+            await db.execute(update_stmt)
+
+            print(f"🔧 Committing transaction...")
+            await db.commit()
+
+            # Fetch the updated record to verify
+            verify_result = await db.execute(
+                select(Expense).where(Expense.id == expense_id)
+            )
+            updated_expense = verify_result.scalar_one_or_none()
+
+            if updated_expense:
+                print(f"✅ Soft delete successful: is_deleted={updated_expense.is_deleted}, deleted_date={updated_expense.deleted_date}")
+                return updated_expense
+            else:
+                print(f"❌ Could not verify soft delete")
+                return None
+
+        except Exception as e:
+            print(f"❌ Error in soft_delete_expense(): {str(e)}")
+            import traceback
+            traceback.print_exc()
+            await db.rollback()
+            raise
 
     async def create(self, db: AsyncSession, *, obj_in: ExpenseCreate, requested_by: int) -> Expense:
         """Create a new expense record"""
@@ -145,7 +291,10 @@ class CRUDExpense(CRUDBase[Expense, ExpenseCreate, ExpenseUpdate]):
             where_conditions.append("e.is_recurring = :is_recurring")
             params["is_recurring"] = filters.is_recurring
 
-        where_clause = "WHERE " + " AND ".join(where_conditions) if where_conditions else ""
+        # Always filter out soft-deleted records
+        where_conditions.append("e.is_deleted = FALSE")
+
+        where_clause = "WHERE " + " AND ".join(where_conditions)
 
         # Count query
         count_query = f"""
@@ -321,7 +470,13 @@ class CRUDExpense(CRUDBase[Expense, ExpenseCreate, ExpenseUpdate]):
         self, db: AsyncSession, *, year: Optional[int] = None
     ) -> Dict[str, Any]:
         """Get comprehensive expense statistics"""
-        where_clause = f"WHERE EXTRACT(year FROM e.expense_date) = {year}" if year else ""
+        # Build WHERE clause with soft delete filtering
+        where_conditions = ["e.is_deleted = FALSE"]
+
+        if year:
+            where_conditions.append(f"EXTRACT(year FROM e.expense_date) = {year}")
+
+        where_clause = "WHERE " + " AND ".join(where_conditions)
 
         query = f"""
         SELECT
@@ -331,13 +486,31 @@ class CRUDExpense(CRUDBase[Expense, ExpenseCreate, ExpenseUpdate]):
             COUNT(CASE WHEN e.expense_status_id = 1 THEN 1 END) as pending_expenses,
             SUM(e.total_amount) as total_amount,
             SUM(CASE WHEN e.expense_status_id = 2 THEN e.total_amount ELSE 0 END) as approved_amount,
+            SUM(CASE WHEN e.expense_status_id = 3 THEN e.total_amount ELSE 0 END) as rejected_amount,
             SUM(CASE WHEN e.expense_status_id = 1 THEN e.total_amount ELSE 0 END) as pending_amount
         FROM expenses e
         {where_clause}
         """
 
+        print(f"🔍 Executing statistics query: {query}")
         result = await db.execute(text(query))
         stats = result.fetchone()
+        print(f"📊 Raw query result: {stats}")
+
+        if not stats:
+            print("⚠️ No statistics data returned from query")
+            return {
+                'total_expenses': 0,
+                'approved_expenses': 0,
+                'rejected_expenses': 0,
+                'pending_expenses': 0,
+                'total_amount': 0,
+                'approved_amount': 0,
+                'rejected_amount': 0,
+                'pending_amount': 0,
+                'category_breakdown': [],
+                'payment_method_breakdown': []
+            }
 
         # Get category breakdown
         category_query = f"""
@@ -385,17 +558,21 @@ class CRUDExpense(CRUDBase[Expense, ExpenseCreate, ExpenseUpdate]):
             for row in payment_result
         ]
 
-        return {
+        final_stats = {
             'total_expenses': stats.total_expenses or 0,
             'approved_expenses': stats.approved_expenses or 0,
             'rejected_expenses': stats.rejected_expenses or 0,
             'pending_expenses': stats.pending_expenses or 0,
             'total_amount': float(stats.total_amount) if stats.total_amount else 0,
             'approved_amount': float(stats.approved_amount) if stats.approved_amount else 0,
+            'rejected_amount': float(stats.rejected_amount) if stats.rejected_amount else 0,
             'pending_amount': float(stats.pending_amount) if stats.pending_amount else 0,
             'category_breakdown': category_breakdown,
             'payment_method_breakdown': payment_breakdown
         }
+
+        print(f"📈 Final statistics result: {final_stats}")
+        return final_stats
 
     async def get_monthly_expense_trend(
         self, db: AsyncSession, *, year: int

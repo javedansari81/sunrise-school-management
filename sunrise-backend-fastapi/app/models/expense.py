@@ -70,6 +70,10 @@ class Expense(Base):
     priority = Column(String(10), default='Medium')  # Low, Medium, High, Urgent
     is_emergency = Column(Boolean, default=False)
 
+    # Soft Delete Functionality
+    is_deleted = Column(Boolean, default=False, nullable=False)
+    deleted_date = Column(DateTime(timezone=True), nullable=True)
+
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

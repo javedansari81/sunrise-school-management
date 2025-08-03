@@ -49,9 +49,44 @@ import {
   FilterList,
   Search,
 } from '@mui/icons-material';
-import { useConfiguration } from '../../contexts/ConfigurationContext';
+import { useConfiguration, useServiceConfiguration } from '../../contexts/ConfigurationContext';
 import ServiceConfigurationLoader from '../../components/common/ServiceConfigurationLoader';
+import { configurationService } from '../../services/configurationService';
 import { expenseAPI } from '../../services/api';
+
+// Utility function to parse FastAPI validation errors
+const parseValidationErrors = (error: any): string => {
+  if (!error.response?.data?.detail) {
+    return error.message || 'An error occurred';
+  }
+
+  const detail = error.response.data.detail;
+
+  // If detail is a string, return it directly
+  if (typeof detail === 'string') {
+    return detail;
+  }
+
+  // If detail is an array of validation errors (FastAPI 422 format)
+  if (Array.isArray(detail)) {
+    const errorMessages = detail.map((err: any) => {
+      if (typeof err === 'string') return err;
+      if (err.msg && err.loc) {
+        const field = Array.isArray(err.loc) ? err.loc.join('.') : err.loc;
+        return `${field}: ${err.msg}`;
+      }
+      return err.msg || 'Validation error';
+    });
+    return errorMessages.join(', ');
+  }
+
+  // If detail is an object, try to extract meaningful message
+  if (typeof detail === 'object' && detail.msg) {
+    return detail.msg;
+  }
+
+  return 'Validation error occurred';
+};
 
 interface ExpenseFormData {
   expense_date: string;
@@ -95,7 +130,16 @@ interface ExpenseFilters {
 }
 
 const ExpenseManagement: React.FC = () => {
-  const { configuration, isLoading: configLoading } = useConfiguration();
+  const {
+    getCurrentSessionYear,
+    isLoading: configLoading
+  } = useConfiguration();
+
+  // Get service configuration data directly
+  const serviceConfig = configurationService.getServiceConfiguration('expense-management');
+  const expenseCategories = serviceConfig?.expense_categories || [];
+  const expenseStatuses = serviceConfig?.expense_statuses || [];
+  const paymentMethods = serviceConfig?.payment_methods || [];
 
   // State management
   const [expenses, setExpenses] = useState<any[]>([]);
@@ -174,6 +218,11 @@ const ExpenseManagement: React.FC = () => {
       setExpenses(response.expenses);
       setTotalPages(response.total_pages);
       setTotalExpenses(response.total);
+
+      // Update statistics from the summary field in the response
+      if (response.summary) {
+        setStatistics(response.summary);
+      }
     } catch (error) {
       console.error('Error fetching expenses:', error);
       setSnackbar({ open: true, message: 'Error fetching expenses', severity: 'error' });
@@ -186,7 +235,7 @@ const ExpenseManagement: React.FC = () => {
     try {
       const stats = await expenseAPI.getStatistics();
       setStatistics(stats);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching statistics:', error);
     }
   };
@@ -263,35 +312,92 @@ const ExpenseManagement: React.FC = () => {
 
   const handleFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target;
-    setExpenseForm(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value
-    }));
 
-    // Auto-calculate total amount
-    if (name === 'amount' || name === 'tax_amount') {
-      const amount = parseFloat(name === 'amount' ? value : expenseForm.amount) || 0;
-      const taxAmount = parseFloat(name === 'tax_amount' ? value : expenseForm.tax_amount) || 0;
-      setExpenseForm(prev => ({
+    setExpenseForm(prev => {
+      const newForm = {
         ...prev,
-        total_amount: (amount + taxAmount).toString()
-      }));
-    }
+        [name]: type === 'checkbox' ? checked : value
+      };
+
+      // Auto-calculate total amount when amount or tax_amount changes
+      if (name === 'amount' || name === 'tax_amount') {
+        const amount = parseFloat(name === 'amount' ? value : newForm.amount) || 0;
+        const taxAmount = parseFloat(name === 'tax_amount' ? value : newForm.tax_amount) || 0;
+        newForm.total_amount = (amount + taxAmount).toFixed(2);
+      }
+
+      return newForm;
+    });
   };
 
   const handleSubmit = async () => {
     try {
       setLoading(true);
 
+      // Validate required fields
+      if (!expenseForm.expense_category_id) {
+        setSnackbar({
+          open: true,
+          message: 'Please select an expense category',
+          severity: 'error'
+        });
+        setLoading(false);
+        return;
+      }
+
+      if (!expenseForm.payment_method_id) {
+        setSnackbar({
+          open: true,
+          message: 'Please select a payment method',
+          severity: 'error'
+        });
+        setLoading(false);
+        return;
+      }
+
+      if (!expenseForm.description || expenseForm.description.length < 5) {
+        setSnackbar({
+          open: true,
+          message: 'Description must be at least 5 characters long',
+          severity: 'error'
+        });
+        setLoading(false);
+        return;
+      }
+
+      if (!expenseForm.amount || parseFloat(expenseForm.amount) <= 0) {
+        setSnackbar({
+          open: true,
+          message: 'Amount must be greater than 0',
+          severity: 'error'
+        });
+        setLoading(false);
+        return;
+      }
+
       // Prepare form data
       const formData = {
         ...expenseForm,
         amount: parseFloat(expenseForm.amount),
-        tax_amount: parseFloat(expenseForm.tax_amount),
+        tax_amount: parseFloat(expenseForm.tax_amount) || 0,
         total_amount: parseFloat(expenseForm.total_amount),
         expense_category_id: Number(expenseForm.expense_category_id),
         payment_method_id: Number(expenseForm.payment_method_id),
-        session_year_id: expenseForm.session_year_id ? Number(expenseForm.session_year_id) : null
+        session_year_id: expenseForm.session_year_id ? Number(expenseForm.session_year_id) : null,
+        // Remove empty string fields that should be null
+        vendor_name: expenseForm.vendor_name || null,
+        vendor_contact: expenseForm.vendor_contact || null,
+        vendor_email: expenseForm.vendor_email || null,
+        vendor_gst_number: expenseForm.vendor_gst_number || null,
+        payment_reference: expenseForm.payment_reference || null,
+        bank_name: expenseForm.bank_name || null,
+        cheque_number: expenseForm.cheque_number || null,
+        cheque_date: expenseForm.cheque_date || null,
+        budget_category: expenseForm.budget_category || null,
+        invoice_url: expenseForm.invoice_url || null,
+        receipt_url: expenseForm.receipt_url || null,
+        subcategory: expenseForm.subcategory || null,
+        recurring_frequency: expenseForm.is_recurring ? expenseForm.recurring_frequency : null
       };
 
       if (selectedExpense) {
@@ -304,11 +410,13 @@ const ExpenseManagement: React.FC = () => {
 
       handleCloseDialog();
       fetchExpenses();
+      fetchStatistics(); // Refresh statistics after create/update
     } catch (error: any) {
       console.error('Error submitting expense:', error);
+      const errorMessage = parseValidationErrors(error);
       setSnackbar({
         open: true,
-        message: error.response?.data?.detail || 'Error submitting expense',
+        message: errorMessage,
         severity: 'error'
       });
     } finally {
@@ -322,11 +430,13 @@ const ExpenseManagement: React.FC = () => {
         await expenseAPI.deleteExpense(expenseId);
         setSnackbar({ open: true, message: 'Expense deleted successfully', severity: 'success' });
         fetchExpenses();
+        fetchStatistics(); // Refresh statistics after delete
       } catch (error: any) {
         console.error('Error deleting expense:', error);
+        const errorMessage = parseValidationErrors(error);
         setSnackbar({
           open: true,
-          message: error.response?.data?.detail || 'Error deleting expense',
+          message: errorMessage,
           severity: 'error'
         });
       }
@@ -375,20 +485,18 @@ const ExpenseManagement: React.FC = () => {
 
   // Effects
   useEffect(() => {
-    if (!configLoading && configuration) {
+    if (!configLoading) {
       fetchExpenses();
       fetchStatistics();
     }
-  }, [page, filters, configLoading, configuration]);
+  }, [page, filters, configLoading]);
 
   useEffect(() => {
-    if (configuration?.session_years && configuration.session_years.length > 0) {
-      const currentSessionYear = configuration.session_years.find((sy: any) => sy.is_current);
-      if (currentSessionYear && !expenseForm.session_year_id) {
-        setExpenseForm(prev => ({ ...prev, session_year_id: currentSessionYear.id }));
-      }
+    const currentSessionYear = getCurrentSessionYear();
+    if (currentSessionYear && !expenseForm.session_year_id) {
+      setExpenseForm(prev => ({ ...prev, session_year_id: currentSessionYear.id }));
     }
-  }, [configuration]);
+  }, [getCurrentSessionYear, expenseForm.session_year_id]);
 
   // Loading state
   if (configLoading) {
@@ -514,7 +622,7 @@ const ExpenseManagement: React.FC = () => {
                 onChange={(e) => handleFilterChange('expense_category_id', e.target.value)}
               >
                 <MenuItem value="">All Categories</MenuItem>
-                {configuration?.expense_categories?.map((category: any) => (
+                {expenseCategories.filter(cat => cat.is_active).map((category: any) => (
                   <MenuItem key={category.id} value={category.id}>
                     {category.name}
                   </MenuItem>
@@ -531,7 +639,7 @@ const ExpenseManagement: React.FC = () => {
                 onChange={(e) => handleFilterChange('expense_status_id', e.target.value)}
               >
                 <MenuItem value="">All Statuses</MenuItem>
-                {configuration?.expense_statuses?.map((status: any) => (
+                {expenseStatuses.filter(status => status.is_active).map((status: any) => (
                   <MenuItem key={status.id} value={status.id}>
                     {status.name}
                   </MenuItem>
@@ -774,7 +882,7 @@ const ExpenseManagement: React.FC = () => {
                   label="Category"
                   onChange={(e) => handleFormChange({ target: { name: 'expense_category_id', value: e.target.value } } as any)}
                 >
-                  {configuration?.expense_categories?.map((category: any) => (
+                  {expenseCategories.filter(cat => cat.is_active).map((category: any) => (
                     <MenuItem key={category.id} value={category.id}>
                       {category.name}
                     </MenuItem>
@@ -892,7 +1000,7 @@ const ExpenseManagement: React.FC = () => {
                   label="Payment Method"
                   onChange={(e) => handleFormChange({ target: { name: 'payment_method_id', value: e.target.value } } as any)}
                 >
-                  {configuration?.payment_methods?.map((method: any) => (
+                  {paymentMethods.filter(method => method.is_active).map((method: any) => (
                     <MenuItem key={method.id} value={method.id}>
                       {method.name}
                     </MenuItem>
