@@ -20,6 +20,7 @@ router = APIRouter()
 
 
 @router.get("/", response_model=StudentListResponse)
+@router.get("", response_model=StudentListResponse)  # Handle both with and without trailing slash
 async def get_students(
     class_filter: Optional[str] = Query(None, description="Filter by class"),
     section_filter: Optional[str] = Query(None, description="Filter by section"),
@@ -65,6 +66,7 @@ async def get_students(
 
 
 @router.post("/", response_model=Student)
+@router.post("", response_model=Student)  # Handle both with and without trailing slash
 async def create_student(
     student_data: StudentCreate,
     db: AsyncSession = Depends(get_db),

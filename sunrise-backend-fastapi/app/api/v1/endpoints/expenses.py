@@ -20,6 +20,7 @@ router = APIRouter()
 
 
 @router.get("/", response_model=ExpenseListResponse)
+@router.get("", response_model=ExpenseListResponse)  # Handle both with and without trailing slash
 async def get_expenses(
     expense_category_id: Optional[int] = None,
     expense_status_id: Optional[int] = None,
@@ -100,6 +101,7 @@ async def get_expenses(
 
 
 @router.post("/", response_model=Expense)
+@router.post("", response_model=Expense)  # Handle both with and without trailing slash
 async def create_expense(
     expense_data: ExpenseCreate,
     db: AsyncSession = Depends(get_db),

@@ -28,6 +28,7 @@ router = APIRouter()
 
 
 @router.get("/", response_model=FeeListResponse)
+@router.get("", response_model=FeeListResponse)  # Handle both with and without trailing slash
 async def get_fees(
     session_year: Optional[SessionYearEnum] = SessionYearEnum.YEAR_2025_26,
     class_name: Optional[str] = None,
@@ -151,6 +152,7 @@ async def get_fees(
 
 
 @router.post("/", response_model=FeeRecordWithStudent)
+@router.post("", response_model=FeeRecordWithStudent)  # Handle both with and without trailing slash
 async def create_fee_record(
     fee_data: FeeRecordCreate,
     db: AsyncSession = Depends(get_db),

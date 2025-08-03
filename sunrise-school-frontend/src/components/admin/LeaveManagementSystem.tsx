@@ -174,9 +174,25 @@ const LeaveManagementSystem: React.FC = () => {
     } catch (error: any) {
       console.error('Error loading leave requests:', error);
       setLeaveRequests([]); // Ensure we set an empty array on error
-      const errorMessage = error.code === 'ERR_NETWORK'
-        ? 'Backend server is not running. Please start the backend server.'
-        : error.response?.data?.detail || error.message || 'Error loading leave requests';
+
+      let errorMessage = 'Error loading leave requests';
+
+      if (error.code === 'ERR_NETWORK') {
+        errorMessage = 'Network connection error. Please check your internet connection and try again.';
+      } else if (error.response?.status === 401 || error.response?.status === 403) {
+        errorMessage = 'Authentication required. Please log in again.';
+        // Redirect to login if not authenticated
+        localStorage.removeItem('authToken');
+        window.location.href = '/admin/login';
+        return;
+      } else if (error.response?.status === 500) {
+        errorMessage = 'Server error. Please try again later or contact support.';
+      } else if (error.response?.data?.detail) {
+        errorMessage = error.response.data.detail;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
       setSnackbar({ open: true, message: errorMessage, severity: 'error' });
     } finally {
       setLoading(false);

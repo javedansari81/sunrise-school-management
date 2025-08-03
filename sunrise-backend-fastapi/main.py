@@ -2,8 +2,10 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 import logging
+import os
 
 from app.core.logging import setup_logging
+from app.core.config import settings
 
 # Initialize logging
 setup_logging("INFO")
@@ -13,13 +15,21 @@ logger = logging.getLogger("sunrise_app")
 app = FastAPI(
     title="Sunrise Backend FastAPI",
     version="1.0.0",
-    description="Sunrise School Management System API"
+    description="Sunrise School Management System API",
+    redirect_slashes=False  # Disable automatic trailing slash redirects
 )
+
+# Configure CORS based on environment
+environment = os.getenv("ENVIRONMENT", "development")
+cors_origins = settings.BACKEND_CORS_ORIGINS
+
+logger.info(f"Environment: {environment}")
+logger.info(f"CORS Origins: {cors_origins}")
 
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, replace with specific origins
+    allow_origins=cors_origins if environment == "production" else ["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -68,12 +78,33 @@ async def root():
     return {
         "message": "Welcome to Sunrise Backend FastAPI!",
         "status": "running",
-        "docs": "Visit /docs for API documentation"
+        "docs": "Visit /docs for API documentation",
+        "environment": environment,
+        "cors_origins": cors_origins
     }
 
 @app.get("/health")
 async def health_check():
-    return {"status": "healthy", "service": "Sunrise Backend FastAPI"}
+    import asyncpg
+    from app.core.database import ASYNC_DATABASE_URL
+
+    # Test database connectivity
+    db_status = "unknown"
+    try:
+        conn = await asyncpg.connect(ASYNC_DATABASE_URL)
+        await conn.fetchval("SELECT 1")
+        await conn.close()
+        db_status = "connected"
+    except Exception as e:
+        db_status = f"error: {str(e)}"
+
+    return {
+        "status": "healthy",
+        "service": "Sunrise Backend FastAPI",
+        "environment": environment,
+        "database": db_status,
+        "cors_origins": cors_origins
+    }
 
 @app.get("/api/v1/test")
 async def test_api():

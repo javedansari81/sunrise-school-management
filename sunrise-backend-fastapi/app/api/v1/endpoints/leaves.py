@@ -24,6 +24,7 @@ router = APIRouter()
 
 
 @router.get("/", response_model=LeaveListResponse)
+@router.get("", response_model=LeaveListResponse)  # Handle both with and without trailing slash
 async def get_leave_requests(
     applicant_id: Optional[int] = None,
     applicant_type: Optional[ApplicantTypeEnum] = None,
@@ -69,6 +70,7 @@ async def get_leave_requests(
 
 
 @router.post("/", response_model=LeaveRequest)
+@router.post("", response_model=LeaveRequest)  # Handle both with and without trailing slash
 async def create_leave_request(
     leave_data: LeaveRequestCreate,
     db: AsyncSession = Depends(get_db),
