@@ -64,6 +64,21 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
             logging.exception("Full database error traceback:")
             raise
 
+    async def get_by_phone(self, db: AsyncSession, *, phone: str) -> Optional[User]:
+        """Get user by phone number"""
+        try:
+            log_crud_operation("GET_BY_PHONE", f"Executing database query", phone=phone)
+            result = await db.execute(select(User).where(User.phone == phone))
+            user = result.scalar_one_or_none()
+            log_crud_operation("GET_BY_PHONE", f"Database query completed",
+                             phone=phone, found=user is not None)
+            return user
+        except Exception as db_error:
+            log_crud_operation("GET_BY_PHONE", f"Database error: {str(db_error)}",
+                             "error", phone=phone, error_type=type(db_error).__name__)
+            logging.exception("Full database error traceback:")
+            raise
+
     async def get_by_email_with_metadata(self, db: AsyncSession, *, email: str) -> Optional[User]:
         """Get user by email with metadata relationships loaded"""
         try:
@@ -85,21 +100,38 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
             raise
 
     async def authenticate(self, db: AsyncSession, *, email: str, password: str) -> Optional[User]:
+        """
+        Authenticate user by email or phone number.
+        For backward compatibility, the parameter is still called 'email' but can accept phone numbers.
+        """
         try:
-            log_crud_operation("AUTHENTICATE", f"Authenticating user", email=email)
+            identifier = email  # Can be email or phone
+            log_crud_operation("AUTHENTICATE", f"Authenticating user", identifier=identifier)
 
-            # Step 1: Get user by email (basic query to avoid schema issues)
+            # Step 1: Try to get user by email first, then by phone if not found
+            user = None
             try:
-                user = await self.get_by_email(db, email=email)
+                # First try email lookup
+                user = await self.get_by_email(db, email=identifier)
+                if user:
+                    log_crud_operation("AUTHENTICATE", f"User found by email",
+                                     identifier=identifier, user_id=user.id)
+                else:
+                    # If not found by email, try phone lookup (for students)
+                    user = await self.get_by_phone(db, phone=identifier)
+                    if user:
+                        log_crud_operation("AUTHENTICATE", f"User found by phone",
+                                         identifier=identifier, user_id=user.id)
+
                 log_crud_operation("AUTHENTICATE", f"User lookup completed",
-                                 email=email, found=user is not None)
+                                 identifier=identifier, found=user is not None)
             except Exception as lookup_error:
-                log_crud_operation("AUTHENTICATE", f"Error looking up user by email: {str(lookup_error)}",
-                                 "error", email=email)
+                log_crud_operation("AUTHENTICATE", f"Error looking up user: {str(lookup_error)}",
+                                 "error", identifier=identifier)
                 raise
 
             if not user:
-                log_crud_operation("AUTHENTICATE", f"User not found", "warning", email=email)
+                log_crud_operation("AUTHENTICATE", f"User not found", "warning", identifier=identifier)
                 return None
 
             log_crud_operation("AUTHENTICATE", f"User found successfully",
@@ -109,22 +141,22 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
             try:
                 password_valid = verify_password(password, user.hashed_password)
                 log_crud_operation("AUTHENTICATE", f"Password verification completed",
-                                 email=email, valid=password_valid)
+                                 identifier=identifier, valid=password_valid)
             except Exception as password_error:
                 log_crud_operation("AUTHENTICATE", f"Error verifying password: {str(password_error)}",
-                                 "error", email=email)
+                                 "error", identifier=identifier)
                 raise
 
             if not password_valid:
-                log_crud_operation("AUTHENTICATE", f"Invalid password", "warning", email=email)
+                log_crud_operation("AUTHENTICATE", f"Invalid password", "warning", identifier=identifier)
                 return None
 
-            log_crud_operation("AUTHENTICATE", f"Authentication successful", email=email)
+            log_crud_operation("AUTHENTICATE", f"Authentication successful", identifier=identifier)
             return user
 
         except Exception as auth_error:
             log_crud_operation("AUTHENTICATE", f"Unexpected error: {str(auth_error)}",
-                             "error", email=email, error_type=type(auth_error).__name__)
+                             "error", identifier=email, error_type=type(auth_error).__name__)
             logging.exception("Full authentication error traceback:")
             raise
 

@@ -1,8 +1,14 @@
 import React from 'react';
 import { Container, Typography, Box } from '@mui/material';
 import UserProfile from '../components/UserProfile';
+import StudentProfile from '../components/StudentProfile';
+import { useAuth } from '../contexts/AuthContext';
 
 const Profile: React.FC = () => {
+  const { user } = useAuth();
+
+  const isStudent = user?.user_type?.toLowerCase() === 'student';
+
   return (
     <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
       <Box sx={{ mb: 4 }}>
@@ -10,11 +16,14 @@ const Profile: React.FC = () => {
           My Profile
         </Typography>
         <Typography variant="body1" color="text.secondary">
-          Manage your personal information and account settings.
+          {isStudent
+            ? 'View and update your student profile information.'
+            : 'Manage your personal information and account settings.'
+          }
         </Typography>
       </Box>
-      
-      <UserProfile />
+
+      {isStudent ? <StudentProfile /> : <UserProfile />}
     </Container>
   );
 };

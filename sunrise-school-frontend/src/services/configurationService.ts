@@ -336,17 +336,17 @@ class ConfigurationService {
   }
 
   /**
-   * Get genders as dropdown options
+   * Get genders as dropdown options (service-aware)
    */
   public getGenders(): DropdownOption[] {
-    return this.getDropdownOptions(this.configuration?.genders || []);
+    return this.getDropdownOptions(this.getMetadataFromServices<Gender>('genders'));
   }
 
   /**
-   * Get classes as dropdown options
+   * Get classes as dropdown options (service-aware)
    */
   public getClasses(): DropdownOption[] {
-    const classes = this.configuration?.classes || [];
+    const classes = this.getMetadataFromServices<Class>('classes');
     return classes
       .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
       .map(cls => ({

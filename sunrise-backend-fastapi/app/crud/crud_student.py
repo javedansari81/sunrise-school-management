@@ -6,9 +6,12 @@ from sqlalchemy import and_, or_, func, desc
 
 from app.crud.base import CRUDBase
 from app.models.student import Student
+from app.models.user import User
 from app.models.fee import FeeRecord
-from app.models.metadata import Gender, Class, SessionYear
+from app.models.metadata import Gender, Class, SessionYear, UserType
 from app.schemas.student import StudentCreate, StudentUpdate, ClassEnum, GenderEnum
+from app.schemas.user import UserCreate
+from app.core.security import get_password_hash
 
 
 class CRUDStudent(CRUDBase[Student, StudentCreate, StudentUpdate]):
@@ -70,7 +73,7 @@ class CRUDStudent(CRUDBase[Student, StudentCreate, StudentUpdate]):
         return result.scalar_one_or_none()
 
     async def create_with_validation(self, db: AsyncSession, *, obj_in: StudentCreate) -> Student:
-        """Create student with metadata validation"""
+        """Create student with metadata validation and user account"""
         # Validate metadata IDs exist
         if obj_in.gender_id:
             gender_result = await db.execute(select(Gender).where(Gender.id == obj_in.gender_id))
@@ -92,6 +95,47 @@ class CRUDStudent(CRUDBase[Student, StudentCreate, StudentUpdate]):
         db.add(db_obj)
         await db.commit()
         await db.refresh(db_obj)
+
+        # Create user account for student if email or phone is provided
+        user_account = None
+        if obj_in.email or obj_in.phone:
+            try:
+                # Get STUDENT user type ID (assuming it's 3 based on the frontend mapping)
+                student_user_type = await db.execute(select(UserType).where(UserType.name == "STUDENT"))
+                student_user_type_obj = student_user_type.scalar_one_or_none()
+
+                if student_user_type_obj:
+                    # Use email if available, otherwise use a generated email from phone
+                    user_email = obj_in.email
+                    if not user_email and obj_in.phone:
+                        # Generate email from phone for login purposes
+                        user_email = f"student_{obj_in.phone}@sunriseschool.edu"
+
+                    # Check if user with this email already exists
+                    existing_user = await db.execute(select(User).where(User.email == user_email))
+                    if not existing_user.scalar_one_or_none():
+                        user_account = User(
+                            email=user_email,
+                            hashed_password=get_password_hash("Sunrise@001"),  # Default password
+                            first_name=obj_in.first_name,
+                            last_name=obj_in.last_name,
+                            phone=obj_in.phone,
+                            user_type_id=student_user_type_obj.id,
+                            is_active=True,
+                            is_verified=False
+                        )
+                        db.add(user_account)
+                        await db.commit()
+                        await db.refresh(user_account)
+
+                        # Link user account to student
+                        db_obj.user_id = user_account.id
+                        await db.commit()
+                        await db.refresh(db_obj)
+            except Exception as user_creation_error:
+                # Log the error but don't fail student creation
+                print(f"Warning: Failed to create user account for student {obj_in.admission_number}: {user_creation_error}")
+
         return db_obj
 
     async def get_multi_with_filters(

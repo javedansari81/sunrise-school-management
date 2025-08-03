@@ -79,7 +79,7 @@ const LoginPopup: React.FC<LoginPopupProps> = ({ open, onClose }) => {
     const credentials = {
       admin: { email: 'admin@sunriseschool.edu', password: 'admin123' },
       teacher: { email: 'teacher@sunriseschool.edu', password: 'admin123' },
-      student: { email: 'student@sunriseschool.edu', password: 'admin123' },
+      student: { email: '9876543212', password: 'Sunrise@001' },
     };
     
     setEmail(credentials[userType].email);
@@ -137,14 +137,14 @@ const LoginPopup: React.FC<LoginPopupProps> = ({ open, onClose }) => {
         <Box component="form" onSubmit={handleSubmit}>
           <TextField
             fullWidth
-            label="Email Address"
-            type="email"
+            label="Email or Phone Number"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
             margin="normal"
             variant="outlined"
             sx={{ mb: 2 }}
+            helperText="Students can use their phone number or email address"
           />
 
           <TextField

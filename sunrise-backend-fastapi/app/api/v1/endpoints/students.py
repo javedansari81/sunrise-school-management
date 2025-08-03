@@ -13,6 +13,9 @@ from app.schemas.student import (
     Student, StudentCreate, StudentUpdate, StudentWithFees, StudentListResponse,
     ClassEnum, GenderEnum
 )
+from pydantic import BaseModel, Field
+from typing import Optional
+from datetime import date
 from app.api.deps import get_current_active_user
 from app.models.user import User
 
@@ -334,3 +337,117 @@ async def get_students_with_pending_fees(
         "students_with_pending_fees": students,
         "total_students": len(students)
     }
+
+
+# Student Profile Management Schemas
+class StudentProfileUpdate(BaseModel):
+    """Schema for student profile updates - excludes read-only fields"""
+    # Personal Information (editable)
+    first_name: Optional[str] = Field(None, min_length=1, max_length=100)
+    last_name: Optional[str] = Field(None, min_length=1, max_length=100)
+    date_of_birth: Optional[date] = None
+    blood_group: Optional[str] = Field(None, max_length=5)
+
+    # Contact Information (editable)
+    phone: Optional[str] = Field(None, max_length=20)
+    email: Optional[str] = None
+    address: Optional[str] = None
+    city: Optional[str] = Field(None, max_length=100)
+    state: Optional[str] = Field(None, max_length=100)
+    postal_code: Optional[str] = Field(None, max_length=20)
+    country: Optional[str] = Field(None, max_length=100)
+
+    # Parent Information (editable)
+    father_name: Optional[str] = Field(None, max_length=100)
+    father_phone: Optional[str] = Field(None, max_length=15)
+    father_email: Optional[str] = None
+    father_occupation: Optional[str] = Field(None, max_length=100)
+
+    mother_name: Optional[str] = Field(None, max_length=100)
+    mother_phone: Optional[str] = Field(None, max_length=15)
+    mother_email: Optional[str] = None
+    mother_occupation: Optional[str] = Field(None, max_length=100)
+
+    # Emergency Contact (editable)
+    emergency_contact_name: Optional[str] = Field(None, max_length=100)
+    emergency_contact_phone: Optional[str] = Field(None, max_length=15)
+    emergency_contact_relation: Optional[str] = Field(None, max_length=50)
+
+    # Academic Information (editable)
+    previous_school: Optional[str] = Field(None, max_length=200)
+
+    # Note: Read-only fields are excluded:
+    # - admission_number, roll_number, class_id, session_year_id
+    # - admission_date, gender_id (system/admin managed)
+
+
+@router.get("/my-profile", response_model=Student)
+async def get_my_profile(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Get current student's profile (for logged-in students)
+    """
+    # Verify user is a student
+    if not current_user.user_type or current_user.user_type.name != "STUDENT":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only students can access this endpoint"
+        )
+
+    # Find student record linked to this user
+    if not current_user.student_profile:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Student profile not found for this user"
+        )
+
+    student = await student_crud.get_with_metadata(db, id=current_user.student_profile.id)
+    if not student:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Student profile not found"
+        )
+
+    return Student.from_orm_with_metadata(student)
+
+
+@router.put("/my-profile", response_model=Student)
+async def update_my_profile(
+    profile_data: StudentProfileUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Update current student's profile (for logged-in students)
+    Only allows editing of non-restricted fields
+    """
+    # Verify user is a student
+    if not current_user.user_type or current_user.user_type.name != "STUDENT":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only students can access this endpoint"
+        )
+
+    # Find student record linked to this user
+    if not current_user.student_profile:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Student profile not found for this user"
+        )
+
+    student = await student_crud.get(db, id=current_user.student_profile.id)
+    if not student:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Student profile not found"
+        )
+
+    # Update only the allowed fields
+    update_data = profile_data.dict(exclude_unset=True)
+    updated_student = await student_crud.update(db, db_obj=student, obj_in=update_data)
+
+    # Return updated student with metadata
+    student_with_metadata = await student_crud.get_with_metadata(db, id=updated_student.id)
+    return Student.from_orm_with_metadata(student_with_metadata)

@@ -103,6 +103,9 @@ export const studentsAPI = {
   createStudent: (studentData: any) => api.post('/students', studentData),
   updateStudent: (id: number, studentData: any) => api.put(`/students/${id}`, studentData),
   deleteStudent: (id: number) => api.delete(`/students/${id}`),
+  // Student profile management
+  getMyProfile: () => api.get('/students/my-profile'),
+  updateMyProfile: (profileData: any) => api.put('/students/my-profile', profileData),
 };
 
 

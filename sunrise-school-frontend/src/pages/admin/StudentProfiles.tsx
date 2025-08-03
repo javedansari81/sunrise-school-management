@@ -606,6 +606,7 @@ const StudentProfilesContent: React.FC = () => {
                     <TableCell>Roll Number</TableCell>
                     <TableCell>Class</TableCell>
                     <TableCell>Parent Contact</TableCell>
+                    <TableCell>Login Info</TableCell>
                     <TableCell>Status</TableCell>
                     <TableCell>Actions</TableCell>
                   </TableRow>
@@ -613,13 +614,13 @@ const StudentProfilesContent: React.FC = () => {
                 <TableBody>
                   {loading ? (
                     <TableRow>
-                      <TableCell colSpan={6} align="center">
+                      <TableCell colSpan={7} align="center">
                         <CircularProgress />
                       </TableCell>
                     </TableRow>
                   ) : filteredStudents.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={6} align="center">
+                      <TableCell colSpan={7} align="center">
                         <Typography variant="body2" color="text.secondary">
                           No students found
                         </Typography>
@@ -661,6 +662,16 @@ const StudentProfilesContent: React.FC = () => {
                             </Typography>
                             <Typography variant="caption" color="text.secondary">
                               {student.father_phone}
+                            </Typography>
+                          </Box>
+                        </TableCell>
+                        <TableCell>
+                          <Box>
+                            <Typography variant="body2" fontWeight="bold">
+                              {student.phone || student.email || 'No login'}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              Password: Sunrise@001
                             </Typography>
                           </Box>
                         </TableCell>
