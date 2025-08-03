@@ -35,11 +35,14 @@ const ServiceConfigurationLoader: React.FC<ServiceConfigurationLoaderProps> = ({
       isLoading,
       isLoaded,
       error,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      renderDecision: isLoading && !isLoaded ? 'LOADING' :
+                     error ? 'ERROR' :
+                     isLoaded ? 'CONTENT' : 'FALLBACK'
     });
 
     // Log the decision path
-    if (isLoading) {
+    if (isLoading && !isLoaded) {
       console.log(`⏳ [${service}] Showing loading state`);
     } else if (error) {
       console.log(`❌ [${service}] Showing error state: ${error}`);

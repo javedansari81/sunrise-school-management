@@ -43,7 +43,8 @@ import {
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
-import { useConfiguration } from '../../contexts/ConfigurationContext';
+import { useServiceConfiguration, useConfiguration } from '../../contexts/ConfigurationContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { leaveAPI } from '../../services/api';
 
 // Types
@@ -114,7 +115,12 @@ function TabPanel(props: TabPanelProps) {
 }
 
 const LeaveManagementSystem: React.FC = () => {
-  const { configuration, isLoading: configLoading } = useConfiguration();
+  const { isAuthenticated, user } = useAuth();
+  const { isLoading: configLoading, isLoaded: configLoaded, error: configError } = useServiceConfiguration('leave-management');
+  const { getServiceConfiguration } = useConfiguration();
+
+  // Get the service configuration
+  const configuration = getServiceConfiguration('leave-management');
   const [tabValue, setTabValue] = useState(0);
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
   const [loading, setLoading] = useState(false);
@@ -151,6 +157,15 @@ const LeaveManagementSystem: React.FC = () => {
   });
 
   const loadLeaveRequests = useCallback(async () => {
+    if (!isAuthenticated) {
+      setSnackbar({
+        open: true,
+        message: 'Please login to access leave management',
+        severity: 'error'
+      });
+      return;
+    }
+
     try {
       setLoading(true);
       const queryParams = new URLSearchParams();
@@ -159,36 +174,61 @@ const LeaveManagementSystem: React.FC = () => {
         if (value) queryParams.append(key, value);
       });
 
+      console.log('🌐 Loading leave requests with params:', Object.fromEntries(queryParams));
+      console.log('🔑 User authenticated:', isAuthenticated);
+      console.log('👤 Current user:', user);
+
       const data = await leaveAPI.getLeaves(queryParams);
+      console.log('✅ Leave requests loaded:', data);
       setLeaveRequests(Array.isArray(data.leaves) ? data.leaves : []);
     } catch (error: any) {
       console.error('Error loading leave requests:', error);
       setLeaveRequests([]); // Ensure we set an empty array on error
       const errorMessage = error.code === 'ERR_NETWORK'
         ? 'Backend server is not running. Please start the backend server.'
-        : 'Error loading leave requests';
+        : error.response?.data?.detail || error.message || 'Error loading leave requests';
       setSnackbar({ open: true, message: errorMessage, severity: 'error' });
     } finally {
       setLoading(false);
     }
-  }, [filters]);
+  }, [filters, isAuthenticated, user]);
 
   const loadStatistics = useCallback(async () => {
+    if (!isAuthenticated) return;
+
     try {
+      console.log('🌐 Loading leave statistics...');
       const stats = await leaveAPI.getLeaveStatistics();
+      console.log('✅ Leave statistics loaded:', stats);
       setStatistics(stats);
     } catch (error) {
       console.error('Error loading statistics:', error);
     }
-  }, []);
+  }, [isAuthenticated]);
 
   // Load leave requests and statistics
   useEffect(() => {
-    if (!configLoading && configuration) {
+    console.log('🔧 LeaveManagementSystem useEffect triggered:', {
+      configLoading,
+      configLoaded,
+      configError,
+      isAuthenticated,
+      timestamp: new Date().toISOString()
+    });
+
+    if (!configLoading && configLoaded && isAuthenticated) {
+      console.log('🚀 Triggering data load for leave management');
       loadLeaveRequests();
       loadStatistics();
+    } else if (configError) {
+      console.error('❌ Configuration error in leave management:', configError);
+      setSnackbar({
+        open: true,
+        message: `Configuration error: ${configError}`,
+        severity: 'error'
+      });
     }
-  }, [configLoading, configuration, filters, loadLeaveRequests, loadStatistics]);
+  }, [configLoading, configLoaded, configError, isAuthenticated, filters, loadLeaveRequests, loadStatistics]);
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
@@ -356,10 +396,19 @@ const LeaveManagementSystem: React.FC = () => {
     }
   };
 
-  if (configLoading || !configuration) {
+  // Show login prompt if not authenticated
+  if (!isAuthenticated) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
-        <CircularProgress />
+      <Box sx={{ p: 3, textAlign: 'center' }}>
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          Please login to access the leave management system.
+        </Alert>
+        <Button
+          variant="contained"
+          onClick={() => window.location.href = '/admin/login'}
+        >
+          Go to Login
+        </Button>
       </Box>
     );
   }
@@ -367,8 +416,29 @@ const LeaveManagementSystem: React.FC = () => {
   // Show loading if configuration is still loading
   if (configLoading) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
-        <CircularProgress />
+      <Box display="flex" flexDirection="column" justifyContent="center" alignItems="center" minHeight="400px">
+        <CircularProgress size={40} />
+        <Typography variant="h6" color="text.secondary" sx={{ mt: 2 }}>
+          Loading leave management configuration...
+        </Typography>
+      </Box>
+    );
+  }
+
+  // Show error if configuration failed to load
+  if (configError) {
+    return (
+      <Box sx={{ p: 3 }}>
+        <Alert severity="error" sx={{ mb: 2 }}>
+          <Typography variant="subtitle2">Configuration Error</Typography>
+          <Typography variant="body2">{configError}</Typography>
+        </Alert>
+        <Button
+          variant="outlined"
+          onClick={() => window.location.reload()}
+        >
+          Reload Page
+        </Button>
       </Box>
     );
   }
@@ -376,8 +446,27 @@ const LeaveManagementSystem: React.FC = () => {
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns}>
       <Box sx={{ width: '100%' }}>
-        <Paper sx={{ width: '100%', mb: 2 }}>
-          <Tabs value={tabValue} onChange={handleTabChange} aria-label="leave management tabs">
+        <Paper sx={{ width: '100%', mb: { xs: 2, sm: 3 } }}>
+          <Tabs
+            value={tabValue}
+            onChange={handleTabChange}
+            aria-label="leave management tabs"
+            variant="scrollable"
+            scrollButtons="auto"
+            allowScrollButtonsMobile
+            sx={{
+              '& .MuiTab-root': {
+                fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                minHeight: { xs: 40, sm: 48 },
+                minWidth: { xs: 80, sm: 120 },
+                textTransform: 'none',
+                fontWeight: 500,
+              },
+              '& .Mui-selected': {
+                fontWeight: 600,
+              }
+            }}
+          >
             <Tab label="All Requests" />
             <Tab label="Pending Approval" />
             <Tab label="My Requests" />
@@ -386,17 +475,35 @@ const LeaveManagementSystem: React.FC = () => {
         </Paper>
 
         <TabPanel value={tabValue} index={0}>
-          {/* All Requests Tab */}
-          <Box sx={{ mb: 2, display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
+          {/* All Requests Tab - Mobile Responsive */}
+          <Box sx={{
+            mb: { xs: 2, sm: 3 },
+            display: 'flex',
+            gap: { xs: 1.5, sm: 2 },
+            alignItems: { xs: 'stretch', sm: 'center' },
+            flexWrap: 'wrap',
+            flexDirection: { xs: 'column', sm: 'row' }
+          }}>
             <Button
               variant="contained"
               startIcon={<AddIcon />}
               onClick={() => handleOpenDialog()}
+              sx={{
+                fontSize: { xs: '0.875rem', sm: '1rem' },
+                padding: { xs: '6px 12px', sm: '8px 16px' },
+                order: { xs: 1, sm: 0 }
+              }}
             >
               New Leave Request
             </Button>
-            
-            <FormControl size="small" sx={{ minWidth: 120 }}>
+
+            <FormControl
+              size="small"
+              sx={{
+                minWidth: { xs: '100%', sm: 120 },
+                order: { xs: 2, sm: 0 }
+              }}
+            >
               <InputLabel>Applicant Type</InputLabel>
               <Select
                 value={filters.applicant_type}
@@ -409,7 +516,13 @@ const LeaveManagementSystem: React.FC = () => {
               </Select>
             </FormControl>
 
-            <FormControl size="small" sx={{ minWidth: 120 }}>
+            <FormControl
+              size="small"
+              sx={{
+                minWidth: { xs: '100%', sm: 120 },
+                order: { xs: 3, sm: 0 }
+              }}
+            >
               <InputLabel>Status</InputLabel>
               <Select
                 value={filters.leave_status_id}
@@ -430,24 +543,44 @@ const LeaveManagementSystem: React.FC = () => {
               variant="outlined"
               startIcon={<FilterList />}
               onClick={loadLeaveRequests}
+              sx={{
+                fontSize: { xs: '0.875rem', sm: '1rem' },
+                padding: { xs: '6px 12px', sm: '8px 16px' },
+                order: { xs: 4, sm: 0 },
+                minWidth: { xs: '100%', sm: 'auto' }
+              }}
             >
               Apply Filters
             </Button>
           </Box>
 
           {loading ? (
-            <Box display="flex" justifyContent="center" p={4}>
+            <Box display="flex" justifyContent="center" p={{ xs: 2, sm: 4 }}>
               <CircularProgress />
             </Box>
           ) : (
-            <TableContainer component={Paper}>
-              <Table>
+            <TableContainer
+              component={Paper}
+              sx={{
+                maxHeight: { xs: '60vh', sm: '70vh' },
+                overflow: 'auto'
+              }}
+            >
+              <Table
+                size="small"
+                sx={{
+                  '& .MuiTableCell-root': {
+                    fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                    padding: { xs: '8px', sm: '16px' }
+                  }
+                }}
+              >
                 <TableHead>
                   <TableRow>
-                    <TableCell>Applicant</TableCell>
-                    <TableCell>Type</TableCell>
-                    <TableCell>Leave Type</TableCell>
-                    <TableCell>Duration</TableCell>
+                    <TableCell sx={{ fontWeight: 'bold' }}>Applicant</TableCell>
+                    <TableCell sx={{ fontWeight: 'bold', display: { xs: 'none', sm: 'table-cell' } }}>Type</TableCell>
+                    <TableCell sx={{ fontWeight: 'bold' }}>Leave Type</TableCell>
+                    <TableCell sx={{ fontWeight: 'bold', display: { xs: 'none', md: 'table-cell' } }}>Duration</TableCell>
                     <TableCell>Days</TableCell>
                     <TableCell>Status</TableCell>
                     <TableCell>Actions</TableCell>

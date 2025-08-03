@@ -4,7 +4,7 @@
  * Manages loading state and error handling for multiple services
  */
 
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useState, ReactNode, useMemo, useCallback } from 'react';
 import {
   Configuration,
   DropdownOption,
@@ -22,8 +22,8 @@ interface ConfigurationContextType {
   error: string | null;
 
   // Service-specific states
-  serviceLoadingStates: Map<ServiceType, boolean>;
-  serviceErrors: Map<ServiceType, string | null>;
+  serviceLoadingStates: Record<ServiceType, boolean>;
+  serviceErrors: Record<ServiceType, string | null>;
 
   // Actions
   loadConfiguration: () => Promise<void>; // Legacy method
@@ -71,11 +71,25 @@ export const ConfigurationProvider: React.FC<ConfigurationProviderProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Service-specific states
-  const [serviceLoadingStates] = useState<Map<ServiceType, boolean>>(new Map());
-  const [serviceErrors] = useState<Map<ServiceType, string | null>>(new Map());
+  // Service-specific states - use objects instead of Maps for better React integration
+  const [serviceLoadingStates, setServiceLoadingStates] = useState<Record<ServiceType, boolean>>({
+    'fee-management': false,
+    'student-management': false,
+    'leave-management': false,
+    'expense-management': false,
+    'teacher-management': false,
+    'common': false,
+  });
+  const [serviceErrors, setServiceErrors] = useState<Record<ServiceType, string | null>>({
+    'fee-management': null,
+    'student-management': null,
+    'leave-management': null,
+    'expense-management': null,
+    'teacher-management': null,
+    'common': null,
+  });
 
-  const loadConfiguration = async () => {
+  const loadConfiguration = useCallback(async () => {
     if (isLoading) return; // Prevent multiple simultaneous loads
 
     setIsLoading(true);
@@ -92,14 +106,14 @@ export const ConfigurationProvider: React.FC<ConfigurationProviderProps> = ({
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [isLoading]);
 
-  const loadServiceConfiguration = async (service: ServiceType) => {
-    if (serviceLoadingStates.get(service)) return; // Prevent multiple simultaneous loads
+  const loadServiceConfiguration = useCallback(async (service: ServiceType) => {
+    if (serviceLoadingStates[service]) return; // Prevent multiple simultaneous loads
 
     console.log(`🔄 Starting ${service} configuration load in context`);
-    serviceLoadingStates.set(service, true);
-    serviceErrors.set(service, null);
+    setServiceLoadingStates(prev => ({ ...prev, [service]: true }));
+    setServiceErrors(prev => ({ ...prev, [service]: null }));
 
     try {
       // Add timeout to prevent hanging
@@ -113,18 +127,18 @@ export const ConfigurationProvider: React.FC<ConfigurationProviderProps> = ({
       console.log(`✅ ${service} configuration loaded in context`);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : `Failed to load ${service} configuration`;
-      serviceErrors.set(service, errorMessage);
+      setServiceErrors(prev => ({ ...prev, [service]: errorMessage }));
       console.error(`❌ ${service} configuration loading failed:`, {
         service,
         error: errorMessage,
         timestamp: new Date().toISOString()
       });
     } finally {
-      serviceLoadingStates.set(service, false);
+      setServiceLoadingStates(prev => ({ ...prev, [service]: false }));
     }
-  };
+  }, [serviceLoadingStates]);
 
-  const refreshConfiguration = async () => {
+  const refreshConfiguration = useCallback(async () => {
     setIsLoading(true);
     setError(null);
 
@@ -139,64 +153,64 @@ export const ConfigurationProvider: React.FC<ConfigurationProviderProps> = ({
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
-  const refreshServiceConfiguration = async (service: ServiceType) => {
-    serviceLoadingStates.set(service, true);
-    serviceErrors.set(service, null);
+  const refreshServiceConfiguration = useCallback(async (service: ServiceType) => {
+    setServiceLoadingStates(prev => ({ ...prev, [service]: true }));
+    setServiceErrors(prev => ({ ...prev, [service]: null }));
 
     try {
       await configurationService.refreshServiceConfiguration(service);
       console.log(`✅ ${service} configuration refreshed`);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : `Failed to refresh ${service} configuration`;
-      serviceErrors.set(service, errorMessage);
+      setServiceErrors(prev => ({ ...prev, [service]: errorMessage }));
       console.error(`❌ ${service} configuration refresh failed:`, errorMessage);
     } finally {
-      serviceLoadingStates.set(service, false);
+      setServiceLoadingStates(prev => ({ ...prev, [service]: false }));
     }
-  };
+  }, []);
 
-  const clearError = () => {
+  const clearError = useCallback(() => {
     setError(null);
-  };
+  }, []);
 
-  const clearServiceError = (service: ServiceType) => {
-    serviceErrors.set(service, null);
-  };
+  const clearServiceError = useCallback((service: ServiceType) => {
+    setServiceErrors(prev => ({ ...prev, [service]: null }));
+  }, []);
 
   // Service state helpers
-  const isServiceLoaded = (service: ServiceType) => {
+  const isServiceLoaded = useCallback((service: ServiceType) => {
     return configurationService.isServiceConfigurationLoaded(service);
-  };
+  }, []);
 
-  const isServiceLoading = (service: ServiceType) => {
-    return serviceLoadingStates.get(service) || false;
-  };
+  const isServiceLoading = useCallback((service: ServiceType) => {
+    return serviceLoadingStates[service] || false;
+  }, [serviceLoadingStates]);
 
-  const getServiceError = (service: ServiceType) => {
-    return serviceErrors.get(service) || null;
-  };
+  const getServiceError = useCallback((service: ServiceType) => {
+    return serviceErrors[service] || null;
+  }, [serviceErrors]);
 
-  const getServiceConfiguration = (service: ServiceType) => {
+  const getServiceConfiguration = useCallback((service: ServiceType) => {
     return configurationService.getServiceConfiguration(service);
-  };
+  }, []);
 
   // Helper methods that delegate to the service
-  const getUserTypes = () => configurationService.getUserTypes();
-  const getSessionYears = () => configurationService.getSessionYears();
-  const getCurrentSessionYear = () => configurationService.getCurrentSessionYear();
-  const getGenders = () => configurationService.getGenders();
-  const getClasses = () => configurationService.getClasses();
-  const getPaymentTypes = () => configurationService.getPaymentTypes();
-  const getPaymentStatuses = () => configurationService.getPaymentStatuses();
-  const getPaymentMethods = () => configurationService.getPaymentMethods();
-  const getLeaveTypes = () => configurationService.getLeaveTypes();
-  const getLeaveStatuses = () => configurationService.getLeaveStatuses();
-  const getExpenseCategories = () => configurationService.getExpenseCategories();
-  const getExpenseStatuses = () => configurationService.getExpenseStatuses();
-  const getEmploymentStatuses = () => configurationService.getEmploymentStatuses();
-  const getQualifications = () => configurationService.getQualifications();
+  const getUserTypes = useCallback(() => configurationService.getUserTypes(), []);
+  const getSessionYears = useCallback(() => configurationService.getSessionYears(), []);
+  const getCurrentSessionYear = useCallback(() => configurationService.getCurrentSessionYear(), []);
+  const getGenders = useCallback(() => configurationService.getGenders(), []);
+  const getClasses = useCallback(() => configurationService.getClasses(), []);
+  const getPaymentTypes = useCallback(() => configurationService.getPaymentTypes(), []);
+  const getPaymentStatuses = useCallback(() => configurationService.getPaymentStatuses(), []);
+  const getPaymentMethods = useCallback(() => configurationService.getPaymentMethods(), []);
+  const getLeaveTypes = useCallback(() => configurationService.getLeaveTypes(), []);
+  const getLeaveStatuses = useCallback(() => configurationService.getLeaveStatuses(), []);
+  const getExpenseCategories = useCallback(() => configurationService.getExpenseCategories(), []);
+  const getExpenseStatuses = useCallback(() => configurationService.getExpenseStatuses(), []);
+  const getEmploymentStatuses = useCallback(() => configurationService.getEmploymentStatuses(), []);
+  const getQualifications = useCallback(() => configurationService.getQualifications(), []);
 
   // Auto-load configuration on mount
   useEffect(() => {
@@ -205,7 +219,7 @@ export const ConfigurationProvider: React.FC<ConfigurationProviderProps> = ({
     }
   }, [autoLoad]);
 
-  const contextValue: ConfigurationContextType = {
+  const contextValue: ConfigurationContextType = useMemo(() => ({
     // Configuration data
     configuration,
 
@@ -247,7 +261,37 @@ export const ConfigurationProvider: React.FC<ConfigurationProviderProps> = ({
     getExpenseStatuses,
     getEmploymentStatuses,
     getQualifications,
-  };
+  }), [
+    configuration,
+    isLoading,
+    error,
+    serviceLoadingStates,
+    serviceErrors,
+    loadConfiguration,
+    loadServiceConfiguration,
+    refreshConfiguration,
+    refreshServiceConfiguration,
+    clearError,
+    clearServiceError,
+    isServiceLoaded,
+    isServiceLoading,
+    getServiceError,
+    getServiceConfiguration,
+    getUserTypes,
+    getSessionYears,
+    getCurrentSessionYear,
+    getGenders,
+    getClasses,
+    getPaymentTypes,
+    getPaymentStatuses,
+    getPaymentMethods,
+    getLeaveTypes,
+    getLeaveStatuses,
+    getExpenseCategories,
+    getExpenseStatuses,
+    getEmploymentStatuses,
+    getQualifications,
+  ]);
 
   return (
     <ConfigurationContext.Provider value={contextValue}>
@@ -320,18 +364,35 @@ export const useConfigurationReady = (): boolean => {
 export const useServiceConfiguration = (service: ServiceType) => {
   const context = useConfiguration();
 
+  // Extract the functions we need to avoid context dependency
+  const {
+    isServiceLoaded,
+    isServiceLoading,
+    getServiceError,
+    loadServiceConfiguration,
+    refreshServiceConfiguration,
+    clearServiceError
+  } = context;
+
   useEffect(() => {
-    if (!context.isServiceLoaded(service) && !context.isServiceLoading(service)) {
-      context.loadServiceConfiguration(service);
+    console.log(`🔧 useServiceConfiguration [${service}] effect running:`, {
+      isLoaded: isServiceLoaded(service),
+      isLoading: isServiceLoading(service),
+      timestamp: new Date().toISOString()
+    });
+
+    if (!isServiceLoaded(service) && !isServiceLoading(service)) {
+      console.log(`🚀 Triggering load for ${service}`);
+      loadServiceConfiguration(service);
     }
-  }, [service, context]);
+  }, [service, isServiceLoaded, isServiceLoading, loadServiceConfiguration]);
 
   return {
-    isLoaded: context.isServiceLoaded(service),
-    isLoading: context.isServiceLoading(service),
-    error: context.getServiceError(service),
-    refresh: () => context.refreshServiceConfiguration(service),
-    clearError: () => context.clearServiceError(service),
+    isLoaded: isServiceLoaded(service),
+    isLoading: isServiceLoading(service),
+    error: getServiceError(service),
+    refresh: () => refreshServiceConfiguration(service),
+    clearError: () => clearServiceError(service),
   };
 };
 

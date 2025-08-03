@@ -105,112 +105,232 @@ const AdminDashboard: React.FC = () => {
 
   return (
     <AdminLayout>
-      <Box sx={{ p: 3 }}>
-        <Typography variant="h4" gutterBottom>
+      <Box sx={{ p: { xs: 1, sm: 2, md: 3 } }}>
+        <Typography
+          variant="h4"
+          gutterBottom
+          sx={{
+            fontSize: { xs: '1.5rem', sm: '2rem', md: '2.125rem' },
+            mb: { xs: 1, sm: 2 }
+          }}
+        >
           Dashboard Overview
         </Typography>
-        <Typography variant="body1" color="textSecondary" sx={{ mb: 3 }}>
+        <Typography
+          variant="body1"
+          color="textSecondary"
+          sx={{
+            mb: { xs: 2, sm: 3 },
+            fontSize: { xs: '0.875rem', sm: '1rem' }
+          }}
+        >
           School operations summary and key metrics
         </Typography>
 
-        {/* Dashboard Cards */}
-        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
+        {/* Dashboard Cards - Mobile Responsive Grid */}
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: {
+              xs: '1fr',
+              sm: 'repeat(2, 1fr)',
+              md: 'repeat(3, 1fr)',
+              lg: 'repeat(3, 1fr)',
+              xl: 'repeat(4, 1fr)'
+            },
+            gap: { xs: 2, sm: 2, md: 3 },
+            mb: { xs: 3, sm: 4 }
+          }}
+        >
           {getDashboardCards().map((card, index) => (
-            <Box key={index} sx={{ flex: '1 1 300px', minWidth: 300 }}>
-              <Card
-                sx={{
-                  height: '100%',
-                  transition: 'transform 0.2s ease-in-out',
-                  '&:hover': {
-                    transform: 'translateY(-4px)',
-                  },
-                }}
-              >
-                <CardContent>
-                  <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
-                    <Box
-                      sx={{
-                        backgroundColor: card.color,
-                        color: 'white',
-                        borderRadius: '50%',
-                        p: 1,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}
-                    >
-                      {card.icon}
-                    </Box>
+            <Card
+              key={index}
+              sx={{
+                height: '100%',
+                transition: 'transform 0.2s ease-in-out',
+                cursor: card.clickable ? 'pointer' : 'default',
+                '&:hover': {
+                  transform: card.clickable ? 'translateY(-4px)' : 'translateY(-2px)',
+                  boxShadow: { xs: 2, sm: 4 },
+                },
+                minHeight: { xs: '140px', sm: '160px', md: '180px' }
+              }}
+              onClick={card.onClick}
+            >
+              <CardContent sx={{ p: { xs: 2, sm: 2.5, md: 3 } }}>
+                <Box
+                  display="flex"
+                  alignItems="center"
+                  justifyContent="space-between"
+                  mb={{ xs: 1.5, sm: 2 }}
+                >
+                  <Box
+                    sx={{
+                      backgroundColor: card.color,
+                      color: 'white',
+                      borderRadius: '50%',
+                      p: { xs: 1, sm: 1.5 },
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      '& .MuiSvgIcon-root': {
+                        fontSize: { xs: '1.5rem', sm: '2rem', md: '2.5rem' }
+                      }
+                    }}
+                  >
+                    {card.icon}
                   </Box>
-                  <Typography variant="h4" fontWeight="bold" gutterBottom>
-                    {card.value}
-                  </Typography>
-                  <Typography variant="h6" color="text.secondary" gutterBottom>
-                    {card.title}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {card.change}
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Box>
+                </Box>
+                <Typography
+                  variant="h4"
+                  fontWeight="bold"
+                  gutterBottom
+                  sx={{
+                    fontSize: { xs: '1.5rem', sm: '1.75rem', md: '2rem' },
+                    lineHeight: 1.2,
+                    mb: { xs: 0.5, sm: 1 }
+                  }}
+                >
+                  {card.value}
+                </Typography>
+                <Typography
+                  variant="h6"
+                  color="text.secondary"
+                  gutterBottom
+                  sx={{
+                    fontSize: { xs: '0.875rem', sm: '1rem', md: '1.125rem' },
+                    fontWeight: 500,
+                    mb: { xs: 0.5, sm: 1 }
+                  }}
+                >
+                  {card.title}
+                </Typography>
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{
+                    fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                    lineHeight: 1.3
+                  }}
+                >
+                  {card.change}
+                </Typography>
+              </CardContent>
+            </Card>
           ))}
         </Box>
 
-        {/* Pending Leave Requests Section */}
+        {/* Pending Leave Requests Section - Mobile Responsive */}
         {!loading && pendingLeaves.length > 0 && (
-          <Card sx={{ mb: 3 }}>
-            <CardContent>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                <Typography variant="h6" fontWeight="bold">
+          <Card sx={{ mb: { xs: 2, sm: 3 } }}>
+            <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
+              <Box
+                sx={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: { xs: 'flex-start', sm: 'center' },
+                  flexDirection: { xs: 'column', sm: 'row' },
+                  gap: { xs: 1, sm: 0 },
+                  mb: { xs: 2, sm: 2 }
+                }}
+              >
+                <Typography
+                  variant="h6"
+                  fontWeight="bold"
+                  sx={{
+                    fontSize: { xs: '1rem', sm: '1.125rem', md: '1.25rem' }
+                  }}
+                >
                   Pending Leave Requests ({pendingLeaves.length})
                 </Typography>
                 <Button
                   variant="outlined"
                   startIcon={<Visibility />}
                   onClick={() => navigate('/admin/leaves')}
+                  sx={{
+                    fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                    padding: { xs: '4px 8px', sm: '6px 12px' },
+                    alignSelf: { xs: 'flex-end', sm: 'auto' }
+                  }}
                 >
                   View All
                 </Button>
               </Box>
 
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: { xs: 1.5, sm: 2 } }}>
                 {pendingLeaves.slice(0, 5).map((leave) => (
                   <Box
                     key={leave.id}
                     sx={{
                       display: 'flex',
                       justifyContent: 'space-between',
-                      alignItems: 'center',
-                      p: 2,
+                      alignItems: { xs: 'flex-start', sm: 'center' },
+                      flexDirection: { xs: 'column', sm: 'row' },
+                      gap: { xs: 1.5, sm: 1 },
+                      p: { xs: 1.5, sm: 2 },
                       border: '1px solid #e0e0e0',
-                      borderRadius: 1,
+                      borderRadius: { xs: 1, sm: 1.5 },
                       '&:hover': {
                         backgroundColor: '#f5f5f5',
                       },
                     }}
                   >
-                    <Box>
-                      <Typography variant="subtitle1" fontWeight="bold">
+                    <Box sx={{ flex: 1 }}>
+                      <Typography
+                        variant="subtitle1"
+                        fontWeight="bold"
+                        sx={{
+                          fontSize: { xs: '0.875rem', sm: '1rem' },
+                          mb: { xs: 0.5, sm: 0 }
+                        }}
+                      >
                         {leave.applicant_name}
                       </Typography>
-                      <Typography variant="body2" color="textSecondary">
+                      <Typography
+                        variant="body2"
+                        color="textSecondary"
+                        sx={{
+                          fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                          mb: { xs: 0.25, sm: 0 }
+                        }}
+                      >
                         {leave.applicant_details} • {leave.leave_type_name}
                       </Typography>
-                      <Typography variant="body2" color="textSecondary">
+                      <Typography
+                        variant="body2"
+                        color="textSecondary"
+                        sx={{
+                          fontSize: { xs: '0.75rem', sm: '0.875rem' }
+                        }}
+                      >
                         {leave.start_date} to {leave.end_date} ({leave.total_days} days)
                       </Typography>
                     </Box>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: { xs: 1, sm: 1.5 },
+                        flexDirection: { xs: 'row', sm: 'row' },
+                        alignSelf: { xs: 'flex-end', sm: 'center' }
+                      }}
+                    >
                       <Chip
                         label={leave.leave_status_name}
                         color="warning"
                         size="small"
+                        sx={{
+                          fontSize: { xs: '0.6rem', sm: '0.75rem' },
+                          height: { xs: '24px', sm: '32px' }
+                        }}
                       />
                       <Button
-                        size="small"
                         variant="outlined"
                         onClick={() => navigate('/admin/leaves')}
+                        sx={{
+                          fontSize: { xs: '0.7rem', sm: '0.8rem' },
+                          padding: { xs: '4px 8px', sm: '6px 12px' }
+                        }}
                       >
                         Review
                       </Button>

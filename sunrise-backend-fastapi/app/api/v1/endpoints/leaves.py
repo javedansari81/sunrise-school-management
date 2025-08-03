@@ -189,167 +189,7 @@ async def create_leave_request_friendly(
     return leave_request
 
 
-@router.get("/{leave_id}", response_model=LeaveRequestWithDetails)
-async def get_leave_request(
-    leave_id: int,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
-):
-    """
-    Get specific leave request details with all related information
-    """
-    leave_request = await leave_request_crud.get_with_details(db, id=leave_id)
-    if not leave_request:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Leave request not found"
-        )
-
-    return leave_request
-
-
-@router.put("/{leave_id}", response_model=LeaveRequest)
-async def update_leave_request(
-    leave_id: int,
-    leave_data: LeaveRequestUpdate,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
-):
-    """
-    Update a leave request (only allowed for pending requests)
-    """
-    leave_request = await leave_request_crud.get(db, id=leave_id)
-    if not leave_request:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Leave request not found"
-        )
-
-    # Only allow updates for pending requests
-    if leave_request.leave_status_id != 1:  # Not pending
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Can only update pending leave requests"
-        )
-
-    # Validate dates if provided
-    if leave_data.start_date and leave_data.end_date:
-        if leave_data.start_date > leave_data.end_date:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Start date cannot be after end date"
-            )
-        # Recalculate total days
-        leave_data.total_days = (leave_data.end_date - leave_data.start_date).days + 1
-
-    updated_leave = await leave_request_crud.update(db, db_obj=leave_request, obj_in=leave_data)
-    return updated_leave
-
-
-@router.delete("/{leave_id}")
-async def delete_leave_request(
-    leave_id: int,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
-):
-    """
-    Delete a leave request (only allowed for pending requests)
-    """
-    leave_request = await leave_request_crud.get(db, id=leave_id)
-    if not leave_request:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Leave request not found"
-        )
-
-    # Only allow deletion for pending requests
-    if leave_request.leave_status_id != 1:  # Not pending
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Can only delete pending leave requests"
-        )
-
-    await leave_request_crud.remove(db, id=leave_id)
-    return {"message": "Leave request deleted successfully"}
-
-
-@router.put("/{leave_id}", response_model=LeaveRequest)
-async def update_leave_request(
-    leave_id: int,
-    leave_data: LeaveRequestUpdate,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
-):
-    """
-    Update leave request (only if pending)
-    """
-    leave_request = await leave_request_crud.get(db, id=leave_id)
-    if not leave_request:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Leave request not found"
-        )
-
-    # Only allow updates if status is pending
-    if leave_request.leave_status_id != 1:  # Not pending
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Cannot update leave request that is not pending"
-        )
-
-    # Validate dates if provided
-    start_date = leave_data.start_date or leave_request.start_date
-    end_date = leave_data.end_date or leave_request.end_date
-
-    if start_date > end_date:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Start date cannot be after end date"
-        )
-
-    # Update total days if dates changed
-    if leave_data.start_date or leave_data.end_date:
-        leave_data.total_days = (end_date - start_date).days + 1
-
-    updated_leave = await leave_request_crud.update(
-        db, db_obj=leave_request, obj_in=leave_data
-    )
-    return updated_leave
-
-
-@router.patch("/{leave_id}/approve", response_model=LeaveRequest)
-async def approve_leave_request(
-    leave_id: int,
-    approval_data: LeaveApproval,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
-):
-    """
-    Approve or reject a leave request
-    """
-    leave_request = await leave_request_crud.get(db, id=leave_id)
-    if not leave_request:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Leave request not found"
-        )
-
-    # Check if already processed
-    if leave_request.leave_status_id != 1:  # Not pending
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Leave request has already been processed"
-        )
-
-    updated_leave = await leave_request_crud.approve_request(
-        db,
-        leave_request=leave_request,
-        reviewer_id=current_user.id,
-        leave_status_id=approval_data.leave_status_id,
-        review_comments=approval_data.review_comments
-    )
-
-    return updated_leave
+# Routes with path parameters moved to end to avoid conflicts with specific routes
 
 
 @router.get("/pending", response_model=List[LeaveRequestWithDetails])
@@ -393,21 +233,6 @@ async def get_leave_statistics(
     stats = await leave_request_crud.get_leave_statistics(db, year=year)
     return stats
 
-    return {
-        "student_id": student_id,
-        "student_name": f"{student.first_name} {student.last_name}",
-        "admission_number": student.admission_number,
-        "current_class": student.current_class,
-        "leave_history": leave_history,
-        "summary": {
-            "total_requests": total_leaves,
-            "pending_requests": pending_requests,
-            "approved_leaves": approved_leaves,
-            "rejected_leaves": total_leaves - pending_requests - approved_leaves,
-            "total_days_taken": total_days_taken
-        }
-    }
-
 
 @router.get("/reports/summary")
 async def get_leave_summary_report(
@@ -449,31 +274,7 @@ async def get_leave_summary_report(
     }
 
 
-@router.get("/pending")
-async def get_pending_leave_requests(
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
-):
-    """
-    Get all pending leave requests for approval
-    """
-    pending_requests = await leave_request_crud.get_pending_requests(db)
 
-    # Convert to response format with student details
-    pending_list = []
-    for leave in pending_requests:
-        leave_dict = {
-            **leave.__dict__,
-            "student_name": f"{leave.student.first_name} {leave.student.last_name}",
-            "student_admission_number": leave.student.admission_number,
-            "student_class": leave.student.current_class
-        }
-        pending_list.append(leave_dict)
-
-    return {
-        "pending_requests": pending_list,
-        "total_pending": len(pending_list)
-    }
 
 
 @router.get("/applicants/{applicant_type}")
@@ -533,3 +334,128 @@ async def get_available_applicants(
         "total_found": len(applicants),
         "search_term": search
     }
+
+
+@router.get("/{leave_id}", response_model=LeaveRequestWithDetails)
+async def get_leave_request(
+    leave_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Get specific leave request details with all related information
+    """
+    leave_request = await leave_request_crud.get_with_details(db, id=leave_id)
+    if not leave_request:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Leave request not found"
+        )
+
+    return leave_request
+
+
+@router.put("/{leave_id}", response_model=LeaveRequest)
+async def update_leave_request(
+    leave_id: int,
+    leave_data: LeaveRequestUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Update leave request (only if pending)
+    """
+    leave_request = await leave_request_crud.get(db, id=leave_id)
+    if not leave_request:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Leave request not found"
+        )
+
+    # Only allow updates if status is pending
+    if leave_request.leave_status_id != 1:  # Not pending
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot update leave request that is not pending"
+        )
+
+    # Validate dates if provided
+    start_date = leave_data.start_date or leave_request.start_date
+    end_date = leave_data.end_date or leave_request.end_date
+
+    if start_date > end_date:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Start date cannot be after end date"
+        )
+
+    # Update total days if dates changed
+    if leave_data.start_date or leave_data.end_date:
+        leave_data.total_days = (end_date - start_date).days + 1
+
+    updated_leave = await leave_request_crud.update(
+        db, db_obj=leave_request, obj_in=leave_data
+    )
+    return updated_leave
+
+
+@router.delete("/{leave_id}")
+async def delete_leave_request(
+    leave_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Delete a leave request (only allowed for pending requests)
+    """
+    leave_request = await leave_request_crud.get(db, id=leave_id)
+    if not leave_request:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Leave request not found"
+        )
+
+    # Only allow deletion for pending requests
+    if leave_request.leave_status_id != 1:  # Not pending
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Can only delete pending leave requests"
+        )
+
+    await leave_request_crud.remove(db, id=leave_id)
+    return {"message": "Leave request deleted successfully"}
+
+
+@router.patch("/{leave_id}/approve", response_model=LeaveRequest)
+async def approve_leave_request(
+    leave_id: int,
+    approval_data: LeaveApproval,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Approve or reject a leave request
+    """
+    leave_request = await leave_request_crud.get(db, id=leave_id)
+    if not leave_request:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Leave request not found"
+        )
+
+    # Check if already processed
+    if leave_request.leave_status_id != 1:  # Not pending
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Leave request has already been processed"
+        )
+
+    updated_leave = await leave_request_crud.approve_request(
+        db,
+        leave_request=leave_request,
+        reviewer_id=current_user.id,
+        leave_status_id=approval_data.leave_status_id,
+        review_comments=approval_data.review_comments
+    )
+
+    return updated_leave

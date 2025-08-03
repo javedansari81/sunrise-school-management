@@ -48,20 +48,30 @@ class CRUDLeaveRequest(CRUDBase[LeaveRequest, LeaveRequestCreate, LeaveRequestUp
         query = """
         SELECT
             lr.*,
-            CASE
-                WHEN lr.applicant_type = 'student' THEN
-                    'Roll ' || LPAD(COALESCE(s.roll_number, '000'), 3, '0') || ': ' || s.first_name || ' ' || s.last_name
-                WHEN lr.applicant_type = 'teacher' THEN
-                    t.first_name || ' ' || t.last_name || ' (' || t.employee_id || ')'
-            END as applicant_name,
-            CASE
-                WHEN lr.applicant_type = 'student' THEN c.name
-                WHEN lr.applicant_type = 'teacher' THEN t.department
-            END as applicant_details,
-            lt.name as leave_type_name,
-            ls.name as leave_status_name,
+            COALESCE(
+                CASE
+                    WHEN lr.applicant_type = 'student' AND s.id IS NOT NULL THEN
+                        'Roll ' || LPAD(COALESCE(s.roll_number::text, '000'), 3, '0') || ': ' || s.first_name || ' ' || s.last_name
+                    WHEN lr.applicant_type = 'teacher' AND t.id IS NOT NULL THEN
+                        t.first_name || ' ' || t.last_name || ' (' || t.employee_id || ')'
+                    ELSE 'Unknown Applicant (ID: ' || lr.applicant_id || ')'
+                END
+            ) as applicant_name,
+            COALESCE(
+                CASE
+                    WHEN lr.applicant_type = 'student' AND c.id IS NOT NULL THEN c.name
+                    WHEN lr.applicant_type = 'teacher' AND t.id IS NOT NULL THEN t.department
+                    ELSE 'N/A'
+                END,
+                'N/A'
+            ) as applicant_details,
+            COALESCE(lt.name, 'Unknown Leave Type') as leave_type_name,
+            COALESCE(ls.name, 'Unknown Status') as leave_status_name,
             ls.color_code as leave_status_color,
-            u.first_name || ' ' || u.last_name as reviewer_name
+            CASE
+                WHEN u.id IS NOT NULL THEN u.first_name || ' ' || u.last_name
+                ELSE NULL
+            END as reviewer_name
         FROM leave_requests lr
         LEFT JOIN students s ON lr.applicant_type = 'student' AND lr.applicant_id = s.id
         LEFT JOIN classes c ON lr.applicant_type = 'student' AND s.class_id = c.id
@@ -158,20 +168,30 @@ class CRUDLeaveRequest(CRUDBase[LeaveRequest, LeaveRequestCreate, LeaveRequestUp
         main_query = f"""
         SELECT
             lr.*,
-            CASE
-                WHEN lr.applicant_type = 'student' THEN
-                    'Roll ' || LPAD(COALESCE(s.roll_number, '000'), 3, '0') || ': ' || s.first_name || ' ' || s.last_name
-                WHEN lr.applicant_type = 'teacher' THEN
-                    t.first_name || ' ' || t.last_name || ' (' || t.employee_id || ')'
-            END as applicant_name,
-            CASE
-                WHEN lr.applicant_type = 'student' THEN c.name
-                WHEN lr.applicant_type = 'teacher' THEN t.department
-            END as applicant_details,
-            lt.name as leave_type_name,
-            ls.name as leave_status_name,
+            COALESCE(
+                CASE
+                    WHEN lr.applicant_type = 'student' AND s.id IS NOT NULL THEN
+                        'Roll ' || LPAD(COALESCE(s.roll_number::text, '000'), 3, '0') || ': ' || s.first_name || ' ' || s.last_name
+                    WHEN lr.applicant_type = 'teacher' AND t.id IS NOT NULL THEN
+                        t.first_name || ' ' || t.last_name || ' (' || t.employee_id || ')'
+                    ELSE 'Unknown Applicant (ID: ' || lr.applicant_id || ')'
+                END
+            ) as applicant_name,
+            COALESCE(
+                CASE
+                    WHEN lr.applicant_type = 'student' AND c.id IS NOT NULL THEN c.name
+                    WHEN lr.applicant_type = 'teacher' AND t.id IS NOT NULL THEN t.department
+                    ELSE 'N/A'
+                END,
+                'N/A'
+            ) as applicant_details,
+            COALESCE(lt.name, 'Unknown Leave Type') as leave_type_name,
+            COALESCE(ls.name, 'Unknown Status') as leave_status_name,
             ls.color_code as leave_status_color,
-            u.first_name || ' ' || u.last_name as reviewer_name
+            CASE
+                WHEN u.id IS NOT NULL THEN u.first_name || ' ' || u.last_name
+                ELSE NULL
+            END as reviewer_name
         FROM leave_requests lr
         LEFT JOIN students s ON lr.applicant_type = 'student' AND lr.applicant_id = s.id
         LEFT JOIN classes c ON lr.applicant_type = 'student' AND s.class_id = c.id
@@ -214,18 +234,28 @@ class CRUDLeaveRequest(CRUDBase[LeaveRequest, LeaveRequestCreate, LeaveRequestUp
         query = """
         SELECT
             lr.*,
-            CASE
-                WHEN lr.applicant_type = 'student' THEN s.first_name || ' ' || s.last_name
-                WHEN lr.applicant_type = 'teacher' THEN t.first_name || ' ' || t.last_name
-            END as applicant_name,
-            CASE
-                WHEN lr.applicant_type = 'student' THEN c.name
-                WHEN lr.applicant_type = 'teacher' THEN t.department
-            END as applicant_details,
-            lt.name as leave_type_name,
-            ls.name as leave_status_name,
+            COALESCE(
+                CASE
+                    WHEN lr.applicant_type = 'student' AND s.id IS NOT NULL THEN s.first_name || ' ' || s.last_name
+                    WHEN lr.applicant_type = 'teacher' AND t.id IS NOT NULL THEN t.first_name || ' ' || t.last_name
+                    ELSE 'Unknown Applicant (ID: ' || lr.applicant_id || ')'
+                END
+            ) as applicant_name,
+            COALESCE(
+                CASE
+                    WHEN lr.applicant_type = 'student' AND c.id IS NOT NULL THEN c.name
+                    WHEN lr.applicant_type = 'teacher' AND t.id IS NOT NULL THEN t.department
+                    ELSE 'N/A'
+                END,
+                'N/A'
+            ) as applicant_details,
+            COALESCE(lt.name, 'Unknown Leave Type') as leave_type_name,
+            COALESCE(ls.name, 'Unknown Status') as leave_status_name,
             ls.color_code as leave_status_color,
-            u.first_name || ' ' || u.last_name as reviewer_name
+            CASE
+                WHEN u.id IS NOT NULL THEN u.first_name || ' ' || u.last_name
+                ELSE NULL
+            END as reviewer_name
         FROM leave_requests lr
         LEFT JOIN students s ON lr.applicant_type = 'student' AND lr.applicant_id = s.id
         LEFT JOIN classes c ON lr.applicant_type = 'student' AND s.class_id = c.id
@@ -263,20 +293,30 @@ class CRUDLeaveRequest(CRUDBase[LeaveRequest, LeaveRequestCreate, LeaveRequestUp
         query = """
         SELECT
             lr.*,
-            CASE
-                WHEN lr.applicant_type = 'student' THEN
-                    'Roll ' || LPAD(COALESCE(s.roll_number, '000'), 3, '0') || ': ' || s.first_name || ' ' || s.last_name
-                WHEN lr.applicant_type = 'teacher' THEN
-                    t.first_name || ' ' || t.last_name || ' (' || t.employee_id || ')'
-            END as applicant_name,
-            CASE
-                WHEN lr.applicant_type = 'student' THEN c.name
-                WHEN lr.applicant_type = 'teacher' THEN t.department
-            END as applicant_details,
-            lt.name as leave_type_name,
-            ls.name as leave_status_name,
+            COALESCE(
+                CASE
+                    WHEN lr.applicant_type = 'student' AND s.id IS NOT NULL THEN
+                        'Roll ' || LPAD(COALESCE(s.roll_number::text, '000'), 3, '0') || ': ' || s.first_name || ' ' || s.last_name
+                    WHEN lr.applicant_type = 'teacher' AND t.id IS NOT NULL THEN
+                        t.first_name || ' ' || t.last_name || ' (' || t.employee_id || ')'
+                    ELSE 'Unknown Applicant (ID: ' || lr.applicant_id || ')'
+                END
+            ) as applicant_name,
+            COALESCE(
+                CASE
+                    WHEN lr.applicant_type = 'student' AND c.id IS NOT NULL THEN c.name
+                    WHEN lr.applicant_type = 'teacher' AND t.id IS NOT NULL THEN t.department
+                    ELSE 'N/A'
+                END,
+                'N/A'
+            ) as applicant_details,
+            COALESCE(lt.name, 'Unknown Leave Type') as leave_type_name,
+            COALESCE(ls.name, 'Unknown Status') as leave_status_name,
             ls.color_code as leave_status_color,
-            u.first_name || ' ' || u.last_name as reviewer_name
+            CASE
+                WHEN u.id IS NOT NULL THEN u.first_name || ' ' || u.last_name
+                ELSE NULL
+            END as reviewer_name
         FROM leave_requests lr
         LEFT JOIN students s ON lr.applicant_type = 'student' AND lr.applicant_id = s.id
         LEFT JOIN classes c ON lr.applicant_type = 'student' AND s.class_id = c.id

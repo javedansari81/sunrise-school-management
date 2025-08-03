@@ -456,15 +456,34 @@ const StudentProfilesContent: React.FC = () => {
 
   return (
     <AdminLayout>
-      <Box sx={{ py: 2 }}>
-        <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
-          <Typography variant="h4" gutterBottom>
+      <Box sx={{ p: { xs: 1, sm: 2, md: 3 } }}>
+        <Box
+          display="flex"
+          justifyContent="space-between"
+          alignItems={{ xs: 'flex-start', sm: 'center' }}
+          flexDirection={{ xs: 'column', sm: 'row' }}
+          gap={{ xs: 2, sm: 0 }}
+          mb={{ xs: 3, sm: 4 }}
+        >
+          <Typography
+            variant="h4"
+            gutterBottom
+            sx={{
+              fontSize: { xs: '1.5rem', sm: '2rem', md: '2.125rem' },
+              mb: { xs: 0, sm: 1 }
+            }}
+          >
             Student Profiles Management
           </Typography>
           <Button
             variant="contained"
             startIcon={<Add />}
             onClick={() => handleOpenDialog('create')}
+            sx={{
+              fontSize: { xs: '0.875rem', sm: '1rem' },
+              padding: { xs: '6px 12px', sm: '8px 16px' },
+              alignSelf: { xs: 'flex-end', sm: 'auto' }
+            }}
           >
             Add Student
           </Button>

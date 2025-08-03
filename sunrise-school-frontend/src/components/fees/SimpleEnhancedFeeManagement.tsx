@@ -517,9 +517,13 @@ const SimpleEnhancedFeeManagement: React.FC = () => {
 
   return (
     <Box sx={{ p: 3 }}>
-      {/* Filters */}
-      <Paper sx={{ p: 2, mb: 3 }}>
-        <Stack direction="row" spacing={2} alignItems="center">
+      {/* Filters - Mobile Responsive */}
+      <Paper sx={{ p: { xs: 1.5, sm: 2 }, mb: { xs: 2, sm: 3 } }}>
+        <Stack
+          direction={{ xs: 'column', sm: 'row' }}
+          spacing={{ xs: 1.5, sm: 2 }}
+          alignItems={{ xs: 'stretch', sm: 'center' }}
+        >
           <SessionYearDropdown
             value={filters.session_year_id}
             onChange={(value) => setFilters(prev => ({ ...prev, session_year_id: value as string }))}
@@ -538,12 +542,22 @@ const SimpleEnhancedFeeManagement: React.FC = () => {
             InputProps={{
               startAdornment: <Search />,
             }}
-            sx={{ minWidth: 200 }}
+            sx={{
+              minWidth: { xs: '100%', sm: 200 },
+              '& .MuiInputBase-input': {
+                fontSize: { xs: '0.875rem', sm: '1rem' }
+              }
+            }}
           />
           <Button
             variant="contained"
             onClick={fetchStudentsSummary}
             disabled={!filters.session_year_id}
+            sx={{
+              fontSize: { xs: '0.875rem', sm: '1rem' },
+              padding: { xs: '6px 12px', sm: '8px 16px' },
+              minWidth: { xs: '100%', sm: 'auto' }
+            }}
           >
             Search
           </Button>
@@ -552,6 +566,14 @@ const SimpleEnhancedFeeManagement: React.FC = () => {
               variant="outlined"
               startIcon={<Settings />}
               onClick={() => setEnableTrackingDialog(true)}
+              sx={{
+                fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                padding: { xs: '4px 8px', sm: '6px 12px' },
+                minWidth: { xs: '100%', sm: 'auto' },
+                '& .MuiButton-startIcon': {
+                  marginRight: { xs: 0.5, sm: 1 }
+                }
+              }}
             >
               Enable Monthly Tracking ({selectedStudentIds.length})
             </Button>
@@ -559,13 +581,24 @@ const SimpleEnhancedFeeManagement: React.FC = () => {
         </Stack>
       </Paper>
 
-      {/* Students Table */}
-      <Paper>
-        <TableContainer>
-          <Table>
+      {/* Students Table - Mobile Responsive */}
+      <Paper sx={{ overflow: 'hidden' }}>
+        <TableContainer sx={{
+          maxHeight: { xs: '70vh', sm: '80vh' },
+          '& .MuiTable-root': {
+            minWidth: { xs: 'auto', sm: 650 }
+          }
+        }}>
+          <Table size="small">
             <TableHead>
               <TableRow>
-                <TableCell padding="checkbox">
+                <TableCell
+                  padding="checkbox"
+                  sx={{
+                    display: { xs: 'none', sm: 'table-cell' },
+                    minWidth: { xs: 'auto', sm: 48 }
+                  }}
+                >
                   <input
                     type="checkbox"
                     onChange={(e) => {

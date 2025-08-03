@@ -261,6 +261,15 @@ class ConfigurationService {
   }
 
   /**
+   * Clear specific service configuration
+   */
+  public clearServiceConfiguration(service: ServiceType): void {
+    this.serviceConfigurations.delete(service);
+    this.serviceLoadingStates.delete(service);
+    this.serviceLoadPromises.delete(service);
+  }
+
+  /**
    * Check if service configuration is loaded
    */
   public isServiceConfigurationLoaded(service: ServiceType): boolean {
