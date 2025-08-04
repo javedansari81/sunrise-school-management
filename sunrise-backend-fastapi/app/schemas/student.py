@@ -1,7 +1,8 @@
 from typing import Optional, List
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
 from datetime import datetime, date
 from enum import Enum
+import re
 
 
 class GenderEnum(str, Enum):
@@ -107,7 +108,7 @@ class StudentBase(BaseModel):
     blood_group: Optional[str] = Field(None, max_length=5)
     phone: Optional[str] = Field(None, max_length=20)
     email: Optional[EmailStr] = None
-    aadhar_no: Optional[str] = Field(None, max_length=12, pattern=r'^\d{12}$', description="12-digit Aadhar number")
+    aadhar_no: Optional[str] = Field(None, max_length=12, description="12-digit Aadhar number")
     address: Optional[str] = None
     city: Optional[str] = Field(None, max_length=100)
     state: Optional[str] = Field(None, max_length=100)
@@ -127,6 +128,18 @@ class StudentBase(BaseModel):
     admission_date: date
     previous_school: Optional[str] = None
 
+    @field_validator('aadhar_no', mode='before')
+    @classmethod
+    def validate_aadhar_no(cls, v):
+        """Validate Aadhar number format - allow empty/null or exactly 12 digits"""
+        if v is None or v == "":
+            return None
+        if isinstance(v, str) and v.strip() == "":
+            return None
+        if isinstance(v, str) and re.match(r'^\d{12}$', v):
+            return v
+        raise ValueError('Aadhar number must be exactly 12 digits or empty')
+
 
 class StudentCreate(StudentBase):
     pass
@@ -145,7 +158,7 @@ class StudentUpdate(BaseModel):
     blood_group: Optional[str] = Field(None, max_length=5)
     phone: Optional[str] = Field(None, max_length=20)
     email: Optional[EmailStr] = None
-    aadhar_no: Optional[str] = Field(None, max_length=12, pattern=r'^\d{12}$', description="12-digit Aadhar number")
+    aadhar_no: Optional[str] = Field(None, max_length=12, description="12-digit Aadhar number")
     address: Optional[str] = None
     city: Optional[str] = Field(None, max_length=100)
     state: Optional[str] = Field(None, max_length=100)
@@ -173,7 +186,7 @@ class StudentProfileUpdate(BaseModel):
     """
     phone: Optional[str] = Field(None, max_length=20)
     email: Optional[EmailStr] = None
-    aadhar_no: Optional[str] = Field(None, max_length=12, pattern=r'^\d{12}$', description="12-digit Aadhar number")
+    aadhar_no: Optional[str] = Field(None, max_length=12, description="12-digit Aadhar number")
     address: Optional[str] = None
     city: Optional[str] = Field(None, max_length=100)
     state: Optional[str] = Field(None, max_length=100)

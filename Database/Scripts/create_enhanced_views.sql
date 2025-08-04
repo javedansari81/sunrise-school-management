@@ -63,7 +63,8 @@ LEFT JOIN (
     GROUP BY mft.student_id, mft.session_year_id
 ) monthly_stats ON s.id = monthly_stats.student_id AND s.session_year_id = monthly_stats.session_year_id
 
-WHERE s.is_active = true;
+WHERE s.is_active = true
+  AND (s.is_deleted = false OR s.is_deleted IS NULL);
 
 COMMENT ON VIEW enhanced_student_fee_status IS 'Enhanced student fee summary combining legacy and monthly tracking data';
 
