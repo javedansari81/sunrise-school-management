@@ -32,6 +32,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
     { label: 'Leave Management', icon: <BeachAccess />, path: '/admin/leaves' },
     { label: 'Expense Management', icon: <Receipt />, path: '/admin/expenses' },
     { label: 'Student Profiles', icon: <PersonAdd />, path: '/admin/students' },
+    { label: 'Teacher Profiles', icon: <PersonAdd />, path: '/admin/teachers' },
   ];
 
   // Get current tab index based on location

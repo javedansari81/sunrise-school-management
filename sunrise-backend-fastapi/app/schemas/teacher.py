@@ -94,7 +94,7 @@ class TeacherBase(BaseModel):
     gender_id: Optional[int] = Field(None, description="Foreign key to genders table")
     phone: str = Field(..., max_length=20)
     email: EmailStr
-    aadhar_no: Optional[str] = Field(None, max_length=12, regex=r'^\d{12}$', description="12-digit Aadhar number")
+    aadhar_no: Optional[str] = Field(None, max_length=12, pattern=r'^\d{12}$', description="12-digit Aadhar number")
     address: Optional[str] = None
     city: Optional[str] = Field(None, max_length=100)
     state: Optional[str] = Field(None, max_length=100)
@@ -131,7 +131,7 @@ class TeacherUpdate(BaseModel):
     gender_id: Optional[int] = None
     phone: Optional[str] = Field(None, max_length=20)
     email: Optional[EmailStr] = None
-    aadhar_no: Optional[str] = Field(None, max_length=12, regex=r'^\d{12}$', description="12-digit Aadhar number")
+    aadhar_no: Optional[str] = Field(None, max_length=12, pattern=r'^\d{12}$', description="12-digit Aadhar number")
     address: Optional[str] = None
     city: Optional[str] = Field(None, max_length=100)
     state: Optional[str] = Field(None, max_length=100)
@@ -155,6 +155,21 @@ class TeacherUpdate(BaseModel):
     certifications: Optional[str] = None
     img: Optional[str] = None
     is_active: Optional[bool] = None
+
+
+class TeacherProfileUpdate(BaseModel):
+    """Schema for teacher profile updates (restricted fields for self-update)"""
+    phone: Optional[str] = Field(None, max_length=20)
+    email: Optional[EmailStr] = None
+    aadhar_no: Optional[str] = Field(None, max_length=12, pattern=r'^\d{12}$', description="12-digit Aadhar number")
+    address: Optional[str] = None
+    city: Optional[str] = Field(None, max_length=100)
+    state: Optional[str] = Field(None, max_length=100)
+    postal_code: Optional[str] = Field(None, max_length=20)
+    country: Optional[str] = Field(None, max_length=100)
+    emergency_contact_name: Optional[str] = Field(None, max_length=200)
+    emergency_contact_phone: Optional[str] = Field(None, max_length=20)
+    emergency_contact_relation: Optional[str] = Field(None, max_length=50)
 
 
 class TeacherInDBBase(TeacherBase):

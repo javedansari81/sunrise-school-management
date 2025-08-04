@@ -87,16 +87,7 @@ export const usersAPI = {
   deleteUser: (id: number) => api.delete(`/users/${id}`),
 };
 
-// Teachers API
-export const teachersAPI = {
-  getTeachers: () => api.get('/teachers'),
-  getTeacher: (id: number) => api.get(`/teachers/${id}`),
-  createTeacher: (teacherData: any) => api.post('/teachers', teacherData),
-  updateTeacher: (id: number, teacherData: any) => api.put(`/teachers/${id}`, teacherData),
-  deleteTeacher: (id: number) => api.delete(`/teachers/${id}`),
-  getMyProfile: () => api.get('/teachers/my-profile'),
-  updateMyProfile: (profileData: any) => api.put('/teachers/my-profile', profileData),
-};
+
 
 // Students API (to be implemented in backend)
 export const studentsAPI = {
@@ -108,6 +99,27 @@ export const studentsAPI = {
   // Student profile management
   getMyProfile: () => api.get('/students/my-profile'),
   updateMyProfile: (profileData: any) => api.put('/students/my-profile', profileData),
+};
+
+// Teachers API
+export const teachersAPI = {
+  getTeachers: (params?: string) => api.get(`/teachers${params ? `?${params}` : ''}`),
+  getTeacher: (id: number) => api.get(`/teachers/${id}`),
+  createTeacher: (teacherData: any) => api.post('/teachers', teacherData),
+  updateTeacher: (id: number, teacherData: any) => api.put(`/teachers/${id}`, teacherData),
+  deleteTeacher: (id: number) => api.delete(`/teachers/${id}`),
+  // Teacher profile management
+  getMyProfile: () => api.get('/teachers/my-profile'),
+  updateMyProfile: (profileData: any) => api.put('/teachers/my-profile', profileData),
+  // Teacher search and filters
+  searchTeachers: (searchTerm: string) => api.get(`/teachers/search?q=${searchTerm}`),
+  getTeachersByDepartment: (department: string) => api.get(`/teachers/department/${department}`),
+  getTeachersBySubject: (subject: string) => api.get(`/teachers/subject/${subject}`),
+  // Options for dropdowns
+  getDepartments: () => api.get('/teachers/options/departments'),
+  getPositions: () => api.get('/teachers/options/positions'),
+  getQualifications: () => api.get('/teachers/options/qualifications'),
+  getEmploymentStatuses: () => api.get('/teachers/options/employment-status'),
 };
 
 

@@ -51,6 +51,15 @@ class CRUDStudent(CRUDBase[Student, StudentCreate, StudentUpdate]):
         )
         return result.scalar_one_or_none()
 
+    async def get_by_user_id(
+        self, db: AsyncSession, *, user_id: int
+    ) -> Optional[Student]:
+        """Get student by user_id"""
+        result = await db.execute(
+            select(Student).where(Student.user_id == user_id)
+        )
+        return result.scalar_one_or_none()
+
     async def get_with_metadata(self, db: AsyncSession, id: int) -> Optional[Student]:
         """Get student with metadata relationships loaded"""
         result = await db.execute(

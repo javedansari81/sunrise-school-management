@@ -1,4 +1,4 @@
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 import math
@@ -8,21 +8,21 @@ from app.core.database import get_db
 from app.crud import teacher_crud
 from app.schemas.teacher import (
     Teacher, TeacherCreate, TeacherUpdate, TeacherProfile, TeacherListResponse, TeacherDashboard,
-    GenderEnum, QualificationEnum, EmploymentStatusEnum
+    GenderEnum, QualificationEnum, EmploymentStatusEnum, TeacherProfileUpdate
 )
 from app.api.deps import get_current_active_user
-from app.models.user import User
+from app.models.user import User, UserTypeEnum
 
 router = APIRouter()
 
 
-@router.get("/", response_model=TeacherListResponse)
-@router.get("", response_model=TeacherListResponse)  # Handle both with and without trailing slash
+@router.get("/", response_model=Dict[str, Any])
+@router.get("", response_model=Dict[str, Any])  # Handle both with and without trailing slash
 async def get_teachers(
     department_filter: Optional[str] = Query(None, description="Filter by department"),
     position_filter: Optional[str] = Query(None, description="Filter by position"),
-    qualification_filter: Optional[str] = Query(None, description="Filter by qualification"),
-    employment_status_filter: Optional[str] = Query(None, description="Filter by employment status"),
+    qualification_filter: Optional[int] = Query(None, description="Filter by qualification ID"),
+    employment_status_filter: Optional[int] = Query(None, description="Filter by employment status ID"),
     search: Optional[str] = Query(None, description="Search by name, employee ID, or email"),
     is_active: bool = Query(True, description="Filter by active status"),
     page: int = Query(1, ge=1),
@@ -31,7 +31,7 @@ async def get_teachers(
     current_user: User = Depends(get_current_active_user)
 ):
     """
-    Get all teachers with comprehensive filters
+    Get all teachers with comprehensive filters and metadata
     """
     skip = (page - 1) * per_page
     teachers, total = await teacher_crud.get_multi_with_filters(
@@ -48,24 +48,24 @@ async def get_teachers(
 
     total_pages = math.ceil(total / per_page)
 
-    return TeacherListResponse(
-        teachers=teachers,
-        total=total,
-        page=page,
-        per_page=per_page,
-        total_pages=total_pages
-    )
+    return {
+        "teachers": teachers,
+        "total": total,
+        "page": page,
+        "per_page": per_page,
+        "total_pages": total_pages
+    }
 
 
-@router.post("/", response_model=Teacher)
-@router.post("", response_model=Teacher)  # Handle both with and without trailing slash
+@router.post("/", response_model=Dict[str, Any])
+@router.post("", response_model=Dict[str, Any])  # Handle both with and without trailing slash
 async def create_teacher(
     teacher_data: TeacherCreate,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
     """
-    Create a new teacher
+    Create a new teacher with user account
     """
     # Check if employee ID already exists
     existing_teacher = await teacher_crud.get_by_employee_id(
@@ -87,56 +87,48 @@ async def create_teacher(
             detail="Teacher with this email already exists"
         )
 
-    teacher = await teacher_crud.create(db, obj_in=teacher_data)
-    return teacher
+    # Create teacher with user account
+    teacher = await teacher_crud.create_with_user_account(db, obj_in=teacher_data)
+
+    # Return teacher with metadata
+    teacher_with_metadata = await teacher_crud.get_with_metadata(db, id=teacher.id)
+    return teacher_with_metadata
 
 
-@router.get("/{teacher_id}", response_model=TeacherProfile)
+@router.get("/{teacher_id}", response_model=Dict[str, Any])
 async def get_teacher(
     teacher_id: int,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
     """
-    Get teacher by ID with complete profile
+    Get teacher by ID with complete profile and metadata
     """
-    teacher = await teacher_crud.get(db, id=teacher_id)
-    if not teacher:
+    teacher_with_metadata = await teacher_crud.get_with_metadata(db, id=teacher_id)
+    if not teacher_with_metadata:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Teacher not found"
         )
 
-    # Parse JSON fields
-    subjects_list = []
-    specializations_list = []
-    certifications_list = []
+    # Parse JSON fields if they exist
+    if teacher_with_metadata.get('subjects'):
+        try:
+            teacher_with_metadata['subjects_list'] = json.loads(teacher_with_metadata['subjects'])
+        except (json.JSONDecodeError, TypeError):
+            teacher_with_metadata['subjects_list'] = []
+    else:
+        teacher_with_metadata['subjects_list'] = []
 
-    try:
-        if teacher.subjects:
-            subjects_list = json.loads(teacher.subjects)
-    except (json.JSONDecodeError, TypeError):
-        subjects_list = []
+    if teacher_with_metadata.get('classes_assigned'):
+        try:
+            teacher_with_metadata['classes_assigned_list'] = json.loads(teacher_with_metadata['classes_assigned'])
+        except (json.JSONDecodeError, TypeError):
+            teacher_with_metadata['classes_assigned_list'] = []
+    else:
+        teacher_with_metadata['classes_assigned_list'] = []
 
-    try:
-        if teacher.specializations:
-            specializations_list = json.loads(teacher.specializations)
-    except (json.JSONDecodeError, TypeError):
-        specializations_list = []
-
-    try:
-        if teacher.certifications:
-            certifications_list = json.loads(teacher.certifications)
-    except (json.JSONDecodeError, TypeError):
-        certifications_list = []
-
-    # Create response with parsed lists
-    teacher_dict = teacher.__dict__.copy()
-    teacher_dict['subjects_list'] = subjects_list
-    teacher_dict['specializations_list'] = specializations_list
-    teacher_dict['certifications_list'] = certifications_list
-
-    return teacher_dict
+    return teacher_with_metadata
 
 
 @router.put("/{teacher_id}", response_model=Teacher)
@@ -191,7 +183,7 @@ async def delete_teacher(
     current_user: User = Depends(get_current_active_user)
 ):
     """
-    Deactivate teacher by ID (soft delete)
+    Soft delete teacher by ID
     """
     teacher = await teacher_crud.get(db, id=teacher_id)
     if not teacher:
@@ -200,12 +192,12 @@ async def delete_teacher(
             detail="Teacher not found"
         )
 
-    # Soft delete by setting is_active to False
-    deactivated_teacher = await teacher_crud.remove(db, id=teacher_id)
-    return {"message": "Teacher deactivated successfully", "teacher_id": teacher_id}
+    # Soft delete teacher
+    deleted_teacher = await teacher_crud.soft_delete(db, id=teacher_id)
+    return {"message": "Teacher deleted successfully", "teacher_id": teacher_id}
 
 
-@router.get("/my-profile", response_model=TeacherProfile)
+@router.get("/my-profile", response_model=Dict[str, Any])
 async def get_my_profile(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
@@ -213,62 +205,44 @@ async def get_my_profile(
     """
     Get current teacher's profile (for logged-in teachers)
     """
-    # Verify user is a teacher
-    if not current_user.user_type or current_user.user_type.name != "TEACHER":
+    # Verify user is a teacher using the enum comparison
+    if current_user.user_type_enum != UserTypeEnum.TEACHER:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only teachers can access this endpoint"
         )
 
     # Find teacher record linked to this user
-    if not current_user.teacher_profile:
+    teacher = await teacher_crud.get_by_user_id(db, user_id=current_user.id)
+    if not teacher:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Teacher profile not found for this user"
         )
 
-    teacher = await teacher_crud.get(db, id=current_user.teacher_profile.id)
-    if not teacher:
+    # Get teacher with metadata
+    teacher_with_metadata = await teacher_crud.get_with_metadata(db, id=teacher.id)
+    if not teacher_with_metadata:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Teacher profile not found"
         )
 
-    # Parse JSON fields and return complete profile
-    subjects_list = []
-    specializations_list = []
-    certifications_list = []
+    # Parse JSON fields
+    if teacher_with_metadata.get('subjects'):
+        try:
+            teacher_with_metadata['subjects_list'] = json.loads(teacher_with_metadata['subjects'])
+        except (json.JSONDecodeError, TypeError):
+            teacher_with_metadata['subjects_list'] = []
+    else:
+        teacher_with_metadata['subjects_list'] = []
 
-    try:
-        if teacher.subjects:
-            subjects_list = json.loads(teacher.subjects)
-    except (json.JSONDecodeError, TypeError):
-        subjects_list = []
-
-    try:
-        if teacher.specializations:
-            specializations_list = json.loads(teacher.specializations)
-    except (json.JSONDecodeError, TypeError):
-        specializations_list = []
-
-    try:
-        if teacher.certifications:
-            certifications_list = json.loads(teacher.certifications)
-    except (json.JSONDecodeError, TypeError):
-        certifications_list = []
-
-    # Create response with parsed lists
-    teacher_dict = teacher.__dict__.copy()
-    teacher_dict['subjects_list'] = subjects_list
-    teacher_dict['specializations_list'] = specializations_list
-    teacher_dict['certifications_list'] = certifications_list
-
-    return teacher_dict
+    return teacher_with_metadata
 
 
-@router.put("/my-profile", response_model=Teacher)
+@router.put("/my-profile", response_model=Dict[str, Any])
 async def update_my_profile(
-    profile_data: TeacherUpdate,
+    profile_data: TeacherProfileUpdate,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
@@ -276,43 +250,28 @@ async def update_my_profile(
     Update current teacher's profile (for logged-in teachers)
     Only allows editing of non-restricted fields
     """
-    # Verify user is a teacher
-    if not current_user.user_type or current_user.user_type.name != "TEACHER":
+    # Verify user is a teacher using the enum comparison
+    if current_user.user_type_enum != UserTypeEnum.TEACHER:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only teachers can access this endpoint"
         )
 
     # Find teacher record linked to this user
-    if not current_user.teacher_profile:
+    teacher = await teacher_crud.get_by_user_id(db, user_id=current_user.id)
+    if not teacher:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Teacher profile not found for this user"
         )
 
-    teacher = await teacher_crud.get(db, id=current_user.teacher_profile.id)
-    if not teacher:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Teacher profile not found"
-        )
-
-    # Update only the allowed fields (restrict sensitive fields like salary, employee_id, etc.)
-    allowed_fields = {
-        'phone', 'email', 'aadhar_no', 'address', 'city', 'state', 'postal_code', 'country',
-        'emergency_contact_name', 'emergency_contact_phone', 'emergency_contact_relation'
-    }
-
-    update_data = {k: v for k, v in profile_data.dict(exclude_unset=True).items() if k in allowed_fields}
-
-    if not update_data:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="No valid fields provided for update"
-        )
-
+    # Update only the allowed fields
+    update_data = profile_data.dict(exclude_unset=True)
     updated_teacher = await teacher_crud.update(db, db_obj=teacher, obj_in=update_data)
-    return updated_teacher
+
+    # Return updated teacher with metadata
+    teacher_with_metadata = await teacher_crud.get_with_metadata(db, id=updated_teacher.id)
+    return teacher_with_metadata
 
 
 @router.get("/department/{department}")

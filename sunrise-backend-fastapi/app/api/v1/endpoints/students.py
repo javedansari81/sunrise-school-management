@@ -10,7 +10,7 @@ from app.crud import fee_record_crud
 # Initialize CRUD instance
 student_crud = CRUDStudent()
 from app.schemas.student import (
-    Student, StudentCreate, StudentUpdate, StudentWithFees, StudentListResponse,
+    Student, StudentCreate, StudentUpdate, StudentProfileUpdate, StudentWithFees, StudentListResponse,
     ClassEnum, GenderEnum
 )
 from pydantic import BaseModel, Field
@@ -18,6 +18,7 @@ from typing import Optional
 from datetime import date
 from app.api.deps import get_current_active_user
 from app.models.user import User
+from app.schemas.user import UserTypeEnum
 
 router = APIRouter()
 
@@ -98,6 +99,74 @@ async def create_student(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e)
         )
+
+
+@router.get("/my-profile", response_model=Student)
+async def get_my_profile(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Get current student's profile (for logged-in students)
+    """
+    # Verify user is a student using the enum comparison
+    if current_user.user_type_enum != UserTypeEnum.STUDENT:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only students can access this endpoint"
+        )
+
+    # Find student record linked to this user
+    student = await student_crud.get_by_user_id(db, user_id=current_user.id)
+    if not student:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Student profile not found for this user"
+        )
+
+    # Get student with metadata
+    student_with_metadata = await student_crud.get_with_metadata(db, id=student.id)
+    if not student_with_metadata:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Student profile not found"
+        )
+
+    return Student.from_orm_with_metadata(student_with_metadata)
+
+
+@router.put("/my-profile", response_model=Student)
+async def update_my_profile(
+    profile_data: StudentProfileUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Update current student's profile (for logged-in students)
+    Only allows editing of non-restricted fields
+    """
+    # Verify user is a student using the enum comparison
+    if current_user.user_type_enum != UserTypeEnum.STUDENT:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only students can access this endpoint"
+        )
+
+    # Find student record linked to this user
+    student = await student_crud.get_by_user_id(db, user_id=current_user.id)
+    if not student:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Student profile not found for this user"
+        )
+
+    # Update only the allowed fields
+    update_data = profile_data.dict(exclude_unset=True)
+    updated_student = await student_crud.update(db, db_obj=student, obj_in=update_data)
+
+    # Return updated student with metadata
+    student_with_metadata = await student_crud.get_with_metadata(db, id=updated_student.id)
+    return Student.from_orm_with_metadata(student_with_metadata)
 
 
 @router.get("/{student_id}", response_model=Student)
@@ -381,73 +450,4 @@ class StudentProfileUpdate(BaseModel):
     # - admission_date, gender_id (system/admin managed)
 
 
-@router.get("/my-profile", response_model=Student)
-async def get_my_profile(
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
-):
-    """
-    Get current student's profile (for logged-in students)
-    """
-    # Verify user is a student
-    if not current_user.user_type or current_user.user_type.name != "STUDENT":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only students can access this endpoint"
-        )
 
-    # Find student record linked to this user
-    if not current_user.student_profile:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Student profile not found for this user"
-        )
-
-    student = await student_crud.get_with_metadata(db, id=current_user.student_profile.id)
-    if not student:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Student profile not found"
-        )
-
-    return Student.from_orm_with_metadata(student)
-
-
-@router.put("/my-profile", response_model=Student)
-async def update_my_profile(
-    profile_data: StudentProfileUpdate,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
-):
-    """
-    Update current student's profile (for logged-in students)
-    Only allows editing of non-restricted fields
-    """
-    # Verify user is a student
-    if not current_user.user_type or current_user.user_type.name != "STUDENT":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only students can access this endpoint"
-        )
-
-    # Find student record linked to this user
-    if not current_user.student_profile:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Student profile not found for this user"
-        )
-
-    student = await student_crud.get(db, id=current_user.student_profile.id)
-    if not student:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Student profile not found"
-        )
-
-    # Update only the allowed fields
-    update_data = profile_data.dict(exclude_unset=True)
-    updated_student = await student_crud.update(db, db_obj=student, obj_in=update_data)
-
-    # Return updated student with metadata
-    student_with_metadata = await student_crud.get_with_metadata(db, id=updated_student.id)
-    return Student.from_orm_with_metadata(student_with_metadata)

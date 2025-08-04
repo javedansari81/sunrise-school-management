@@ -16,6 +16,7 @@ import FeesManagement from './pages/admin/FeesManagement';
 import LeaveManagement from './pages/admin/LeaveManagement';
 import ExpenseManagement from './pages/admin/ExpenseManagement';
 import StudentProfiles from './pages/admin/StudentProfiles';
+import TeacherProfiles from './pages/admin/TeacherProfiles';
 import Profile from './pages/Profile';
 // import ConfigurationTest from './components/common/ConfigurationTest';
 
@@ -233,6 +234,11 @@ function App() {
                 <Route path="/admin/students" element={
                   <ProtectedRoute requiredRole="ADMIN">
                     <StudentProfiles />
+                  </ProtectedRoute>
+                } />
+                <Route path="/admin/teachers" element={
+                  <ProtectedRoute requiredRole="ADMIN">
+                    <TeacherProfiles />
                   </ProtectedRoute>
                 } />
 
