@@ -111,10 +111,13 @@ export const teachersAPI = {
   // Teacher profile management
   getMyProfile: () => api.get('/teachers/my-profile'),
   updateMyProfile: (profileData: any) => api.put('/teachers/my-profile', profileData),
-  // Teacher search and filters
-  searchTeachers: (searchTerm: string) => api.get(`/teachers/search?q=${searchTerm}`),
-  getTeachersByDepartment: (department: string) => api.get(`/teachers/department/${department}`),
-  getTeachersBySubject: (subject: string) => api.get(`/teachers/subject/${subject}`),
+  // Dashboard and statistics
+  getDashboardStats: () => api.get('/teachers/dashboard/stats'),
+  // Search and filters
+  searchTeachers: (searchTerm: string, limit: number = 20) =>
+    api.get(`/teachers/search?q=${encodeURIComponent(searchTerm)}&limit=${limit}`),
+  getTeachersByDepartment: (department: string) => api.get(`/teachers/department/${encodeURIComponent(department)}`),
+  getTeachersBySubject: (subject: string) => api.get(`/teachers/subject/${encodeURIComponent(subject)}`),
   // Options for dropdowns
   getDepartments: () => api.get('/teachers/options/departments'),
   getPositions: () => api.get('/teachers/options/positions'),
