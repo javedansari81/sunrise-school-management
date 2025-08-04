@@ -48,6 +48,7 @@ interface StudentProfileData {
   blood_group: string;
   phone: string;
   email: string;
+  aadhar_no: string;
   address: string;
   city: string;
   state: string;
@@ -346,7 +347,24 @@ const StudentProfile: React.FC = () => {
                   ) : profileData.email || 'Not provided'}
                 />
               </ListItem>
-              
+
+              <ListItem>
+                <ListItemIcon><PersonIcon /></ListItemIcon>
+                <ListItemText
+                  primary="Aadhar Number"
+                  secondary={isEditing ? (
+                    <TextField
+                      value={editData.aadhar_no || ''}
+                      onChange={(e) => handleInputChange('aadhar_no', e.target.value)}
+                      size="small"
+                      fullWidth
+                      inputProps={{ maxLength: 12, pattern: '[0-9]{12}' }}
+                      helperText="12-digit Aadhar number"
+                    />
+                  ) : profileData.aadhar_no || 'Not provided'}
+                />
+              </ListItem>
+
               <ListItem>
                 <ListItemIcon><HomeIcon /></ListItemIcon>
                 <ListItemText

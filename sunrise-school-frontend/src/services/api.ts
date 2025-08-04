@@ -94,6 +94,8 @@ export const teachersAPI = {
   createTeacher: (teacherData: any) => api.post('/teachers', teacherData),
   updateTeacher: (id: number, teacherData: any) => api.put(`/teachers/${id}`, teacherData),
   deleteTeacher: (id: number) => api.delete(`/teachers/${id}`),
+  getMyProfile: () => api.get('/teachers/my-profile'),
+  updateMyProfile: (profileData: any) => api.put('/teachers/my-profile', profileData),
 };
 
 // Students API (to be implemented in backend)

@@ -73,6 +73,7 @@ class Teacher(Base):
     # Contact Information
     phone = Column(String(20), nullable=False)
     email = Column(String(255), unique=True, index=True, nullable=False)
+    aadhar_no = Column(String(12), nullable=True)
     address = Column(Text, nullable=True)
     city = Column(String(100), nullable=True)
     state = Column(String(100), nullable=True)

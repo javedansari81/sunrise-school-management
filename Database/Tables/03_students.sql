@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS students (
     -- Contact Information
     phone VARCHAR(20),
     email VARCHAR(255),
+    aadhar_no VARCHAR(12),
     address TEXT,
     city VARCHAR(100),
     state VARCHAR(100),

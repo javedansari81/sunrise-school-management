@@ -87,6 +87,7 @@ interface Student {
   blood_group?: string;
   phone?: string;
   email?: string;
+  aadhar_no?: string;
   address?: string;
   city?: string;
   state?: string;
@@ -142,6 +143,7 @@ const StudentProfilesContent: React.FC = () => {
     blood_group: '',
     phone: '',
     email: '',
+    aadhar_no: '',
     address: '',
     city: '',
     state: '',
@@ -1023,6 +1025,18 @@ const StudentProfilesContent: React.FC = () => {
                   value={studentForm.email}
                   onChange={handleFormChange}
                   disabled={dialogMode === 'view'}
+                />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <TextField
+                  fullWidth
+                  label="Aadhar Number"
+                  name="aadhar_no"
+                  value={studentForm.aadhar_no}
+                  onChange={handleFormChange}
+                  disabled={dialogMode === 'view'}
+                  inputProps={{ maxLength: 12, pattern: '[0-9]{12}' }}
+                  helperText="12-digit Aadhar number"
                 />
               </Grid>
               <Grid size={12}>

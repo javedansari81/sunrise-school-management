@@ -1,46 +1,112 @@
-# Getting Started with Create React App
+# Sunrise School Frontend
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+A modern React-based frontend for the Sunrise School Management System built with TypeScript and Material-UI.
+
+## Quick Start
+
+### Prerequisites
+- Node.js 16+
+- npm or yarn
+
+### Installation
+
+1. **Navigate to the frontend directory:**
+```bash
+cd sunrise-school-frontend
+```
+
+2. **Install dependencies:**
+```bash
+npm install
+```
+
+3. **Start the development server:**
+```bash
+npm start
+```
+
+The frontend will be available at `http://localhost:3000`
+
+## Project Structure
+
+```
+sunrise-school-frontend/
+├── src/                    # Main application code
+│   ├── components/         # Reusable React components
+│   ├── pages/             # Page components and routes
+│   ├── contexts/          # React contexts for state management
+│   ├── services/          # API services and utilities
+│   ├── hooks/             # Custom React hooks
+│   └── App.tsx            # Main application component
+├── src/                    # Main application code (tests moved to workspace root)
+├── docs/                  # Documentation files
+├── public/                # Static assets
+├── build/                 # Production build output
+└── package.json           # Dependencies and scripts
+```
 
 ## Available Scripts
 
-In the project directory, you can run:
+- **`npm start`** - Start development server
+- **`npm test`** - Run test suite
+- **`npm run build`** - Build for production
+- **`npm run eject`** - Eject from Create React App (one-way operation)
 
-### `npm start`
+## Testing
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+Run all tests:
+```bash
+npm test
+```
 
-The page will reload if you make edits.\
-You will also see any lint errors in the console.
+Run tests in watch mode:
+```bash
+npm test -- --watch
+```
 
-### `npm test`
+Run tests with coverage:
+```bash
+npm test -- --coverage
+```
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+## Documentation
 
-### `npm run build`
+For detailed documentation, setup instructions, and technical details, see the [docs/](./docs/) folder:
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+- **[Complete Setup Guide](./docs/README.md)** - Detailed installation and configuration
+- **[Metadata-Driven UI Changes](./docs/METADATA_DRIVEN_UI_CHANGES.md)** - UI architecture details
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+## Features
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+- **React 19** - Latest React with modern features
+- **TypeScript** - Type-safe development
+- **Material-UI v7** - Modern component library
+- **React Router** - Client-side routing
+- **Axios** - HTTP client for API calls
+- **Date-fns** - Modern date utility library
+- **Comprehensive Testing** - Jest and React Testing Library
 
-### `npm run eject`
+## Environment Variables
 
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
+Create a `.env` file in the root directory:
 
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+```env
+REACT_APP_API_URL=http://localhost:8000/api/v1
+REACT_APP_SCHOOL_NAME=Sunrise National Public School
+```
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
+## Build and Deployment
 
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
+Build for production:
+```bash
+npm run build
+```
 
-## Learn More
+The build artifacts will be stored in the `build/` directory.
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+## Browser Support
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+- Chrome (latest)
+- Firefox (latest)
+- Safari (latest)
+- Edge (latest)

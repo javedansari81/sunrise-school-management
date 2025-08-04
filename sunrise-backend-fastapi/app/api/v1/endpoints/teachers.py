@@ -205,6 +205,116 @@ async def delete_teacher(
     return {"message": "Teacher deactivated successfully", "teacher_id": teacher_id}
 
 
+@router.get("/my-profile", response_model=TeacherProfile)
+async def get_my_profile(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Get current teacher's profile (for logged-in teachers)
+    """
+    # Verify user is a teacher
+    if not current_user.user_type or current_user.user_type.name != "TEACHER":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only teachers can access this endpoint"
+        )
+
+    # Find teacher record linked to this user
+    if not current_user.teacher_profile:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Teacher profile not found for this user"
+        )
+
+    teacher = await teacher_crud.get(db, id=current_user.teacher_profile.id)
+    if not teacher:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Teacher profile not found"
+        )
+
+    # Parse JSON fields and return complete profile
+    subjects_list = []
+    specializations_list = []
+    certifications_list = []
+
+    try:
+        if teacher.subjects:
+            subjects_list = json.loads(teacher.subjects)
+    except (json.JSONDecodeError, TypeError):
+        subjects_list = []
+
+    try:
+        if teacher.specializations:
+            specializations_list = json.loads(teacher.specializations)
+    except (json.JSONDecodeError, TypeError):
+        specializations_list = []
+
+    try:
+        if teacher.certifications:
+            certifications_list = json.loads(teacher.certifications)
+    except (json.JSONDecodeError, TypeError):
+        certifications_list = []
+
+    # Create response with parsed lists
+    teacher_dict = teacher.__dict__.copy()
+    teacher_dict['subjects_list'] = subjects_list
+    teacher_dict['specializations_list'] = specializations_list
+    teacher_dict['certifications_list'] = certifications_list
+
+    return teacher_dict
+
+
+@router.put("/my-profile", response_model=Teacher)
+async def update_my_profile(
+    profile_data: TeacherUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Update current teacher's profile (for logged-in teachers)
+    Only allows editing of non-restricted fields
+    """
+    # Verify user is a teacher
+    if not current_user.user_type or current_user.user_type.name != "TEACHER":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only teachers can access this endpoint"
+        )
+
+    # Find teacher record linked to this user
+    if not current_user.teacher_profile:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Teacher profile not found for this user"
+        )
+
+    teacher = await teacher_crud.get(db, id=current_user.teacher_profile.id)
+    if not teacher:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Teacher profile not found"
+        )
+
+    # Update only the allowed fields (restrict sensitive fields like salary, employee_id, etc.)
+    allowed_fields = {
+        'phone', 'email', 'aadhar_no', 'address', 'city', 'state', 'postal_code', 'country',
+        'emergency_contact_name', 'emergency_contact_phone', 'emergency_contact_relation'
+    }
+
+    update_data = {k: v for k, v in profile_data.dict(exclude_unset=True).items() if k in allowed_fields}
+
+    if not update_data:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No valid fields provided for update"
+        )
+
+    updated_teacher = await teacher_crud.update(db, db_obj=teacher, obj_in=update_data)
+    return updated_teacher
+
+
 @router.get("/department/{department}")
 async def get_teachers_by_department(
     department: str,

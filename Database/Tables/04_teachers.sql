@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS teachers (
     -- Contact Information
     phone VARCHAR(20) NOT NULL,
     email VARCHAR(255) UNIQUE NOT NULL,
+    aadhar_no VARCHAR(12),
     address TEXT,
     city VARCHAR(100),
     state VARCHAR(100),

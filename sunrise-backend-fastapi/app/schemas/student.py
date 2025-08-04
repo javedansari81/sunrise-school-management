@@ -107,6 +107,7 @@ class StudentBase(BaseModel):
     blood_group: Optional[str] = Field(None, max_length=5)
     phone: Optional[str] = Field(None, max_length=20)
     email: Optional[EmailStr] = None
+    aadhar_no: Optional[str] = Field(None, max_length=12, regex=r'^\d{12}$', description="12-digit Aadhar number")
     address: Optional[str] = None
     city: Optional[str] = Field(None, max_length=100)
     state: Optional[str] = Field(None, max_length=100)
@@ -144,6 +145,7 @@ class StudentUpdate(BaseModel):
     blood_group: Optional[str] = Field(None, max_length=5)
     phone: Optional[str] = Field(None, max_length=20)
     email: Optional[EmailStr] = None
+    aadhar_no: Optional[str] = Field(None, max_length=12, regex=r'^\d{12}$', description="12-digit Aadhar number")
     address: Optional[str] = None
     city: Optional[str] = Field(None, max_length=100)
     state: Optional[str] = Field(None, max_length=100)
@@ -198,6 +200,7 @@ class Student(StudentInDBBase):
             "blood_group": db_student.blood_group,
             "phone": db_student.phone,
             "email": db_student.email,
+            "aadhar_no": db_student.aadhar_no,
             "address": db_student.address,
             "city": db_student.city,
             "state": db_student.state,

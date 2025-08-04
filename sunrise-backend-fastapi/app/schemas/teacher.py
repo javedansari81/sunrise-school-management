@@ -94,6 +94,7 @@ class TeacherBase(BaseModel):
     gender_id: Optional[int] = Field(None, description="Foreign key to genders table")
     phone: str = Field(..., max_length=20)
     email: EmailStr
+    aadhar_no: Optional[str] = Field(None, max_length=12, regex=r'^\d{12}$', description="12-digit Aadhar number")
     address: Optional[str] = None
     city: Optional[str] = Field(None, max_length=100)
     state: Optional[str] = Field(None, max_length=100)
@@ -130,6 +131,7 @@ class TeacherUpdate(BaseModel):
     gender_id: Optional[int] = None
     phone: Optional[str] = Field(None, max_length=20)
     email: Optional[EmailStr] = None
+    aadhar_no: Optional[str] = Field(None, max_length=12, regex=r'^\d{12}$', description="12-digit Aadhar number")
     address: Optional[str] = None
     city: Optional[str] = Field(None, max_length=100)
     state: Optional[str] = Field(None, max_length=100)
@@ -184,6 +186,7 @@ class Teacher(TeacherInDBBase):
             "gender_id": db_teacher.gender_id,
             "phone": db_teacher.phone,
             "email": db_teacher.email,
+            "aadhar_no": db_teacher.aadhar_no,
             "address": db_teacher.address,
             "city": db_teacher.city,
             "state": db_teacher.state,

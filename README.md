@@ -200,10 +200,60 @@ sunrise-school-management/
 │   │   ├── pages/                    # Page components
 │   │   └── services/                 # API services
 │   └── package.json                  # Node dependencies
+├── tests/                            # Centralized test suite
+│   ├── backend/                      # Backend Python tests
+│   ├── frontend/                     # Frontend React tests
+│   └── scripts/                      # Test automation scripts
+├── docs/                             # Organized documentation
+├── Database/                         # Database scripts and migrations
 ├── docker-compose.yml                # Development compose
 ├── docker-compose.prod.yml           # Production compose
 └── README.md                         # This file
 ```
+
+## 📚 Documentation
+
+Comprehensive documentation is organized in the `docs/` directory:
+
+- **[📖 Complete Documentation](docs/README.md)** - Main documentation hub with organized categories
+- **[🔧 Setup & Configuration](docs/setup/)** - Installation, configuration, and system preparation
+- **[🧪 Testing Procedures](docs/testing/)** - Testing guides, procedures, and troubleshooting
+- **[🚀 Deployment Guides](docs/deployment/)** - Production deployment for Render.com, DigitalOcean, and more
+- **[⭐ Feature Documentation](docs/features/)** - Detailed feature implementation and design guides
+- **[🗄️ Database Documentation](docs/database/)** - Database setup, schema, and management
+- **[📊 API Documentation](http://localhost:8000/docs)** - Interactive Swagger UI (when backend is running)
+
+### Quick Links
+- **New Installation**: Start with [docs/setup/SETUP_AND_TESTING.md](docs/setup/SETUP_AND_TESTING.md)
+- **Database Setup**: Follow [docs/database/SETUP_GUIDE.md](docs/database/SETUP_GUIDE.md)
+- **Production Deployment**: Use [docs/deployment/RENDER_DEPLOYMENT_GUIDE.md](docs/deployment/RENDER_DEPLOYMENT_GUIDE.md)
+- **Testing**: Check [tests/README.md](tests/README.md) for complete test suite documentation
+
+## 🧪 Testing
+
+The project includes a comprehensive test suite organized in the `tests/` directory:
+
+### Quick Test Commands
+```bash
+# Backend tests
+cd sunrise-backend-fastapi
+python scripts/run_tests.py
+
+# Frontend tests
+cd sunrise-school-frontend
+npm test
+
+# PowerShell API tests
+cd tests/scripts/powershell/leave-management
+.\test_api_request.ps1
+```
+
+### Test Categories
+- **[Backend Tests](tests/backend/)** - Python unit, integration, and API tests
+- **[Frontend Tests](tests/frontend/)** - React component and context tests
+- **[Script Tests](tests/scripts/)** - PowerShell and web-based testing tools
+
+For detailed testing instructions, see [tests/README.md](tests/README.md).
 
 ## Contributing
 
