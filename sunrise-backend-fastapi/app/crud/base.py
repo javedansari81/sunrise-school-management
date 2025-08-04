@@ -1,4 +1,5 @@
 from typing import Any, Dict, Generic, List, Optional, Type, TypeVar, Union
+from datetime import datetime, date
 from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -48,6 +49,16 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
 
     async def create(self, db: AsyncSession, *, obj_in: CreateSchemaType) -> ModelType:
         obj_in_data = jsonable_encoder(obj_in)
+
+        # Convert string dates back to date objects for database insertion
+        for key, value in obj_in_data.items():
+            if isinstance(value, str) and key in ['date_of_birth', 'joining_date', 'admission_date']:
+                try:
+                    obj_in_data[key] = datetime.strptime(value, '%Y-%m-%d').date()
+                except (ValueError, TypeError):
+                    # If conversion fails, keep the original value
+                    pass
+
         db_obj = self.model(**obj_in_data)
         db.add(db_obj)
         await db.commit()
@@ -68,7 +79,15 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
             update_data = obj_in.dict(exclude_unset=True)
         for field in obj_data:
             if field in update_data:
-                setattr(db_obj, field, update_data[field])
+                value = update_data[field]
+                # Convert string dates back to date objects for database insertion
+                if isinstance(value, str) and field in ['date_of_birth', 'joining_date', 'admission_date']:
+                    try:
+                        value = datetime.strptime(value, '%Y-%m-%d').date()
+                    except (ValueError, TypeError):
+                        # If conversion fails, keep the original value
+                        pass
+                setattr(db_obj, field, value)
         db.add(db_obj)
         await db.commit()
         await db.refresh(db_obj)

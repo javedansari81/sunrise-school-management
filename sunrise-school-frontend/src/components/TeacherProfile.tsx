@@ -81,10 +81,33 @@ const TeacherProfile: React.FC = () => {
       setError(null);
       // Assuming there's a teacher profile endpoint similar to student
       const response = await teachersAPI.getMyProfile();
-      setProfileData(response.data);
+
+      // Validate response data
+      if (response.data && typeof response.data === 'object' && !Array.isArray(response.data)) {
+        setProfileData(response.data);
+      } else {
+        throw new Error('Invalid profile data received from server');
+      }
     } catch (err: any) {
       console.error('Error fetching teacher profile:', err);
-      setError(err.response?.data?.detail || 'Failed to load profile');
+      console.error('Error response data:', err.response?.data);
+
+      // Handle different error response formats
+      let errorMessage = 'Failed to load profile';
+      if (err.response?.data) {
+        if (typeof err.response.data === 'string') {
+          errorMessage = err.response.data;
+        } else if (err.response.data.detail) {
+          errorMessage = err.response.data.detail;
+        } else if (Array.isArray(err.response.data)) {
+          // Handle validation errors array
+          errorMessage = err.response.data.map((error: any) => error.msg || error.message || 'Validation error').join(', ');
+        } else {
+          errorMessage = 'An error occurred while loading profile';
+        }
+      }
+
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -95,12 +118,21 @@ const TeacherProfile: React.FC = () => {
   };
 
   const getInitials = () => {
-    if (!profileData) return 'T';
+    if (!profileData || !profileData.first_name || !profileData.last_name) return 'T';
     return `${profileData.first_name.charAt(0)}${profileData.last_name.charAt(0)}`;
   };
 
   const getStatusColor = () => {
     return profileData?.is_active ? 'success' : 'error';
+  };
+
+  // Helper function to safely render values
+  const safeRender = (value: any, fallback: string = 'Not provided'): string => {
+    if (value === null || value === undefined) return fallback;
+    if (typeof value === 'string') return value;
+    if (typeof value === 'number') return value.toString();
+    if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+    return fallback;
   };
 
   const handleEdit = () => {
@@ -130,7 +162,24 @@ const TeacherProfile: React.FC = () => {
       setIsEditing(false);
     } catch (err: any) {
       console.error('Error updating profile:', err);
-      setError(err.response?.data?.detail || 'Failed to update profile');
+      console.error('Error response data:', err.response?.data);
+
+      // Handle different error response formats
+      let errorMessage = 'Failed to update profile';
+      if (err.response?.data) {
+        if (typeof err.response.data === 'string') {
+          errorMessage = err.response.data;
+        } else if (err.response.data.detail) {
+          errorMessage = err.response.data.detail;
+        } else if (Array.isArray(err.response.data)) {
+          // Handle validation errors array
+          errorMessage = err.response.data.map((error: any) => error.msg || error.message || 'Validation error').join(', ');
+        } else {
+          errorMessage = 'An error occurred while updating profile';
+        }
+      }
+
+      setError(errorMessage);
     } finally {
       setSaving(false);
     }
@@ -259,7 +308,7 @@ const TeacherProfile: React.FC = () => {
                 <ListItemIcon><PersonIcon /></ListItemIcon>
                 <ListItemText
                   primary="Employee ID"
-                  secondary={profileData.employee_id}
+                  secondary={safeRender(profileData.employee_id)}
                 />
               </ListItem>
 
@@ -267,7 +316,7 @@ const TeacherProfile: React.FC = () => {
                 <ListItemIcon><CalendarIcon /></ListItemIcon>
                 <ListItemText
                   primary="Date of Birth"
-                  secondary={profileData.date_of_birth || 'Not provided'}
+                  secondary={safeRender(profileData.date_of_birth)}
                 />
               </ListItem>
 
@@ -275,7 +324,7 @@ const TeacherProfile: React.FC = () => {
                 <ListItemIcon><SchoolIcon /></ListItemIcon>
                 <ListItemText
                   primary="Qualification"
-                  secondary={profileData.qualification_name || 'Not specified'}
+                  secondary={safeRender(profileData.qualification_name, 'Not specified')}
                 />
               </ListItem>
             </List>

@@ -1,5 +1,5 @@
-from typing import Optional, List
-from pydantic import BaseModel, EmailStr, Field
+from typing import Optional, List, Union
+from pydantic import BaseModel, EmailStr, Field, field_validator, ConfigDict
 from datetime import datetime, date
 from enum import Enum
 
@@ -87,14 +87,16 @@ class EmploymentStatusEnum(str, Enum):
 
 
 class TeacherBase(BaseModel):
+    model_config = ConfigDict(str_to_date=True)
+
     employee_id: str = Field(..., min_length=1, max_length=50)
     first_name: str = Field(..., min_length=1, max_length=100)
     last_name: str = Field(..., min_length=1, max_length=100)
-    date_of_birth: Optional[date] = None
+    date_of_birth: Optional[Union[date, str]] = None
     gender_id: Optional[int] = Field(None, description="Foreign key to genders table")
     phone: str = Field(..., max_length=20)
     email: EmailStr
-    aadhar_no: Optional[str] = Field(None, max_length=12, pattern=r'^\d{12}$', description="12-digit Aadhar number")
+    aadhar_no: Optional[str] = Field(None, max_length=12, description="12-digit Aadhar number (optional)")
     address: Optional[str] = None
     city: Optional[str] = Field(None, max_length=100)
     state: Optional[str] = Field(None, max_length=100)
@@ -109,14 +111,38 @@ class TeacherBase(BaseModel):
     qualification_id: Optional[int] = Field(None, description="Foreign key to qualifications table")
     employment_status_id: int = Field(default=1, description="Foreign key to employment_statuses table")
     experience_years: int = Field(default=0, ge=0)
-    joining_date: date
+    joining_date: Union[date, str]
     class_teacher_of_id: Optional[int] = Field(None, description="Foreign key to classes table")
     classes_assigned: Optional[str] = None  # JSON string of class IDs
     salary: Optional[float] = Field(None, ge=0)
-    bio: Optional[str] = None
-    specializations: Optional[str] = None  # JSON string
-    certifications: Optional[str] = None  # JSON string
-    img: Optional[str] = None
+    is_active: bool = Field(default=True, description="Whether the teacher is active")
+    # Note: bio, specializations, certifications, img fields are commented out in database model
+
+    @field_validator('date_of_birth', mode='before')
+    @classmethod
+    def parse_date_of_birth(cls, v):
+        """Convert string date to date object"""
+        if v is None or v == "":
+            return None
+        if isinstance(v, str):
+            try:
+                return datetime.strptime(v, '%Y-%m-%d').date()
+            except ValueError:
+                raise ValueError('Date of birth must be in YYYY-MM-DD format')
+        return v
+
+    @field_validator('joining_date', mode='before')
+    @classmethod
+    def parse_joining_date(cls, v):
+        """Convert string date to date object"""
+        if v is None or v == "":
+            raise ValueError('Joining date is required')
+        if isinstance(v, str):
+            try:
+                return datetime.strptime(v, '%Y-%m-%d').date()
+            except ValueError:
+                raise ValueError('Joining date must be in YYYY-MM-DD format')
+        return v
 
 
 class TeacherCreate(TeacherBase):
@@ -131,7 +157,7 @@ class TeacherUpdate(BaseModel):
     gender_id: Optional[int] = None
     phone: Optional[str] = Field(None, max_length=20)
     email: Optional[EmailStr] = None
-    aadhar_no: Optional[str] = Field(None, max_length=12, pattern=r'^\d{12}$', description="12-digit Aadhar number")
+    aadhar_no: Optional[str] = Field(None, max_length=12, description="12-digit Aadhar number (optional)")
     address: Optional[str] = None
     city: Optional[str] = Field(None, max_length=100)
     state: Optional[str] = Field(None, max_length=100)
@@ -150,18 +176,41 @@ class TeacherUpdate(BaseModel):
     class_teacher_of_id: Optional[int] = None
     classes_assigned: Optional[str] = None
     salary: Optional[float] = Field(None, ge=0)
-    bio: Optional[str] = None
-    specializations: Optional[str] = None
-    certifications: Optional[str] = None
-    img: Optional[str] = None
     is_active: Optional[bool] = None
+    # Note: bio, specializations, certifications, img fields are commented out in database model
+
+    @field_validator('date_of_birth', mode='before')
+    @classmethod
+    def parse_date_of_birth(cls, v):
+        """Convert string date to date object"""
+        if v is None or v == "":
+            return None
+        if isinstance(v, str):
+            try:
+                return datetime.strptime(v, '%Y-%m-%d').date()
+            except ValueError:
+                raise ValueError('Date of birth must be in YYYY-MM-DD format')
+        return v
+
+    @field_validator('joining_date', mode='before')
+    @classmethod
+    def parse_joining_date(cls, v):
+        """Convert string date to date object"""
+        if v is None or v == "":
+            return None
+        if isinstance(v, str):
+            try:
+                return datetime.strptime(v, '%Y-%m-%d').date()
+            except ValueError:
+                raise ValueError('Joining date must be in YYYY-MM-DD format')
+        return v
 
 
 class TeacherProfileUpdate(BaseModel):
     """Schema for teacher profile updates (restricted fields for self-update)"""
     phone: Optional[str] = Field(None, max_length=20)
     email: Optional[EmailStr] = None
-    aadhar_no: Optional[str] = Field(None, max_length=12, pattern=r'^\d{12}$', description="12-digit Aadhar number")
+    aadhar_no: Optional[str] = Field(None, max_length=12, description="12-digit Aadhar number (optional)")
     address: Optional[str] = None
     city: Optional[str] = Field(None, max_length=100)
     state: Optional[str] = Field(None, max_length=100)
@@ -220,10 +269,6 @@ class Teacher(TeacherInDBBase):
             "class_teacher_of_id": db_teacher.class_teacher_of_id,
             "classes_assigned": db_teacher.classes_assigned,
             "salary": float(db_teacher.salary) if db_teacher.salary else None,
-            "bio": db_teacher.bio,
-            "specializations": db_teacher.specializations,
-            "certifications": db_teacher.certifications,
-            "img": db_teacher.img,
             "is_active": db_teacher.is_active,
             "created_at": db_teacher.created_at,
             "updated_at": db_teacher.updated_at,

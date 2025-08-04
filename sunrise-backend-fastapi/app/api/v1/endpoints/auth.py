@@ -66,11 +66,16 @@ async def login(
     # Get user permissions
     permissions = get_user_permissions(user_type_enum)
 
-    # Get profile data based on user type
+    # Initialize profile data and IDs
     profile_data = None
+    student_id = None
+    teacher_id = None
+
+    # Get profile data based on user type and extract IDs
     try:
         if user_type_enum == UserTypeEnum.STUDENT and user_with_metadata.student_profile:
             student_profile = user_with_metadata.student_profile
+            student_id = student_profile.id
             profile_data = {
                 "type": "student",
                 "profile": {
@@ -84,6 +89,7 @@ async def login(
             }
         elif user_type_enum == UserTypeEnum.TEACHER and user_with_metadata.teacher_profile:
             teacher_profile = user_with_metadata.teacher_profile
+            teacher_id = teacher_profile.id
             profile_data = {
                 "type": "teacher",
                 "profile": {
@@ -91,10 +97,10 @@ async def login(
                     "employee_id": teacher_profile.employee_id,
                     "first_name": teacher_profile.first_name,
                     "last_name": teacher_profile.last_name,
-                        "department": getattr(teacher_profile, 'department', None),
-                        "position": getattr(teacher_profile, 'position', None)
-                    }
+                    "department": getattr(teacher_profile, 'department', None),
+                    "position": getattr(teacher_profile, 'position', None)
                 }
+            }
     except Exception as profile_error:
         # If profile fetching fails, continue without profile data
         log_auth_step("PROFILE_ERROR", f"Profile fetch error: {profile_error}", "error")
@@ -407,17 +413,19 @@ async def get_current_user_info(
     """
     Get current user information with profile data
     """
-    # Get linked profile data
+    # Get linked profile data using relationships
     student_profile = None
     teacher_profile = None
 
-    if current_user.user_type_enum == UserTypeEnum.STUDENT and current_user.student_id:
-        student = await student_crud.get(db, id=current_user.student_id)
+    if current_user.user_type_enum == UserTypeEnum.STUDENT:
+        # Find student by user_id
+        student = await student_crud.get_by_user_id(db, user_id=current_user.id)
         if student:
             student_profile = student.__dict__
 
-    if current_user.user_type_enum == UserTypeEnum.TEACHER and current_user.teacher_id:
-        teacher = await teacher_crud.get(db, id=current_user.teacher_id)
+    if current_user.user_type_enum == UserTypeEnum.TEACHER:
+        # Find teacher by user_id
+        teacher = await teacher_crud.get_by_user_id(db, user_id=current_user.id)
         if teacher:
             teacher_profile = teacher.__dict__
 
@@ -504,8 +512,9 @@ async def get_user_profile(
                 }
             }
 
-    elif current_user.user_type_enum == UserTypeEnum.TEACHER and current_user.teacher_id:
-        teacher = await teacher_crud.get(db, id=current_user.teacher_id)
+    elif current_user.user_type_enum == UserTypeEnum.TEACHER:
+        # Find teacher by user_id
+        teacher = await teacher_crud.get_by_user_id(db, user_id=current_user.id)
         if teacher:
             profile_data["teacher_profile"] = {
                 "employee_id": teacher.employee_id,

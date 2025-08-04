@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 import math
 import json
+from datetime import datetime
 
 from app.core.database import get_db
 from app.crud import teacher_crud
@@ -95,108 +96,6 @@ async def create_teacher(
     return teacher_with_metadata
 
 
-@router.get("/{teacher_id}", response_model=Dict[str, Any])
-async def get_teacher(
-    teacher_id: int,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
-):
-    """
-    Get teacher by ID with complete profile and metadata
-    """
-    teacher_with_metadata = await teacher_crud.get_with_metadata(db, id=teacher_id)
-    if not teacher_with_metadata:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Teacher not found"
-        )
-
-    # Parse JSON fields if they exist
-    if teacher_with_metadata.get('subjects'):
-        try:
-            teacher_with_metadata['subjects_list'] = json.loads(teacher_with_metadata['subjects'])
-        except (json.JSONDecodeError, TypeError):
-            teacher_with_metadata['subjects_list'] = []
-    else:
-        teacher_with_metadata['subjects_list'] = []
-
-    if teacher_with_metadata.get('classes_assigned'):
-        try:
-            teacher_with_metadata['classes_assigned_list'] = json.loads(teacher_with_metadata['classes_assigned'])
-        except (json.JSONDecodeError, TypeError):
-            teacher_with_metadata['classes_assigned_list'] = []
-    else:
-        teacher_with_metadata['classes_assigned_list'] = []
-
-    return teacher_with_metadata
-
-
-@router.put("/{teacher_id}", response_model=Teacher)
-async def update_teacher(
-    teacher_id: int,
-    teacher_data: TeacherUpdate,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
-):
-    """
-    Update teacher by ID
-    """
-    teacher = await teacher_crud.get(db, id=teacher_id)
-    if not teacher:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Teacher not found"
-        )
-
-    # Check if employee ID is being changed and if it already exists
-    if teacher_data.employee_id and teacher_data.employee_id != teacher.employee_id:
-        existing_teacher = await teacher_crud.get_by_employee_id(
-            db, employee_id=teacher_data.employee_id
-        )
-        if existing_teacher:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Teacher with this employee ID already exists"
-            )
-
-    # Check if email is being changed and if it already exists
-    if teacher_data.email and teacher_data.email != teacher.email:
-        existing_email = await teacher_crud.get_by_email(
-            db, email=teacher_data.email
-        )
-        if existing_email:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Teacher with this email already exists"
-            )
-
-    updated_teacher = await teacher_crud.update(
-        db, db_obj=teacher, obj_in=teacher_data
-    )
-    return updated_teacher
-
-
-@router.delete("/{teacher_id}")
-async def delete_teacher(
-    teacher_id: int,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
-):
-    """
-    Soft delete teacher by ID
-    """
-    teacher = await teacher_crud.get(db, id=teacher_id)
-    if not teacher:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Teacher not found"
-        )
-
-    # Soft delete teacher
-    deleted_teacher = await teacher_crud.soft_delete(db, id=teacher_id)
-    return {"message": "Teacher deleted successfully", "teacher_id": teacher_id}
-
-
 @router.get("/my-profile", response_model=Dict[str, Any])
 async def get_my_profile(
     db: AsyncSession = Depends(get_db),
@@ -240,6 +139,42 @@ async def get_my_profile(
     return teacher_with_metadata
 
 
+@router.get("/{teacher_id}", response_model=Dict[str, Any])
+async def get_teacher(
+    teacher_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Get teacher by ID with complete profile and metadata
+    """
+    teacher_with_metadata = await teacher_crud.get_with_metadata(db, id=teacher_id)
+    if not teacher_with_metadata:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Teacher not found"
+        )
+
+    # Parse JSON fields if they exist
+    if teacher_with_metadata.get('subjects'):
+        try:
+            teacher_with_metadata['subjects_list'] = json.loads(teacher_with_metadata['subjects'])
+        except (json.JSONDecodeError, TypeError):
+            teacher_with_metadata['subjects_list'] = []
+    else:
+        teacher_with_metadata['subjects_list'] = []
+
+    if teacher_with_metadata.get('classes_assigned'):
+        try:
+            teacher_with_metadata['classes_assigned_list'] = json.loads(teacher_with_metadata['classes_assigned'])
+        except (json.JSONDecodeError, TypeError):
+            teacher_with_metadata['classes_assigned_list'] = []
+    else:
+        teacher_with_metadata['classes_assigned_list'] = []
+
+    return teacher_with_metadata
+
+
 @router.put("/my-profile", response_model=Dict[str, Any])
 async def update_my_profile(
     profile_data: TeacherProfileUpdate,
@@ -272,6 +207,93 @@ async def update_my_profile(
     # Return updated teacher with metadata
     teacher_with_metadata = await teacher_crud.get_with_metadata(db, id=updated_teacher.id)
     return teacher_with_metadata
+
+
+@router.put("/{teacher_id}", response_model=Dict[str, Any])
+async def update_teacher(
+    teacher_id: int,
+    teacher_data: TeacherUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Update teacher by ID and return complete profile with metadata
+    """
+    teacher = await teacher_crud.get(db, id=teacher_id)
+    if not teacher:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Teacher not found"
+        )
+
+    # Check if employee ID is being changed and if it already exists
+    if teacher_data.employee_id and teacher_data.employee_id != teacher.employee_id:
+        existing_teacher = await teacher_crud.get_by_employee_id(
+            db, employee_id=teacher_data.employee_id
+        )
+        if existing_teacher:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Teacher with this employee ID already exists"
+            )
+
+    # Check if email is being changed and if it already exists
+    if teacher_data.email and teacher_data.email != teacher.email:
+        existing_email = await teacher_crud.get_by_email(
+            db, email=teacher_data.email
+        )
+        if existing_email:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Teacher with this email already exists"
+            )
+
+    updated_teacher = await teacher_crud.update(
+        db, db_obj=teacher, obj_in=teacher_data
+    )
+
+    # Return updated teacher with complete metadata
+    teacher_with_metadata = await teacher_crud.get_with_metadata(db, id=updated_teacher.id)
+
+    # Parse JSON fields if they exist
+    if teacher_with_metadata.get('subjects'):
+        try:
+            teacher_with_metadata['subjects_list'] = json.loads(teacher_with_metadata['subjects'])
+        except (json.JSONDecodeError, TypeError):
+            teacher_with_metadata['subjects_list'] = []
+    else:
+        teacher_with_metadata['subjects_list'] = []
+
+    if teacher_with_metadata.get('classes_assigned'):
+        try:
+            teacher_with_metadata['classes_assigned_list'] = json.loads(teacher_with_metadata['classes_assigned'])
+        except (json.JSONDecodeError, TypeError):
+            teacher_with_metadata['classes_assigned_list'] = []
+    else:
+        teacher_with_metadata['classes_assigned_list'] = []
+
+    return teacher_with_metadata
+
+
+@router.delete("/{teacher_id}")
+async def delete_teacher(
+    teacher_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Soft delete teacher by ID
+    """
+    teacher = await teacher_crud.get(db, id=teacher_id)
+    if not teacher:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Teacher not found"
+        )
+
+    # Soft delete teacher
+    deleted_teacher = await teacher_crud.soft_delete(db, id=teacher_id)
+    return {"message": "Teacher deleted successfully", "teacher_id": teacher_id}
 
 
 @router.get("/department/{department}")
