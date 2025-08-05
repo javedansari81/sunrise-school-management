@@ -17,13 +17,11 @@ import {
   Grid,
   FormControlLabel,
   Checkbox,
-  Stack
 } from '@mui/material';
 import {
   Close as CloseIcon,
   CalendarToday as CalendarIcon,
-  Person as PersonIcon,
-  School as SchoolIcon
+  Person as PersonIcon
 } from '@mui/icons-material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';

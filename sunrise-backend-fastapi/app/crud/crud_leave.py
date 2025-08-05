@@ -185,6 +185,14 @@ class CRUDLeaveRequest(CRUDBase[LeaveRequest, LeaveRequestCreate, LeaveRequestUp
                 END,
                 'N/A'
             ) as applicant_details,
+            CASE
+                WHEN lr.applicant_type = 'teacher' AND t.id IS NOT NULL THEN t.employee_id
+                ELSE NULL
+            END as applicant_employee_id,
+            CASE
+                WHEN lr.applicant_type = 'student' AND s.id IS NOT NULL THEN s.roll_number
+                ELSE NULL
+            END as applicant_roll_number,
             COALESCE(lt.name, 'Unknown Leave Type') as leave_type_name,
             COALESCE(ls.name, 'Unknown Status') as leave_status_name,
             ls.color_code as leave_status_color,

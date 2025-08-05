@@ -224,6 +224,28 @@ class CRUDTeacher(CRUDBase[Teacher, TeacherCreate, TeacherUpdate]):
         """Create teacher with associated user account"""
         from app.crud.crud_user import CRUDUser
         from app.schemas.user import UserCreate, UserTypeEnum
+        from app.utils.email_generator import generate_teacher_email
+        from app.core.logging import log_crud_operation
+
+        # Auto-generate email if not provided
+        teacher_data = obj_in.dict()
+        if not teacher_data.get('email'):
+            if not obj_in.date_of_birth:
+                raise ValueError("Date of birth is required for email generation")
+
+            generated_email = await generate_teacher_email(
+                db,
+                obj_in.first_name,
+                obj_in.last_name,
+                obj_in.date_of_birth
+            )
+            teacher_data['email'] = generated_email
+            log_crud_operation("TEACHER_EMAIL_AUTO_GENERATED", f"Auto-generated email for teacher",
+                             first_name=obj_in.first_name, last_name=obj_in.last_name,
+                             email=generated_email)
+
+            # Create new TeacherCreate object with generated email
+            obj_in = TeacherCreate(**teacher_data)
 
         # Create teacher record first
         teacher = await self.create(db, obj_in=obj_in)
@@ -231,10 +253,8 @@ class CRUDTeacher(CRUDBase[Teacher, TeacherCreate, TeacherUpdate]):
         # Create user account for teacher login
         user_crud = CRUDUser()
 
-        # Use email if available, otherwise generate from phone
+        # Use the email (either provided or generated)
         user_email = obj_in.email
-        if not user_email and obj_in.phone:
-            user_email = f"teacher_{obj_in.phone}@sunriseschool.edu"
 
         # Check if user with this email already exists
         existing_user = await user_crud.get_by_email(db, email=user_email)

@@ -334,12 +334,12 @@ const TeacherProfilesSystem: React.FC = () => {
     if (!formData.date_of_birth) errors.date_of_birth = 'Date of birth is required';
     if (!formData.gender_id) errors.gender_id = 'Gender is required';
     if (!formData.phone.trim()) errors.phone = 'Phone number is required';
-    if (!formData.email.trim()) errors.email = 'Email is required';
+    // Email is no longer required - will be auto-generated
     if (!formData.position.trim()) errors.position = 'Position is required';
     if (!formData.employment_status_id) errors.employment_status_id = 'Employment status is required';
     if (!formData.joining_date) errors.joining_date = 'Joining date is required';
 
-    // Email validation
+    // Email validation (only if provided)
     if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       errors.email = 'Please enter a valid email address';
     }
@@ -566,12 +566,12 @@ const TeacherProfilesSystem: React.FC = () => {
     if (!editFormData.date_of_birth) errors.date_of_birth = 'Date of birth is required';
     if (!editFormData.gender_id) errors.gender_id = 'Gender is required';
     if (!editFormData.phone?.trim()) errors.phone = 'Phone number is required';
-    if (!editFormData.email?.trim()) errors.email = 'Email is required';
+    // Email is system-generated and read-only, no validation needed
     if (!editFormData.position?.trim()) errors.position = 'Position is required';
     if (!editFormData.employment_status_id) errors.employment_status_id = 'Employment status is required';
     if (!editFormData.joining_date) errors.joining_date = 'Joining date is required';
 
-    // Email validation
+    // Email validation (only if somehow modified)
     if (editFormData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(editFormData.email)) {
       errors.email = 'Please enter a valid email address';
     }
@@ -1138,23 +1138,19 @@ const TeacherProfilesSystem: React.FC = () => {
               <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} gap={2}>
                 <TextField
                   fullWidth
-                  label="Email Address"
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => handleFormChange('email', e.target.value)}
-                  error={!!formErrors.email}
-                  helperText={formErrors.email}
-                  size="small"
-                  required
-                />
-                <TextField
-                  fullWidth
                   label="Aadhar Number"
                   value={formData.aadhar_no}
                   onChange={(e) => handleFormChange('aadhar_no', e.target.value)}
                   size="small"
                 />
               </Box>
+
+              {/* Email generation notice */}
+              <Alert severity="info" sx={{ mt: 1, mb: 2 }}>
+                <strong>Email Generation:</strong> A unique email address will be automatically generated
+                for this teacher based on their name and date of birth (format: firstname.lastname.ddmmyyyy@sunriseschool.edu).
+                The teacher can view their login email in their profile after creation.
+              </Alert>
             </Box>
 
             {/* Professional Information Section */}
@@ -1525,13 +1521,11 @@ const TeacherProfilesSystem: React.FC = () => {
               <TextField
                 fullWidth
                 size="small"
-                label="Email"
+                label="Email (System Generated)"
                 type="email"
                 value={editFormData.email || ''}
-                onChange={(e) => handleEditFormChange('email', e.target.value)}
-                error={!!formErrors.email}
-                helperText={formErrors.email}
-                required
+                disabled={true}
+                helperText="This is the auto-generated login email for the teacher"
               />
             </Box>
 

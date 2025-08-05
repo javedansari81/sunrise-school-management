@@ -183,6 +183,8 @@ class LeaveRequestWithDetails(LeaveRequest):
     """Leave request with additional details"""
     applicant_name: str
     applicant_details: Optional[str] = None  # Class for students, Department for teachers
+    applicant_employee_id: Optional[str] = None  # Employee ID for teachers
+    applicant_roll_number: Optional[int] = None  # Roll number for students
     leave_type_name: str
     leave_status_name: str
     leave_status_color: Optional[str] = None

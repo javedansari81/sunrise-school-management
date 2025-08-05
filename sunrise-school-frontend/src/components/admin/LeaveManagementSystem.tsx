@@ -33,7 +33,6 @@ import {
   Stack
 } from '@mui/material';
 import {
-  Add as AddIcon,
   Visibility as ViewIcon,
   CheckCircle as ApproveIcon,
   Cancel as RejectIcon,
@@ -61,6 +60,8 @@ interface LeaveRequest {
   applicant_type: 'student' | 'teacher';
   applicant_name: string;
   applicant_details: string;
+  applicant_employee_id?: string;  // Employee ID for teachers
+  applicant_roll_number?: number;  // Roll number for students
   leave_type_id: number;
   leave_type_name: string;
   leave_status_id: number;
@@ -254,9 +255,9 @@ const LeaveManagementSystem: React.FC = () => {
       // Admin interface is now view-only
       setLeaveForm({
         applicant_type: leave.applicant_type,
-        roll_number: '',
+        roll_number: leave.applicant_roll_number?.toString() || '',
         class_id: '',
-        employee_id: '',
+        employee_id: leave.applicant_employee_id || '',
         leave_type_id: leave.leave_type_id.toString(),
         start_date: new Date(leave.start_date),
         end_date: new Date(leave.end_date),
@@ -1239,7 +1240,7 @@ const LeaveManagementSystem: React.FC = () => {
                 />
               </Grid>
 
-              <Grid size={12}>
+              <Grid size={{ xs: 12 }}>
                 <TextField
                   fullWidth
                   label="Reason"

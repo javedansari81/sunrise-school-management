@@ -48,6 +48,8 @@ interface LeaveRequest {
   applicant_type: 'student' | 'teacher';
   applicant_name: string;
   applicant_details: string;
+  applicant_employee_id?: string;  // Employee ID for teachers
+  applicant_roll_number?: number;  // Roll number for students
   leave_type_id: number;
   leave_type_name: string;
   leave_status_id: number;

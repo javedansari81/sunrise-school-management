@@ -78,15 +78,16 @@ async def create_teacher(
             detail="Teacher with this employee ID already exists"
         )
 
-    # Check if email already exists
-    existing_email = await teacher_crud.get_by_email(
-        db, email=teacher_data.email
-    )
-    if existing_email:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Teacher with this email already exists"
+    # Check if email already exists (only if email is provided)
+    if teacher_data.email:
+        existing_email = await teacher_crud.get_by_email(
+            db, email=teacher_data.email
         )
+        if existing_email:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Teacher with this email already exists"
+            )
 
     # Create teacher with user account
     teacher = await teacher_crud.create_with_user_account(db, obj_in=teacher_data)

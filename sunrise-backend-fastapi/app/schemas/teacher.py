@@ -95,7 +95,7 @@ class TeacherBase(BaseModel):
     date_of_birth: Optional[Union[date, str]] = None
     gender_id: Optional[int] = Field(None, description="Foreign key to genders table")
     phone: str = Field(..., max_length=20)
-    email: EmailStr
+    email: Optional[EmailStr] = Field(None, description="Email will be auto-generated if not provided")
     aadhar_no: Optional[str] = Field(None, max_length=12, description="12-digit Aadhar number (optional)")
     address: Optional[str] = None
     city: Optional[str] = Field(None, max_length=100)
@@ -129,6 +129,14 @@ class TeacherBase(BaseModel):
                 return datetime.strptime(v, '%Y-%m-%d').date()
             except ValueError:
                 raise ValueError('Date of birth must be in YYYY-MM-DD format')
+        return v
+
+    @field_validator('email', mode='before')
+    @classmethod
+    def validate_email(cls, v):
+        """Handle empty email strings - convert to None for auto-generation"""
+        if v is None or v == "" or (isinstance(v, str) and v.strip() == ""):
+            return None
         return v
 
     @field_validator('joining_date', mode='before')

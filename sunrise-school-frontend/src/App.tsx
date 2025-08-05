@@ -18,6 +18,7 @@ import ExpenseManagement from './pages/admin/ExpenseManagement';
 import StudentProfiles from './pages/admin/StudentProfiles';
 import TeacherProfiles from './pages/admin/TeacherProfiles';
 import TeacherDashboard from './pages/teacher/TeacherDashboard';
+import StudentDashboard from './pages/student/StudentDashboard';
 import Profile from './pages/Profile';
 // import ConfigurationTest from './components/common/ConfigurationTest';
 
@@ -250,10 +251,10 @@ function App() {
                   </ProtectedRoute>
                 } />
 
-                {/* Student Routes - Redirect to home */}
+                {/* Student Routes */}
                 <Route path="/student/dashboard" element={
-                  <ProtectedRoute>
-                    <Home />
+                  <ProtectedRoute requiredRole="STUDENT">
+                    <StudentDashboard />
                   </ProtectedRoute>
                 } />
 

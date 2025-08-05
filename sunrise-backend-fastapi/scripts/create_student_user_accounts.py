@@ -53,14 +53,16 @@ async def create_student_user_accounts():
             
             for student in students:
                 try:
-                    # Determine login email
+                    # Determine login email - use new email generation logic
                     user_email = student.email
-                    if not user_email and student.phone:
-                        # Generate email from phone for login purposes
-                        user_email = f"student_{student.phone}@sunriseschool.edu"
-                    elif not user_email:
-                        # Generate email from admission number as fallback
-                        user_email = f"student_{student.admission_number}@sunriseschool.edu"
+                    if not user_email:
+                        # Generate proper email using name and DOB
+                        from app.utils.email_generator import generate_student_email
+                        user_email = await generate_student_email(
+                            db, student.first_name, student.last_name, student.date_of_birth
+                        )
+                        # Also update the student record with the generated email
+                        student.email = user_email
                     
                     # Check if user with this email already exists
                     existing_user = await db.execute(

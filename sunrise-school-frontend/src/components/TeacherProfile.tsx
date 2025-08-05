@@ -358,16 +358,19 @@ const TeacherProfile: React.FC = () => {
               <ListItem>
                 <ListItemIcon><EmailIcon /></ListItemIcon>
                 <ListItemText
-                  primary="Email"
-                  secondary={isEditing ? (
-                    <TextField
-                      type="email"
-                      value={editData.email || ''}
-                      onChange={(e) => handleInputChange('email', e.target.value)}
-                      size="small"
-                      fullWidth
-                    />
-                  ) : profileData.email || 'Not provided'}
+                  primary="Email (System Generated)"
+                  secondary={
+                    <Box>
+                      <Typography variant="body2" color="text.secondary">
+                        {profileData.email || 'Not provided'}
+                      </Typography>
+                      {profileData.email && (
+                        <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                          This is your auto-generated login email
+                        </Typography>
+                      )}
+                    </Box>
+                  }
                 />
               </ListItem>
               

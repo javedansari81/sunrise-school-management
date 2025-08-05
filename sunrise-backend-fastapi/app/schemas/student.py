@@ -142,7 +142,9 @@ class StudentBase(BaseModel):
 
 
 class StudentCreate(StudentBase):
-    pass
+    """Schema for creating a new student"""
+    # Override email to make it optional for creation (will be auto-generated)
+    email: Optional[EmailStr] = Field(None, description="Email will be auto-generated if not provided")
 
 
 class StudentUpdate(BaseModel):

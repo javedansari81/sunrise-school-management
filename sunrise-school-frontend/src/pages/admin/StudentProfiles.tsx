@@ -1018,17 +1018,31 @@ const StudentProfilesContent: React.FC = () => {
                   disabled={dialogMode === 'view'}
                 />
               </Grid>
-              <Grid size={{ xs: 12, sm: 6 }}>
-                <TextField
-                  fullWidth
-                  label="Email"
-                  name="email"
-                  type="email"
-                  value={studentForm.email}
-                  onChange={handleFormChange}
-                  disabled={dialogMode === 'view'}
-                />
-              </Grid>
+              {/* Email field only shown in view mode - auto-generated for new students */}
+              {dialogMode === 'view' && (
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <TextField
+                    fullWidth
+                    label="Email (System Generated)"
+                    name="email"
+                    type="email"
+                    value={studentForm.email}
+                    disabled={true}
+                    helperText="This is the auto-generated login email for the student"
+                  />
+                </Grid>
+              )}
+
+              {/* Show note about email generation for new students */}
+              {dialogMode === 'create' && (
+                <Grid size={12}>
+                  <Alert severity="info" sx={{ mt: 1 }}>
+                    <strong>Email Generation:</strong> A unique email address will be automatically generated
+                    for this student based on their name and date of birth (format: firstname.lastname.ddmmyyyy@sunriseschool.edu).
+                    The student can view their login email in their profile after creation.
+                  </Alert>
+                </Grid>
+              )}
               <Grid size={{ xs: 12, sm: 6 }}>
                 <TextField
                   fullWidth
