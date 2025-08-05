@@ -17,6 +17,7 @@ import LeaveManagement from './pages/admin/LeaveManagement';
 import ExpenseManagement from './pages/admin/ExpenseManagement';
 import StudentProfiles from './pages/admin/StudentProfiles';
 import TeacherProfiles from './pages/admin/TeacherProfiles';
+import TeacherDashboard from './pages/teacher/TeacherDashboard';
 import Profile from './pages/Profile';
 // import ConfigurationTest from './components/common/ConfigurationTest';
 
@@ -242,10 +243,10 @@ function App() {
                   </ProtectedRoute>
                 } />
 
-                {/* Teacher Routes - Redirect to home */}
+                {/* Teacher Routes */}
                 <Route path="/teacher/dashboard" element={
-                  <ProtectedRoute>
-                    <Home />
+                  <ProtectedRoute requiredRole="TEACHER">
+                    <TeacherDashboard />
                   </ProtectedRoute>
                 } />
 
@@ -262,6 +263,9 @@ function App() {
                     <Profile />
                   </ProtectedRoute>
                 } />
+
+                {/* Catch-all route for authenticated users */}
+                <Route path="*" element={<Home />} />
               </Routes>
             </Layout>
           } />

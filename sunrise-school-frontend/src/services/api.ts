@@ -180,6 +180,41 @@ export const leaveAPI = {
   // Get leave summary report
   getLeaveSummaryReport: (year?: number) =>
     api.get('/leaves/reports/summary', { params: year ? { year } : {} }).then(response => response.data),
+
+  // Teacher-specific convenience methods
+  getMyLeaveRequests: async () => {
+    try {
+      // First get teacher profile to get teacher ID
+      const profileResponse = await teachersAPI.getMyProfile();
+      const teacherId = profileResponse.data.id;
+
+      // Then get leave requests for this teacher
+      return await leaveAPI.getLeavesByApplicant('teacher', teacherId);
+    } catch (error) {
+      console.error('Error getting teacher leave requests:', error);
+      throw error;
+    }
+  },
+
+  createMyLeaveRequest: async (leaveData: any) => {
+    try {
+      // Get teacher profile to get teacher ID
+      const profileResponse = await teachersAPI.getMyProfile();
+      const teacherId = profileResponse.data.id;
+
+      // Create leave request with teacher ID
+      const requestData = {
+        ...leaveData,
+        applicant_id: teacherId,
+        applicant_type: 'teacher'
+      };
+
+      return await leaveAPI.createLeave(requestData);
+    } catch (error) {
+      console.error('Error creating teacher leave request:', error);
+      throw error;
+    }
+  },
 };
 
 // Expense Management API
