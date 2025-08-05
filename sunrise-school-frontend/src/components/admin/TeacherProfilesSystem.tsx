@@ -825,18 +825,19 @@ const TeacherProfilesSystem: React.FC = () => {
               <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} gap={2}>
                 <TextField
                   fullWidth
-                  label="Employee ID *"
+                  label="Employee ID"
                   value={formData.employee_id}
                   onChange={(e) => handleFormChange('employee_id', e.target.value)}
                   error={!!formErrors.employee_id}
                   helperText={formErrors.employee_id}
                   size="small"
+                  required
                 />
-                <FormControl fullWidth size="small" error={!!formErrors.gender_id}>
-                  <InputLabel>Gender *</InputLabel>
+                <FormControl fullWidth size="small" error={!!formErrors.gender_id} required>
+                  <InputLabel>Gender</InputLabel>
                   <Select
                     value={formData.gender_id}
-                    label="Gender *"
+                    label="Gender"
                     onChange={(e) => handleFormChange('gender_id', e.target.value)}
                   >
                     <MenuItem value={1}>Male</MenuItem>
@@ -854,28 +855,30 @@ const TeacherProfilesSystem: React.FC = () => {
               <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} gap={2}>
                 <TextField
                   fullWidth
-                  label="First Name *"
+                  label="First Name"
                   value={formData.first_name}
                   onChange={(e) => handleFormChange('first_name', e.target.value)}
                   error={!!formErrors.first_name}
                   helperText={formErrors.first_name}
                   size="small"
+                  required
                 />
                 <TextField
                   fullWidth
-                  label="Last Name *"
+                  label="Last Name"
                   value={formData.last_name}
                   onChange={(e) => handleFormChange('last_name', e.target.value)}
                   error={!!formErrors.last_name}
                   helperText={formErrors.last_name}
                   size="small"
+                  required
                 />
               </Box>
 
               <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} gap={2}>
                 <TextField
                   fullWidth
-                  label="Date of Birth *"
+                  label="Date of Birth"
                   type="date"
                   value={formData.date_of_birth}
                   onChange={(e) => handleFormChange('date_of_birth', e.target.value)}
@@ -885,28 +888,31 @@ const TeacherProfilesSystem: React.FC = () => {
                     inputLabel: { shrink: true }
                   }}
                   size="small"
+                  required
                 />
                 <TextField
                   fullWidth
-                  label="Phone Number *"
+                  label="Phone Number"
                   value={formData.phone}
                   onChange={(e) => handleFormChange('phone', e.target.value)}
                   error={!!formErrors.phone}
                   helperText={formErrors.phone}
                   size="small"
+                  required
                 />
               </Box>
 
               <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} gap={2}>
                 <TextField
                   fullWidth
-                  label="Email Address *"
+                  label="Email Address"
                   type="email"
                   value={formData.email}
                   onChange={(e) => handleFormChange('email', e.target.value)}
                   error={!!formErrors.email}
                   helperText={formErrors.email}
                   size="small"
+                  required
                 />
                 <TextField
                   fullWidth
@@ -927,12 +933,13 @@ const TeacherProfilesSystem: React.FC = () => {
               <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} gap={2}>
                 <TextField
                   fullWidth
-                  label="Position *"
+                  label="Position"
                   value={formData.position}
                   onChange={(e) => handleFormChange('position', e.target.value)}
                   error={!!formErrors.position}
                   helperText={formErrors.position}
                   size="small"
+                  required
                 />
                 <TextField
                   fullWidth
@@ -944,11 +951,11 @@ const TeacherProfilesSystem: React.FC = () => {
               </Box>
 
               <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} gap={2}>
-                <FormControl fullWidth size="small" error={!!formErrors.employment_status_id}>
-                  <InputLabel>Employment Status *</InputLabel>
+                <FormControl fullWidth size="small" error={!!formErrors.employment_status_id} required>
+                  <InputLabel>Employment Status</InputLabel>
                   <Select
                     value={formData.employment_status_id}
-                    label="Employment Status *"
+                    label="Employment Status"
                     onChange={(e) => handleFormChange('employment_status_id', e.target.value)}
                   >
                     <MenuItem value={1}>Full-time</MenuItem>
@@ -977,7 +984,7 @@ const TeacherProfilesSystem: React.FC = () => {
               <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} gap={2}>
                 <TextField
                   fullWidth
-                  label="Joining Date *"
+                  label="Joining Date"
                   type="date"
                   value={formData.joining_date}
                   onChange={(e) => handleFormChange('joining_date', e.target.value)}
@@ -987,6 +994,7 @@ const TeacherProfilesSystem: React.FC = () => {
                     inputLabel: { shrink: true }
                   }}
                   size="small"
+                  required
                 />
                 <TextField
                   fullWidth
@@ -1209,28 +1217,29 @@ const TeacherProfilesSystem: React.FC = () => {
                 helperText={formErrors.employee_id}
                 required
               />
-              <Box display="flex" gap={2} flex={1}>
-                <TextField
-                  fullWidth
-                  size="small"
-                  label="First Name"
-                  value={editFormData.first_name || ''}
-                  onChange={(e) => handleEditFormChange('first_name', e.target.value)}
-                  error={!!formErrors.first_name}
-                  helperText={formErrors.first_name}
-                  required
-                />
-                <TextField
-                  fullWidth
-                  size="small"
-                  label="Last Name"
-                  value={editFormData.last_name || ''}
-                  onChange={(e) => handleEditFormChange('last_name', e.target.value)}
-                  error={!!formErrors.last_name}
-                  helperText={formErrors.last_name}
-                  required
-                />
-              </Box>
+            </Box>
+
+            <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} gap={2} mb={2}>
+              <TextField
+                fullWidth
+                size="small"
+                label="First Name"
+                value={editFormData.first_name || ''}
+                onChange={(e) => handleEditFormChange('first_name', e.target.value)}
+                error={!!formErrors.first_name}
+                helperText={formErrors.first_name}
+                required
+              />
+              <TextField
+                fullWidth
+                size="small"
+                label="Last Name"
+                value={editFormData.last_name || ''}
+                onChange={(e) => handleEditFormChange('last_name', e.target.value)}
+                error={!!formErrors.last_name}
+                helperText={formErrors.last_name}
+                required
+              />
             </Box>
 
             <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} gap={2} mb={2}>
@@ -1248,11 +1257,11 @@ const TeacherProfilesSystem: React.FC = () => {
                 }}
                 required
               />
-              <FormControl fullWidth size="small" error={!!formErrors.gender_id}>
-                <InputLabel>Gender *</InputLabel>
+              <FormControl fullWidth size="small" error={!!formErrors.gender_id} required>
+                <InputLabel>Gender</InputLabel>
                 <Select
                   value={editFormData.gender_id || ''}
-                  label="Gender *"
+                  label="Gender"
                   onChange={(e) => handleEditFormChange('gender_id', e.target.value)}
                 >
                   {configuration?.genders?.map((gender: any) => (
@@ -1318,11 +1327,11 @@ const TeacherProfilesSystem: React.FC = () => {
             </Box>
 
             <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} gap={2} mb={2}>
-              <FormControl fullWidth size="small" error={!!formErrors.employment_status_id}>
-                <InputLabel>Employment Status *</InputLabel>
+              <FormControl fullWidth size="small" error={!!formErrors.employment_status_id} required>
+                <InputLabel>Employment Status</InputLabel>
                 <Select
                   value={editFormData.employment_status_id || ''}
-                  label="Employment Status *"
+                  label="Employment Status"
                   onChange={(e) => handleEditFormChange('employment_status_id', e.target.value)}
                 >
                   {configuration?.employment_statuses?.map((status: any) => (
