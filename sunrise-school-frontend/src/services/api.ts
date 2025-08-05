@@ -215,6 +215,44 @@ export const leaveAPI = {
       throw error;
     }
   },
+
+};
+
+// Student-specific leave API methods
+export const studentLeaveAPI = {
+  getMyLeaveRequests: async () => {
+    try {
+      // First get student profile to get student ID
+      const profileResponse = await studentsAPI.getMyProfile();
+      const studentId = profileResponse.data.id;
+
+      // Then get leave requests for this student
+      return await leaveAPI.getLeavesByApplicant('student', studentId);
+    } catch (error) {
+      console.error('Error getting student leave requests:', error);
+      throw error;
+    }
+  },
+
+  createMyLeaveRequest: async (leaveData: any) => {
+    try {
+      // Get student profile to get student ID
+      const profileResponse = await studentsAPI.getMyProfile();
+      const studentId = profileResponse.data.id;
+
+      // Create leave request with student ID
+      const requestData = {
+        ...leaveData,
+        applicant_id: studentId,
+        applicant_type: 'student'
+      };
+
+      return await leaveAPI.createLeave(requestData);
+    } catch (error) {
+      console.error('Error creating student leave request:', error);
+      throw error;
+    }
+  },
 };
 
 // Expense Management API

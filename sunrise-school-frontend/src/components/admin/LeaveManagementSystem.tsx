@@ -34,7 +34,6 @@ import {
 } from '@mui/material';
 import {
   Add as AddIcon,
-  Edit as EditIcon,
   Visibility as ViewIcon,
   CheckCircle as ApproveIcon,
   Cancel as RejectIcon,
@@ -249,16 +248,15 @@ const LeaveManagementSystem: React.FC = () => {
     setTabValue(newValue);
   };
 
-  const handleOpenDialog = (leave?: LeaveRequest, viewMode = false) => {
+  const handleOpenDialog = (leave?: LeaveRequest, viewMode = true) => {
     if (leave) {
       setSelectedLeave(leave);
-      // For editing existing leave requests, we'll need to resolve the IDs back to identifiers
-      // For now, we'll show the existing data in view mode and disable editing of identifiers
+      // Admin interface is now view-only
       setLeaveForm({
         applicant_type: leave.applicant_type,
-        roll_number: '', // TODO: Resolve from applicant_id when editing
-        class_id: '', // TODO: Resolve from applicant_id when editing
-        employee_id: '', // TODO: Resolve from applicant_id when editing
+        roll_number: '',
+        class_id: '',
+        employee_id: '',
         leave_type_id: leave.leave_type_id.toString(),
         start_date: new Date(leave.start_date),
         end_date: new Date(leave.end_date),
@@ -269,26 +267,9 @@ const LeaveManagementSystem: React.FC = () => {
         substitute_teacher_id: '',
         substitute_arranged: false
       });
-    } else {
-      setSelectedLeave(null);
-      setLeaveForm({
-        applicant_type: 'student',
-        roll_number: '',
-        class_id: '',
-        employee_id: '',
-        leave_type_id: '',
-        start_date: null,
-        end_date: null,
-        reason: '',
-        parent_consent: false,
-        emergency_contact_name: '',
-        emergency_contact_phone: '',
-        substitute_teacher_id: '',
-        substitute_arranged: false
-      });
+      setIsViewMode(true); // Always view mode for admin
+      setDialogOpen(true);
     }
-    setIsViewMode(viewMode);
-    setDialogOpen(true);
   };
 
   const handleCloseDialog = () => {
@@ -304,99 +285,7 @@ const LeaveManagementSystem: React.FC = () => {
     }));
   };
 
-  const handleSubmit = async () => {
-    // Form validation - Updated for user-friendly identifiers
-    let validationError = '';
-
-    if (leaveForm.applicant_type === 'student') {
-      if (!leaveForm.roll_number.trim() || !leaveForm.class_id) {
-        validationError = 'Please provide both Roll Number and Class for student requests';
-      }
-    } else if (leaveForm.applicant_type === 'teacher') {
-      if (!leaveForm.employee_id.trim()) {
-        validationError = 'Please provide Employee ID for teacher requests';
-      }
-    }
-
-    if (!leaveForm.leave_type_id || !leaveForm.start_date || !leaveForm.end_date || !leaveForm.reason.trim()) {
-      validationError = validationError || 'Please fill in all required fields';
-    }
-
-    if (validationError) {
-      setSnackbar({
-        open: true,
-        message: validationError,
-        severity: 'error'
-      });
-      return;
-    }
-
-    try {
-      setLoading(true);
-
-      // Prepare data for the friendly API endpoint
-      const submitData: any = {
-        applicant_type: leaveForm.applicant_type,
-        leave_type_id: parseInt(leaveForm.leave_type_id),
-        start_date: leaveForm.start_date?.toISOString().split('T')[0],
-        end_date: leaveForm.end_date?.toISOString().split('T')[0],
-        reason: leaveForm.reason,
-        parent_consent: leaveForm.parent_consent,
-        emergency_contact_name: leaveForm.emergency_contact_name,
-        emergency_contact_phone: leaveForm.emergency_contact_phone,
-        substitute_arranged: leaveForm.substitute_arranged,
-        total_days: leaveForm.start_date && leaveForm.end_date
-          ? Math.ceil((leaveForm.end_date.getTime() - leaveForm.start_date.getTime()) / (1000 * 60 * 60 * 24)) + 1
-          : 1
-      };
-
-      // Add applicant identifier based on type
-      if (leaveForm.applicant_type === 'student') {
-        // Create composite identifier for student: "Roll {roll_number} - Class {class_name}"
-        const selectedClass = configuration?.classes?.find(c => c.id.toString() === leaveForm.class_id);
-        const className = selectedClass?.name || leaveForm.class_id;
-        submitData.applicant_identifier = `Roll ${leaveForm.roll_number} - Class ${className}`;
-      } else {
-        // Use employee ID directly for teacher
-        submitData.applicant_identifier = leaveForm.employee_id;
-      }
-
-      if (selectedLeave) {
-        // For updates, we'll need to convert back to the old format or implement friendly update
-        // For now, disable editing of existing requests with identifiers
-        setSnackbar({
-          open: true,
-          message: 'Editing existing leave requests is temporarily disabled during the identifier system update',
-          severity: 'error'
-        });
-        setLoading(false);
-        return;
-      } else {
-        // Use the friendly endpoint for new requests
-        await leaveAPI.createLeaveFriendly(submitData);
-        setSnackbar({
-          open: true,
-          message: 'Leave request created successfully',
-          severity: 'success'
-        });
-      }
-
-      handleCloseDialog();
-      loadLeaveRequests();
-    } catch (error: any) {
-      console.error('Error submitting leave request:', error);
-      const errorMessage = typeof error.response?.data?.detail === 'string'
-        ? error.response.data.detail
-        : error.message || 'Error submitting leave request';
-      setSnackbar({
-        open: true,
-        message: errorMessage,
-        severity: 'error'
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Admin interface is now review-only - no form submission needed
 
   const handleApprove = async (leaveId: number, statusId: number, comments?: string) => {
     try {
@@ -504,7 +393,7 @@ const LeaveManagementSystem: React.FC = () => {
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns}>
       <Box sx={{ width: '100%' }}>
-        {/* Header Section with Title and New Request Button */}
+        {/* Header Section with Title */}
         <Box
           display="flex"
           justifyContent="space-between"
@@ -520,20 +409,18 @@ const LeaveManagementSystem: React.FC = () => {
               fontSize: { xs: '1.5rem', sm: '2rem', md: '2.125rem' }
             }}
           >
-            Leave Management
+            Leave Management - Review Only
           </Typography>
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={() => handleOpenDialog()}
+          <Typography
+            variant="body2"
+            color="text.secondary"
             sx={{
-              fontSize: { xs: '0.875rem', sm: '1rem' },
-              padding: { xs: '6px 12px', sm: '8px 16px' },
-              alignSelf: { xs: 'flex-end', sm: 'auto' }
+              fontSize: { xs: '0.75rem', sm: '0.875rem' },
+              fontStyle: 'italic'
             }}
           >
-            New Leave Request
-          </Button>
+            Teachers and students create requests through their dashboards
+          </Typography>
         </Box>
 
         {/* Filters Section - Above Tabs */}
@@ -748,14 +635,9 @@ const LeaveManagementSystem: React.FC = () => {
                       </Tooltip>
                       {leave.leave_status_name === 'Pending' && (
                         <>
-                          <Tooltip title="Edit">
-                            <IconButton size="small" onClick={() => handleOpenDialog(leave, false)}>
-                              <EditIcon />
-                            </IconButton>
-                          </Tooltip>
                           <Tooltip title="Approve">
-                            <IconButton 
-                              size="small" 
+                            <IconButton
+                              size="small"
                               color="success"
                               onClick={() => handleApprove(leave.id, 2, 'Approved')}
                             >
@@ -763,8 +645,8 @@ const LeaveManagementSystem: React.FC = () => {
                             </IconButton>
                           </Tooltip>
                           <Tooltip title="Reject">
-                            <IconButton 
-                              size="small" 
+                            <IconButton
+                              size="small"
                               color="error"
                               onClick={() => handleApprove(leave.id, 3, 'Rejected')}
                             >
@@ -772,8 +654,8 @@ const LeaveManagementSystem: React.FC = () => {
                             </IconButton>
                           </Tooltip>
                           <Tooltip title="Delete">
-                            <IconButton 
-                              size="small" 
+                            <IconButton
+                              size="small"
                               color="error"
                               onClick={() => handleDelete(leave.id)}
                             >
@@ -916,15 +798,7 @@ const LeaveManagementSystem: React.FC = () => {
                                       <RejectIcon />
                                     </IconButton>
                                   </Tooltip>
-                                  <Tooltip title="Edit Request">
-                                    <IconButton
-                                      size="small"
-                                      onClick={() => handleOpenDialog(leave, false)}
-                                      sx={{ color: 'warning.main' }}
-                                    >
-                                      <EditIcon />
-                                    </IconButton>
-                                  </Tooltip>
+                                  {/* Edit removed - admin interface is review-only */}
                                 </>
                               )}
                             </Stack>
@@ -1063,17 +937,7 @@ const LeaveManagementSystem: React.FC = () => {
                                   <ViewIcon />
                                 </IconButton>
                               </Tooltip>
-                              {leave.leave_status_name === 'Pending' && (
-                                <Tooltip title="Edit Request">
-                                  <IconButton
-                                    size="small"
-                                    onClick={() => handleOpenDialog(leave, false)}
-                                    sx={{ color: 'warning.main' }}
-                                  >
-                                    <EditIcon />
-                                  </IconButton>
-                                </Tooltip>
-                              )}
+                              {/* Edit removed - admin interface is review-only */}
                             </Stack>
                           </TableCell>
                         </TableRow>
@@ -1256,10 +1120,10 @@ const LeaveManagementSystem: React.FC = () => {
           )}
         </TabPanel>
 
-        {/* Leave Request Dialog */}
+        {/* Leave Request Dialog - View Only */}
         <Dialog open={dialogOpen} onClose={handleCloseDialog} maxWidth="md" fullWidth>
           <DialogTitle>
-            {isViewMode ? 'View Leave Request' : selectedLeave ? 'Edit Leave Request' : 'New Leave Request'}
+            View Leave Request Details
           </DialogTitle>
           <DialogContent>
             <Grid container spacing={2} sx={{ mt: 1 }}>
@@ -1402,14 +1266,9 @@ const LeaveManagementSystem: React.FC = () => {
             </Grid>
           </DialogContent>
           <DialogActions>
-            <Button onClick={handleCloseDialog}>
-              {isViewMode ? 'Close' : 'Cancel'}
+            <Button onClick={handleCloseDialog} variant="contained">
+              Close
             </Button>
-            {!isViewMode && (
-              <Button onClick={handleSubmit} variant="contained">
-                {selectedLeave ? 'Update' : 'Create'}
-              </Button>
-            )}
           </DialogActions>
         </Dialog>
 
