@@ -43,6 +43,27 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useServiceConfiguration, useConfiguration } from '../../contexts/ConfigurationContext';
 import { teachersAPI } from '../../services/api';
 
+interface TabPanelProps {
+  children?: React.ReactNode;
+  index: number;
+  value: number;
+}
+
+function TabPanel(props: TabPanelProps) {
+  const { children, value, index, ...other } = props;
+  return (
+    <div
+      role="tabpanel"
+      hidden={value !== index}
+      id={`teacher-tabpanel-${index}`}
+      aria-labelledby={`teacher-tab-${index}`}
+      {...other}
+    >
+      {value === index && <Box sx={{ p: 3 }}>{children}</Box>}
+    </div>
+  );
+}
+
 // Teacher interface matching the backend structure
 interface Teacher {
   id: number;
@@ -114,31 +135,7 @@ interface TeacherFormData {
 }
 
 // Tab Panel Component
-interface TabPanelProps {
-  children?: React.ReactNode;
-  index: number;
-  value: number;
-}
 
-function TabPanel(props: TabPanelProps) {
-  const { children, value, index, ...other } = props;
-
-  return (
-    <div
-      role="tabpanel"
-      hidden={value !== index}
-      id={`teacher-tabpanel-${index}`}
-      aria-labelledby={`teacher-tab-${index}`}
-      {...other}
-    >
-      {value === index && (
-        <Box sx={{ p: 3 }}>
-          {children}
-        </Box>
-      )}
-    </div>
-  );
-}
 
 const TeacherProfilesSystem: React.FC = () => {
   const { isAuthenticated } = useAuth();
@@ -215,8 +212,38 @@ const TeacherProfilesSystem: React.FC = () => {
       if (searchTerm) params.append('search', searchTerm);
       if (filterDepartment !== 'all') params.append('department_filter', filterDepartment);
 
-      const response = await teachersAPI.getTeachers(params.toString());
-      setTeachers(response.data.teachers || []);
+      // Add is_active parameter based on tab selection
+      // Tab 0: All teachers (load both active and inactive)
+      // Tab 1: Active teachers only
+      // Tab 2: Inactive teachers only
+      if (tabValue === 1) {
+        params.append('is_active', 'true');
+      } else if (tabValue === 2) {
+        params.append('is_active', 'false');
+      }
+      // For tab 0 (All), we need to make two API calls to get both active and inactive
+
+      if (tabValue === 0) {
+        // Load both active and inactive teachers
+        const activeParams = new URLSearchParams(params.toString());
+        activeParams.append('is_active', 'true');
+
+        const inactiveParams = new URLSearchParams(params.toString());
+        inactiveParams.append('is_active', 'false');
+
+        const [activeResponse, inactiveResponse] = await Promise.all([
+          teachersAPI.getTeachers(activeParams.toString()),
+          teachersAPI.getTeachers(inactiveParams.toString())
+        ]);
+        const allTeachers = [
+          ...(activeResponse.data.teachers || []),
+          ...(inactiveResponse.data.teachers || [])
+        ];
+        setTeachers(allTeachers);
+      } else {
+        const response = await teachersAPI.getTeachers(params.toString());
+        setTeachers(response.data.teachers || []);
+      }
     } catch (err: any) {
       console.error('Error loading teachers:', err);
       setSnackbar({
@@ -227,7 +254,7 @@ const TeacherProfilesSystem: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [configLoaded, isAuthenticated, searchTerm, filterDepartment]);
+  }, [configLoaded, isAuthenticated, searchTerm, filterDepartment, tabValue]);
 
   // Load teachers when dependencies change
   useEffect(() => {
@@ -237,7 +264,7 @@ const TeacherProfilesSystem: React.FC = () => {
   }, [configLoading, configLoaded, isAuthenticated, loadTeachers]);
 
   // Handle tab change
-  const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
+  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
   };
 
@@ -730,7 +757,16 @@ const TeacherProfilesSystem: React.FC = () => {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {filteredTeachers.map((teacher) => (
+                  {filteredTeachers.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={7} align="center">
+                        <Typography variant="body2" color="text.secondary">
+                          No teachers found
+                        </Typography>
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    filteredTeachers.map((teacher) => (
                     <TableRow key={teacher.id}>
                       <TableCell>
                         <Box display="flex" alignItems="center" gap={2}>
@@ -789,7 +825,204 @@ const TeacherProfilesSystem: React.FC = () => {
                         </Box>
                       </TableCell>
                     </TableRow>
-                  ))}
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </Paper>
+        )}
+      </TabPanel>
+
+      {/* Active Teachers Tab */}
+      <TabPanel value={tabValue} index={1}>
+        {loading ? (
+          <Box display="flex" justifyContent="center" p={{ xs: 2, sm: 4 }}>
+            <CircularProgress />
+          </Box>
+        ) : (
+          <Paper elevation={3} sx={{ p: 3 }}>
+            <Typography variant="h6" fontWeight="bold" mb={2}>
+              Active Teachers ({filteredTeachers.filter(teacher => teacher.is_active).length})
+            </Typography>
+            <TableContainer sx={{ maxHeight: { xs: '60vh', sm: '70vh' }, overflow: 'auto' }}>
+              <Table stickyHeader>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Teacher</TableCell>
+                    <TableCell>Employee ID</TableCell>
+                    <TableCell>Department</TableCell>
+                    <TableCell>Position</TableCell>
+                    <TableCell>Contact</TableCell>
+                    <TableCell>Status</TableCell>
+                    <TableCell>Actions</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {filteredTeachers.filter(teacher => teacher.is_active).length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={7} align="center">
+                        <Typography variant="body2" color="text.secondary">
+                          No active teachers found
+                        </Typography>
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    filteredTeachers.filter(teacher => teacher.is_active).map((teacher) => (
+                      <TableRow key={teacher.id}>
+                        <TableCell>
+                          <Box display="flex" alignItems="center" gap={2}>
+                            <Avatar sx={{ bgcolor: 'primary.main' }}>
+                              {teacher.first_name[0]}{teacher.last_name[0]}
+                            </Avatar>
+                            <Box>
+                              <Typography variant="body2" fontWeight="bold">
+                                {teacher.first_name} {teacher.last_name}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                {teacher.qualification_name || 'Not Specified'}
+                              </Typography>
+                            </Box>
+                          </Box>
+                        </TableCell>
+                        <TableCell>{teacher.employee_id}</TableCell>
+                        <TableCell>{teacher.department || 'Not Assigned'}</TableCell>
+                        <TableCell>{teacher.position}</TableCell>
+                        <TableCell>
+                          <Box display="flex" flexDirection="column" gap={0.5}>
+                            <Box display="flex" alignItems="center" gap={1}>
+                              <PhoneIcon fontSize="small" color="action" />
+                              <Typography variant="caption">{teacher.phone}</Typography>
+                            </Box>
+                            <Box display="flex" alignItems="center" gap={1}>
+                              <EmailIcon fontSize="small" color="action" />
+                              <Typography variant="caption">{teacher.email}</Typography>
+                            </Box>
+                          </Box>
+                        </TableCell>
+                        <TableCell>
+                          <Chip label="Active" color="success" size="small" />
+                        </TableCell>
+                        <TableCell>
+                          <Box display="flex" gap={1}>
+                            <Tooltip title="View Details">
+                              <IconButton size="small" onClick={() => handleViewTeacher(teacher)}>
+                                <ViewIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                            <Tooltip title="Edit Teacher">
+                              <IconButton size="small" color="primary" onClick={() => handleEditTeacher(teacher)}>
+                                <EditIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                            <Tooltip title="Delete Teacher">
+                              <IconButton size="small" color="error" onClick={() => handleDeleteTeacher(teacher)}>
+                                <DeleteIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                          </Box>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </Paper>
+        )}
+      </TabPanel>
+
+      {/* Inactive Teachers Tab */}
+      <TabPanel value={tabValue} index={2}>
+        {loading ? (
+          <Box display="flex" justifyContent="center" p={{ xs: 2, sm: 4 }}>
+            <CircularProgress />
+          </Box>
+        ) : (
+          <Paper elevation={3} sx={{ p: 3 }}>
+            <Typography variant="h6" fontWeight="bold" mb={2}>
+              Inactive Teachers ({filteredTeachers.filter(teacher => !teacher.is_active).length})
+            </Typography>
+            <TableContainer sx={{ maxHeight: { xs: '60vh', sm: '70vh' }, overflow: 'auto' }}>
+              <Table stickyHeader>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Teacher</TableCell>
+                    <TableCell>Employee ID</TableCell>
+                    <TableCell>Department</TableCell>
+                    <TableCell>Position</TableCell>
+                    <TableCell>Contact</TableCell>
+                    <TableCell>Status</TableCell>
+                    <TableCell>Actions</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {filteredTeachers.filter(teacher => !teacher.is_active).length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={7} align="center">
+                        <Typography variant="body2" color="text.secondary">
+                          No inactive teachers found
+                        </Typography>
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    filteredTeachers.filter(teacher => !teacher.is_active).map((teacher) => (
+                      <TableRow key={teacher.id}>
+                        <TableCell>
+                          <Box display="flex" alignItems="center" gap={2}>
+                            <Avatar sx={{ bgcolor: 'grey.500' }}>
+                              {teacher.first_name[0]}{teacher.last_name[0]}
+                            </Avatar>
+                            <Box>
+                              <Typography variant="body2" fontWeight="bold">
+                                {teacher.first_name} {teacher.last_name}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                {teacher.qualification_name || 'Not Specified'}
+                              </Typography>
+                            </Box>
+                          </Box>
+                        </TableCell>
+                        <TableCell>{teacher.employee_id}</TableCell>
+                        <TableCell>{teacher.department || 'Not Assigned'}</TableCell>
+                        <TableCell>{teacher.position}</TableCell>
+                        <TableCell>
+                          <Box display="flex" flexDirection="column" gap={0.5}>
+                            <Box display="flex" alignItems="center" gap={1}>
+                              <PhoneIcon fontSize="small" color="action" />
+                              <Typography variant="caption">{teacher.phone}</Typography>
+                            </Box>
+                            <Box display="flex" alignItems="center" gap={1}>
+                              <EmailIcon fontSize="small" color="action" />
+                              <Typography variant="caption">{teacher.email}</Typography>
+                            </Box>
+                          </Box>
+                        </TableCell>
+                        <TableCell>
+                          <Chip label="Inactive" color="default" size="small" />
+                        </TableCell>
+                        <TableCell>
+                          <Box display="flex" gap={1}>
+                            <Tooltip title="View Details">
+                              <IconButton size="small" onClick={() => handleViewTeacher(teacher)}>
+                                <ViewIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                            <Tooltip title="Edit Teacher">
+                              <IconButton size="small" color="primary" onClick={() => handleEditTeacher(teacher)}>
+                                <EditIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                            <Tooltip title="Delete Teacher">
+                              <IconButton size="small" color="error" onClick={() => handleDeleteTeacher(teacher)}>
+                                <DeleteIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                          </Box>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
                 </TableBody>
               </Table>
             </TableContainer>
