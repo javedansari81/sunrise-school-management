@@ -70,55 +70,148 @@ const Academics: React.FC = () => {
   ];
 
   return (
-    <Container maxWidth="lg" sx={{ py: 4 }}>
+    <Container maxWidth="lg" sx={{ py: { xs: 3, sm: 4, md: 6 }, px: { xs: 2, sm: 3 } }}>
       {/* Hero Section */}
-      <Box textAlign="center" mb={6}>
-        <Typography variant="h2" component="h1" gutterBottom fontWeight="bold" color="primary">
+      <Box textAlign="center" mb={{ xs: 4, sm: 5, md: 6 }}>
+        <Typography
+          variant="h2"
+          component="h1"
+          gutterBottom
+          fontWeight="bold"
+          color="primary"
+          sx={{
+            fontSize: { xs: '1.75rem', sm: '2.5rem', md: '3.75rem' },
+            lineHeight: { xs: 1.2, sm: 1.3 },
+            mb: { xs: 2, sm: 3 }
+          }}
+        >
           Academic Excellence
         </Typography>
-        <Typography variant="h5" color="text.secondary" sx={{ maxWidth: 800, mx: 'auto' }}>
+        <Typography
+          variant="h5"
+          color="text.secondary"
+          sx={{
+            maxWidth: 800,
+            mx: 'auto',
+            fontSize: { xs: '1rem', sm: '1.25rem', md: '1.5rem' },
+            lineHeight: { xs: 1.4, sm: 1.5 },
+            px: { xs: 1, sm: 2 }
+          }}
+        >
           Comprehensive education programs from Pre-Kindergarten through Grade 8, designed to nurture intellectual growth and foundational learning
         </Typography>
       </Box>
 
       {/* Academic Programs */}
-      <Box mb={6}>
-        <Typography variant="h4" gutterBottom textAlign="center" color="primary" fontWeight="bold">
+      <Box mb={{ xs: 4, sm: 5, md: 6 }}>
+        <Typography
+          variant="h4"
+          gutterBottom
+          textAlign="center"
+          color="primary"
+          fontWeight="bold"
+          sx={{
+            fontSize: { xs: '1.25rem', sm: '1.5rem', md: '2.125rem' },
+            mb: { xs: 2, sm: 3 }
+          }}
+        >
           Our Academic Programs
         </Typography>
         {programs.map((program, index) => (
-          <Accordion key={index} sx={{ mb: 2 }}>
-            <AccordionSummary expandIcon={<ExpandMore />}>
-              <Typography variant="h6" fontWeight="bold">
+          <Accordion
+            key={index}
+            sx={{
+              mb: { xs: 1.5, sm: 2 },
+              '&:before': { display: 'none' },
+              boxShadow: 2
+            }}
+          >
+            <AccordionSummary
+              expandIcon={<ExpandMore />}
+              sx={{
+                px: { xs: 2, sm: 3 },
+                py: { xs: 1, sm: 1.5 }
+              }}
+            >
+              <Typography
+                variant="h6"
+                fontWeight="bold"
+                sx={{
+                  fontSize: { xs: '1rem', sm: '1.125rem', md: '1.25rem' }
+                }}
+              >
                 {program.title}
               </Typography>
             </AccordionSummary>
-            <AccordionDetails>
-              <Grid container spacing={3}>
+            <AccordionDetails sx={{ px: { xs: 2, sm: 3 }, py: { xs: 2, sm: 3 } }}>
+              <Grid container spacing={{ xs: 2, sm: 3 }}>
                 <Grid size={{ xs: 12, md: 8 }}>
-                  <Typography variant="body1" paragraph>
+                  <Typography
+                    variant="body1"
+                    sx={{
+                      mb: { xs: 1.5, sm: 2 },
+                      fontSize: { xs: '0.875rem', sm: '1rem' },
+                      lineHeight: { xs: 1.5, sm: 1.6 }
+                    }}
+                  >
                     {program.description}
                   </Typography>
-                  <Typography variant="h6" gutterBottom>
+                  <Typography
+                    variant="h6"
+                    gutterBottom
+                    sx={{
+                      fontSize: { xs: '1rem', sm: '1.125rem', md: '1.25rem' },
+                      mb: { xs: 1, sm: 1.5 }
+                    }}
+                  >
                     Subjects Offered:
                   </Typography>
-                  <Box mb={2}>
+                  <Box mb={{ xs: 1.5, sm: 2 }}>
                     {program.subjects.map((subject, idx) => (
-                      <Chip key={idx} label={subject} sx={{ mr: 1, mb: 1 }} color="primary" variant="outlined" />
+                      <Chip
+                        key={idx}
+                        label={subject}
+                        sx={{
+                          mr: { xs: 0.5, sm: 1 },
+                          mb: { xs: 0.5, sm: 1 },
+                          fontSize: { xs: '0.75rem', sm: '0.875rem' }
+                        }}
+                        color="primary"
+                        variant="outlined"
+                        size={window.innerWidth < 600 ? "small" : "medium"}
+                      />
                     ))}
                   </Box>
                 </Grid>
                 <Grid size={{ xs: 12, md: 4 }}>
-                  <Typography variant="h6" gutterBottom>
+                  <Typography
+                    variant="h6"
+                    gutterBottom
+                    sx={{
+                      fontSize: { xs: '1rem', sm: '1.125rem', md: '1.25rem' },
+                      mb: { xs: 1, sm: 1.5 }
+                    }}
+                  >
                     Key Highlights:
                   </Typography>
-                  <List dense>
+                  <List dense sx={{ py: 0 }}>
                     {program.highlights.map((highlight, idx) => (
-                      <ListItem key={idx}>
-                        <ListItemIcon>
-                          <Star color="primary" fontSize="small" />
+                      <ListItem
+                        key={idx}
+                        sx={{
+                          py: { xs: 0.25, sm: 0.5 },
+                          px: 0
+                        }}
+                      >
+                        <ListItemIcon sx={{ minWidth: { xs: 32, sm: 40 } }}>
+                          <Star color="primary" sx={{ fontSize: { xs: 16, sm: 20 } }} />
                         </ListItemIcon>
-                        <ListItemText primary={highlight} />
+                        <ListItemText
+                          primary={highlight}
+                          primaryTypographyProps={{
+                            sx: { fontSize: { xs: '0.75rem', sm: '0.875rem' } }
+                          }}
+                        />
                       </ListItem>
                     ))}
                   </List>
@@ -130,22 +223,60 @@ const Academics: React.FC = () => {
       </Box>
 
       {/* Academic Facilities */}
-      <Box mb={6}>
-        <Typography variant="h4" gutterBottom textAlign="center" color="primary" fontWeight="bold">
+      <Box mb={{ xs: 4, sm: 5, md: 6 }}>
+        <Typography
+          variant="h4"
+          gutterBottom
+          textAlign="center"
+          color="primary"
+          fontWeight="bold"
+          sx={{
+            fontSize: { xs: '1.25rem', sm: '1.5rem', md: '2.125rem' },
+            mb: { xs: 2, sm: 3 }
+          }}
+        >
           Academic Facilities
         </Typography>
-        <Grid container spacing={3}>
+        <Grid container spacing={{ xs: 2, sm: 3 }}>
           {facilities.map((facility, index) => (
             <Grid key={index} size={{ xs: 12, sm: 6, md: 4 }}>
-              <Card elevation={3} sx={{ height: '100%', textAlign: 'center', p: 2 }}>
-                <CardContent>
-                  <Box color="primary.main" mb={2}>
-                    {React.cloneElement(facility.icon, { sx: { fontSize: 48 } })}
+              <Card
+                elevation={3}
+                sx={{
+                  height: '100%',
+                  textAlign: 'center',
+                  p: { xs: 1.5, sm: 2 },
+                  transition: 'transform 0.3s ease-in-out',
+                  '&:hover': {
+                    transform: 'translateY(-4px)',
+                  }
+                }}
+              >
+                <CardContent sx={{ p: { xs: 1.5, sm: 2 } }}>
+                  <Box color="primary.main" mb={{ xs: 1.5, sm: 2 }}>
+                    {React.cloneElement(facility.icon, {
+                      sx: { fontSize: { xs: 36, sm: 42, md: 48 } }
+                    })}
                   </Box>
-                  <Typography variant="h6" gutterBottom fontWeight="bold">
+                  <Typography
+                    variant="h6"
+                    gutterBottom
+                    fontWeight="bold"
+                    sx={{
+                      fontSize: { xs: '1rem', sm: '1.125rem', md: '1.25rem' },
+                      mb: { xs: 1, sm: 1.5 }
+                    }}
+                  >
                     {facility.title}
                   </Typography>
-                  <Typography variant="body2" color="text.secondary">
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{
+                      fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                      lineHeight: { xs: 1.4, sm: 1.5 }
+                    }}
+                  >
                     {facility.description}
                   </Typography>
                 </CardContent>
@@ -156,62 +287,123 @@ const Academics: React.FC = () => {
       </Box>
 
       {/* Academic Achievements */}
-      <Grid container spacing={4}>
+      <Grid container spacing={{ xs: 2, sm: 3, md: 4 }}>
         <Grid size={{ xs: 12, md: 6 }}>
-          <Paper elevation={3} sx={{ p: 4, height: '100%' }}>
-            <Typography variant="h4" gutterBottom color="primary" fontWeight="bold">
+          <Paper elevation={3} sx={{ p: { xs: 2.5, sm: 3, md: 4 }, height: '100%' }}>
+            <Typography
+              variant="h4"
+              gutterBottom
+              color="primary"
+              fontWeight="bold"
+              sx={{
+                fontSize: { xs: '1.25rem', sm: '1.5rem', md: '2.125rem' },
+                mb: { xs: 2, sm: 3 }
+              }}
+            >
               Academic Achievements
             </Typography>
-            <List>
+            <List sx={{ py: 0 }}>
               {achievements.map((achievement, index) => (
-                <ListItem key={index}>
-                  <ListItemIcon>
-                    <Star color="primary" />
+                <ListItem
+                  key={index}
+                  sx={{
+                    py: { xs: 0.5, sm: 1 },
+                    px: 0
+                  }}
+                >
+                  <ListItemIcon sx={{ minWidth: { xs: 32, sm: 40 } }}>
+                    <Star color="primary" sx={{ fontSize: { xs: 18, sm: 24 } }} />
                   </ListItemIcon>
-                  <ListItemText primary={achievement} />
+                  <ListItemText
+                    primary={achievement}
+                    primaryTypographyProps={{
+                      sx: { fontSize: { xs: '0.875rem', sm: '1rem' } }
+                    }}
+                  />
                 </ListItem>
               ))}
             </List>
           </Paper>
         </Grid>
         <Grid size={{ xs: 12, md: 6 }}>
-          <Paper elevation={3} sx={{ p: 4, height: '100%' }}>
-            <Typography variant="h4" gutterBottom color="primary" fontWeight="bold">
+          <Paper elevation={3} sx={{ p: { xs: 2.5, sm: 3, md: 4 }, height: '100%' }}>
+            <Typography
+              variant="h4"
+              gutterBottom
+              color="primary"
+              fontWeight="bold"
+              sx={{
+                fontSize: { xs: '1.25rem', sm: '1.5rem', md: '2.125rem' },
+                mb: { xs: 2, sm: 3 }
+              }}
+            >
               Teaching Methodology
             </Typography>
-            <Typography variant="body1" paragraph>
+            <Typography
+              variant="body1"
+              sx={{
+                mb: { xs: 1.5, sm: 2 },
+                fontSize: { xs: '0.875rem', sm: '1rem' },
+                lineHeight: { xs: 1.5, sm: 1.6 }
+              }}
+            >
               Our teaching approach combines traditional wisdom with modern pedagogical techniques. We believe in:
             </Typography>
-            <List>
-              <ListItem>
-                <ListItemIcon>
-                  <Star color="primary" />
+            <List sx={{ py: 0 }}>
+              <ListItem sx={{ py: { xs: 0.5, sm: 1 }, px: 0 }}>
+                <ListItemIcon sx={{ minWidth: { xs: 32, sm: 40 } }}>
+                  <Star color="primary" sx={{ fontSize: { xs: 18, sm: 24 } }} />
                 </ListItemIcon>
-                <ListItemText primary="Interactive and engaging classroom sessions" />
+                <ListItemText
+                  primary="Interactive and engaging classroom sessions"
+                  primaryTypographyProps={{
+                    sx: { fontSize: { xs: '0.875rem', sm: '1rem' } }
+                  }}
+                />
               </ListItem>
-              <ListItem>
-                <ListItemIcon>
-                  <Star color="primary" />
+              <ListItem sx={{ py: { xs: 0.5, sm: 1 }, px: 0 }}>
+                <ListItemIcon sx={{ minWidth: { xs: 32, sm: 40 } }}>
+                  <Star color="primary" sx={{ fontSize: { xs: 18, sm: 24 } }} />
                 </ListItemIcon>
-                <ListItemText primary="Technology-integrated learning" />
+                <ListItemText
+                  primary="Technology-integrated learning"
+                  primaryTypographyProps={{
+                    sx: { fontSize: { xs: '0.875rem', sm: '1rem' } }
+                  }}
+                />
               </ListItem>
-              <ListItem>
-                <ListItemIcon>
-                  <Star color="primary" />
+              <ListItem sx={{ py: { xs: 0.5, sm: 1 }, px: 0 }}>
+                <ListItemIcon sx={{ minWidth: { xs: 32, sm: 40 } }}>
+                  <Star color="primary" sx={{ fontSize: { xs: 18, sm: 24 } }} />
                 </ListItemIcon>
-                <ListItemText primary="Practical and experiential learning" />
+                <ListItemText
+                  primary="Practical and experiential learning"
+                  primaryTypographyProps={{
+                    sx: { fontSize: { xs: '0.875rem', sm: '1rem' } }
+                  }}
+                />
               </ListItem>
-              <ListItem>
-                <ListItemIcon>
-                  <Star color="primary" />
+              <ListItem sx={{ py: { xs: 0.5, sm: 1 }, px: 0 }}>
+                <ListItemIcon sx={{ minWidth: { xs: 32, sm: 40 } }}>
+                  <Star color="primary" sx={{ fontSize: { xs: 18, sm: 24 } }} />
                 </ListItemIcon>
-                <ListItemText primary="Regular assessment and feedback" />
+                <ListItemText
+                  primary="Regular assessment and feedback"
+                  primaryTypographyProps={{
+                    sx: { fontSize: { xs: '0.875rem', sm: '1rem' } }
+                  }}
+                />
               </ListItem>
-              <ListItem>
-                <ListItemIcon>
-                  <Star color="primary" />
+              <ListItem sx={{ py: { xs: 0.5, sm: 1 }, px: 0 }}>
+                <ListItemIcon sx={{ minWidth: { xs: 32, sm: 40 } }}>
+                  <Star color="primary" sx={{ fontSize: { xs: 18, sm: 24 } }} />
                 </ListItemIcon>
-                <ListItemText primary="Individual attention to each student" />
+                <ListItemText
+                  primary="Individual attention to each student"
+                  primaryTypographyProps={{
+                    sx: { fontSize: { xs: '0.875rem', sm: '1rem' } }
+                  }}
+                />
               </ListItem>
             </List>
           </Paper>
