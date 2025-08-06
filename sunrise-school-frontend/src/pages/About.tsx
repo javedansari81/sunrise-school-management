@@ -139,19 +139,19 @@ const About: React.FC = () => {
           Our History
         </Typography>
         <Typography variant="body1" paragraph>
-          Established in 1995, Sunrise National Public School has been a beacon of educational excellence for over 
-          two decades. What started as a small institution with a vision to provide quality education has grown into 
-          one of the most respected schools in the region.
+          Established in 2024, Sunrise National Public School represents a new era of educational excellence.
+          What started as a vision to provide quality education has quickly grown into one of the most promising
+          educational institutions in the region.
         </Typography>
         <Typography variant="body1" paragraph>
-          Over the years, we have continuously evolved our teaching methodologies, infrastructure, and programs to 
-          meet the changing needs of education. Our commitment to excellence has earned us recognition from various 
-          educational boards and organizations.
+          From our inception, we have embraced modern teaching methodologies, state-of-the-art infrastructure, and
+          innovative programs designed to meet the evolving needs of 21st-century education. Our commitment to
+          excellence has already begun earning recognition from educational boards and organizations.
         </Typography>
         <Typography variant="body1">
-          Today, we are proud to have educated thousands of students who have gone on to achieve success in various 
-          fields, from academics and research to business and public service. Our alumni are our greatest testament 
-          to the quality of education we provide.
+          As a newly established institution, we are building a strong foundation for future generations of students
+          who will go on to achieve success in various fields, from academics and research to business and public
+          service. Our growing community of students and families is testament to the quality of education we provide.
         </Typography>
       </Paper>
     </Container>

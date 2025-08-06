@@ -358,7 +358,51 @@ const TeacherProfilesSystem: React.FC = () => {
     return Object.keys(errors).length === 0;
   };
 
-  // Save teacher
+  // Helper function to get user-friendly error messages
+  const getErrorMessage = (error: any): string => {
+    const status = error.response?.status;
+    const detail = error.response?.data?.detail;
+    const message = error.response?.data?.message;
+
+    // Handle specific HTTP status codes
+    switch (status) {
+      case 400:
+        // Handle specific 400 error cases
+        if (detail?.includes('employee ID already exists') || detail?.includes('employee_id')) {
+          return 'A teacher with this employee ID already exists. Please use a different employee ID.';
+        }
+        if (detail?.includes('email already exists') || detail?.includes('email')) {
+          return 'A teacher with this email address already exists. Please use a different email.';
+        }
+        return detail || message || 'Invalid data provided. Please check your input and try again.';
+
+      case 422:
+        return 'Please check the form data and ensure all required fields are filled correctly.';
+
+      case 409:
+        return 'A teacher with this information already exists. Please check for duplicates.';
+
+      case 500:
+        return 'Unable to create teacher due to a server error. Please try again later.';
+
+      case 503:
+        return 'Service temporarily unavailable. Please try again in a few moments.';
+
+      default:
+        // Fallback to detail or message from API
+        if (detail) return detail;
+        if (message) return message;
+
+        // Network or other errors
+        if (error.code === 'NETWORK_ERROR' || !error.response) {
+          return 'Network error. Please check your connection and try again.';
+        }
+
+        return 'An unexpected error occurred. Please try again.';
+    }
+  };
+
+  // Save teacher with comprehensive error handling
   const handleSaveTeacher = async () => {
     if (!validateForm()) {
       setSnackbar({
@@ -382,11 +426,14 @@ const TeacherProfilesSystem: React.FC = () => {
         salary: formData.salary ? Number(formData.salary) : null
       };
 
-      await teachersAPI.createTeacher(teacherData);
+      const response = await teachersAPI.createTeacher(teacherData);
+
+      // Extract generated email from response for success message
+      const generatedEmail = response.data?.email || 'Email auto-generated';
 
       setSnackbar({
         open: true,
-        message: 'Teacher created successfully!',
+        message: `Teacher created successfully! Login email: ${generatedEmail}`,
         severity: 'success'
       });
 
@@ -394,11 +441,17 @@ const TeacherProfilesSystem: React.FC = () => {
       loadTeachers(); // Refresh the list
     } catch (err: any) {
       console.error('Error creating teacher:', err);
+
+      // Get user-friendly error message
+      const errorMessage = getErrorMessage(err);
+
       setSnackbar({
         open: true,
-        message: err.response?.data?.message || 'Failed to create teacher',
+        message: errorMessage,
         severity: 'error'
       });
+
+      // Don't close dialog on error - allow user to fix and retry
     } finally {
       setDialogLoading(false);
     }
@@ -412,15 +465,19 @@ const TeacherProfilesSystem: React.FC = () => {
         await teachersAPI.deleteTeacher(teacher.id);
         setSnackbar({
           open: true,
-          message: 'Teacher deleted successfully',
+          message: `Teacher ${teacher.first_name} ${teacher.last_name} deleted successfully`,
           severity: 'success'
         });
         loadTeachers();
       } catch (err: any) {
         console.error('Error deleting teacher:', err);
+
+        // Use the same error message helper for consistency
+        const errorMessage = getErrorMessage(err);
+
         setSnackbar({
           open: true,
-          message: 'Failed to delete teacher',
+          message: errorMessage,
           severity: 'error'
         });
       } finally {
@@ -490,9 +547,13 @@ const TeacherProfilesSystem: React.FC = () => {
       setEditDialogOpen(true);
     } catch (err: any) {
       console.error('Error loading teacher details:', err);
+
+      // Use the same error message helper for consistency
+      const errorMessage = getErrorMessage(err);
+
       setSnackbar({
         open: true,
-        message: 'Failed to load teacher details',
+        message: `Failed to load teacher details: ${errorMessage}`,
         severity: 'error'
       });
     } finally {
@@ -519,7 +580,14 @@ const TeacherProfilesSystem: React.FC = () => {
     if (!selectedTeacher) return;
 
     // Validate form
-    if (!validateEditForm()) return;
+    if (!validateEditForm()) {
+      setSnackbar({
+        open: true,
+        message: 'Please fix the form errors before submitting',
+        severity: 'error'
+      });
+      return;
+    }
 
     setDialogLoading(true);
     try {
@@ -546,11 +614,17 @@ const TeacherProfilesSystem: React.FC = () => {
       loadTeachers(); // Refresh the list
     } catch (err: any) {
       console.error('Error updating teacher:', err);
+
+      // Use the same error message helper for consistency
+      const errorMessage = getErrorMessage(err);
+
       setSnackbar({
         open: true,
-        message: err.response?.data?.detail || 'Failed to update teacher',
+        message: errorMessage,
         severity: 'error'
       });
+
+      // Don't close dialog on error - allow user to fix and retry
     } finally {
       setDialogLoading(false);
     }
@@ -1638,13 +1712,22 @@ const TeacherProfilesSystem: React.FC = () => {
       {/* Snackbar for notifications */}
       <Snackbar
         open={snackbar.open}
-        autoHideDuration={6000}
+        autoHideDuration={snackbar.severity === 'error' ? 8000 : 6000} // Longer duration for errors
         onClose={() => setSnackbar({ ...snackbar, open: false })}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }} // Position in bottom-right
       >
         <Alert
           onClose={() => setSnackbar({ ...snackbar, open: false })}
           severity={snackbar.severity}
-          sx={{ width: '100%' }}
+          sx={{
+            width: '100%',
+            maxWidth: '500px', // Limit width for better readability
+            '& .MuiAlert-message': {
+              fontSize: '0.875rem',
+              lineHeight: 1.4
+            }
+          }}
+          variant="filled" // Use filled variant for better visibility
         >
           {snackbar.message}
         </Alert>

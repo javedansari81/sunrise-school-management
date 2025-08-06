@@ -44,11 +44,10 @@ const Admissions: React.FC = () => {
   ];
 
   const feeStructure = [
-    { class: 'Nursery - UKG', admissionFee: '₹5,000', tuitionFee: '₹3,000/month', totalAnnual: '₹41,000' },
+    { class: 'Pre-Kindergarten (PG)', admissionFee: '₹4,000', tuitionFee: '₹2,500/month', totalAnnual: '₹34,000' },
+    { class: 'LKG - UKG', admissionFee: '₹5,000', tuitionFee: '₹3,000/month', totalAnnual: '₹41,000' },
     { class: 'Class I - V', admissionFee: '₹7,000', tuitionFee: '₹4,000/month', totalAnnual: '₹55,000' },
     { class: 'Class VI - VIII', admissionFee: '₹8,000', tuitionFee: '₹5,000/month', totalAnnual: '₹68,000' },
-    { class: 'Class IX - X', admissionFee: '₹10,000', tuitionFee: '₹6,000/month', totalAnnual: '₹82,000' },
-    { class: 'Class XI - XII', admissionFee: '₹12,000', tuitionFee: '₹7,000/month', totalAnnual: '₹96,000' },
   ];
 
   const requiredDocuments = [

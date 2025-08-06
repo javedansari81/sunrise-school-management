@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teacher Error Handling Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .test-case {
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+        .test-case h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        .error-input {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            margin: 10px 0;
+        }
+        .error-output {
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .success {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .error {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .info {
+            background-color: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Teacher Error Handling Test Suite</h1>
+    <p>This page tests the error message handling logic implemented for teacher creation.</p>
+
+    <div class="test-container">
+        <h2>📋 Error Message Test Cases</h2>
+        <div id="test-results"></div>
+        <button onclick="runAllTests()">Run All Tests</button>
+        <button onclick="clearResults()">Clear Results</button>
+    </div>
+
+    <div class="test-container">
+        <h2>🎯 Interactive Error Simulator</h2>
+        <p>Simulate different error scenarios:</p>
+        <button onclick="simulateError(400, 'employee ID already exists')">Duplicate Employee ID</button>
+        <button onclick="simulateError(400, 'email already exists')">Duplicate Email</button>
+        <button onclick="simulateError(422, 'validation failed')">Validation Error</button>
+        <button onclick="simulateError(500, 'internal server error')">Server Error</button>
+        <button onclick="simulateError(0, 'network error')">Network Error</button>
+        <div id="simulation-result"></div>
+    </div>
+
+    <script>
+        // Replicate the error message helper function from the React component
+        function getErrorMessage(error) {
+            const status = error.response?.status;
+            const detail = error.response?.data?.detail;
+            const message = error.response?.data?.message;
+
+            // Handle specific HTTP status codes
+            switch (status) {
+                case 400:
+                    // Handle specific 400 error cases
+                    if (detail?.includes('employee ID already exists') || detail?.includes('employee_id')) {
+                        return 'A teacher with this employee ID already exists. Please use a different employee ID.';
+                    }
+                    if (detail?.includes('email already exists') || detail?.includes('email')) {
+                        return 'A teacher with this email address already exists. Please use a different email.';
+                    }
+                    return detail || message || 'Invalid data provided. Please check your input and try again.';
+                
+                case 422:
+                    return 'Please check the form data and ensure all required fields are filled correctly.';
+                
+                case 409:
+                    return 'A teacher with this information already exists. Please check for duplicates.';
+                
+                case 500:
+                    return 'Unable to create teacher due to a server error. Please try again later.';
+                
+                case 503:
+                    return 'Service temporarily unavailable. Please try again in a few moments.';
+                
+                default:
+                    // Fallback to detail or message from API
+                    if (detail) return detail;
+                    if (message) return message;
+                    
+                    // Network or other errors
+                    if (error.code === 'NETWORK_ERROR' || !error.response) {
+                        return 'Network error. Please check your connection and try again.';
+                    }
+                    
+                    return 'An unexpected error occurred. Please try again.';
+            }
+        }
+
+        // Test cases
+        const testCases = [
+            {
+                name: "Duplicate Employee ID (400)",
+                error: {
+                    response: {
+                        status: 400,
+                        data: {
+                            detail: "Teacher with this employee ID already exists"
+                        }
+                    }
+                },
+                expected: "A teacher with this employee ID already exists. Please use a different employee ID."
+            },
+            {
+                name: "Duplicate Email (400)",
+                error: {
+                    response: {
+                        status: 400,
+                        data: {
+                            detail: "Teacher with this email already exists"
+                        }
+                    }
+                },
+                expected: "A teacher with this email address already exists. Please use a different email."
+            },
+            {
+                name: "Validation Error (422)",
+                error: {
+                    response: {
+                        status: 422,
+                        data: {
+                            detail: "Validation failed"
+                        }
+                    }
+                },
+                expected: "Please check the form data and ensure all required fields are filled correctly."
+            },
+            {
+                name: "Server Error (500)",
+                error: {
+                    response: {
+                        status: 500,
+                        data: {
+                            detail: "Internal server error"
+                        }
+                    }
+                },
+                expected: "Unable to create teacher due to a server error. Please try again later."
+            },
+            {
+                name: "Network Error",
+                error: {
+                    code: 'NETWORK_ERROR'
+                },
+                expected: "Network error. Please check your connection and try again."
+            },
+            {
+                name: "Unknown Error",
+                error: {
+                    response: {
+                        status: 999,
+                        data: {
+                            detail: "Unknown error occurred"
+                        }
+                    }
+                },
+                expected: "Unknown error occurred"
+            }
+        ];
+
+        function runAllTests() {
+            const resultsDiv = document.getElementById('test-results');
+            resultsDiv.innerHTML = '<h3>🧪 Test Results</h3>';
+
+            let passedTests = 0;
+            let totalTests = testCases.length;
+
+            testCases.forEach((testCase, index) => {
+                const result = getErrorMessage(testCase.error);
+                const passed = result === testCase.expected;
+                
+                if (passed) passedTests++;
+
+                const testDiv = document.createElement('div');
+                testDiv.className = `test-case ${passed ? 'success' : 'error'}`;
+                testDiv.innerHTML = `
+                    <h4>Test ${index + 1}: ${testCase.name}</h4>
+                    <div class="error-input"><strong>Input:</strong> ${JSON.stringify(testCase.error, null, 2)}</div>
+                    <div class="error-output"><strong>Expected:</strong> ${testCase.expected}</div>
+                    <div class="error-output"><strong>Actual:</strong> ${result}</div>
+                    <div><strong>Status:</strong> ${passed ? '✅ PASSED' : '❌ FAILED'}</div>
+                `;
+                resultsDiv.appendChild(testDiv);
+            });
+
+            // Summary
+            const summaryDiv = document.createElement('div');
+            summaryDiv.className = `test-case ${passedTests === totalTests ? 'success' : 'error'}`;
+            summaryDiv.innerHTML = `
+                <h4>📊 Test Summary</h4>
+                <p><strong>Passed:</strong> ${passedTests}/${totalTests}</p>
+                <p><strong>Success Rate:</strong> ${Math.round((passedTests/totalTests) * 100)}%</p>
+            `;
+            resultsDiv.appendChild(summaryDiv);
+        }
+
+        function simulateError(status, errorText) {
+            const error = status === 0 ? 
+                { code: 'NETWORK_ERROR' } : 
+                {
+                    response: {
+                        status: status,
+                        data: {
+                            detail: errorText
+                        }
+                    }
+                };
+
+            const result = getErrorMessage(error);
+            
+            const resultDiv = document.getElementById('simulation-result');
+            resultDiv.innerHTML = `
+                <div class="test-case info">
+                    <h4>🎭 Simulation Result</h4>
+                    <div class="error-input"><strong>Simulated Error:</strong> ${status} - ${errorText}</div>
+                    <div class="error-output"><strong>User Message:</strong> ${result}</div>
+                </div>
+            `;
+        }
+
+        function clearResults() {
+            document.getElementById('test-results').innerHTML = '';
+            document.getElementById('simulation-result').innerHTML = '';
+        }
+
+        // Auto-run tests on page load
+        window.onload = function() {
+            runAllTests();
+        };
+    </script>
+</body>
+</html>

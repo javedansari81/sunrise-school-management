@@ -31,28 +31,22 @@ import {
 const Academics: React.FC = () => {
   const programs = [
     {
+      title: 'Early Childhood Education (PG, LKG, UKG)',
+      description: 'Nurturing foundation years focusing on holistic development through play and exploration',
+      subjects: ['Pre-Reading Skills', 'Pre-Math Concepts', 'Creative Arts', 'Music & Movement', 'Nature Study', 'Social Skills'],
+      highlights: ['Play-based learning', 'Sensory development', 'Language immersion', 'Creative expression', 'Social interaction']
+    },
+    {
       title: 'Primary Education (Classes I-V)',
       description: 'Foundation years focusing on basic literacy, numeracy, and social skills',
       subjects: ['English', 'Mathematics', 'Science', 'Social Studies', 'Hindi', 'Art & Craft', 'Physical Education'],
-      highlights: ['Play-based learning', 'Individual attention', 'Creative activities', 'Character building']
+      highlights: ['Interactive learning', 'Individual attention', 'Creative activities', 'Character building']
     },
     {
       title: 'Middle School (Classes VI-VIII)',
-      description: 'Developing critical thinking and subject-specific knowledge',
+      description: 'Developing critical thinking and subject-specific knowledge for comprehensive growth',
       subjects: ['English', 'Mathematics', 'Science', 'Social Science', 'Hindi', 'Computer Science', 'Art Education'],
       highlights: ['Project-based learning', 'Laboratory experiments', 'Group activities', 'Leadership development']
-    },
-    {
-      title: 'Secondary Education (Classes IX-X)',
-      description: 'Comprehensive preparation for board examinations',
-      subjects: ['English', 'Mathematics', 'Science', 'Social Science', 'Hindi', 'Computer Applications'],
-      highlights: ['Board exam preparation', 'Career guidance', 'Skill development', 'Competitive exam coaching']
-    },
-    {
-      title: 'Senior Secondary (Classes XI-XII)',
-      description: 'Specialized streams for higher education preparation',
-      subjects: ['Science Stream', 'Commerce Stream', 'Arts Stream'],
-      highlights: ['Stream specialization', 'College preparation', 'Entrance exam coaching', 'Research projects']
     }
   ];
 
@@ -66,12 +60,13 @@ const Academics: React.FC = () => {
   ];
 
   const achievements = [
-    'CBSE Board Toppers for consecutive years',
-    '100% Pass Rate in Class X and XII',
+    'Excellence in Academic Performance across all grades',
+    'Outstanding Results in State-level Assessments',
     'Excellence in Science Olympiad',
     'Outstanding Performance in Mathematics Competition',
     'Recognition in National Level Debates',
-    'Awards in Inter-School Sports Championships'
+    'Awards in Inter-School Sports Championships',
+    'Excellence in Creative Arts and Cultural Activities'
   ];
 
   return (
@@ -82,7 +77,7 @@ const Academics: React.FC = () => {
           Academic Excellence
         </Typography>
         <Typography variant="h5" color="text.secondary" sx={{ maxWidth: 800, mx: 'auto' }}>
-          Comprehensive education programs designed to nurture intellectual growth and academic achievement
+          Comprehensive education programs from Pre-Kindergarten through Grade 8, designed to nurture intellectual growth and foundational learning
         </Typography>
       </Box>
 
