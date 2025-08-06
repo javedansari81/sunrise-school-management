@@ -127,6 +127,8 @@ export const teachersAPI = {
   getPositions: () => api.get('/teachers/options/positions'),
   getQualifications: () => api.get('/teachers/options/qualifications'),
   getEmploymentStatuses: () => api.get('/teachers/options/employment-status'),
+  // Public faculty endpoint (no authentication required)
+  getPublicFaculty: () => api.get('/teachers/public/faculty'),
 };
 
 

@@ -1,11 +1,15 @@
 from fastapi import APIRouter
 
 from app.api.v1.endpoints import (
-    auth, users, teachers, students, leaves, expenses, fees, configuration
+    auth, users, teachers, students, leaves, expenses, fees, configuration, public
 )
 
 api_router = APIRouter()
 
+# Public endpoints (no authentication required)
+api_router.include_router(public.router, prefix="/public", tags=["public"])
+
+# Authenticated endpoints
 api_router.include_router(auth.router, prefix="/auth", tags=["authentication"])
 api_router.include_router(configuration.router, prefix="/configuration", tags=["configuration"])
 api_router.include_router(users.router, prefix="/users", tags=["users"])
