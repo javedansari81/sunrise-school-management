@@ -15,6 +15,7 @@ import {
   ListItemText,
   Alert,
   Snackbar,
+  Link,
 } from '@mui/material';
 import {
   Phone,
@@ -63,18 +64,15 @@ const Contact: React.FC = () => {
       icon: <Phone />,
       title: 'Phone Numbers',
       details: [
-        'Main Office: +91 98765 43210',
-        'Admissions: +91 87654 32109',
-        'Principal: +91 76543 21098'
+        '+91 6392171614',
+        '+91 9198627786'
       ]
     },
     {
       icon: <Email />,
-      title: 'Email Addresses',
+      title: 'Email Address',
       details: [
-        'General: info@sunriseschool.edu',
-        'Admissions: admissions@sunriseschool.edu',
-        'Principal: principal@sunriseschool.edu'
+        'sunrise.nps008@gmail.com'
       ]
     },
     {
@@ -82,28 +80,27 @@ const Contact: React.FC = () => {
       title: 'Address',
       details: [
         'Sunrise National Public School',
-        '123 Education Street, Knowledge City',
-        'Academic District, State - 123456'
+        'Sena road, Farsauliyana',
+        'Rath, Hamirpur, UP - 210431'
       ]
     },
     {
       icon: <Schedule />,
       title: 'Office Hours',
       details: [
-        'Monday - Friday: 8:00 AM - 5:00 PM',
-        'Saturday: 9:00 AM - 2:00 PM',
+        'Mon-Sat: 8:00 AM - 2:30 PM',
         'Sunday: Closed'
       ]
     }
   ];
 
   const departments = [
-    { name: 'Principal Office', extension: 'Ext. 101', email: 'principal@sunriseschool.edu' },
-    { name: 'Admissions Office', extension: 'Ext. 102', email: 'admissions@sunriseschool.edu' },
-    { name: 'Academic Office', extension: 'Ext. 103', email: 'academics@sunriseschool.edu' },
-    { name: 'Finance Office', extension: 'Ext. 104', email: 'finance@sunriseschool.edu' },
-    { name: 'Transport Office', extension: 'Ext. 105', email: 'transport@sunriseschool.edu' },
-    { name: 'Sports Department', extension: 'Ext. 106', email: 'sports@sunriseschool.edu' }
+    { name: 'Principal Office', phone: '+91 6392171614', email: 'sunrise.nps008@gmail.com' },
+    { name: 'Admissions Office', phone: '+91 9198627786', email: 'sunrise.nps008@gmail.com' },
+    { name: 'Academic Office', phone: '+91 6392171614', email: 'sunrise.nps008@gmail.com' },
+    { name: 'Finance Office', phone: '+91 9198627786', email: 'sunrise.nps008@gmail.com' },
+    { name: 'Transport Office', phone: '+91 6392171614', email: 'sunrise.nps008@gmail.com' },
+    { name: 'Sports Department', phone: '+91 9198627786', email: 'sunrise.nps008@gmail.com' }
   ];
 
   return (
@@ -132,7 +129,17 @@ const Contact: React.FC = () => {
                 </Typography>
                 {info.details.map((detail, idx) => (
                   <Typography key={idx} variant="body2" color="text.secondary" paragraph>
-                    {detail}
+                    {info.title === 'Phone Numbers' ? (
+                      <Link href={`tel:${detail}`} color="inherit" underline="hover">
+                        {detail}
+                      </Link>
+                    ) : info.title === 'Email Address' ? (
+                      <Link href={`mailto:${detail}`} color="inherit" underline="hover">
+                        {detail}
+                      </Link>
+                    ) : (
+                      detail
+                    )}
                   </Typography>
                 ))}
               </CardContent>
@@ -230,28 +237,39 @@ const Contact: React.FC = () => {
               Visit Our Campus
             </Typography>
             <Typography variant="body1" paragraph>
-              We welcome you to visit our beautiful campus and experience the learning environment firsthand. 
+              We welcome you to visit our beautiful campus and experience the learning environment firsthand.
               Schedule a visit to see our facilities, meet our faculty, and learn more about our programs.
             </Typography>
-            
-            {/* Map Placeholder */}
+
+            {/* Google Maps Embed */}
             <Box
               sx={{
                 height: 250,
-                backgroundColor: 'grey.200',
                 borderRadius: 2,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                mb: 3
+                overflow: 'hidden',
+                mb: 3,
+                border: '1px solid',
+                borderColor: 'grey.300'
               }}
             >
-              <Typography variant="h6" color="text.secondary">
-                Interactive Map Coming Soon
-              </Typography>
+              <iframe
+                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3603.8234567890123!2d79.6234567!3d25.4567890!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2sRath%2C%20Hamirpur%2C%20Uttar%20Pradesh%20210431!5e0!3m2!1sen!2sin!4v1234567890123!5m2!1sen!2sin"
+                width="100%"
+                height="100%"
+                style={{ border: 0 }}
+                allowFullScreen
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+                title="Sunrise National Public School Location"
+              />
             </Box>
-            
-            <Button variant="outlined" size="large" fullWidth>
+
+            <Button
+              variant="outlined"
+              size="large"
+              fullWidth
+              onClick={() => window.open('https://maps.google.com/?q=Sunrise+National+Public+School+Rath+Hamirpur+UP', '_blank')}
+            >
               Get Directions
             </Button>
           </Paper>
@@ -270,11 +288,15 @@ const Contact: React.FC = () => {
                 <Typography variant="h6" fontWeight="bold" gutterBottom>
                   {dept.name}
                 </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {dept.extension}
+                <Typography variant="body2" color="text.secondary" paragraph>
+                  <Link href={`tel:${dept.phone}`} color="inherit" underline="hover">
+                    {dept.phone}
+                  </Link>
                 </Typography>
                 <Typography variant="body2" color="primary">
-                  {dept.email}
+                  <Link href={`mailto:${dept.email}`} color="inherit" underline="hover">
+                    {dept.email}
+                  </Link>
                 </Typography>
               </Card>
             </Grid>
