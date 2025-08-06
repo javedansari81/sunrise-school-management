@@ -47,7 +47,25 @@ class CRUDStudent(CRUDBase[Student, StudentCreate, StudentUpdate]):
         self, db: AsyncSession, *, admission_number: str
     ) -> Optional[Student]:
         result = await db.execute(
-            select(Student).where(Student.admission_number == admission_number)
+            select(Student).where(
+                and_(
+                    Student.admission_number == admission_number,
+                    (Student.is_deleted == False) | (Student.is_deleted.is_(None))
+                )
+            )
+        )
+        return result.scalar_one_or_none()
+
+    async def get_by_email(
+        self, db: AsyncSession, *, email: str
+    ) -> Optional[Student]:
+        result = await db.execute(
+            select(Student).where(
+                and_(
+                    Student.email == email,
+                    (Student.is_deleted == False) | (Student.is_deleted.is_(None))
+                )
+            )
         )
         return result.scalar_one_or_none()
 

@@ -10,6 +10,15 @@ const api = axios.create({
   },
 });
 
+// Create a separate axios instance for public endpoints (no auth required)
+const publicApi = axios.create({
+  baseURL: process.env.REACT_APP_API_URL || 'http://localhost:8000/api/v1',
+  timeout: 10000,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
 // Request interceptor to add auth token
 api.interceptors.request.use(
   (config) => {
@@ -139,7 +148,7 @@ export const teachersAPI = {
   getQualifications: () => api.get('/teachers/options/qualifications'),
   getEmploymentStatuses: () => api.get('/teachers/options/employment-status'),
   // Public faculty endpoint (no authentication required)
-  getPublicFaculty: () => api.get('/teachers/public/faculty'),
+  getPublicFaculty: () => publicApi.get('/public/faculty'),
 };
 
 

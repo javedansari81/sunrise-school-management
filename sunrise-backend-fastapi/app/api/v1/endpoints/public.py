@@ -17,7 +17,12 @@ async def get_public_faculty(
     Get active teachers for public Faculty page display
     No authentication required - public endpoint
     """
+    import logging
+    logger = logging.getLogger(__name__)
+
     try:
+        logger.info("Public faculty endpoint called")
+
         # Get only active teachers with basic information for public display
         teachers, total = await teacher_crud.get_multi_with_filters(
             db,
@@ -25,6 +30,8 @@ async def get_public_faculty(
             limit=100,  # Get up to 100 teachers for faculty page
             is_active=True
         )
+
+        logger.info(f"Retrieved {len(teachers)} teachers from database")
         
         # Filter and format data for public display
         public_teachers = []
@@ -72,7 +79,10 @@ async def get_public_faculty(
     
     except Exception as e:
         # Log the error for debugging
-        print(f"Error in get_public_faculty: {str(e)}")
+        logger.error(f"Error in get_public_faculty: {str(e)}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
+
         return {
             "teachers": [],
             "departments": {},

@@ -1,4 +1,4 @@
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 import math
@@ -69,8 +69,8 @@ async def get_students(
     )
 
 
-@router.post("/", response_model=Student)
-@router.post("", response_model=Student)  # Handle both with and without trailing slash
+@router.post("/", response_model=Dict[str, Any])
+@router.post("", response_model=Dict[str, Any])  # Handle both with and without trailing slash
 async def create_student(
     student_data: StudentCreate,
     db: AsyncSession = Depends(get_db),
@@ -80,24 +80,80 @@ async def create_student(
     Create a new student record with metadata validation
     """
     try:
-        # Check if admission number already exists
-        existing_student = await student_crud.get_by_admission_number(
-            db, admission_number=student_data.admission_number
+        from app.utils.soft_delete_helpers import validate_student_creation_with_soft_delete_check
+        from sqlalchemy.exc import IntegrityError
+        import logging
+
+        # Validate creation considering soft-deleted records
+        can_create, success_message, error_message = await validate_student_creation_with_soft_delete_check(
+            db, student_data.admission_number, student_data.email
         )
-        if existing_student:
+
+        if not can_create:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Student with this admission number already exists"
+                detail=error_message
             )
 
-        # Create student with metadata validation
-        student = await student_crud.create_with_validation(db, obj_in=student_data)
-        student_with_metadata = await student_crud.get_with_metadata(db, id=student.id)
-        return Student.from_orm_with_metadata(student_with_metadata)
+        try:
+            # Create student with metadata validation
+            student = await student_crud.create_with_validation(db, obj_in=student_data)
+            student_with_metadata = await student_crud.get_with_metadata(db, id=student.id)
+
+            # Create response with student data and success message if replacing a soft-deleted record
+            response_data = Student.from_orm_with_metadata(student_with_metadata).dict()
+            if success_message:
+                response_data["success_message"] = success_message
+
+            return response_data
+
+        except IntegrityError as e:
+            # Handle database constraint errors gracefully
+            await db.rollback()
+            logging.error(f"Database constraint error creating student: {str(e)}")
+
+            # Parse the error to provide user-friendly messages
+            error_str = str(e).lower()
+
+            if "admission_number" in error_str and "already exists" in error_str:
+                # Check if it's a soft-deleted record that should be replaceable
+                from app.utils.soft_delete_helpers import check_student_soft_deleted_by_admission_number
+                soft_deleted = await check_student_soft_deleted_by_admission_number(db, student_data.admission_number)
+
+                if soft_deleted:
+                    detail = f"Student with admission number {student_data.admission_number} exists in archived records. Please contact system administrator to resolve this conflict."
+                else:
+                    detail = f"Student with admission number {student_data.admission_number} already exists"
+
+            elif "email" in error_str and "already exists" in error_str:
+                # Check if it's a soft-deleted record that should be replaceable
+                from app.utils.soft_delete_helpers import check_student_soft_deleted_by_email
+                soft_deleted = await check_student_soft_deleted_by_email(db, student_data.email)
+
+                if soft_deleted:
+                    detail = f"Student with email {student_data.email} exists in archived records. Please contact system administrator to resolve this conflict."
+                else:
+                    detail = f"Student with email {student_data.email} already exists"
+            else:
+                detail = "A student with this information already exists. Please check admission number and email."
+
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=detail
+            )
     except ValueError as e:
+        await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e)
+        )
+    except Exception as e:
+        # Handle any other unexpected errors
+        await db.rollback()
+        logging.error(f"Unexpected error creating student: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An unexpected error occurred while creating the student. Please try again."
         )
 
 
