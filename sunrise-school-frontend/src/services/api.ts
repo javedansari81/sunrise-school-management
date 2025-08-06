@@ -76,6 +76,10 @@ export const enhancedFeesAPI = {
 
   makeEnhancedPayment: (studentId: number, data: any) =>
     api.post(`/fees/pay-monthly-enhanced/${studentId}`, data),
+
+  // Fee Structure API
+  getFeeStructure: () =>
+    api.get('/fees/structure'),
 };
 
 // Users API

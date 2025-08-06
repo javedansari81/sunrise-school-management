@@ -53,7 +53,11 @@ class CRUDFeeStructure(CRUDBase[FeeStructure, FeeStructureCreate, FeeStructureUp
         return result.scalar_one_or_none()
 
     async def get_all_structures(self, db: AsyncSession) -> List[FeeStructure]:
-        result = await db.execute(select(FeeStructure).order_by(FeeStructure.class_name))
+        result = await db.execute(
+            select(FeeStructure)
+            .options(joinedload(FeeStructure.class_ref), joinedload(FeeStructure.session_year))
+            .order_by(FeeStructure.class_id)
+        )
         return result.scalars().all()
 
 

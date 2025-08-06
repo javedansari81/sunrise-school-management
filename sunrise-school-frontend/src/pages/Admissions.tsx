@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Container,
   Typography,
@@ -22,6 +22,7 @@ import {
   ListItem,
   ListItemIcon,
   ListItemText,
+  CircularProgress,
 } from '@mui/material';
 import {
   Assignment,
@@ -33,8 +34,12 @@ import {
   Email,
   LocationOn,
 } from '@mui/icons-material';
+import { enhancedFeesAPI } from '../services/api';
 
 const Admissions: React.FC = () => {
+  const [feeStructure, setFeeStructure] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
   const admissionSteps = [
     'Application Form Submission',
     'Document Verification',
@@ -43,12 +48,47 @@ const Admissions: React.FC = () => {
     'Admission Confirmation'
   ];
 
-  const feeStructure = [
-    { class: 'Pre-Kindergarten (PG)', admissionFee: '₹4,000', tuitionFee: '₹2,500/month', totalAnnual: '₹34,000' },
-    { class: 'LKG - UKG', admissionFee: '₹5,000', tuitionFee: '₹3,000/month', totalAnnual: '₹41,000' },
-    { class: 'Class I - V', admissionFee: '₹7,000', tuitionFee: '₹4,000/month', totalAnnual: '₹55,000' },
-    { class: 'Class VI - VIII', admissionFee: '₹8,000', tuitionFee: '₹5,000/month', totalAnnual: '₹68,000' },
-  ];
+  // Fetch fee structure data on component mount
+  useEffect(() => {
+    const fetchFeeStructure = async () => {
+      try {
+        setLoading(true);
+        const response = await enhancedFeesAPI.getFeeStructure();
+
+        // Filter for current session year (2025-26) and format data for display
+        const currentSessionStructures = response.data
+          .filter((structure: any) => structure.session_year_name === '2025-26')
+          .map((structure: any) => ({
+            class: structure.class_name,
+            admissionFee: `₹${structure.admission_fee?.toLocaleString() || '0'}`,
+            tuitionFee: `₹${Math.round(structure.total_annual_fee / 12)?.toLocaleString() || '0'}/month`,
+            totalAnnual: `₹${structure.total_annual_fee?.toLocaleString() || '0'}`
+          }));
+
+        setFeeStructure(currentSessionStructures);
+      } catch (error) {
+        console.error('Error fetching fee structure:', error);
+        // Fallback to current database structure if API fails
+        setFeeStructure([
+          { class: 'PG', admissionFee: '₹0', tuitionFee: '₹640/month', totalAnnual: '₹7,680' },
+          { class: 'LKG', admissionFee: '₹0', tuitionFee: '₹680/month', totalAnnual: '₹8,160' },
+          { class: 'UKG', admissionFee: '₹0', tuitionFee: '₹720/month', totalAnnual: '₹8,640' },
+          { class: 'Class 1', admissionFee: '₹0', tuitionFee: '₹800/month', totalAnnual: '₹9,600' },
+          { class: 'Class 2', admissionFee: '₹0', tuitionFee: '₹840/month', totalAnnual: '₹10,080' },
+          { class: 'Class 3', admissionFee: '₹0', tuitionFee: '₹880/month', totalAnnual: '₹10,560' },
+          { class: 'Class 4', admissionFee: '₹0', tuitionFee: '₹920/month', totalAnnual: '₹11,040' },
+          { class: 'Class 5', admissionFee: '₹0', tuitionFee: '₹960/month', totalAnnual: '₹11,520' },
+          { class: 'Class 6', admissionFee: '₹0', tuitionFee: '₹1,000/month', totalAnnual: '₹12,000' },
+          { class: 'Class 7', admissionFee: '₹0', tuitionFee: '₹1,040/month', totalAnnual: '₹12,480' },
+          { class: 'Class 8', admissionFee: '₹0', tuitionFee: '₹1,080/month', totalAnnual: '₹12,960' },
+        ]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchFeeStructure();
+  }, []);
 
   const requiredDocuments = [
     'Birth Certificate (Original + 2 copies)',
@@ -62,12 +102,12 @@ const Admissions: React.FC = () => {
   ];
 
   const importantDates = [
-    { event: 'Application Form Release', date: 'January 15, 2024' },
-    { event: 'Last Date for Application', date: 'March 31, 2024' },
-    { event: 'Entrance Test', date: 'April 15-20, 2024' },
-    { event: 'Result Declaration', date: 'April 25, 2024' },
-    { event: 'Admission Confirmation', date: 'May 1-15, 2024' },
-    { event: 'Academic Session Begins', date: 'June 1, 2024' }
+    { event: 'Application Form Release', date: 'January 15, 2025' },
+    { event: 'Last Date for Application', date: 'March 31, 2025' },
+    { event: 'Entrance Test', date: 'April 15-20, 2025' },
+    { event: 'Result Declaration', date: 'April 25, 2025' },
+    { event: 'Admission Confirmation', date: 'May 1-15, 2025' },
+    { event: 'Academic Session Begins', date: 'June 1, 2025' }
   ];
 
   return (
@@ -75,7 +115,7 @@ const Admissions: React.FC = () => {
       {/* Hero Section */}
       <Box textAlign="center" mb={6}>
         <Typography variant="h2" component="h1" gutterBottom fontWeight="bold" color="primary">
-          Admissions 2024-25
+          Admissions 2025-26
         </Typography>
         <Typography variant="h5" color="text.secondary" sx={{ maxWidth: 800, mx: 'auto' }}>
           Join our community of learners and embark on a journey of academic excellence and personal growth
@@ -112,30 +152,39 @@ const Admissions: React.FC = () => {
             <TableHead>
               <TableRow sx={{ backgroundColor: 'primary.main' }}>
                 <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Class</TableCell>
-                <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Admission Fee</TableCell>
                 <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Monthly Tuition</TableCell>
-                <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Total Annual Fee</TableCell>
+                <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Annual Tuition</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
-              {feeStructure.map((row, index) => (
-                <TableRow key={index}>
-                  <TableCell component="th" scope="row" sx={{ fontWeight: 'medium' }}>
-                    {row.class}
-                  </TableCell>
-                  <TableCell>{row.admissionFee}</TableCell>
-                  <TableCell>{row.tuitionFee}</TableCell>
-                  <TableCell sx={{ fontWeight: 'bold', color: 'primary.main' }}>
-                    {row.totalAnnual}
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={4} sx={{ textAlign: 'center', py: 4 }}>
+                    <CircularProgress size={24} />
+                    <Typography variant="body2" sx={{ mt: 1 }}>
+                      Loading fee structure...
+                    </Typography>
                   </TableCell>
                 </TableRow>
-              ))}
+              ) : (
+                feeStructure.map((row, index) => (
+                  <TableRow key={index}>
+                    <TableCell component="th" scope="row" sx={{ fontWeight: 'medium' }}>
+                      {row.class}
+                    </TableCell>
+                    <TableCell>{row.tuitionFee}</TableCell>
+                    <TableCell sx={{ fontWeight: 'bold', color: 'primary.main' }}>
+                      {row.totalAnnual}
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </TableContainer>
         <Alert severity="info" sx={{ mt: 2 }}>
           <Typography variant="body2">
-            * Fees include tuition, library, sports, and examination charges. Additional charges may apply for transport, uniform, and books.
+            * Tuition fees shown are comprehensive and include all academic charges. No additional admission fees are currently charged. Additional charges may apply for transport, uniform, and books.
           </Typography>
         </Alert>
       </Box>
@@ -195,8 +244,8 @@ const Admissions: React.FC = () => {
                 Phone
               </Typography>
               <Typography variant="body1">
-                +91 98765 43210<br />
-                +91 87654 32109
+                +91 6392171614<br />
+                +91 9198627786
               </Typography>
             </Card>
           </Grid>
@@ -207,8 +256,7 @@ const Admissions: React.FC = () => {
                 Email
               </Typography>
               <Typography variant="body1">
-                admissions@sunriseschool.edu<br />
-                info@sunriseschool.edu
+                sunrise.nps008@gmail.com
               </Typography>
             </Card>
           </Grid>
@@ -220,8 +268,7 @@ const Admissions: React.FC = () => {
               </Typography>
               <Typography variant="body1">
                 Admission Office<br />
-                Mon-Fri: 9:00 AM - 4:00 PM<br />
-                Sat: 9:00 AM - 1:00 PM
+                Mon-Sat: 8:00 AM - 2:30 PM
               </Typography>
             </Card>
           </Grid>
