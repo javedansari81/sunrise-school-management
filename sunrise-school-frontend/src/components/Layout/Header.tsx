@@ -28,9 +28,8 @@ import LoginPopup from '../LoginPopup';
 
 const Header: React.FC = () => {
   const navigate = useNavigate();
-  const { user, isAuthenticated, logout } = useAuth();
+  const { user, isAuthenticated, logout, showLoginPopup, setShowLoginPopup } = useAuth();
   const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
-  const [loginPopupOpen, setLoginPopupOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
@@ -108,7 +107,7 @@ const Header: React.FC = () => {
             {!isAuthenticated ? (
               <Button
                 color="inherit"
-                onClick={() => setLoginPopupOpen(true)}
+                onClick={() => setShowLoginPopup(true)}
                 sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}
               >
                 Login
@@ -211,7 +210,7 @@ const Header: React.FC = () => {
             <ListItem
               onClick={() => {
                 setMobileMenuOpen(false);
-                setLoginPopupOpen(true);
+                setShowLoginPopup(true);
               }}
               sx={{
                 cursor: 'pointer',
@@ -236,8 +235,8 @@ const Header: React.FC = () => {
       </Drawer>
 
       <LoginPopup
-        open={loginPopupOpen}
-        onClose={() => setLoginPopupOpen(false)}
+        open={showLoginPopup}
+        onClose={() => setShowLoginPopup(false)}
       />
     </AppBar>
   );

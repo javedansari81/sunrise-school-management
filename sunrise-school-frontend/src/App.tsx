@@ -26,6 +26,11 @@ import ProtectedRoute from './components/ProtectedRoute';
 import { AuthProvider } from './contexts/AuthContext';
 import { ConfigurationProvider } from './contexts/ConfigurationContext';
 
+// Test utilities (only in development)
+if (process.env.NODE_ENV === 'development') {
+  import('./utils/testSessionInvalidation');
+}
+
 // Create a custom theme with mobile responsiveness
 const theme = createTheme({
   palette: {

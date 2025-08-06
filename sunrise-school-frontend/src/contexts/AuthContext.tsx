@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { authAPI } from '../services/api';
 import { configurationService } from '../services/configurationService';
+import { sessionService } from '../services/sessionService';
 
 interface User {
   id: number;
@@ -25,6 +26,9 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<LoginResponse>;
   logout: () => void;
   refreshUser: () => Promise<void>;
+  handleSessionExpired: () => void;
+  showLoginPopup: boolean;
+  setShowLoginPopup: (show: boolean) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -44,8 +48,9 @@ interface AuthProviderProps {
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [showLoginPopup, setShowLoginPopup] = useState(false);
 
-  const isAuthenticated = !!user && !!localStorage.getItem('authToken');
+  const isAuthenticated = !!user && !!localStorage.getItem('authToken') && sessionService.isSessionValid();
 
   // Debug logging
   React.useEffect(() => {
@@ -89,6 +94,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setUser(mappedUser);
       localStorage.setItem('userRole', mappedUser.user_type);
 
+      // Hide login popup on successful login
+      setShowLoginPopup(false);
+
+      // Start session monitoring
+      sessionService.startSessionMonitoring();
+
       // Return the full response for the caller
       return {
         access_token,
@@ -103,20 +114,46 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const logout = () => {
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('userRole');
+    console.log('AuthContext: Logging out user');
+    sessionService.clearSession();
     setUser(null);
+    setShowLoginPopup(false);
     // Clear configuration cache on logout
     configurationService.clearConfiguration();
+    // Stop session monitoring
+    sessionService.stopSessionMonitoring();
+  };
+
+  const handleSessionExpired = () => {
+    console.log('AuthContext: Handling session expiration');
+    setUser(null);
+    setShowLoginPopup(true);
+    // Clear configuration cache
+    configurationService.clearConfiguration();
+
+    // Navigate to home page if not already there
+    const currentPath = window.location.pathname;
+    if (currentPath !== '/') {
+      console.log('AuthContext: Redirecting to home due to session expiration');
+      window.location.href = '/';
+    }
   };
 
   const refreshUser = async () => {
     try {
       const token = localStorage.getItem('authToken');
       console.log('RefreshUser called, token exists:', !!token);
+
       if (!token) {
         console.log('No token found, setting user to null');
         setUser(null);
+        return;
+      }
+
+      // Check if token is expired before making API call
+      if (sessionService.isTokenExpired(token)) {
+        console.log('Token expired during refresh, handling session expiration');
+        handleSessionExpired();
         return;
       }
 
@@ -138,7 +175,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } catch (error: any) {
       console.error('Failed to refresh user:', error);
       console.log('Error details:', error.response?.status, error.response?.data);
-      logout();
+
+      // If it's a 401 error, handle as session expiration
+      if (error.response?.status === 401) {
+        handleSessionExpired();
+      } else {
+        logout();
+      }
     }
   };
 
@@ -151,7 +194,27 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setIsLoading(false);
     };
 
+    // Set up session service callbacks
+    sessionService.setCallbacks({
+      onSessionExpired: handleSessionExpired,
+      onSessionInvalid: handleSessionExpired,
+      onSessionCleared: () => {
+        console.log('AuthContext: Session cleared by session service');
+      }
+    });
+
     initAuth();
+
+    // Start session monitoring if user is authenticated
+    const token = localStorage.getItem('authToken');
+    if (token && sessionService.isSessionValid()) {
+      sessionService.startSessionMonitoring();
+    }
+
+    // Cleanup on unmount
+    return () => {
+      sessionService.stopSessionMonitoring();
+    };
   }, []);
 
   const value: AuthContextType = {
@@ -161,6 +224,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     login,
     logout,
     refreshUser,
+    handleSessionExpired,
+    showLoginPopup,
+    setShowLoginPopup,
   };
 
   return (

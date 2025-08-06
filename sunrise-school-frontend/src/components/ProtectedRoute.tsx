@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
 import { CircularProgress, Box } from '@mui/material';
 import { useAuth } from '../contexts/AuthContext';
+import { sessionService } from '../services/sessionService';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -12,7 +13,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   children,
   requiredRole
 }) => {
-  const { user, isAuthenticated, isLoading } = useAuth();
+  const { user, isAuthenticated, isLoading, handleSessionExpired, setShowLoginPopup } = useAuth();
 
   // Debug logging
   console.log('ProtectedRoute check:', {
@@ -21,8 +22,18 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     hasUser: !!user,
     userType: user?.user_type,
     requiredRole,
-    hasToken: !!localStorage.getItem('authToken')
+    hasToken: !!localStorage.getItem('authToken'),
+    sessionValid: sessionService.isSessionValid()
   });
+
+  // Check for session expiration on route access
+  useEffect(() => {
+    const token = localStorage.getItem('authToken');
+    if (token && sessionService.isTokenExpired(token)) {
+      console.log('ProtectedRoute: Token expired on route access');
+      handleSessionExpired();
+    }
+  }, [handleSessionExpired]);
 
   // Show loading spinner while checking authentication
   if (isLoading) {
@@ -34,9 +45,15 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     );
   }
 
-  // Check if user is authenticated
-  if (!isAuthenticated) {
-    console.log('ProtectedRoute: Not authenticated, redirecting to home');
+  // Check if user is authenticated and session is valid
+  if (!isAuthenticated || !sessionService.isSessionValid()) {
+    console.log('ProtectedRoute: Not authenticated or session invalid, redirecting to home');
+
+    // Trigger login popup if not already shown
+    setTimeout(() => {
+      setShowLoginPopup(true);
+    }, 100);
+
     return <Navigate to="/" replace />;
   }
 

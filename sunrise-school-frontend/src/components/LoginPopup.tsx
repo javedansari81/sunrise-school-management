@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -19,9 +19,11 @@ import {
   VisibilityOff,
   School as SchoolIcon,
   Login as LoginIcon,
+  Warning as WarningIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { sessionService } from '../services/sessionService';
 
 interface LoginPopupProps {
   open: boolean;
@@ -34,9 +36,24 @@ const LoginPopup: React.FC<LoginPopupProps> = ({ open, onClose }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  
+  const [sessionExpiredMessage, setSessionExpiredMessage] = useState('');
+
   const { login } = useAuth();
   const navigate = useNavigate();
+
+  // Check if this popup was triggered by session expiration
+  useEffect(() => {
+    if (open) {
+      const token = localStorage.getItem('authToken');
+      if (token && sessionService.isTokenExpired(token)) {
+        setSessionExpiredMessage('Your session has expired. Please log in again to continue.');
+      } else if (!token) {
+        setSessionExpiredMessage('Please log in to access this page.');
+      } else {
+        setSessionExpiredMessage('');
+      }
+    }
+  }, [open]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -74,6 +91,7 @@ const LoginPopup: React.FC<LoginPopupProps> = ({ open, onClose }) => {
     setPassword('');
     setError('');
     setShowPassword(false);
+    setSessionExpiredMessage('');
     onClose();
   };
 
@@ -134,6 +152,16 @@ const LoginPopup: React.FC<LoginPopupProps> = ({ open, onClose }) => {
       </DialogTitle>
 
       <DialogContent sx={{ pt: 3 }}>
+        {sessionExpiredMessage && (
+          <Alert
+            severity="warning"
+            sx={{ mb: 2 }}
+            icon={<WarningIcon />}
+          >
+            {sessionExpiredMessage}
+          </Alert>
+        )}
+
         {error && (
           <Alert severity="error" sx={{ mb: 2 }}>
             {error}

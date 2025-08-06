@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { sessionService } from './sessionService';
 
 // Create axios instance with base configuration
 const api = axios.create({
@@ -14,6 +15,12 @@ api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('authToken');
     if (token) {
+      // Check if token is expired before making request
+      if (sessionService.isTokenExpired(token)) {
+        console.log('API Request: Token expired, clearing session');
+        sessionService.handleSessionInvalid();
+        return Promise.reject(new Error('Session expired'));
+      }
       config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
@@ -28,12 +35,16 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     console.log('API Error intercepted:', error.response?.status, error.response?.data);
+
     if (error.response?.status === 401) {
-      // Handle unauthorized access
-      console.log('401 Unauthorized - removing token and redirecting');
-      localStorage.removeItem('authToken');
-      window.location.href = '/admin/login';
+      // Handle unauthorized access - session expired or invalid
+      console.log('401 Unauthorized - handling session invalidation');
+      sessionService.handleSessionInvalid();
+
+      // Don't redirect here - let the session service callbacks handle it
+      // This allows for more controlled handling through the AuthContext
     }
+
     return Promise.reject(error);
   }
 );
