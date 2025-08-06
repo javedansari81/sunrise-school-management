@@ -36,10 +36,9 @@ Students can now login to the system using either their phone number or email ad
 #### 1. Enhanced Authentication (`app/crud/crud_user.py`)
 ```python
 async def authenticate(self, db: AsyncSession, *, email: str, password: str) -> Optional[User]:
-    # Try email first, then phone number for students
+    # Only authenticate via email address for security purposes
     user = await self.get_by_email(db, email=email)
-    if not user:
-        user = await self.get_by_phone(db, phone=email)  # 'email' param can be phone
+    # Phone number authentication has been removed
     # ... rest of authentication logic
 ```
 

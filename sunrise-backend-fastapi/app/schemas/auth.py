@@ -1,35 +1,15 @@
-from pydantic import BaseModel, EmailStr, validator
+from pydantic import BaseModel, EmailStr
 from app.schemas.user import User
-import re
 
 
 class LoginRequest(BaseModel):
-    email: str  # Changed from EmailStr to str to accept phone numbers
+    email: EmailStr  # Only accept valid email addresses
     password: str
-
-    @validator('email')
-    def validate_email_or_phone(cls, v):
-        """Validate that the input is either a valid email or phone number"""
-        if not v:
-            raise ValueError('Email or phone number is required')
-
-        # Check if it's a valid email
-        email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
-        if re.match(email_pattern, v):
-            return v
-
-        # Check if it's a valid phone number (10 digits)
-        phone_pattern = r'^\d{10}$'
-        if re.match(phone_pattern, v):
-            return v
-
-        # If neither email nor phone, raise error
-        raise ValueError('Must be a valid email address or 10-digit phone number')
 
     class Config:
         schema_extra = {
             "example": {
-                "email": "student@example.com or 9876543210",
+                "email": "student@example.com",
                 "password": "password123"
             }
         }

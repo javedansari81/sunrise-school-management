@@ -171,14 +171,15 @@ const LoginPopup: React.FC<LoginPopupProps> = ({ open, onClose }) => {
         <Box component="form" onSubmit={handleSubmit}>
           <TextField
             fullWidth
-            label="Email or Phone Number"
+            label="Email Address"
+            type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
             margin="normal"
             variant="outlined"
             sx={{ mb: 2 }}
-            helperText="Students can use their phone number or email address"
+            helperText="Please enter your registered email address"
           />
 
           <TextField

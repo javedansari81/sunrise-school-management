@@ -90,22 +90,10 @@ class StudentLoginTester:
                 return False
             
             print("✅ Email authentication successful")
-            
-            # Test phone authentication (if phone exists)
-            if user.phone:
-                print(f"🧪 Testing phone authentication for: {user.phone}")
-                auth_result = await self.user_crud.authenticate(
-                    db, email=user.phone, password="Sunrise@001"
-                )
-                
-                if not auth_result:
-                    print("❌ Phone authentication failed")
-                    return False
-                
-                print("✅ Phone authentication successful")
-            else:
-                print("⚠️  No phone number to test phone authentication")
-            
+
+            # Note: Phone authentication has been removed for security purposes
+            # Only email authentication is now supported
+
             return True
     
     async def test_login_endpoint(self):
