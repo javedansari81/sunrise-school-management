@@ -156,6 +156,15 @@ const SimpleEnhancedFeeManagement: React.FC = () => {
     remarks: ''
   });
   const [paymentLoading, setPaymentLoading] = useState(false);
+  const [loadingStates, setLoadingStates] = useState<{
+    payment: { [studentId: number]: boolean };
+    paymentHistory: { [studentId: number]: boolean };
+    monthlyHistory: { [studentId: number]: boolean };
+  }>({
+    payment: {},
+    paymentHistory: {},
+    monthlyHistory: {}
+  });
   const [snackbar, setSnackbar] = useState({
     open: false,
     message: '',
@@ -243,6 +252,11 @@ const SimpleEnhancedFeeManagement: React.FC = () => {
       return;
     }
 
+    // Set loading state for this specific student
+    setLoadingStates(prev => ({
+      ...prev,
+      monthlyHistory: { ...prev.monthlyHistory, [studentId]: true }
+    }));
     setDialogLoading(true);
     try {
       const response = await enhancedFeesAPI.getEnhancedMonthlyHistory(
@@ -287,6 +301,11 @@ const SimpleEnhancedFeeManagement: React.FC = () => {
       }
     } finally {
       setDialogLoading(false);
+      // Clear loading state for this specific student
+      setLoadingStates(prev => ({
+        ...prev,
+        monthlyHistory: { ...prev.monthlyHistory, [studentId]: false }
+      }));
     }
   };
 
@@ -301,6 +320,11 @@ const SimpleEnhancedFeeManagement: React.FC = () => {
       return;
     }
 
+    // Set loading state for this specific student
+    setLoadingStates(prev => ({
+      ...prev,
+      paymentHistory: { ...prev.paymentHistory, [studentId]: true }
+    }));
     setPaymentHistoryLoading(true);
     try {
       // Convert session_year_id to session year string
@@ -352,6 +376,11 @@ const SimpleEnhancedFeeManagement: React.FC = () => {
       }
     } finally {
       setPaymentHistoryLoading(false);
+      // Clear loading state for this specific student
+      setLoadingStates(prev => ({
+        ...prev,
+        paymentHistory: { ...prev.paymentHistory, [studentId]: false }
+      }));
     }
   };
 
@@ -366,6 +395,11 @@ const SimpleEnhancedFeeManagement: React.FC = () => {
       return;
     }
 
+    // Set loading state for this specific student
+    setLoadingStates(prev => ({
+      ...prev,
+      payment: { ...prev.payment, [studentId]: true }
+    }));
     setPaymentLoading(true);
     try {
       // Convert session_year_id to session year string
@@ -408,6 +442,11 @@ const SimpleEnhancedFeeManagement: React.FC = () => {
       });
     } finally {
       setPaymentLoading(false);
+      // Clear loading state for this specific student
+      setLoadingStates(prev => ({
+        ...prev,
+        payment: { ...prev.payment, [studentId]: false }
+      }));
     }
   };
 
@@ -462,6 +501,13 @@ const SimpleEnhancedFeeManagement: React.FC = () => {
       });
     } finally {
       setPaymentLoading(false);
+      // Clear loading state for this specific student
+      if (availableMonthsData) {
+        setLoadingStates(prev => ({
+          ...prev,
+          payment: { ...prev.payment, [availableMonthsData.student.id]: false }
+        }));
+      }
     }
   };
 
@@ -796,27 +842,60 @@ const SimpleEnhancedFeeManagement: React.FC = () => {
                           <IconButton
                             size="small"
                             onClick={() => fetchAvailableMonths(student.student_id)}
-                            disabled={paymentLoading}
-                            color="primary"
+                            disabled={loadingStates.payment[student.student_id] || paymentLoading}
+                            color={loadingStates.payment[student.student_id] ? "secondary" : "primary"}
+                            sx={{
+                              opacity: loadingStates.payment[student.student_id] ? 0.6 : 1,
+                              '&.Mui-disabled': {
+                                opacity: loadingStates.payment[student.student_id] ? 0.6 : 0.3
+                              }
+                            }}
                           >
-                            <Payment />
+                            {loadingStates.payment[student.student_id] ? (
+                              <CircularProgress size={16} />
+                            ) : (
+                              <Payment />
+                            )}
                           </IconButton>
                         </Tooltip>
                         <Tooltip title="View Details">
                           <IconButton
                             size="small"
                             onClick={() => fetchStudentMonthlyHistory(student.student_id)}
+                            disabled={loadingStates.monthlyHistory[student.student_id]}
+                            color={loadingStates.monthlyHistory[student.student_id] ? "secondary" : "default"}
+                            sx={{
+                              opacity: loadingStates.monthlyHistory[student.student_id] ? 0.6 : 1,
+                              '&.Mui-disabled': {
+                                opacity: loadingStates.monthlyHistory[student.student_id] ? 0.6 : 0.3
+                              }
+                            }}
                           >
-                            <Visibility />
+                            {loadingStates.monthlyHistory[student.student_id] ? (
+                              <CircularProgress size={16} />
+                            ) : (
+                              <Visibility />
+                            )}
                           </IconButton>
                         </Tooltip>
                         <Tooltip title="Payment History">
                           <IconButton
                             size="small"
                             onClick={() => fetchPaymentHistory(student.student_id)}
-                            disabled={paymentHistoryLoading}
+                            disabled={loadingStates.paymentHistory[student.student_id] || paymentHistoryLoading}
+                            color={loadingStates.paymentHistory[student.student_id] ? "secondary" : "default"}
+                            sx={{
+                              opacity: loadingStates.paymentHistory[student.student_id] ? 0.6 : 1,
+                              '&.Mui-disabled': {
+                                opacity: loadingStates.paymentHistory[student.student_id] ? 0.6 : 0.3
+                              }
+                            }}
                           >
-                            <History />
+                            {loadingStates.paymentHistory[student.student_id] ? (
+                              <CircularProgress size={16} />
+                            ) : (
+                              <History />
+                            )}
                           </IconButton>
                         </Tooltip>
                       </Stack>
