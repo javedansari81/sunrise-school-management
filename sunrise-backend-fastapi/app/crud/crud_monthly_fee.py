@@ -79,14 +79,22 @@ class CRUDMonthlyFeeTracking(CRUDBase[MonthlyFeeTracking, MonthlyFeeTrackingCrea
         )
         monthly_records = monthly_records_query.scalars().all()
         
+        # Get actual total payments made by the student (from fee_payments table)
+        from app.models.fee import FeePayment
+        payments_query = await db.execute(
+            select(func.sum(FeePayment.amount))
+            .where(FeePayment.fee_record_id == fee_record.id)
+        )
+        actual_total_paid = payments_query.scalar() or 0
+
         # Convert to MonthlyFeeStatus objects
         monthly_history = []
-        total_paid = 0
+        total_paid = float(actual_total_paid)  # Use actual payments, not sum of monthly allocations
         total_balance = 0
         paid_months = 0
         overdue_months = 0
         pending_months = 0
-        
+
         current_date = date.today()
         
         for record in monthly_records:
@@ -120,13 +128,17 @@ class CRUDMonthlyFeeTracking(CRUDBase[MonthlyFeeTracking, MonthlyFeeTrackingCrea
                 days_overdue = (current_date - record.due_date).days
                 overdue_months += 1
             
+            # Fix balance calculation to prevent negative values
+            # If paid_amount > monthly_amount, show balance as 0 (fully paid)
+            corrected_balance = max(0, float(record.monthly_amount) - float(record.paid_amount))
+
             monthly_status = MonthlyFeeStatus(
                 month=record.academic_month,
                 year=record.academic_year,
                 month_name=record.month_name,
                 monthly_amount=float(record.monthly_amount),
                 paid_amount=float(record.paid_amount),
-                balance_amount=record.balance_amount,
+                balance_amount=corrected_balance,  # Use corrected balance (no negatives)
                 due_date=record.due_date,
                 status=status_name,
                 status_color=status_color,
@@ -136,9 +148,9 @@ class CRUDMonthlyFeeTracking(CRUDBase[MonthlyFeeTracking, MonthlyFeeTrackingCrea
                 discount_amount=float(record.discount_amount)
             )
             monthly_history.append(monthly_status)
-            
-            total_paid += float(record.paid_amount)
-            total_balance += record.balance_amount
+
+            # Don't add individual month payments to total_paid (already calculated above)
+            total_balance += corrected_balance  # Use corrected balance
         
         # Calculate collection percentage
         total_annual_fee = float(fee_record.total_amount)
