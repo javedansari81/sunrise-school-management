@@ -27,12 +27,16 @@ async def apply_fix():
         conn = await asyncpg.connect(database_url)
         print("✅ Connected to database successfully")
         
-        # Read the SQL fix file
-        sql_file = Path(__file__).parent / "fix_monthly_tracking.sql"
+        # Read the complete SQL fix file
+        sql_file = Path(__file__).parent / "complete_monthly_tracking_fix.sql"
         if not sql_file.exists():
             print(f"❌ SQL file not found: {sql_file}")
-            return False
-        
+            print("Falling back to fix_monthly_tracking.sql...")
+            sql_file = Path(__file__).parent / "fix_monthly_tracking.sql"
+            if not sql_file.exists():
+                print(f"❌ Fallback SQL file not found: {sql_file}")
+                return False
+
         with open(sql_file, 'r', encoding='utf-8') as f:
             sql_content = f.read()
         
@@ -75,14 +79,17 @@ async def main():
     if success:
         print("\n🎉 Monthly tracking fix applied successfully!")
         print("\nWhat was fixed:")
+        print("• Frontend now passes fee_record_id instead of student_id")
+        print("• Database function properly counts created records")
+        print("• View correctly determines has_monthly_tracking status")
+        print("• Only students without tracking can be selected for enabling")
         print("• Updated enhanced_student_fee_status view to exclude soft-deleted students")
-        print("• Added proper handling for is_deleted and deleted_date columns")
-        print("• Monthly tracking should now work correctly")
         print("\nNext steps:")
         print("1. Restart your FastAPI backend server")
-        print("2. Test the Fee Management System")
-        print("3. Try viewing monthly history for students")
-        print("4. The 'Monthly fee history not found' error should be resolved")
+        print("2. Clear your browser cache")
+        print("3. Test the Fee Management System")
+        print("4. Try enabling monthly tracking for students")
+        print("5. Verify the status changes from 'Disabled' to 'Enabled'")
     else:
         print("\n❌ Fix application failed")
         print("Please check the error messages above and try again")

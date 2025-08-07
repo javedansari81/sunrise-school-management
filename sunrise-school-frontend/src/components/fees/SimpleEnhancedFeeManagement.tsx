@@ -51,6 +51,7 @@ interface EnhancedStudentFeeSummary {
   student_name: string;
   class_name: string;
   session_year: string;
+  fee_record_id?: number;  // Added missing property
   annual_fee?: number;
   total_paid?: number;
   total_balance?: number;
@@ -58,6 +59,9 @@ interface EnhancedStudentFeeSummary {
   paid_months: number;
   pending_months: number;
   overdue_months: number;
+  monthly_total?: number;
+  monthly_paid?: number;
+  monthly_balance?: number;
   collection_percentage: number;
   has_monthly_tracking: boolean;
 }
@@ -201,6 +205,12 @@ const SimpleEnhancedFeeManagement: React.FC = () => {
 
       const students = response.data.students || [];
       console.log('📊 Students data:', students);
+      console.log('📊 Students with tracking info:', students.map((s: EnhancedStudentFeeSummary) => ({
+        id: s.student_id,
+        name: s.student_name,
+        has_monthly_tracking: s.has_monthly_tracking,
+        fee_record_id: s.fee_record_id
+      })));
       setStudents(students);
     } catch (error: any) {
       console.error('❌ API Error:', error);
@@ -461,26 +471,46 @@ const SimpleEnhancedFeeManagement: React.FC = () => {
 
     setLoading(true);
     try {
-      const feeRecordIds = students
-        .filter(s => selectedStudentIds.includes(s.student_id))
-        .map(s => s.student_id); // Using student_id as placeholder
-
+      // Pass student_ids directly (the API now handles fee record creation)
       const requestData = {
-        fee_record_ids: feeRecordIds,
+        fee_record_ids: selectedStudentIds, // These are actually student_ids
         start_month: 4,
         start_year: new Date().getFullYear()
       };
 
+      console.log('🚀 Enabling monthly tracking for students:', {
+        selectedStudentIds,
+        requestData
+      });
+
       const response = await enhancedFeesAPI.enableMonthlyTracking(requestData);
+
+      console.log('✅ Monthly tracking response:', response.data);
+
+      // Show detailed success message
+      const { message, total_records_created, fee_records_created, results } = response.data;
+      const successfulStudents = results.filter((r: any) => r.success);
+      const failedStudents = results.filter((r: any) => !r.success);
+
+      let successMessage = message;
+      if (fee_records_created > 0) {
+        successMessage += ` (${fee_records_created} fee records created automatically)`;
+      }
 
       setSnackbar({
         open: true,
-        message: response.data.message || 'Monthly tracking enabled successfully',
-        severity: 'success'
+        message: successMessage,
+        severity: failedStudents.length > 0 ? 'warning' : 'success'
       });
+
+      // Log any failures
+      if (failedStudents.length > 0) {
+        console.warn('Some students failed:', failedStudents);
+      }
+
       setEnableTrackingDialog(false);
       setSelectedStudentIds([]);
-      fetchStudentsSummary();
+      fetchStudentsSummary(); // Refresh to show updated status
     } catch (error: any) {
       console.error('Error enabling monthly tracking:', error);
       const errorMessage = error.response?.data?.detail || error.message || 'Failed to enable monthly tracking';
@@ -565,7 +595,22 @@ const SimpleEnhancedFeeManagement: React.FC = () => {
             <Button
               variant="outlined"
               startIcon={<Settings />}
-              onClick={() => setEnableTrackingDialog(true)}
+              onClick={() => {
+                // Debug logging before opening dialog
+                console.log('🔍 Enable Monthly Tracking Button Clicked:', {
+                  selectedStudentIds: selectedStudentIds,
+                  totalStudents: students.length,
+                  selectedStudentsData: students
+                    .filter(s => selectedStudentIds.includes(s.student_id))
+                    .map(s => ({
+                      id: s.student_id,
+                      name: s.student_name,
+                      has_monthly_tracking: s.has_monthly_tracking,
+                      fee_record_id: s.fee_record_id
+                    }))
+                });
+                setEnableTrackingDialog(true);
+              }}
               sx={{
                 fontSize: { xs: '0.75rem', sm: '0.875rem' },
                 padding: { xs: '4px 8px', sm: '6px 12px' },
@@ -580,6 +625,33 @@ const SimpleEnhancedFeeManagement: React.FC = () => {
           )}
         </Stack>
       </Paper>
+
+      {/* Debug Information - Remove this after fixing */}
+      {process.env.NODE_ENV === 'development' && (
+        <Paper sx={{ p: 2, mb: 2, bgcolor: 'grey.100' }}>
+          <Typography variant="h6" gutterBottom>Debug Information</Typography>
+          <Typography variant="body2">
+            Selected Students: {selectedStudentIds.length} |
+            Total Students: {students.length} |
+            Students with Fee Records: {students.filter(s => s.fee_record_id).length} |
+            Students without Tracking: {students.filter(s => !s.has_monthly_tracking).length}
+          </Typography>
+          {selectedStudentIds.length > 0 && (
+            <Typography variant="body2" sx={{ mt: 1 }}>
+              Selected Student Details:
+              {students
+                .filter((s: EnhancedStudentFeeSummary) => selectedStudentIds.includes(s.student_id))
+                .map((s: EnhancedStudentFeeSummary) => (
+                  <div key={s.student_id}>
+                    - {s.student_name}: Fee Record ID: {s.fee_record_id || 'None'},
+                    Has Tracking: {s.has_monthly_tracking ? 'Yes' : 'No'}
+                  </div>
+                ))
+              }
+            </Typography>
+          )}
+        </Paper>
+      )}
 
       {/* Students Table - Mobile Responsive */}
       <Paper sx={{ overflow: 'hidden' }}>

@@ -1,7 +1,7 @@
 from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import and_, or_, func, select
+from sqlalchemy import and_, or_, func, select, text
 from sqlalchemy.orm import joinedload, selectinload
 from datetime import date
 import math
@@ -2576,40 +2576,101 @@ async def enable_monthly_tracking(
     current_user: User = Depends(get_current_active_user)
 ):
     """
-    Enable monthly tracking for existing fee records
-    This converts legacy fee records to use the new monthly tracking system
+    Complete monthly tracking enablement including fee record creation
+    This handles the complete workflow:
+    1. Creates fee records for students who don't have them
+    2. Enables monthly tracking for all selected students
+    3. Creates monthly tracking records
     """
-    results = []
+    try:
+        # Convert fee_record_ids to student_ids (they're actually student_ids from frontend)
+        student_ids = request.fee_record_ids
 
-    for fee_record_id in request.fee_record_ids:
-        try:
-            records_created = await monthly_fee_tracking_crud.enable_monthly_tracking(
-                db=db,
-                fee_record_id=fee_record_id,
-                start_month=request.start_month,
-                start_year=request.start_year
-            )
+        # Debug logging
+        print(f"DEBUG: Enabling monthly tracking for student_ids: {student_ids}")
+        print(f"DEBUG: Request data: start_month={request.start_month}, start_year={request.start_year}")
 
-            results.append({
-                "fee_record_id": fee_record_id,
-                "success": True,
-                "records_created": records_created,
-                "message": f"Created {records_created} monthly tracking records"
-            })
+        # Use a simpler approach - call the function for each student individually
+        # This avoids the array parameter complexity
+        results = []
+        successful_count = 0
+        total_records_created = 0
+        fee_records_created = 0
 
-        except Exception as e:
-            results.append({
-                "fee_record_id": fee_record_id,
-                "success": False,
-                "records_created": 0,
-                "message": str(e)
-            })
+        for student_id in student_ids:
+            try:
+                print(f"DEBUG: Processing student {student_id}")
 
-    successful_count = sum(1 for r in results if r["success"])
-    total_records_created = sum(r["records_created"] for r in results if r["success"])
+                # Call function for single student
+                result = await db.execute(
+                    text("""
+                        SELECT * FROM enable_monthly_tracking_complete(
+                            ARRAY[:student_id]::INTEGER[],
+                            :session_year_id,
+                            :start_month,
+                            :start_year
+                        )
+                    """),
+                    {
+                        "student_id": student_id,
+                        "session_year_id": 4,
+                        "start_month": request.start_month,
+                        "start_year": request.start_year
+                    }
+                )
 
-    return {
-        "message": f"Monthly tracking enabled for {successful_count}/{len(request.fee_record_ids)} fee records",
-        "total_records_created": total_records_created,
-        "results": results
-    }
+                # Process single result
+                row = result.fetchone()
+                if row:
+                    print(f"DEBUG: Student {row.student_id} result: success={row.success}, message={row.message}")
+
+                    if row.success:
+                        successful_count += 1
+                        total_records_created += row.monthly_records_created
+                        if row.fee_record_created:
+                            fee_records_created += 1
+
+                    results.append({
+                        "student_id": row.student_id,
+                        "student_name": row.student_name,
+                        "fee_record_id": row.fee_record_id,
+                        "fee_record_created": row.fee_record_created,
+                        "success": row.success,
+                        "records_created": row.monthly_records_created,
+                        "message": row.message
+                    })
+
+            except Exception as student_error:
+                print(f"ERROR: Failed for student {student_id}: {str(student_error)}")
+                results.append({
+                    "student_id": student_id,
+                    "student_name": f"Student {student_id}",
+                    "fee_record_id": None,
+                    "fee_record_created": False,
+                    "success": False,
+                    "records_created": 0,
+                    "message": f"Error: {str(student_error)}"
+                })
+
+        await db.commit()
+
+        print(f"DEBUG: Final results - successful: {successful_count}, total_records: {total_records_created}, fee_records: {fee_records_created}")
+
+        return {
+            "message": f"Monthly tracking enabled for {successful_count}/{len(student_ids)} students",
+            "total_records_created": total_records_created,
+            "fee_records_created": fee_records_created,
+            "results": results
+        }
+
+    except Exception as e:
+        await db.rollback()
+        print(f"ERROR: Failed to enable monthly tracking: {str(e)}")
+        print(f"ERROR: Exception type: {type(e).__name__}")
+        import traceback
+        print(f"ERROR: Full traceback: {traceback.format_exc()}")
+
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to enable monthly tracking: {str(e)}"
+        )
