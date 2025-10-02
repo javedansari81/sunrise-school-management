@@ -532,18 +532,4 @@ async def get_user_profile(
     return profile_data
 
 
-@router.get("/protected")
-async def protected_route(
-    current_user: User = Depends(get_current_active_user)
-):
-    """
-    Protected route for testing authentication
-    """
-    return {
-        "message": "This is a protected route",
-        "user": {
-            "id": current_user.id,
-            "email": current_user.email,
-            "user_type": current_user.user_type
-        }
-    }
+# Protected test route removed - not needed in production

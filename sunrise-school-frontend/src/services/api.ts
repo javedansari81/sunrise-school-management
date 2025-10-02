@@ -102,14 +102,9 @@ export const enhancedFeesAPI = {
     api.get('/fees/structure'),
 };
 
-// Users API
-export const usersAPI = {
-  getUsers: () => api.get('/users'),
-  getUser: (id: number) => api.get(`/users/${id}`),
-  createUser: (userData: any) => api.post('/users', userData),
-  updateUser: (id: number, userData: any) => api.put(`/users/${id}`, userData),
-  deleteUser: (id: number) => api.delete(`/users/${id}`),
-};
+// Users API - REMOVED: These endpoints are not used anywhere in the frontend
+// User management is handled through student/teacher specific endpoints
+// If user management is needed in the future, implement through admin interface
 
 
 
@@ -369,13 +364,8 @@ export const configurationAPI = {
   refreshConfiguration: () => api.post('/configuration/refresh'),
 };
 
-// Events API
-export const eventsAPI = {
-  getEvents: () => api.get('/events'),
-  getEvent: (id: number) => api.get(`/events/${id}`),
-  createEvent: (eventData: any) => api.post('/events', eventData),
-  updateEvent: (id: number, eventData: any) => api.put(`/events/${id}`, eventData),
-  deleteEvent: (id: number) => api.delete(`/events/${id}`),
-};
+// Events API - REMOVED: No backend implementation exists for these endpoints
+// If events functionality is needed, implement backend endpoints first
+// Current frontend defines these methods but backend has no /events routes
 
 export default api;

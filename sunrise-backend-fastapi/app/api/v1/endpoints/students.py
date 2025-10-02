@@ -398,70 +398,13 @@ async def get_students_by_class(
     }
 
 
-@router.get("/search")
-async def search_students(
-    q: str = Query(..., description="Search term"),
-    limit: int = Query(20, ge=1, le=50),
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
-):
-    """
-    Search students by name, admission number, or other criteria
-    """
-    students = await student_crud.search_students(
-        db, search_term=q, limit=limit
-    )
-
-    return {
-        "search_term": q,
-        "students": students,
-        "total_found": len(students)
-    }
+# Search endpoint removed - not used in frontend, search functionality integrated into main GET endpoint
 
 
-@router.get("/dashboard/stats")
-async def get_student_dashboard_stats(
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
-):
-    """
-    Get student dashboard statistics
-    """
-    stats = await student_crud.get_dashboard_stats(db)
-
-    # Get recent admissions
-    recent_admissions = await student_crud.get_recent_admissions(db, limit=5)
-
-    # Get class statistics
-    class_stats = await student_crud.get_class_statistics(db)
-
-    return {
-        "total_students": stats['total_students'],
-        "gender_distribution": stats['gender_distribution'],
-        "class_distribution": stats['class_distribution'],
-        "recent_admissions": recent_admissions,
-        "class_statistics": class_stats
-    }
+# Dashboard stats endpoint removed - not used in frontend
 
 
-@router.get("/with-pending-fees")
-async def get_students_with_pending_fees(
-    session_year: Optional[str] = None,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
-):
-    """
-    Get students with pending fees
-    """
-    students = await student_crud.get_students_with_pending_fees(
-        db, session_year=session_year
-    )
-
-    return {
-        "session_year": session_year or "All Sessions",
-        "students_with_pending_fees": students,
-        "total_students": len(students)
-    }
+# Pending fees endpoint removed - functionality integrated into enhanced fee management system
 
 
 # Student Profile Management Schemas
