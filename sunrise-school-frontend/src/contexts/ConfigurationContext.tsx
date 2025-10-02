@@ -96,9 +96,10 @@ export const ConfigurationProvider: React.FC<ConfigurationProviderProps> = ({
     setError(null);
 
     try {
-      const config = await configurationService.loadConfiguration();
-      setConfiguration(config);
-      console.log('✅ Configuration loaded in context');
+      // DEPRECATED: Legacy configuration loading is no longer supported
+      // Service-specific configuration loading should be used instead
+      console.warn('⚠️ DEPRECATED: loadConfiguration() is deprecated. Use loadServiceConfiguration() instead.');
+      throw new Error('Legacy configuration loading is deprecated. Use service-specific configuration loading instead.');
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load configuration';
       setError(errorMessage);
@@ -143,9 +144,10 @@ export const ConfigurationProvider: React.FC<ConfigurationProviderProps> = ({
     setError(null);
 
     try {
-      const config = await configurationService.refreshConfiguration();
-      setConfiguration(config);
-      console.log('✅ Configuration refreshed');
+      // DEPRECATED: Legacy configuration refresh is no longer supported
+      // Service-specific configuration refresh should be used instead
+      console.warn('⚠️ DEPRECATED: refreshConfiguration() is deprecated. Use refreshServiceConfiguration() instead.');
+      throw new Error('Legacy configuration refresh is deprecated. Use service-specific configuration refresh instead.');
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to refresh configuration';
       setError(errorMessage);
@@ -212,10 +214,12 @@ export const ConfigurationProvider: React.FC<ConfigurationProviderProps> = ({
   const getEmploymentStatuses = useCallback(() => configurationService.getEmploymentStatuses(), []);
   const getQualifications = useCallback(() => configurationService.getQualifications(), []);
 
-  // Auto-load configuration on mount
+  // Auto-load configuration on mount (DISABLED - Use service-specific loading instead)
   useEffect(() => {
     if (autoLoad) {
-      loadConfiguration();
+      // DEPRECATED: Auto-loading legacy configuration is disabled
+      // Service-specific configurations are loaded on-demand by individual components
+      console.log('ℹ️ Auto-load configuration disabled. Use service-specific configuration loading instead.');
     }
   }, [autoLoad]);
 
@@ -328,43 +332,34 @@ export const useConfiguration = (): ConfigurationContextType => {
 
 /**
  * Hook to get dropdown options for a specific metadata type
+ * @deprecated This hook is deprecated. Use service-specific configuration loading instead.
  */
 export const useDropdownOptions = (type: 'userTypes' | 'sessionYears' | 'genders' | 'classes' | 'paymentTypes' | 'paymentStatuses' | 'paymentMethods' | 'leaveTypes' | 'leaveStatuses' | 'expenseCategories' | 'expenseStatuses' | 'employmentStatuses' | 'qualifications'): DropdownOption[] => {
-  const config = useConfiguration();
-  
-  switch (type) {
-    case 'userTypes': return config.getUserTypes();
-    case 'sessionYears': return config.getSessionYears();
-    case 'genders': return config.getGenders();
-    case 'classes': return config.getClasses();
-    case 'paymentTypes': return config.getPaymentTypes();
-    case 'paymentStatuses': return config.getPaymentStatuses();
-    case 'paymentMethods': return config.getPaymentMethods();
-    case 'leaveTypes': return config.getLeaveTypes();
-    case 'leaveStatuses': return config.getLeaveStatuses();
-    case 'expenseCategories': return config.getExpenseCategories();
-    case 'expenseStatuses': return config.getExpenseStatuses();
-    case 'employmentStatuses': return config.getEmploymentStatuses();
-    case 'qualifications': return config.getQualifications();
-    default: return [];
-  }
+  console.warn('⚠️ DEPRECATED: useDropdownOptions() is deprecated. Use service-specific configuration loading instead.');
+
+  // Return empty array to avoid breaking existing components
+  return [];
 };
 
 /**
  * Hook to check if configuration is ready
+ * @deprecated This hook is deprecated. Use useServiceConfigurationReady() instead.
  */
 export const useConfigurationReady = (): boolean => {
-  const { isLoaded, error } = useConfiguration();
-  return isLoaded && !error;
+  console.warn('⚠️ DEPRECATED: useConfigurationReady() is deprecated. Use useServiceConfigurationReady() instead.');
+  return false;
 };
 
 /**
  * Hook to load and use service-specific configuration
  */
 export const useServiceConfiguration = (service: ServiceType) => {
-  const context = useConfiguration();
+  const context = useContext(ConfigurationContext);
+  if (context === undefined) {
+    throw new Error('useServiceConfiguration must be used within a ConfigurationProvider');
+  }
 
-  // Extract the functions we need to avoid context dependency
+  // Extract the functions we need directly from context (avoid deprecated useConfiguration)
   const {
     isServiceLoaded,
     isServiceLoading,

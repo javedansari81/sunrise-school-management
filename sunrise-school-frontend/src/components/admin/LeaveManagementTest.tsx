@@ -14,20 +14,20 @@ import {
   Alert,
   Snackbar
 } from '@mui/material';
-import { useConfiguration } from '../../contexts/ConfigurationContext';
+import { useServiceConfiguration } from '../../contexts/ConfigurationContext';
 
 const LeaveManagementTest: React.FC = () => {
-  const { configuration, isLoading: configLoading } = useConfiguration();
+  const { isLoaded, isLoading: configLoading, error: configError } = useServiceConfiguration('leave-management');
   const [leaveRequests, setLeaveRequests] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
 
   useEffect(() => {
-    if (!configLoading && configuration) {
+    if (!configLoading && isLoaded) {
       loadTestData();
     }
-  }, [configLoading, configuration]);
+  }, [configLoading, isLoaded]);
 
   const loadTestData = () => {
     try {
@@ -99,17 +99,17 @@ const LeaveManagementTest: React.FC = () => {
           Configuration Status
         </Typography>
         <Typography variant="body2">
-          Configuration Loaded: {configuration ? 'Yes' : 'No'}
+          Configuration Loaded: {isLoaded ? 'Yes' : 'No'}
         </Typography>
-        {configuration && (
-          <>
-            <Typography variant="body2">
-              Leave Types: {configuration.leave_types ? configuration.leave_types.length : 'Not available'}
-            </Typography>
-            <Typography variant="body2">
-              Leave Statuses: {configuration.leave_statuses ? configuration.leave_statuses.length : 'Not available'}
-            </Typography>
-          </>
+        {configError && (
+          <Typography variant="body2" color="error">
+            Error: {configError}
+          </Typography>
+        )}
+        {isLoaded && (
+          <Typography variant="body2">
+            Leave management configuration loaded successfully
+          </Typography>
         )}
       </Paper>
 

@@ -49,7 +49,7 @@ import {
   FilterList,
   Search,
 } from '@mui/icons-material';
-import { useConfiguration, useServiceConfiguration } from '../../contexts/ConfigurationContext';
+import { useServiceConfiguration } from '../../contexts/ConfigurationContext';
 import ServiceConfigurationLoader from '../../components/common/ServiceConfigurationLoader';
 import { configurationService } from '../../services/configurationService';
 import { expenseAPI } from '../../services/api';
@@ -130,16 +130,19 @@ interface ExpenseFilters {
 }
 
 const ExpenseManagement: React.FC = () => {
-  const {
-    getCurrentSessionYear,
-    isLoading: configLoading
-  } = useConfiguration();
+  const { isLoaded, isLoading: configLoading, error: configError } = useServiceConfiguration('expense-management');
 
   // Get service configuration data directly
   const serviceConfig = configurationService.getServiceConfiguration('expense-management');
   const expenseCategories = serviceConfig?.expense_categories || [];
   const expenseStatuses = serviceConfig?.expense_statuses || [];
   const paymentMethods = serviceConfig?.payment_methods || [];
+  const sessionYears = serviceConfig?.session_years || [];
+
+  // Get current session year from the configuration
+  const getCurrentSessionYear = () => {
+    return sessionYears.find((year: any) => year.is_current) || sessionYears[0];
+  };
 
   // State management
   const [expenses, setExpenses] = useState<any[]>([]);

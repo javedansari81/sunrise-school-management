@@ -31,8 +31,9 @@ import {
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
-import { useConfiguration } from '../../contexts/ConfigurationContext';
+import { useServiceConfiguration } from '../../contexts/ConfigurationContext';
 import { leaveAPI, teachersAPI } from '../../services/api';
+import { configurationService } from '../../services/configurationService';
 
 interface TeacherLeaveRequestDialogProps {
   open: boolean;
@@ -62,8 +63,10 @@ const TeacherLeaveRequestDialog: React.FC<TeacherLeaveRequestDialogProps> = ({
   isViewMode = false,
   teacherProfile
 }) => {
-  const { getServiceConfiguration } = useConfiguration();
-  const configuration = getServiceConfiguration('leave-management');
+  const { isLoaded, isLoading, error: configError } = useServiceConfiguration('leave-management');
+
+  // Get configuration data from service
+  const configuration = configurationService.getServiceConfiguration('leave-management');
 
   // Form state
   const [formData, setFormData] = useState<LeaveFormData>({

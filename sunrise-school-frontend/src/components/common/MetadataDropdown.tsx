@@ -8,7 +8,7 @@ import {
   TextField,
   MenuItem,
 } from '@mui/material';
-import { useDropdownOptions, useConfiguration } from '../../contexts/ConfigurationContext';
+import { configurationService } from '../../services/configurationService';
 
 // Base props for all metadata dropdowns
 interface BaseDropdownProps {
@@ -46,8 +46,50 @@ export const MetadataDropdown: React.FC<MetadataDropdownProps> = ({
   includeAll = false,
   allLabel = 'All',
 }) => {
-  const options = useDropdownOptions(metadataType);
-  const { isLoading } = useConfiguration();
+  // Try to get configuration from different services
+  const feeConfig = configurationService.getServiceConfiguration('fee-management');
+  const studentConfig = configurationService.getServiceConfiguration('student-management');
+  const leaveConfig = configurationService.getServiceConfiguration('leave-management');
+  const expenseConfig = configurationService.getServiceConfiguration('expense-management');
+  const teacherConfig = configurationService.getServiceConfiguration('teacher-management');
+
+  // Map camelCase metadataType to snake_case configuration property names
+  const metadataTypeMap: Record<string, string> = {
+    'userTypes': 'user_types',
+    'sessionYears': 'session_years',
+    'genders': 'genders',
+    'classes': 'classes',
+    'paymentTypes': 'payment_types',
+    'paymentStatuses': 'payment_statuses',
+    'paymentMethods': 'payment_methods',
+    'leaveTypes': 'leave_types',
+    'leaveStatuses': 'leave_statuses',
+    'expenseCategories': 'expense_categories',
+    'expenseStatuses': 'expense_statuses',
+    'employmentStatuses': 'employment_statuses',
+    'qualifications': 'qualifications'
+  };
+
+  // Get options based on metadata type from available configurations
+  const getOptions = () => {
+    const configs = [feeConfig, studentConfig, leaveConfig, expenseConfig, teacherConfig].filter(Boolean);
+    const configKey = metadataTypeMap[metadataType];
+
+    if (!configKey) {
+      console.warn(`Unknown metadataType: ${metadataType}`);
+      return [];
+    }
+
+    for (const config of configs) {
+      if (config && (config as any)[configKey]) {
+        return (config as any)[configKey];
+      }
+    }
+    return [];
+  };
+
+  const options = getOptions();
+  const isLoading = false; // Configuration loading is handled by ServiceConfigurationLoader
 
   const handleChange = (event: any) => {
     onChange(event.target.value);
@@ -72,7 +114,7 @@ export const MetadataDropdown: React.FC<MetadataDropdownProps> = ({
           {allLabel}
         </MenuItem>
       )}
-      {options.map((option) => (
+      {options.map((option: any) => (
         <MenuItem key={option.id} value={option.id}>
           {option.display_name || option.name}
         </MenuItem>

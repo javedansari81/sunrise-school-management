@@ -23,7 +23,7 @@ import {
   Visibility as ViewIcon,
   School as SchoolIcon
 } from '@mui/icons-material';
-import { useConfiguration } from '../../contexts/ConfigurationContext';
+import { useServiceConfiguration } from '../../contexts/ConfigurationContext';
 import { studentLeaveAPI, studentsAPI } from '../../services/api';
 import StudentLeaveRequestDialog from './StudentLeaveRequestDialog';
 
@@ -61,8 +61,7 @@ interface StudentProfile {
 }
 
 const StudentLeaveManagement: React.FC = () => {
-  const { getServiceConfiguration } = useConfiguration();
-  const configuration = getServiceConfiguration('leave-management');
+  const { isLoaded, isLoading, error } = useServiceConfiguration('leave-management');
 
   // State
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
