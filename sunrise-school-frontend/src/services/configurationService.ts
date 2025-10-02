@@ -66,6 +66,16 @@ export interface Qualification extends MetadataItem {
   level_order?: number;
 }
 
+export interface Department {
+  name: string;
+  is_active: boolean;
+}
+
+export interface Position {
+  name: string;
+  is_active: boolean;
+}
+
 export interface Configuration {
   user_types?: UserType[];
   session_years?: SessionYear[];
@@ -80,6 +90,8 @@ export interface Configuration {
   expense_statuses?: ExpenseStatus[];
   employment_statuses?: EmploymentStatus[];
   qualifications?: Qualification[];
+  departments?: Department[];
+  positions?: Position[];
   metadata: {
     service?: string;
     last_updated?: string;

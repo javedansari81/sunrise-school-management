@@ -783,7 +783,11 @@ const TeacherProfilesSystem: React.FC = () => {
                 onChange={(e) => setFilterDepartment(e.target.value)}
               >
                 <MenuItem value="all">All Departments</MenuItem>
-                {/* Add department options from configuration */}
+                {configuration?.departments?.map((dept: any) => (
+                  <MenuItem key={dept.name} value={dept.name}>
+                    {dept.name}
+                  </MenuItem>
+                ))}
               </Select>
             </FormControl>
           </Box>
@@ -1234,23 +1238,42 @@ const TeacherProfilesSystem: React.FC = () => {
 
             <Box display="flex" flexDirection="column" gap={2}>
               <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} gap={2}>
-                <TextField
-                  fullWidth
-                  label="Position"
-                  value={formData.position}
-                  onChange={(e) => handleFormChange('position', e.target.value)}
-                  error={!!formErrors.position}
-                  helperText={formErrors.position}
-                  size="small"
-                  required
-                />
-                <TextField
-                  fullWidth
-                  label="Department"
-                  value={formData.department}
-                  onChange={(e) => handleFormChange('department', e.target.value)}
-                  size="small"
-                />
+                <FormControl fullWidth size="small" error={!!formErrors.position} required>
+                  <InputLabel>Position</InputLabel>
+                  <Select
+                    value={formData.position}
+                    label="Position"
+                    onChange={(e) => handleFormChange('position', e.target.value)}
+                  >
+                    {configuration?.positions?.map((pos: any) => (
+                      <MenuItem key={pos.name} value={pos.name}>
+                        {pos.name}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                  {formErrors.position && (
+                    <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 1.5 }}>
+                      {formErrors.position}
+                    </Typography>
+                  )}
+                </FormControl>
+                <FormControl fullWidth size="small">
+                  <InputLabel>Department</InputLabel>
+                  <Select
+                    value={formData.department}
+                    label="Department"
+                    onChange={(e) => handleFormChange('department', e.target.value)}
+                  >
+                    <MenuItem value="">
+                      <em>Not Assigned</em>
+                    </MenuItem>
+                    {configuration?.departments?.map((dept: any) => (
+                      <MenuItem key={dept.name} value={dept.name}>
+                        {dept.name}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
               </Box>
 
               <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} gap={2}>
@@ -1608,23 +1631,42 @@ const TeacherProfilesSystem: React.FC = () => {
               Professional Information
             </Typography>
             <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} gap={2} mb={2}>
-              <TextField
-                fullWidth
-                size="small"
-                label="Position"
-                value={editFormData.position || ''}
-                onChange={(e) => handleEditFormChange('position', e.target.value)}
-                error={!!formErrors.position}
-                helperText={formErrors.position}
-                required
-              />
-              <TextField
-                fullWidth
-                size="small"
-                label="Department"
-                value={editFormData.department || ''}
-                onChange={(e) => handleEditFormChange('department', e.target.value)}
-              />
+              <FormControl fullWidth size="small" error={!!formErrors.position} required>
+                <InputLabel>Position</InputLabel>
+                <Select
+                  value={editFormData.position || ''}
+                  label="Position"
+                  onChange={(e) => handleEditFormChange('position', e.target.value)}
+                >
+                  {configuration?.positions?.map((pos: any) => (
+                    <MenuItem key={pos.name} value={pos.name}>
+                      {pos.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+                {formErrors.position && (
+                  <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 1.5 }}>
+                    {formErrors.position}
+                  </Typography>
+                )}
+              </FormControl>
+              <FormControl fullWidth size="small">
+                <InputLabel>Department</InputLabel>
+                <Select
+                  value={editFormData.department || ''}
+                  label="Department"
+                  onChange={(e) => handleEditFormChange('department', e.target.value)}
+                >
+                  <MenuItem value="">
+                    <em>Not Assigned</em>
+                  </MenuItem>
+                  {configuration?.departments?.map((dept: any) => (
+                    <MenuItem key={dept.name} value={dept.name}>
+                      {dept.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
             </Box>
 
             <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} gap={2} mb={2}>

@@ -9,21 +9,12 @@ from app.core.database import get_db
 from app.crud import teacher_crud
 from app.schemas.teacher import (
     Teacher, TeacherCreate, TeacherUpdate, TeacherProfile, TeacherListResponse, TeacherDashboard,
-    GenderEnum, QualificationEnum, EmploymentStatusEnum, TeacherProfileUpdate
+    GenderEnum, TeacherProfileUpdate
 )
 from app.api.deps import get_current_active_user
 from app.models.user import User, UserTypeEnum
 
 router = APIRouter()
-
-
-@router.get("/test-public")
-async def test_public_endpoint():
-    """
-    Simple test endpoint to verify public access works
-    """
-    return {"message": "Public endpoint is working!", "timestamp": "2025-01-26"}
-
 
 @router.get("/", response_model=Dict[str, Any])
 @router.get("", response_model=Dict[str, Any])  # Handle both with and without trailing slash
@@ -432,43 +423,3 @@ async def get_teacher_dashboard_stats(
         experience_breakdown=stats['experience_breakdown'],
         recent_joinings=recent_joinings
     )
-
-
-@router.get("/options/departments")
-async def get_departments(
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
-):
-    """
-    Get all available departments
-    """
-    departments = await teacher_crud.get_departments(db)
-    return {"departments": departments}
-
-
-@router.get("/options/positions")
-async def get_positions(
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
-):
-    """
-    Get all available positions
-    """
-    positions = await teacher_crud.get_positions(db)
-    return {"positions": positions}
-
-
-@router.get("/options/qualifications")
-async def get_qualifications():
-    """
-    Get all available qualifications
-    """
-    return {"qualifications": [qual.value for qual in QualificationEnum]}
-
-
-@router.get("/options/employment-status")
-async def get_employment_status():
-    """
-    Get all available employment status options
-    """
-    return {"employment_status": [status.value for status in EmploymentStatusEnum]}

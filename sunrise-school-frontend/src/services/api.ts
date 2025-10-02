@@ -142,11 +142,9 @@ export const teachersAPI = {
     api.get(`/teachers/search?q=${encodeURIComponent(searchTerm)}&limit=${limit}`),
   getTeachersByDepartment: (department: string) => api.get(`/teachers/department/${encodeURIComponent(department)}`),
   getTeachersBySubject: (subject: string) => api.get(`/teachers/subject/${encodeURIComponent(subject)}`),
-  // Options for dropdowns
-  getDepartments: () => api.get('/teachers/options/departments'),
-  getPositions: () => api.get('/teachers/options/positions'),
-  getQualifications: () => api.get('/teachers/options/qualifications'),
-  getEmploymentStatuses: () => api.get('/teachers/options/employment-status'),
+  // NOTE: Teacher options moved to service-specific configuration
+  // Use configurationAPI.getTeacherManagementConfiguration() instead
+  // Provides departments, positions, qualifications, employment_statuses with better performance
   // Public faculty endpoint (no authentication required)
   getPublicFaculty: () => publicApi.get('/public/faculty'),
 };

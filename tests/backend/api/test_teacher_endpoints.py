@@ -24,10 +24,21 @@ class TestTeacherEndpoints:
         config = response.json()
         
         # Verify expected configuration keys
-        expected_keys = ["genders", "qualifications", "employment_statuses"]
+        expected_keys = ["genders", "qualifications", "employment_statuses", "departments", "positions", "user_types", "session_years"]
         for key in expected_keys:
             assert key in config, f"Missing configuration key: {key}"
             assert isinstance(config[key], list), f"{key} should be a list"
+
+        # Verify departments and positions have the expected structure
+        if config.get("departments"):
+            for dept in config["departments"]:
+                assert "name" in dept, "Department should have 'name' field"
+                assert "is_active" in dept, "Department should have 'is_active' field"
+
+        if config.get("positions"):
+            for pos in config["positions"]:
+                assert "name" in pos, "Position should have 'name' field"
+                assert "is_active" in pos, "Position should have 'is_active' field"
 
     async def test_get_teachers_list(
         self, 

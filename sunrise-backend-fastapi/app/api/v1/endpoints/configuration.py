@@ -17,6 +17,7 @@ from app.api.deps import get_current_active_user
 from app.models.user import User
 from app.schemas.metadata import ConfigurationResponse
 from app.crud import get_all_metadata_async
+from app.crud.crud_teacher import teacher_crud
 from app.utils.performance_monitor import ConfigurationPerformanceMonitor, timer
 
 router = APIRouter()
@@ -50,7 +51,8 @@ SERVICE_METADATA_MAPPINGS = {
     ],
     "teacher-management": [
         "employment_statuses", "qualifications",
-        "genders", "user_types", "session_years"
+        "genders", "user_types", "session_years",
+        "departments", "positions"
     ],
     "common": [
         "session_years", "user_types"
@@ -108,6 +110,14 @@ async def get_service_metadata_configuration(db: AsyncSession, service_name: str
                 configuration[metadata_type] = [{"id": item.id, "name": item.name, "description": item.description, "is_active": item.is_active} for item in items]
             elif metadata_type == "qualifications":
                 configuration[metadata_type] = [{"id": item.id, "name": item.name, "description": item.description, "level_order": item.level_order, "is_active": item.is_active} for item in items]
+        elif metadata_type == "departments":
+            # Fetch departments from teacher_crud
+            departments = await teacher_crud.get_departments(db)
+            configuration[metadata_type] = [{"name": dept, "is_active": True} for dept in departments]
+        elif metadata_type == "positions":
+            # Fetch positions from teacher_crud
+            positions = await teacher_crud.get_positions(db)
+            configuration[metadata_type] = [{"name": pos, "is_active": True} for pos in positions]
 
     # Add service-specific metadata
     configuration["metadata"] = {
@@ -364,58 +374,6 @@ async def get_common_configuration(
     """
     return await _get_service_configuration_with_cache(
         db, "common", request
-    )
-
-
-@router.get("/", deprecated=True)
-async def get_configuration():
-    """
-    DEPRECATED: Use service-specific configuration endpoints instead
-
-    This endpoint has been deprecated in favor of service-specific endpoints that provide:
-    - 60-80% smaller payload sizes (10-15KB vs 50KB+)
-    - Faster loading times
-    - Only relevant metadata per service
-    - Better caching and performance
-
-    Use these optimized endpoints instead:
-    - /configuration/fee-management/        (for fee management systems)
-    - /configuration/student-management/    (for student profile systems)
-    - /configuration/leave-management/      (for leave management systems)
-    - /configuration/expense-management/    (for expense management systems)
-    - /configuration/teacher-management/    (for teacher management systems)
-    - /configuration/common/                (for shared metadata)
-
-    This endpoint will be removed in a future version.
-    Migration guide: See SERVICE_SPECIFIC_CONFIGURATION_MIGRATION.md
-    """
-
-    # Return deprecation error with migration guidance
-    raise HTTPException(
-        status_code=status.HTTP_410_GONE,
-        detail={
-            "error": "Endpoint Deprecated",
-            "message": "The monolithic configuration endpoint has been deprecated for performance reasons.",
-            "reason": "This endpoint returned large payloads (50KB+) containing all metadata, causing slow load times.",
-            "solution": "Use service-specific endpoints that return only relevant metadata (10-15KB each).",
-            "migration_guide": {
-                "available_endpoints": {
-                    "fee-management": "/configuration/fee-management/",
-                    "student-management": "/configuration/student-management/",
-                    "leave-management": "/configuration/leave-management/",
-                    "expense-management": "/configuration/expense-management/",
-                    "teacher-management": "/configuration/teacher-management/",
-                    "common": "/configuration/common/"
-                },
-                "performance_improvement": "60-80% reduction in payload size and faster loading times",
-                "frontend_migration": {
-                    "old_pattern": "useConfiguration() + ConfigurationLoader",
-                    "new_pattern": "useServiceConfiguration(service) + ServiceConfigurationLoader"
-                }
-            },
-            "documentation": "See SERVICE_SPECIFIC_CONFIGURATION_MIGRATION.md for detailed migration guide",
-            "removal_timeline": "This endpoint will be completely removed in the next major version"
-        }
     )
 
 
