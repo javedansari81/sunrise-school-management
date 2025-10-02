@@ -23,15 +23,44 @@ def create_access_token(
     return encoded_jwt
 
 
+def _validate_password_length(password: str) -> None:
+    """
+    Validate password length to comply with bcrypt limitations.
+    bcrypt has a maximum password length of 72 bytes.
+    Raises ValueError if password is too long.
+    """
+    password_bytes = password.encode('utf-8')
+    if len(password_bytes) > 72:
+        raise ValueError(
+            f"Password is too long ({len(password_bytes)} bytes). "
+            f"Maximum allowed length is 72 bytes. "
+            f"Please use a shorter password."
+        )
+
+
 def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """
+    Verify a password against its hash.
+    Raises ValueError if password exceeds 72 bytes for bcrypt compatibility.
+    """
+    _validate_password_length(plain_password)
     return pwd_context.verify(plain_password, hashed_password)
 
 
 def get_password_hash(password: str) -> str:
+    """
+    Generate a hash for a password.
+    Raises ValueError if password exceeds 72 bytes for bcrypt compatibility.
+    """
+    _validate_password_length(password)
     return pwd_context.hash(password)
 
 
 def verify_token(token: str) -> Optional[str]:
+    """
+    Verify a JWT token and return the user ID if valid.
+    Returns None if the token is invalid or expired.
+    """
     try:
         payload = jwt.decode(
             token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM]

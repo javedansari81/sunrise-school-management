@@ -133,7 +133,7 @@ class ExpenseInDBBase(ExpenseBase):
     updated_at: Optional[datetime] = None
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class Expense(ExpenseInDBBase):
@@ -303,7 +303,7 @@ class VendorInDBBase(VendorBase):
     updated_at: Optional[datetime] = None
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class Vendor(VendorInDBBase):

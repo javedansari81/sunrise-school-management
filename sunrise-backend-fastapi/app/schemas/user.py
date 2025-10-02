@@ -58,7 +58,12 @@ class UserBase(BaseModel):
 
 
 class UserCreate(UserBase):
-    password: str = Field(..., min_length=6, description="User password")
+    password: str = Field(
+        ...,
+        min_length=6,
+        max_length=72,  # bcrypt maximum byte length (approximate for most characters)
+        description="User password (maximum 72 bytes due to bcrypt requirements)"
+    )
 
 
 class UserUpdate(BaseModel):
@@ -79,7 +84,7 @@ class UserInDBBase(UserBase):
     updated_at: Optional[datetime] = None
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class User(UserInDBBase):

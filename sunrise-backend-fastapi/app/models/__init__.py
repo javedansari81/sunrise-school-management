@@ -7,7 +7,7 @@ from .user import User
 from .teacher import Teacher
 from .student import Student
 from .fee import FeeStructure, FeeRecord, FeePayment, MonthlyFeeTracking, MonthlyPaymentAllocation
-from .leave import LeaveRequest, LeaveBalance, LeavePolicy, LeaveApprovers, LeaveCalendar
+from .leave import LeaveRequest, LeaveBalance, LeavePolicy, LeaveApprover, LeaveCalendar
 from .expense import Expense, Vendor, Budget, ExpenseReport
 
 __all__ = [
@@ -26,7 +26,7 @@ __all__ = [
     "LeaveRequest",
     "LeaveBalance",
     "LeavePolicy",
-    "LeaveApprovers",
+    "LeaveApprover",
     "LeaveCalendar",
     "Expense",
     "Vendor",

@@ -153,6 +153,23 @@ async def login_json(
                 db, email=login_data.email, password=login_data.password
             )
             log_auth_step("AUTH_QUERY", f"User authentication query completed", email=login_data.email)
+        except ValueError as value_error:
+            # Handle password length validation errors
+            error_msg = str(value_error)
+            if "Password is too long" in error_msg:
+                log_auth_step("AUTH_ERROR", f"Password too long: {error_msg}",
+                             "warning", email=login_data.email, error_type="ValueError")
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Password is too long. Please use a password with maximum 72 bytes."
+                )
+            else:
+                log_auth_step("AUTH_ERROR", f"Password validation error: {error_msg}",
+                             "error", email=login_data.email, error_type="ValueError")
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Password validation error: {error_msg}"
+                )
         except Exception as auth_error:
             log_auth_step("AUTH_ERROR", f"Database authentication error: {str(auth_error)}",
                          "error", email=login_data.email, error_type=type(auth_error).__name__)
@@ -401,8 +418,22 @@ async def register(
         )
 
     # Create new user
-    user = await user_crud.create(db, obj_in=user_data)
-    return user
+    try:
+        user = await user_crud.create(db, obj_in=user_data)
+        return user
+    except ValueError as value_error:
+        # Handle password length validation errors
+        error_msg = str(value_error)
+        if "Password is too long" in error_msg:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Password is too long. Please use a password with maximum 72 bytes."
+            )
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Password validation error: {error_msg}"
+            )
 
 
 @router.get("/me", response_model=UserProfile)
