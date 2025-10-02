@@ -14,19 +14,18 @@ BEGIN;
 -- Drop reporting and audit tables first
 DROP TABLE IF EXISTS expense_reports CASCADE;
 DROP TABLE IF EXISTS leave_reports CASCADE;
-DROP TABLE IF EXISTS attendance_reports CASCADE;
 DROP TABLE IF EXISTS fee_reports CASCADE;
-DROP TABLE IF EXISTS user_audit_log CASCADE;
 
 -- Drop notification and communication tables
 DROP TABLE IF EXISTS leave_notifications CASCADE;
-DROP TABLE IF EXISTS attendance_notifications CASCADE;
 DROP TABLE IF EXISTS fee_reminders CASCADE;
 
 -- Drop calendar and summary tables
 DROP TABLE IF EXISTS leave_calendar CASCADE;
-DROP TABLE IF EXISTS attendance_summary CASCADE;
-DROP TABLE IF EXISTS holiday_calendar CASCADE;
+
+-- Drop enhanced fee system tables (monthly tracking)
+DROP TABLE IF EXISTS monthly_payment_allocations CASCADE;
+DROP TABLE IF EXISTS monthly_fee_tracking CASCADE;
 
 -- Drop transaction and payment tables
 DROP TABLE IF EXISTS purchase_order_items CASCADE;
@@ -34,7 +33,6 @@ DROP TABLE IF EXISTS purchase_orders CASCADE;
 DROP TABLE IF EXISTS fee_payments CASCADE;
 
 -- Drop configuration and policy tables
-DROP TABLE IF EXISTS attendance_settings CASCADE;
 DROP TABLE IF EXISTS leave_policies CASCADE;
 DROP TABLE IF EXISTS leave_approvers CASCADE;
 DROP TABLE IF EXISTS budgets CASCADE;
@@ -59,8 +57,6 @@ DROP TABLE IF EXISTS expenses CASCADE;
 DROP TABLE IF EXISTS vendors CASCADE;
 DROP TABLE IF EXISTS leave_balance CASCADE;
 DROP TABLE IF EXISTS leave_requests CASCADE;
-DROP TABLE IF EXISTS teacher_attendance CASCADE;
-DROP TABLE IF EXISTS student_attendance CASCADE;
 DROP TABLE IF EXISTS fee_discounts CASCADE;
 DROP TABLE IF EXISTS fee_records CASCADE;
 DROP TABLE IF EXISTS fee_structures CASCADE;
@@ -80,10 +76,11 @@ DROP TABLE IF EXISTS teachers CASCADE;
 DROP TABLE IF EXISTS students CASCADE;
 
 -- Drop user-related tables
+DROP TABLE IF EXISTS user_role_permissions CASCADE;
+DROP TABLE IF EXISTS user_roles CASCADE;
 DROP TABLE IF EXISTS user_permissions CASCADE;
 DROP TABLE IF EXISTS user_profiles CASCADE;
-DROP TABLE IF EXISTS email_verification_tokens CASCADE;
-DROP TABLE IF EXISTS password_reset_tokens CASCADE;
+DROP TABLE IF EXISTS password_resets CASCADE;
 DROP TABLE IF EXISTS user_sessions CASCADE;
 DROP TABLE IF EXISTS users CASCADE;
 
@@ -91,18 +88,23 @@ DROP TABLE IF EXISTS users CASCADE;
 DROP TABLE IF EXISTS schema_versions CASCADE;
 
 -- =====================================================
--- 2. Drop all custom types (ENUMs)
+-- 2. Drop all custom types (ENUMs) - Now using metadata tables instead
 -- =====================================================
+
+-- Note: ENUMs have been replaced with metadata tables in the optimized schema
+-- These DROP statements are kept for cleaning up any legacy enum types
 
 DROP TYPE IF EXISTS user_role_enum CASCADE;
 DROP TYPE IF EXISTS gender_enum CASCADE;
+DROP TYPE IF EXISTS class_enum CASCADE;
+DROP TYPE IF EXISTS qualification_enum CASCADE;
+DROP TYPE IF EXISTS employment_status_enum CASCADE;
 DROP TYPE IF EXISTS session_year_enum CASCADE;
 DROP TYPE IF EXISTS payment_type_enum CASCADE;
 DROP TYPE IF EXISTS payment_status_enum CASCADE;
 DROP TYPE IF EXISTS payment_method_enum CASCADE;
 DROP TYPE IF EXISTS leave_type_enum CASCADE;
 DROP TYPE IF EXISTS leave_status_enum CASCADE;
-DROP TYPE IF EXISTS attendance_status_enum CASCADE;
 DROP TYPE IF EXISTS expense_category_enum CASCADE;
 DROP TYPE IF EXISTS expense_status_enum CASCADE;
 DROP TYPE IF EXISTS employment_type_enum CASCADE;
@@ -115,22 +117,28 @@ DROP TYPE IF EXISTS employment_type_enum CASCADE;
 -- Add any custom sequences here if needed
 
 -- =====================================================
--- 4. Drop all functions and procedures (if any)
+-- 4. Drop all functions and procedures
 -- =====================================================
 
--- Add any custom functions or stored procedures here
--- Example:
--- DROP FUNCTION IF EXISTS calculate_fee_balance() CASCADE;
--- DROP FUNCTION IF EXISTS generate_attendance_report() CASCADE;
+-- Drop utility functions
+DROP FUNCTION IF EXISTS calculate_age(DATE) CASCADE;
+DROP FUNCTION IF EXISTS get_academic_year(DATE) CASCADE;
+DROP FUNCTION IF EXISTS calculate_fee_balance() CASCADE;
+
+-- Drop any enhanced fee system functions (if they exist)
+DROP FUNCTION IF EXISTS enable_monthly_tracking_for_student(INTEGER, INTEGER) CASCADE;
+DROP FUNCTION IF EXISTS calculate_monthly_fees(INTEGER) CASCADE;
+DROP FUNCTION IF EXISTS allocate_payment_to_months(INTEGER, DECIMAL) CASCADE;
 
 -- =====================================================
--- 5. Drop all views (if any)
+-- 5. Drop all views
 -- =====================================================
 
--- Add any views here
--- Example:
--- DROP VIEW IF EXISTS student_fee_summary CASCADE;
--- DROP VIEW IF EXISTS teacher_attendance_summary CASCADE;
+-- Drop summary views
+DROP VIEW IF EXISTS student_summary CASCADE;
+DROP VIEW IF EXISTS teacher_summary CASCADE;
+DROP VIEW IF EXISTS fee_collection_summary CASCADE;
+DROP VIEW IF EXISTS enhanced_student_fee_status CASCADE;
 
 -- =====================================================
 -- 6. Verification - Check remaining objects
@@ -177,5 +185,15 @@ SELECT 'Database is now ready for fresh installation' as next_step;
 -- 1. This script drops ALL data - use only for fresh installations
 -- 2. Always backup your database before running this script
 -- 3. Run this script as a database superuser or owner
--- 4. After running this script, run 01_create_database.sql to recreate the schema
--- 5. Then run 02_load_initial_data.sql to populate with initial data
+-- 4. After running this script, execute the 9 table creation scripts in order:
+--    - Database/Tables/00_metadata_tables.sql
+--    - Database/Tables/02_users.sql
+--    - Database/Tables/03_students.sql (with inline constraints)
+--    - Database/Tables/04_teachers.sql (with inline constraints)
+--    - Database/Tables/05_fees.sql (with enhanced monthly tracking)
+--    - Database/Tables/07_leaves.sql
+--    - Database/Tables/08_expenses.sql (with inline constraints)
+--    - Database/Tables/09_indexes.sql
+--    - Database/Tables/10_constraints.sql (complex business logic only)
+-- 5. Then run 02_load_initial_data_clean.sql to populate with initial data
+-- 6. OPTIMIZED FOR CLOUD DEPLOYMENT - No versioning scripts needed

@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS students (
     blood_group VARCHAR(5),
 
     -- Contact Information
-    phone VARCHAR(20),
+    phone VARCHAR(20) CHECK (phone IS NULL OR phone ~ '^[0-9+\-\s()]+$'),
     email VARCHAR(255),
     aadhar_no VARCHAR(12),
     address TEXT,
@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS students (
     class_id INTEGER NOT NULL REFERENCES classes(id),
     section VARCHAR(10),
     roll_number VARCHAR(20),
-    admission_date DATE NOT NULL,
+    admission_date DATE NOT NULL CHECK (admission_date <= CURRENT_DATE),
     session_year_id INTEGER NOT NULL REFERENCES session_years(id),
     
     -- Parent/Guardian Information
@@ -56,7 +56,11 @@ CREATE TABLE IF NOT EXISTS students (
     
     -- Academic Status
     is_active BOOLEAN DEFAULT TRUE,
-    graduation_date DATE,
+    graduation_date DATE CHECK (graduation_date IS NULL OR graduation_date > admission_date),
+
+    -- Soft Delete Support (added in V004)
+    is_deleted BOOLEAN DEFAULT FALSE,
+    deleted_date TIMESTAMP WITH TIME ZONE,
     
     -- Documents and Photos
     photo_url VARCHAR(500),

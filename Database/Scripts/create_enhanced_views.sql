@@ -1,13 +1,26 @@
 -- =====================================================
--- Create Enhanced Fee Management Views
+-- Create Enhanced Fee Management Views - Optimized for Cloud Deployment
 -- =====================================================
+-- This script creates views for the enhanced monthly fee tracking system
+-- Compatible with optimized schema and metadata-driven architecture
+--
+-- PREREQUISITES:
+-- - All table creation scripts must be executed first
+-- - Enhanced fee system tables (monthly_fee_tracking, monthly_payment_allocations)
+-- - Metadata tables with foreign key relationships
+--
+-- FEATURES:
+-- - Combines legacy fee records with enhanced monthly tracking
+-- - Supports metadata-driven architecture with proper JOINs
+-- - Optimized for performance with existing indexes
+-- - Compatible with soft delete functionality
 
 -- Drop existing view if it exists
 DROP VIEW IF EXISTS enhanced_student_fee_status CASCADE;
 
--- Create the enhanced_student_fee_status view
+-- Create the enhanced_student_fee_status view with metadata-driven architecture
 CREATE OR REPLACE VIEW enhanced_student_fee_status AS
-SELECT 
+SELECT
     s.id as student_id,
     s.admission_number,
     s.first_name || ' ' || s.last_name as student_name,
@@ -37,18 +50,23 @@ SELECT
     END as collection_percentage,
     
     -- Has monthly tracking flag
-    CASE 
+    CASE
         WHEN fr.is_monthly_tracked = true THEN true
-        ELSE false 
-    END as has_monthly_tracking
+        ELSE false
+    END as has_monthly_tracking,
+
+    -- Payment status information (from metadata)
+    ps.name as payment_status,
+    ps.color_code as payment_status_color
 
 FROM students s
 LEFT JOIN classes c ON s.class_id = c.id
 LEFT JOIN session_years sy ON s.session_year_id = sy.id
 LEFT JOIN fee_records fr ON s.id = fr.student_id AND s.session_year_id = fr.session_year_id
+LEFT JOIN payment_statuses ps ON fr.payment_status_id = ps.id
 LEFT JOIN (
-    -- Subquery to get monthly tracking statistics
-    SELECT 
+    -- Subquery to get monthly tracking statistics with metadata-driven status names
+    SELECT
         mft.student_id,
         mft.session_year_id,
         COUNT(*) as total_months_tracked,
@@ -60,20 +78,28 @@ LEFT JOIN (
         SUM(mft.balance_amount) as monthly_balance
     FROM monthly_fee_tracking mft
     LEFT JOIN payment_statuses ps ON mft.payment_status_id = ps.id
+    WHERE ps.is_active = true  -- Only include active payment statuses
     GROUP BY mft.student_id, mft.session_year_id
 ) monthly_stats ON s.id = monthly_stats.student_id AND s.session_year_id = monthly_stats.session_year_id
 
 WHERE s.is_active = true
-  AND (s.is_deleted = false OR s.is_deleted IS NULL);
+  AND (s.is_deleted = false OR s.is_deleted IS NULL)
+  AND c.is_active = true  -- Only include active classes
+  AND sy.is_active = true;  -- Only include active session years
 
-COMMENT ON VIEW enhanced_student_fee_status IS 'Enhanced student fee summary combining legacy and monthly tracking data';
+COMMENT ON VIEW enhanced_student_fee_status IS 'Enhanced student fee summary combining legacy and monthly tracking data with metadata-driven architecture support';
 
--- Create indexes for better performance
-CREATE INDEX IF NOT EXISTS idx_enhanced_fee_status_session_year 
-ON students(session_year_id) WHERE is_active = true;
+-- Note: Performance indexes are already created in table creation scripts
+-- Database/Tables/05_fees.sql includes all necessary indexes for enhanced fee system
+-- Database/Tables/03_students.sql includes student-related indexes
+-- No additional indexes needed to avoid conflicts
 
-CREATE INDEX IF NOT EXISTS idx_enhanced_fee_status_class 
-ON students(class_id) WHERE is_active = true;
-
--- Grant permissions
+-- Grant permissions for application access
 GRANT SELECT ON enhanced_student_fee_status TO PUBLIC;
+
+-- =====================================================
+-- Success Message
+-- =====================================================
+SELECT 'Enhanced fee management views created successfully!' as result;
+SELECT 'View supports both legacy fee records and enhanced monthly tracking' as details;
+SELECT 'Compatible with optimized schema and metadata-driven architecture' as compatibility;

@@ -32,12 +32,12 @@ CREATE TABLE IF NOT EXISTS teachers (
     department VARCHAR(100), -- 'Mathematics', 'Science', 'English', 'Social Studies', etc.
     subjects TEXT, -- JSON array or comma-separated subjects they teach
     qualification_id INTEGER REFERENCES qualifications(id), -- Primary qualification
-    experience_years INTEGER DEFAULT 0,
+    experience_years INTEGER DEFAULT 0 CHECK (experience_years >= 0),
 
     -- Employment Details
-    joining_date DATE NOT NULL,
+    joining_date DATE NOT NULL CHECK (joining_date <= CURRENT_DATE),
     employment_status_id INTEGER DEFAULT 1 REFERENCES employment_statuses(id),
-    salary DECIMAL(10,2),
+    salary DECIMAL(10,2) CHECK (salary IS NULL OR salary > 0),
 
     -- Class Assignments
     class_teacher_of_id INTEGER REFERENCES classes(id), -- Which class they are class teacher of
@@ -45,7 +45,11 @@ CREATE TABLE IF NOT EXISTS teachers (
     
     -- Status
     is_active BOOLEAN DEFAULT TRUE,
-    resignation_date DATE,
+    resignation_date DATE CHECK (resignation_date IS NULL OR resignation_date > joining_date),
+
+    -- Soft Delete Support (added in V1.4)
+    is_deleted BOOLEAN DEFAULT FALSE,
+    deleted_date TIMESTAMP WITH TIME ZONE,
     
     -- Documents and Photos
     photo_url VARCHAR(500),
@@ -53,7 +57,10 @@ CREATE TABLE IF NOT EXISTS teachers (
     
     -- Timestamps
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE
+    updated_at TIMESTAMP WITH TIME ZONE,
+
+    -- Constraints
+    CONSTRAINT uk_teachers_employee_id UNIQUE (employee_id)
 );
 
 -- Teacher Qualifications table (Detailed qualifications) - Updated for metadata-driven architecture

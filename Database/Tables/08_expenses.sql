@@ -7,15 +7,15 @@ CREATE TABLE IF NOT EXISTS expenses (
     id SERIAL PRIMARY KEY,
 
     -- Basic Information
-    expense_date DATE NOT NULL,
+    expense_date DATE NOT NULL CHECK (expense_date >= '2020-01-01'),
     expense_category_id INTEGER NOT NULL REFERENCES expense_categories(id),
     subcategory VARCHAR(100),
     description TEXT NOT NULL,
 
     -- Financial Details
-    amount DECIMAL(12,2) NOT NULL,
-    tax_amount DECIMAL(10,2) DEFAULT 0.0,
-    total_amount DECIMAL(12,2) NOT NULL,
+    amount DECIMAL(12,2) NOT NULL CHECK (amount > 0),
+    tax_amount DECIMAL(10,2) DEFAULT 0.0 CHECK (tax_amount >= 0),
+    total_amount DECIMAL(12,2) NOT NULL CHECK (total_amount > 0),
     currency VARCHAR(3) DEFAULT 'INR',
 
     -- Vendor Information
@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS expenses (
     -- Payment Details
     payment_method_id INTEGER NOT NULL REFERENCES payment_methods(id),
     payment_status_id INTEGER DEFAULT 1 REFERENCES payment_statuses(id),
-    payment_date DATE,
+    payment_date DATE CHECK (payment_date IS NULL OR payment_date >= expense_date),
     payment_reference VARCHAR(100),
 
     -- Bank/Cheque Details
@@ -61,7 +61,11 @@ CREATE TABLE IF NOT EXISTS expenses (
     -- Priority and Urgency
     priority VARCHAR(10) DEFAULT 'Medium' CHECK (priority IN ('Low', 'Medium', 'High', 'Urgent')),
     is_emergency BOOLEAN DEFAULT FALSE,
-    
+
+    -- Soft Delete Support (added in V005)
+    is_deleted BOOLEAN DEFAULT FALSE,
+    deleted_date TIMESTAMP WITH TIME ZONE,
+
     -- Timestamps
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE
@@ -132,10 +136,10 @@ CREATE TABLE IF NOT EXISTS purchase_orders (
     actual_delivery_date DATE,
     
     -- Financial Details
-    subtotal DECIMAL(12,2) NOT NULL,
-    tax_amount DECIMAL(10,2) DEFAULT 0.0,
-    discount_amount DECIMAL(10,2) DEFAULT 0.0,
-    total_amount DECIMAL(12,2) NOT NULL,
+    subtotal DECIMAL(12,2) NOT NULL CHECK (subtotal > 0),
+    tax_amount DECIMAL(10,2) DEFAULT 0.0 CHECK (tax_amount >= 0),
+    discount_amount DECIMAL(10,2) DEFAULT 0.0 CHECK (discount_amount >= 0),
+    total_amount DECIMAL(12,2) NOT NULL CHECK (total_amount > 0),
     
     -- Status
     status VARCHAR(20) DEFAULT 'Draft' CHECK (status IN ('Draft', 'Sent', 'Acknowledged', 'Delivered', 'Completed', 'Cancelled')),

@@ -6,9 +6,9 @@ from .metadata import (
 from .user import User
 from .teacher import Teacher
 from .student import Student
-from .fee import FeeStructure, FeeRecord, FeePayment
-# from .leave import LeaveRequest
-from .expense import Expense
+from .fee import FeeStructure, FeeRecord, FeePayment, MonthlyFeeTracking, MonthlyPaymentAllocation
+from .leave import LeaveRequest, LeaveBalance, LeavePolicy, LeaveApprovers, LeaveCalendar
+from .expense import Expense, Vendor, Budget, ExpenseReport
 
 __all__ = [
     # Metadata models
@@ -21,6 +21,15 @@ __all__ = [
     "FeeStructure",
     "FeeRecord",
     "FeePayment",
-    # "LeaveRequest",
-    "Expense"
+    "MonthlyFeeTracking",
+    "MonthlyPaymentAllocation",
+    "LeaveRequest",
+    "LeaveBalance",
+    "LeavePolicy",
+    "LeaveApprovers",
+    "LeaveCalendar",
+    "Expense",
+    "Vendor",
+    "Budget",
+    "ExpenseReport"
 ]
