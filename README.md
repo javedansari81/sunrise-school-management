@@ -270,3 +270,10 @@ This project is licensed under the MIT License.
 ## Support
 
 For support and questions, please contact the development team or create an issue in the repository.
+
+Doc Ref: 
+Google Docs: 
+https://docs.google.com/document/d/1kvFJdZbMeBRRjgMd46Fu7Y87U9oB0iGtHmurn-Fq3c0/edit?tab=t.w7mhsp5tn0sz
+
+Confluence Page: 
+https://sunrise-school-website.atlassian.net/wiki/spaces/SS/pages/590137/Technical+Analysis+Sunrise+School
