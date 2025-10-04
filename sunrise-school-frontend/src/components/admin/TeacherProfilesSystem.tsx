@@ -42,6 +42,8 @@ import {
 import { useAuth } from '../../contexts/AuthContext';
 import { useServiceConfiguration, useConfiguration } from '../../contexts/ConfigurationContext';
 import { teachersAPI } from '../../services/api';
+import { useErrorDialog } from '../../hooks/useErrorDialog';
+import ErrorDialog from '../common/ErrorDialog';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -148,6 +150,9 @@ const TeacherProfilesSystem: React.FC = () => {
   const { getServiceConfiguration } = useConfiguration();
   const configuration = getServiceConfiguration('teacher-management');
 
+  // Error dialog hook
+  const errorDialog = useErrorDialog();
+
   // State management
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [loading, setLoading] = useState(false);
@@ -246,11 +251,7 @@ const TeacherProfilesSystem: React.FC = () => {
       }
     } catch (err: any) {
       console.error('Error loading teachers:', err);
-      setSnackbar({
-        open: true,
-        message: 'Failed to load teachers',
-        severity: 'error'
-      });
+      errorDialog.handleApiError(err, 'data_fetch');
     } finally {
       setLoading(false);
     }
@@ -441,16 +442,7 @@ const TeacherProfilesSystem: React.FC = () => {
       loadTeachers(); // Refresh the list
     } catch (err: any) {
       console.error('Error creating teacher:', err);
-
-      // Get user-friendly error message
-      const errorMessage = getErrorMessage(err);
-
-      setSnackbar({
-        open: true,
-        message: errorMessage,
-        severity: 'error'
-      });
-
+      errorDialog.handleApiError(err, 'teacher_creation');
       // Don't close dialog on error - allow user to fix and retry
     } finally {
       setDialogLoading(false);
@@ -471,15 +463,7 @@ const TeacherProfilesSystem: React.FC = () => {
         loadTeachers();
       } catch (err: any) {
         console.error('Error deleting teacher:', err);
-
-        // Use the same error message helper for consistency
-        const errorMessage = getErrorMessage(err);
-
-        setSnackbar({
-          open: true,
-          message: errorMessage,
-          severity: 'error'
-        });
+        errorDialog.handleApiError(err, 'data_delete');
       } finally {
         setLoading(false);
       }
@@ -495,11 +479,7 @@ const TeacherProfilesSystem: React.FC = () => {
       setViewDialogOpen(true);
     } catch (err: any) {
       console.error('Error loading teacher details:', err);
-      setSnackbar({
-        open: true,
-        message: 'Failed to load teacher details',
-        severity: 'error'
-      });
+      errorDialog.handleApiError(err, 'data_fetch');
     } finally {
       setDialogLoading(false);
     }
@@ -1774,6 +1754,9 @@ const TeacherProfilesSystem: React.FC = () => {
           {snackbar.message}
         </Alert>
       </Snackbar>
+
+      {/* Error Dialog */}
+      <ErrorDialog {...errorDialog.dialogProps} />
     </Box>
   );
 };

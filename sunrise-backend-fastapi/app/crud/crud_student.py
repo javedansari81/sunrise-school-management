@@ -3,6 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload, joinedload
 from sqlalchemy import and_, or_, func, desc
+from sqlalchemy.exc import IntegrityError
 
 from app.crud.base import CRUDBase
 from app.models.student import Student
@@ -12,6 +13,10 @@ from app.models.metadata import Gender, Class, SessionYear, UserType
 from app.schemas.student import StudentCreate, StudentUpdate, ClassEnum, GenderEnum
 from app.schemas.user import UserCreate
 from app.core.security import get_password_hash
+from app.core.error_handler import (
+    DatabaseErrorHandler, ValidationErrorHandler,
+    raise_database_http_exception
+)
 
 
 class CRUDStudent(CRUDBase[Student, StudentCreate, StudentUpdate]):
@@ -100,156 +105,160 @@ class CRUDStudent(CRUDBase[Student, StudentCreate, StudentUpdate]):
         return result.scalar_one_or_none()
 
     async def create(self, db: AsyncSession, *, obj_in: StudentCreate) -> Student:
-        """Override base create method to ensure email generation is always used"""
+        """Override base create method with validation and error handling"""
         from app.utils.email_generator import generate_student_email
         from app.core.logging import log_crud_operation
 
-        # Auto-generate email if not provided
-        student_data = obj_in.dict()
-        if not student_data.get('email'):
-            generated_email = await generate_student_email(
-                db,
-                obj_in.first_name,
-                obj_in.last_name,
-                obj_in.date_of_birth
-            )
-            student_data['email'] = generated_email
-            log_crud_operation("STUDENT_EMAIL_AUTO_GENERATED", f"Auto-generated email in basic create method",
-                             first_name=obj_in.first_name, last_name=obj_in.last_name,
-                             email=generated_email)
+        try:
+            # Basic validation will be handled by database constraints
+            student_data = obj_in.dict()
 
-        # Use the parent create method with the updated data
-        updated_obj_in = StudentCreate(**student_data)
-        return await super().create(db, obj_in=updated_obj_in)
+            # Auto-generate email if not provided
+            if not student_data.get('email'):
+                generated_email = await generate_student_email(
+                    db,
+                    obj_in.first_name,
+                    obj_in.last_name,
+                    obj_in.date_of_birth
+                )
+                student_data['email'] = generated_email
+                log_crud_operation("STUDENT_EMAIL_AUTO_GENERATED", f"Auto-generated email in basic create method",
+                                 first_name=obj_in.first_name, last_name=obj_in.last_name,
+                                 email=generated_email)
+
+            # Use the parent create method with the updated data
+            updated_obj_in = StudentCreate(**student_data)
+            return await super().create(db, obj_in=updated_obj_in)
+
+        except IntegrityError as e:
+            await db.rollback()
+            raise_database_http_exception(e, "student creation")
+        except Exception as e:
+            await db.rollback()
+            raise
 
     async def create_with_validation(self, db: AsyncSession, *, obj_in: StudentCreate) -> Student:
-        """Create student with metadata validation and user account"""
+        """Create student with comprehensive validation and user account"""
         from app.core.logging import log_crud_operation
         from app.utils.email_generator import generate_student_email
         import logging
 
-        # Validate metadata IDs exist
-        if obj_in.gender_id:
-            gender_result = await db.execute(select(Gender).where(Gender.id == obj_in.gender_id))
-            if not gender_result.scalar_one_or_none():
-                raise ValueError(f"Invalid gender_id: {obj_in.gender_id}")
+        try:
+            # Basic validation will be handled by database constraints
+            student_data = obj_in.dict()
 
-        if obj_in.class_id:
-            class_result = await db.execute(select(Class).where(Class.id == obj_in.class_id))
-            if not class_result.scalar_one_or_none():
-                raise ValueError(f"Invalid class_id: {obj_in.class_id}")
+            # Auto-generate email if not provided
+            if not student_data.get('email'):
+                generated_email = await generate_student_email(
+                    db,
+                    obj_in.first_name,
+                    obj_in.last_name,
+                    obj_in.date_of_birth
+                )
+                student_data['email'] = generated_email
+                log_crud_operation("STUDENT_EMAIL_AUTO_GENERATED", f"Auto-generated email for student",
+                                 first_name=obj_in.first_name, last_name=obj_in.last_name,
+                                 email=generated_email)
 
-        if obj_in.session_year_id:
-            session_year_result = await db.execute(select(SessionYear).where(SessionYear.id == obj_in.session_year_id))
-            if not session_year_result.scalar_one_or_none():
-                raise ValueError(f"Invalid session_year_id: {obj_in.session_year_id}")
+            # Create student
+            db_obj = Student(**student_data)
+            db.add(db_obj)
+            await db.commit()
+            await db.refresh(db_obj)
 
-        # Auto-generate email if not provided
-        student_data = obj_in.dict()
-        if not student_data.get('email'):
-            generated_email = await generate_student_email(
-                db,
-                obj_in.first_name,
-                obj_in.last_name,
-                obj_in.date_of_birth
-            )
-            student_data['email'] = generated_email
-            log_crud_operation("STUDENT_EMAIL_AUTO_GENERATED", f"Auto-generated email for student",
-                             first_name=obj_in.first_name, last_name=obj_in.last_name,
-                             email=generated_email)
+            log_crud_operation("STUDENT_CREATE", f"Student record created",
+                              student_id=db_obj.id, admission_number=obj_in.admission_number)
 
-        # Create student
-        db_obj = Student(**student_data)
-        db.add(db_obj)
-        await db.commit()
-        await db.refresh(db_obj)
+            # Create or link user account for student if email or phone is provided
+            # Note: email is now always generated, so we should always create user account
+            user_account = None
+            if db_obj.email or obj_in.phone:
+                try:
+                    # Get STUDENT user type ID
+                    student_user_type = await db.execute(select(UserType).where(UserType.name == "STUDENT"))
+                    student_user_type_obj = student_user_type.scalar_one_or_none()
 
-        log_crud_operation("STUDENT_CREATE", f"Student record created",
-                          student_id=db_obj.id, admission_number=obj_in.admission_number)
+                    if not student_user_type_obj:
+                        raise ValueError("STUDENT user type not found in database")
 
-        # Create or link user account for student if email or phone is provided
-        # Note: email is now always generated, so we should always create user account
-        user_account = None
-        if db_obj.email or obj_in.phone:
-            try:
-                # Get STUDENT user type ID
-                student_user_type = await db.execute(select(UserType).where(UserType.name == "STUDENT"))
-                student_user_type_obj = student_user_type.scalar_one_or_none()
+                    # Use the email from the student record (either provided or auto-generated)
+                    user_email = db_obj.email
+                    if not user_email and obj_in.phone:
+                        # Fallback: Generate email from phone for login purposes
+                        user_email = f"student_{obj_in.phone}@sunriseschool.edu"
 
-                if not student_user_type_obj:
-                    raise ValueError("STUDENT user type not found in database")
-
-                # Use the email from the student record (either provided or auto-generated)
-                user_email = db_obj.email
-                if not user_email and obj_in.phone:
-                    # Fallback: Generate email from phone for login purposes
-                    user_email = f"student_{obj_in.phone}@sunriseschool.edu"
-
-                log_crud_operation("USER_LINK_ATTEMPT", f"Attempting to link user account",
-                                 student_id=db_obj.id, user_email=user_email)
-
-                # Check if user with this email already exists
-                existing_user_result = await db.execute(select(User).where(User.email == user_email))
-                existing_user = existing_user_result.scalar_one_or_none()
-
-                if existing_user:
-                    # User already exists - link to existing user
-                    log_crud_operation("USER_LINK_EXISTING", f"Linking to existing user",
-                                     student_id=db_obj.id, user_id=existing_user.id, user_email=user_email)
-
-                    # Verify the existing user is a student type
-                    if existing_user.user_type_id != student_user_type_obj.id:
-                        log_crud_operation("USER_LINK_WARNING", f"Existing user has different user type",
-                                         "warning", user_id=existing_user.id,
-                                         expected_type=student_user_type_obj.id,
-                                         actual_type=existing_user.user_type_id)
-
-                    # Link existing user to student
-                    db_obj.user_id = existing_user.id
-                    user_account = existing_user
-                else:
-                    # Create new user account
-                    log_crud_operation("USER_CREATE_NEW", f"Creating new user account",
+                    log_crud_operation("USER_LINK_ATTEMPT", f"Attempting to link user account",
                                      student_id=db_obj.id, user_email=user_email)
 
-                    user_account = User(
-                        email=user_email,
-                        hashed_password=get_password_hash("Sunrise@001"),  # Default password
-                        first_name=obj_in.first_name,
-                        last_name=obj_in.last_name,
-                        phone=obj_in.phone,
-                        user_type_id=student_user_type_obj.id,
-                        is_active=True,
-                        is_verified=False
-                    )
-                    db.add(user_account)
+                    # Check if user with this email already exists
+                    existing_user_result = await db.execute(select(User).where(User.email == user_email))
+                    existing_user = existing_user_result.scalar_one_or_none()
+
+                    if existing_user:
+                        # User already exists - link to existing user
+                        log_crud_operation("USER_LINK_EXISTING", f"Linking to existing user",
+                                         student_id=db_obj.id, user_id=existing_user.id, user_email=user_email)
+
+                        # Verify the existing user is a student type
+                        if existing_user.user_type_id != student_user_type_obj.id:
+                            log_crud_operation("USER_LINK_WARNING", f"Existing user has different user type",
+                                             "warning", user_id=existing_user.id,
+                                             expected_type=student_user_type_obj.id,
+                                             actual_type=existing_user.user_type_id)
+
+                        # Link existing user to student
+                        db_obj.user_id = existing_user.id
+                        user_account = existing_user
+                    else:
+                        # Create new user account
+                        log_crud_operation("USER_CREATE_NEW", f"Creating new user account",
+                                         student_id=db_obj.id, user_email=user_email)
+
+                        user_account = User(
+                            email=user_email,
+                            hashed_password=get_password_hash("Sunrise@001"),  # Default password
+                            first_name=obj_in.first_name,
+                            last_name=obj_in.last_name,
+                            phone=obj_in.phone,
+                            user_type_id=student_user_type_obj.id,
+                            is_active=True,
+                            is_verified=False
+                        )
+                        db.add(user_account)
+                        await db.commit()
+                        await db.refresh(user_account)
+
+                        # Link new user account to student
+                        db_obj.user_id = user_account.id
+
+                        log_crud_operation("USER_CREATE_SUCCESS", f"New user account created and linked",
+                                         student_id=db_obj.id, user_id=user_account.id)
+
+                    # Commit the student-user link
                     await db.commit()
-                    await db.refresh(user_account)
+                    await db.refresh(db_obj)
 
-                    # Link new user account to student
-                    db_obj.user_id = user_account.id
+                    log_crud_operation("STUDENT_USER_LINK_SUCCESS", f"Student successfully linked to user",
+                                     student_id=db_obj.id, user_id=db_obj.user_id)
 
-                    log_crud_operation("USER_CREATE_SUCCESS", f"New user account created and linked",
-                                     student_id=db_obj.id, user_id=user_account.id)
+                except Exception as user_creation_error:
+                    # Log the error with full details
+                    log_crud_operation("STUDENT_USER_LINK_ERROR", f"Failed to create/link user account: {str(user_creation_error)}",
+                                     "error", student_id=db_obj.id, admission_number=obj_in.admission_number,
+                                     error_type=type(user_creation_error).__name__)
+                    logging.exception("Full user creation/linking error traceback:")
 
-                # Commit the student-user link
-                await db.commit()
-                await db.refresh(db_obj)
+                    # Don't fail student creation, but ensure we log this properly
+                    print(f"Warning: Failed to create/link user account for student {obj_in.admission_number}: {user_creation_error}")
 
-                log_crud_operation("STUDENT_USER_LINK_SUCCESS", f"Student successfully linked to user",
-                                 student_id=db_obj.id, user_id=db_obj.user_id)
+            return db_obj
 
-            except Exception as user_creation_error:
-                # Log the error with full details
-                log_crud_operation("STUDENT_USER_LINK_ERROR", f"Failed to create/link user account: {str(user_creation_error)}",
-                                 "error", student_id=db_obj.id, admission_number=obj_in.admission_number,
-                                 error_type=type(user_creation_error).__name__)
-                logging.exception("Full user creation/linking error traceback:")
-
-                # Don't fail student creation, but ensure we log this properly
-                print(f"Warning: Failed to create/link user account for student {obj_in.admission_number}: {user_creation_error}")
-
-        return db_obj
+        except IntegrityError as e:
+            await db.rollback()
+            raise_database_http_exception(e, "student creation with validation")
+        except Exception as e:
+            await db.rollback()
+            raise
 
     async def get_multi_with_filters(
         self,

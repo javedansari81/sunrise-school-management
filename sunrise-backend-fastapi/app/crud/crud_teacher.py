@@ -3,6 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload, joinedload
 from sqlalchemy import and_, or_, func, desc, text
+from sqlalchemy.exc import IntegrityError
 from datetime import datetime
 import json
 
@@ -12,6 +13,10 @@ from app.models.user import User
 from app.models.metadata import Gender, Qualification, EmploymentStatus, Class
 from app.schemas.teacher import TeacherCreate, TeacherUpdate, GenderEnum, QualificationEnum, EmploymentStatusEnum
 from app.core.security import get_password_hash
+from app.core.error_handler import (
+    DatabaseErrorHandler, ValidationErrorHandler,
+    raise_database_http_exception
+)
 
 
 class CRUDTeacher(CRUDBase[Teacher, TeacherCreate, TeacherUpdate]):
@@ -218,64 +223,93 @@ class CRUDTeacher(CRUDBase[Teacher, TeacherCreate, TeacherUpdate]):
         )
         return result.scalars().all()
 
+    async def create(self, db: AsyncSession, *, obj_in: TeacherCreate) -> Teacher:
+        """Override base create method with validation and error handling"""
+        try:
+            # Basic validation will be handled by database constraints
+
+            # Use the parent create method
+            return await super().create(db, obj_in=obj_in)
+
+        except IntegrityError as e:
+            await db.rollback()
+            raise_database_http_exception(e, "teacher creation")
+        except Exception as e:
+            await db.rollback()
+            raise
+
     async def create_with_user_account(
         self, db: AsyncSession, *, obj_in: TeacherCreate
     ) -> Teacher:
-        """Create teacher with associated user account"""
+        """Create teacher with associated user account and comprehensive validation"""
         from app.crud.crud_user import CRUDUser
         from app.schemas.user import UserCreate, UserTypeEnum
         from app.utils.email_generator import generate_teacher_email
         from app.core.logging import log_crud_operation
 
-        # Auto-generate email if not provided
-        teacher_data = obj_in.dict()
-        if not teacher_data.get('email'):
-            if not obj_in.date_of_birth:
-                raise ValueError("Date of birth is required for email generation")
+        try:
+            # Basic validation will be handled by database constraints
+            teacher_data = obj_in.dict()
 
-            generated_email = await generate_teacher_email(
-                db,
-                obj_in.first_name,
-                obj_in.last_name,
-                obj_in.date_of_birth
-            )
-            teacher_data['email'] = generated_email
-            log_crud_operation("TEACHER_EMAIL_AUTO_GENERATED", f"Auto-generated email for teacher",
-                             first_name=obj_in.first_name, last_name=obj_in.last_name,
-                             email=generated_email)
+            # Auto-generate email if not provided
+            if not teacher_data.get('email'):
+                if not obj_in.date_of_birth:
+                    ValidationErrorHandler.raise_validation_exception(
+                        "Date of birth is required for email generation",
+                        "date_of_birth",
+                        "MISSING_DATE_OF_BIRTH"
+                    )
 
-            # Create new TeacherCreate object with generated email
-            obj_in = TeacherCreate(**teacher_data)
+                generated_email = await generate_teacher_email(
+                    db,
+                    obj_in.first_name,
+                    obj_in.last_name,
+                    obj_in.date_of_birth
+                )
+                teacher_data['email'] = generated_email
+                log_crud_operation("TEACHER_EMAIL_AUTO_GENERATED", f"Auto-generated email for teacher",
+                                 first_name=obj_in.first_name, last_name=obj_in.last_name,
+                                 email=generated_email)
 
-        # Create teacher record first
-        teacher = await self.create(db, obj_in=obj_in)
+                # Create new TeacherCreate object with generated email
+                obj_in = TeacherCreate(**teacher_data)
 
-        # Create user account for teacher login
-        user_crud = CRUDUser()
+            # Create teacher record first
+            teacher = await super().create(db, obj_in=obj_in)
 
-        # Use the email (either provided or generated)
-        user_email = obj_in.email
+            # Create user account for teacher login
+            user_crud = CRUDUser()
 
-        # Check if user with this email already exists
-        existing_user = await user_crud.get_by_email(db, email=user_email)
-        if not existing_user:
-            user_data = UserCreate(
-                email=user_email,
-                password="Sunrise@001",  # Default password
-                first_name=obj_in.first_name,
-                last_name=obj_in.last_name,
-                phone=obj_in.phone,
-                user_type_id=2  # TEACHER user type ID
-            )
+            # Use the email (either provided or generated)
+            user_email = obj_in.email
 
-            user = await user_crud.create(db, obj_in=user_data)
+            # Check if user with this email already exists
+            existing_user = await user_crud.get_by_email(db, email=user_email)
+            if not existing_user:
+                user_data = UserCreate(
+                    email=user_email,
+                    password="Sunrise@001",  # Default password
+                    first_name=obj_in.first_name,
+                    last_name=obj_in.last_name,
+                    phone=obj_in.phone,
+                    user_type_id=2  # TEACHER user type ID
+                )
 
-            # Link teacher to user
-            teacher.user_id = user.id
-            await db.commit()
-            await db.refresh(teacher)
+                user = await user_crud.create(db, obj_in=user_data)
 
-        return teacher
+                # Link teacher to user
+                teacher.user_id = user.id
+                await db.commit()
+                await db.refresh(teacher)
+
+            return teacher
+
+        except IntegrityError as e:
+            await db.rollback()
+            raise_database_http_exception(e, "teacher creation with user account")
+        except Exception as e:
+            await db.rollback()
+            raise
 
     async def soft_delete(
         self, db: AsyncSession, *, id: int
