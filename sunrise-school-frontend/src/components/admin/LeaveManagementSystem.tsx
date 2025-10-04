@@ -410,7 +410,7 @@ const LeaveManagementSystem: React.FC = () => {
               fontSize: { xs: '1.5rem', sm: '2rem', md: '2.125rem' }
             }}
           >
-            Leave Management - Review Only
+            Leave Management System
           </Typography>
           <Typography
             variant="body2"
@@ -420,7 +420,6 @@ const LeaveManagementSystem: React.FC = () => {
               fontStyle: 'italic'
             }}
           >
-            Teachers and students create requests through their dashboards
           </Typography>
         </Box>
 
