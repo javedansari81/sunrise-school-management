@@ -43,7 +43,15 @@ import {
   ClassDropdown
 } from '../common/MetadataDropdown';
 import { useAuth } from '../../contexts/AuthContext';
+import { useServiceConfiguration } from '../../contexts/ConfigurationContext';
 import { enhancedFeesAPI } from '../../services/api';
+import { configurationService } from '../../services/configurationService';
+import {
+  ID_TO_SESSION_YEAR_MAP,
+  getCurrentSessionYearId,
+  DEFAULT_SESSION_YEAR_ID,
+  DEFAULT_SESSION_YEAR
+} from '../../utils/sessionYearUtils';
 
 interface EnhancedStudentFeeSummary {
   student_id: number;
@@ -131,6 +139,7 @@ interface AvailableMonthsData {
 
 const SimpleEnhancedFeeManagement: React.FC = () => {
   const { isAuthenticated, user } = useAuth();
+  const { isLoaded: configLoaded } = useServiceConfiguration('fee-management');
   const [loading, setLoading] = useState(false);
   const [dialogLoading, setDialogLoading] = useState(false);
   const [paymentHistoryLoading, setPaymentHistoryLoading] = useState(false);
@@ -328,15 +337,7 @@ const SimpleEnhancedFeeManagement: React.FC = () => {
     setPaymentHistoryLoading(true);
     try {
       // Convert session_year_id to session year string
-      const sessionYearMap: { [key: string]: string } = {
-        '1': '2022-23',
-        '2': '2023-24',
-        '3': '2024-25',
-        '4': '2025-26',
-        '5': '2026-27'
-      };
-
-      const sessionYear = sessionYearMap[filters.session_year_id] || '2025-26';
+      const sessionYear = ID_TO_SESSION_YEAR_MAP[filters.session_year_id] || DEFAULT_SESSION_YEAR;
 
       const response = await enhancedFeesAPI.getPaymentHistory(studentId, sessionYear);
 
@@ -403,15 +404,7 @@ const SimpleEnhancedFeeManagement: React.FC = () => {
     setPaymentLoading(true);
     try {
       // Convert session_year_id to session year string
-      const sessionYearMap: { [key: string]: string } = {
-        '1': '2022-23',
-        '2': '2023-24',
-        '3': '2024-25',
-        '4': '2025-26',
-        '5': '2026-27'
-      };
-
-      const sessionYear = sessionYearMap[filters.session_year_id] || '2025-26';
+      const sessionYear = ID_TO_SESSION_YEAR_MAP[filters.session_year_id] || DEFAULT_SESSION_YEAR;
       const response = await enhancedFeesAPI.getAvailableMonths(studentId, sessionYear);
 
       if (!response.data || !response.data.available_months) {
@@ -463,15 +456,7 @@ const SimpleEnhancedFeeManagement: React.FC = () => {
 
     setPaymentLoading(true);
     try {
-      const sessionYearMap: { [key: string]: string } = {
-        '1': '2022-23',
-        '2': '2023-24',
-        '3': '2024-25',
-        '4': '2025-26',
-        '5': '2026-27'
-      };
-
-      const sessionYear = sessionYearMap[filters.session_year_id] || '2025-26';
+      const sessionYear = ID_TO_SESSION_YEAR_MAP[filters.session_year_id] || DEFAULT_SESSION_YEAR;
 
       const paymentData = {
         amount: parseFloat(paymentForm.amount),
@@ -569,6 +554,21 @@ const SimpleEnhancedFeeManagement: React.FC = () => {
       setLoading(false);
     }
   };
+
+  // Set default session year when configuration is loaded
+  useEffect(() => {
+    if (configLoaded && !filters.session_year_id) {
+      // Get current session year from configuration
+      const currentSessionYear = configurationService.getCurrentSessionYear();
+      if (currentSessionYear) {
+        setFilters(prev => ({ ...prev, session_year_id: currentSessionYear.id.toString() }));
+      } else {
+        // Fallback: Use calculated current session year ID
+        const defaultSessionYearId = getCurrentSessionYearId() || DEFAULT_SESSION_YEAR_ID;
+        setFilters(prev => ({ ...prev, session_year_id: defaultSessionYearId }));
+      }
+    }
+  }, [configLoaded, filters.session_year_id]);
 
   useEffect(() => {
     fetchStudentsSummary();

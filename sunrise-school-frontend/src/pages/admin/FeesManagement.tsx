@@ -21,16 +21,6 @@ const FeesManagement: React.FC = () => {
         >
           Fee Management System
         </Typography>
-        <Typography
-          variant="body1"
-          color="textSecondary"
-          sx={{
-            mb: { xs: 2, sm: 3 },
-            fontSize: { xs: '0.875rem', sm: '1rem' }
-          }}
-        >
-          Manage student fees with monthly tracking and payment history
-        </Typography>
 
         <ServiceConfigurationLoader service="fee-management">
           <SimpleEnhancedFeeManagement />

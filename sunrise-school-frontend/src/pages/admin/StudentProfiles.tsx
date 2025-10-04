@@ -477,7 +477,7 @@ const StudentProfilesContent: React.FC = () => {
               mb: { xs: 0, sm: 1 }
             }}
           >
-            Student Profiles Management
+            Student Profiles
           </Typography>
           <Button
             variant="contained"
