@@ -672,32 +672,7 @@ const SimpleEnhancedFeeManagement: React.FC = () => {
         </Stack>
       </Paper>
 
-      {/* Debug Information - Remove this after fixing */}
-      {process.env.NODE_ENV === 'development' && (
-        <Paper sx={{ p: 2, mb: 2, bgcolor: 'grey.100' }}>
-          <Typography variant="h6" gutterBottom>Debug Information</Typography>
-          <Typography variant="body2">
-            Selected Students: {selectedStudentIds.length} |
-            Total Students: {students.length} |
-            Students with Fee Records: {students.filter(s => s.fee_record_id).length} |
-            Students without Tracking: {students.filter(s => !s.has_monthly_tracking).length}
-          </Typography>
-          {selectedStudentIds.length > 0 && (
-            <Typography variant="body2" sx={{ mt: 1 }}>
-              Selected Student Details:
-              {students
-                .filter((s: EnhancedStudentFeeSummary) => selectedStudentIds.includes(s.student_id))
-                .map((s: EnhancedStudentFeeSummary) => (
-                  <div key={s.student_id}>
-                    - {s.student_name}: Fee Record ID: {s.fee_record_id || 'None'},
-                    Has Tracking: {s.has_monthly_tracking ? 'Yes' : 'No'}
-                  </div>
-                ))
-              }
-            </Typography>
-          )}
-        </Paper>
-      )}
+
 
       {/* Students Table - Mobile Responsive */}
       <Paper sx={{ overflow: 'hidden' }}>
