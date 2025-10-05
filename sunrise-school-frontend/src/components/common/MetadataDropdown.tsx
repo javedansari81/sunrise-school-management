@@ -116,7 +116,7 @@ export const MetadataDropdown: React.FC<MetadataDropdownProps> = ({
       )}
       {options.map((option: any) => (
         <MenuItem key={option.id} value={option.id}>
-          {option.display_name || option.name}
+          {option.description || option.name}
         </MenuItem>
       ))}
     </TextField>

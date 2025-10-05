@@ -115,7 +115,7 @@ async def get_all_metadata_async(db: AsyncSession) -> Dict[str, List[Any]]:
 
     # Single optimized query to fetch all metadata tables at once
     query = text("""
-        SELECT 'user_types' as table_name, id, name, description, NULL::VARCHAR as display_name,
+        SELECT 'user_types' as table_name, id, name, description,
                NULL::INTEGER as sort_order, NULL::DATE as start_date, NULL::DATE as end_date, NULL::BOOLEAN as is_current,
                NULL::INTEGER as max_days_per_year, NULL::BOOLEAN as requires_medical_certificate, NULL::DECIMAL as budget_limit,
                NULL::BOOLEAN as requires_approval, NULL::VARCHAR as color_code, NULL::BOOLEAN as is_final, NULL::INTEGER as level_order,
@@ -124,7 +124,7 @@ async def get_all_metadata_async(db: AsyncSession) -> Dict[str, List[Any]]:
 
         UNION ALL
 
-        SELECT 'session_years' as table_name, id, name, description, NULL::VARCHAR as display_name,
+        SELECT 'session_years' as table_name, id, name, description,
                NULL::INTEGER as sort_order, start_date, end_date, is_current,
                NULL::INTEGER as max_days_per_year, NULL::BOOLEAN as requires_medical_certificate, NULL::DECIMAL as budget_limit,
                NULL::BOOLEAN as requires_approval, NULL::VARCHAR as color_code, NULL::BOOLEAN as is_final, NULL::INTEGER as level_order,
@@ -133,7 +133,7 @@ async def get_all_metadata_async(db: AsyncSession) -> Dict[str, List[Any]]:
 
         UNION ALL
 
-        SELECT 'genders' as table_name, id, name, description, NULL::VARCHAR as display_name,
+        SELECT 'genders' as table_name, id, name, description,
                NULL::INTEGER as sort_order, NULL::DATE as start_date, NULL::DATE as end_date, NULL::BOOLEAN as is_current,
                NULL::INTEGER as max_days_per_year, NULL::BOOLEAN as requires_medical_certificate, NULL::DECIMAL as budget_limit,
                NULL::BOOLEAN as requires_approval, NULL::VARCHAR as color_code, NULL::BOOLEAN as is_final, NULL::INTEGER as level_order,
@@ -142,7 +142,7 @@ async def get_all_metadata_async(db: AsyncSession) -> Dict[str, List[Any]]:
 
         UNION ALL
 
-        SELECT 'classes' as table_name, id, name, description, display_name,
+        SELECT 'classes' as table_name, id, name, description,
                sort_order, NULL::DATE as start_date, NULL::DATE as end_date, NULL::BOOLEAN as is_current,
                NULL::INTEGER as max_days_per_year, NULL::BOOLEAN as requires_medical_certificate, NULL::DECIMAL as budget_limit,
                NULL::BOOLEAN as requires_approval, NULL::VARCHAR as color_code, NULL::BOOLEAN as is_final, NULL::INTEGER as level_order,
@@ -151,7 +151,7 @@ async def get_all_metadata_async(db: AsyncSession) -> Dict[str, List[Any]]:
 
         UNION ALL
 
-        SELECT 'payment_types' as table_name, id, name, description, NULL::VARCHAR as display_name,
+        SELECT 'payment_types' as table_name, id, name, description,
                NULL::INTEGER as sort_order, NULL::DATE as start_date, NULL::DATE as end_date, NULL::BOOLEAN as is_current,
                NULL::INTEGER as max_days_per_year, NULL::BOOLEAN as requires_medical_certificate, NULL::DECIMAL as budget_limit,
                NULL::BOOLEAN as requires_approval, NULL::VARCHAR as color_code, NULL::BOOLEAN as is_final, NULL::INTEGER as level_order,
@@ -160,7 +160,7 @@ async def get_all_metadata_async(db: AsyncSession) -> Dict[str, List[Any]]:
 
         UNION ALL
 
-        SELECT 'payment_statuses' as table_name, id, name, description, NULL::VARCHAR as display_name,
+        SELECT 'payment_statuses' as table_name, id, name, description,
                NULL::INTEGER as sort_order, NULL::DATE as start_date, NULL::DATE as end_date, NULL::BOOLEAN as is_current,
                NULL::INTEGER as max_days_per_year, NULL::BOOLEAN as requires_medical_certificate, NULL::DECIMAL as budget_limit,
                NULL::BOOLEAN as requires_approval, color_code, NULL::BOOLEAN as is_final, NULL::INTEGER as level_order,
@@ -169,7 +169,7 @@ async def get_all_metadata_async(db: AsyncSession) -> Dict[str, List[Any]]:
 
         UNION ALL
 
-        SELECT 'payment_methods' as table_name, id, name, description, NULL::VARCHAR as display_name,
+        SELECT 'payment_methods' as table_name, id, name, description,
                NULL::INTEGER as sort_order, NULL::DATE as start_date, NULL::DATE as end_date, NULL::BOOLEAN as is_current,
                NULL::INTEGER as max_days_per_year, NULL::BOOLEAN as requires_medical_certificate, NULL::DECIMAL as budget_limit,
                NULL::BOOLEAN as requires_approval, NULL::VARCHAR as color_code, NULL::BOOLEAN as is_final, NULL::INTEGER as level_order,
@@ -178,7 +178,7 @@ async def get_all_metadata_async(db: AsyncSession) -> Dict[str, List[Any]]:
 
         UNION ALL
 
-        SELECT 'leave_types' as table_name, id, name, description, NULL::VARCHAR as display_name,
+        SELECT 'leave_types' as table_name, id, name, description,
                NULL::INTEGER as sort_order, NULL::DATE as start_date, NULL::DATE as end_date, NULL::BOOLEAN as is_current,
                max_days_per_year, requires_medical_certificate, NULL::DECIMAL as budget_limit,
                NULL::BOOLEAN as requires_approval, NULL::VARCHAR as color_code, NULL::BOOLEAN as is_final, NULL::INTEGER as level_order,
@@ -187,7 +187,7 @@ async def get_all_metadata_async(db: AsyncSession) -> Dict[str, List[Any]]:
 
         UNION ALL
 
-        SELECT 'leave_statuses' as table_name, id, name, description, NULL::VARCHAR as display_name,
+        SELECT 'leave_statuses' as table_name, id, name, description,
                NULL::INTEGER as sort_order, NULL::DATE as start_date, NULL::DATE as end_date, NULL::BOOLEAN as is_current,
                NULL::INTEGER as max_days_per_year, NULL::BOOLEAN as requires_medical_certificate, NULL::DECIMAL as budget_limit,
                NULL::BOOLEAN as requires_approval, color_code, is_final, NULL::INTEGER as level_order,
@@ -196,7 +196,7 @@ async def get_all_metadata_async(db: AsyncSession) -> Dict[str, List[Any]]:
 
         UNION ALL
 
-        SELECT 'expense_categories' as table_name, id, name, description, NULL::VARCHAR as display_name,
+        SELECT 'expense_categories' as table_name, id, name, description,
                NULL::INTEGER as sort_order, NULL::DATE as start_date, NULL::DATE as end_date, NULL::BOOLEAN as is_current,
                NULL::INTEGER as max_days_per_year, NULL::BOOLEAN as requires_medical_certificate, budget_limit,
                requires_approval, NULL::VARCHAR as color_code, NULL::BOOLEAN as is_final, NULL::INTEGER as level_order,
@@ -205,7 +205,7 @@ async def get_all_metadata_async(db: AsyncSession) -> Dict[str, List[Any]]:
 
         UNION ALL
 
-        SELECT 'expense_statuses' as table_name, id, name, description, NULL::VARCHAR as display_name,
+        SELECT 'expense_statuses' as table_name, id, name, description,
                NULL::INTEGER as sort_order, NULL::DATE as start_date, NULL::DATE as end_date, NULL::BOOLEAN as is_current,
                NULL::INTEGER as max_days_per_year, NULL::BOOLEAN as requires_medical_certificate, NULL::DECIMAL as budget_limit,
                NULL::BOOLEAN as requires_approval, color_code, is_final, NULL::INTEGER as level_order,
@@ -214,7 +214,7 @@ async def get_all_metadata_async(db: AsyncSession) -> Dict[str, List[Any]]:
 
         UNION ALL
 
-        SELECT 'employment_statuses' as table_name, id, name, description, NULL::VARCHAR as display_name,
+        SELECT 'employment_statuses' as table_name, id, name, description,
                NULL::INTEGER as sort_order, NULL::DATE as start_date, NULL::DATE as end_date, NULL::BOOLEAN as is_current,
                NULL::INTEGER as max_days_per_year, NULL::BOOLEAN as requires_medical_certificate, NULL::DECIMAL as budget_limit,
                NULL::BOOLEAN as requires_approval, NULL::VARCHAR as color_code, NULL::BOOLEAN as is_final, NULL::INTEGER as level_order,
@@ -223,7 +223,7 @@ async def get_all_metadata_async(db: AsyncSession) -> Dict[str, List[Any]]:
 
         UNION ALL
 
-        SELECT 'qualifications' as table_name, id, name, description, NULL::VARCHAR as display_name,
+        SELECT 'qualifications' as table_name, id, name, description,
                NULL::INTEGER as sort_order, NULL::DATE as start_date, NULL::DATE as end_date, NULL::BOOLEAN as is_current,
                NULL::INTEGER as max_days_per_year, NULL::BOOLEAN as requires_medical_certificate, NULL::DECIMAL as budget_limit,
                NULL::BOOLEAN as requires_approval, NULL::VARCHAR as color_code, NULL::BOOLEAN as is_final, level_order,
@@ -281,7 +281,7 @@ async def get_all_metadata_async(db: AsyncSession) -> Dict[str, List[Any]]:
         elif table_name == 'classes':
             obj = type('Class', (), {
                 'id': row.id, 'name': row.name, 'description': row.description,
-                'display_name': row.display_name, 'sort_order': row.sort_order,
+                'sort_order': row.sort_order,
                 'is_active': row.is_active
             })()
         elif table_name == 'payment_types':
@@ -380,7 +380,6 @@ def get_dropdown_options(db: Session, table_name: str) -> List[Dict[str, Any]]:
         {
             "id": record.id,
             "name": record.name,
-            "display_name": getattr(record, 'display_name', record.name),
             "is_active": record.is_active
         }
         for record in records

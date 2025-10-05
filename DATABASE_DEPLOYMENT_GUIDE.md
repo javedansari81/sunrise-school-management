@@ -23,12 +23,12 @@ This guide provides comprehensive instructions for deploying the optimized Postg
 
 ## 🏗️ **Database Architecture Overview**
 
-### **Optimized Schema Structure**
-- **57 Active Tables** - Streamlined from original 64 tables
-- **9 Essential Creation Scripts** - Consolidated schema deployment
-- **Metadata-Driven Architecture** - 13 reference tables with 113 records
-- **Enhanced Monthly Fee Tracking** - Advanced payment system
-- **Hybrid Constraint Strategy** - 40% inline, 60% separate complex constraints
+### **Complete Schema Structure**
+- **21 Core Tables** - Complete tables for full functionality
+- **3 Simple Deployment Scripts** - Streamlined deployment process
+- **Metadata-Driven Architecture** - 11 reference tables with 57 records
+- **Complete School Management** - Students, Teachers, Fees, Leaves, Expenses, Monthly Tracking
+- **Automated Deployment** - Python scripts with verification and error handling
 
 ### **Key Features**
 - **Soft Delete Implementation** - `is_deleted` and `deleted_date` columns
@@ -124,7 +124,7 @@ git clone <repository-url>
 cd sunrise-school-management
 ```
 
-### **Step 2: Execute Table Creation Scripts (Required Order)**
+### **Step 2: Quick Deployment (Recommended)**
 
 **Connect to Database:**
 ```bash
@@ -132,108 +132,79 @@ cd sunrise-school-management
 psql "postgresql://sunrise_user:password@dpg-xxx.singapore-postgres.render.com/sunrise_school"
 
 # For local development
-psql -U sunrise_user -d sunrise_school -h localhost
+psql -U sunrise_user -d sunrise_school_db -h localhost
 ```
 
-**Execute Scripts in Exact Order:**
+**Execute Complete Setup (Single Command):**
 ```sql
--- 1. Metadata Tables (Reference data structure)
-\i Database/Tables/00_metadata_tables.sql
-
--- 2. Users Table (Authentication system)
-\i Database/Tables/02_users.sql
-
--- 3. Students Table (Student management)
-\i Database/Tables/03_students.sql
-
--- 4. Teachers Table (Staff management)
-\i Database/Tables/04_teachers.sql
-
--- 5. Fee System (Enhanced monthly tracking)
-\i Database/Tables/05_fees.sql
-
--- 6. Leave Management System
-\i Database/Tables/07_leaves.sql
-
--- 7. Expense Management System
-\i Database/Tables/08_expenses.sql
-
--- 8. Performance Indexes
-\i Database/Tables/09_indexes.sql
-
--- 9. Complex Business Logic Constraints
-\i Database/Tables/10_constraints.sql
+-- Complete database setup with all tables and metadata
+\i Database/Init/00_complete_database_setup.sql
+\i Database/Init/01_load_metadata.sql
+\i Database/Init/02_create_admin_user.sql
 ```
 
-### **Step 3: Initialize Metadata**
-```sql
--- Load complete metadata (113 records across 13 tables)
-\i Database/Init/00_metadata_data.sql
-```
+### **Step 3: Alternative - Manual Step-by-Step Deployment**
 
-### **Step 4: Load Sample Data (Optional)**
+**Execute Scripts in Order (if you prefer manual control):**
 ```sql
--- Load initial test data for development
-\i Database/Init/02_load_initial_data_clean.sql
-```
+-- 1. Core Database Structure (17 tables)
+\i Database/Init/00_complete_database_setup.sql
 
-### **Step 5: Create Enhanced Views (Optional)**
-```sql
--- Create fee management views
+-- 2. Load All Metadata (57 records across 11 tables)
+\i Database/Init/01_load_metadata.sql
+
+-- 3. Create Admin User
+\i Database/Init/02_create_admin_user.sql
+
+-- 4. Optional: Create Enhanced Views
 \i Database/Scripts/create_enhanced_views.sql
 ```
+
+### **Step 4: Python Deployment Script (Recommended)**
+
+For automated deployment, you can use the Python script:
+```bash
+# Run the complete automated deployment script
+python database_deployment_complete.py
+```
+
+This script will:
+- Create all 21 database tables (including expenses, vendors, leave_requests, etc.)
+- Load all 57 metadata records
+- Create the admin user
+- Verify the deployment with comprehensive checks
+- Provide detailed progress reporting
 
 ---
 
 ## 📋 **Database Schema Documentation**
 
-### **Core Tables (57 Active Tables)**
+### **Complete Tables (21 Essential Tables)**
 
-#### **Authentication & Users (3 tables)**
-- `users` - System authentication
+#### **Metadata Tables (11 tables)**
 - `user_types` - Role definitions (Admin, Teacher, Student, Staff, Parent)
-- `session_years` - Academic year management
-
-#### **Student Management (4 tables)**
-- `students` - Student profiles and academic records
+- `session_years` - Academic year management (2022-23 to 2026-27)
+- `genders` - Gender reference data (Male, Female, Other)
 - `classes` - Class structure (Pre-Nursery to Class 12)
-- `genders` - Gender reference data
-- `student_guardians` - Parent/guardian information
+- `payment_types` - Payment frequency (Monthly, Quarterly, Annual, One-time)
+- `payment_statuses` - Payment state management (Pending, Paid, Partial, Overdue, Cancelled)
+- `payment_methods` - Payment channels (Cash, UPI, Bank Transfer, Cheque, Card, Online)
+- `leave_types` - Leave categories (Sick, Casual, Emergency, Maternity, Paternity)
+- `leave_statuses` - Workflow status tracking (Pending, Approved, Rejected, Cancelled)
+- `expense_categories` - Expense classification (Stationery, Maintenance, Utilities, etc.)
+- `expense_statuses` - Approval workflow (Pending, Approved, Rejected, Paid)
 
-#### **Teacher Management (4 tables)**
+#### **Core Application Tables (10 tables)**
+- `users` - System authentication and user management
+- `students` - Student profiles and academic records with guardian information
 - `teachers` - Teacher profiles and employment details
-- `employment_statuses` - Employment type reference
-- `qualifications` - Education qualification levels
-- `teacher_subjects` - Subject assignments
-
-#### **Enhanced Fee Management (8 tables)**
-- `fee_structures` - Annual fee definitions by class
-- `fee_records` - Individual student fee tracking
-- `fee_payments` - Payment transaction records
-- `fee_discounts` - Scholarship and discount management
-- `fee_reminders` - Payment reminder system
-- `fee_reports` - Generated reports metadata
-- `monthly_fee_tracking` - **NEW**: Month-wise payment tracking
-- `monthly_payment_allocations` - **NEW**: Payment-to-month mapping
-
-#### **Leave Management (4 tables)**
-- `leave_requests` - Leave application system
-- `leave_types` - Leave categories (Sick, Casual, Emergency, etc.)
-- `leave_statuses` - Workflow status tracking
-- `leave_attachments` - Supporting documents
-
-#### **Expense Management (6 tables)**
-- `expenses` - School expense tracking
-- `expense_categories` - Expense classification
-- `expense_statuses` - Approval workflow
-- `vendors` - Vendor management
-- `purchase_orders` - Purchase order system
-- `expense_attachments` - Receipt and document storage
-
-#### **Payment System (3 tables)**
-- `payment_types` - Payment frequency (Monthly, Quarterly, etc.)
-- `payment_statuses` - Payment state management
-- `payment_methods` - Payment channels (Cash, UPI, Bank Transfer, etc.)
+- `fee_structures` - Fee definitions by class and session
+- `fee_records` - Individual student fee tracking and payment status
+- `expenses` - School expense management with approval workflow
+- `vendors` - Vendor management for expense tracking
+- `leave_requests` - Leave application system for teachers and students
+- `monthly_fee_tracking` - Month-wise fee tracking for students
+- `monthly_payment_allocations` - Payment allocation to specific months
 
 ---
 
@@ -268,28 +239,32 @@ psql "postgresql://user:pass@host/db" < backup_file.sql
 
 ### **Step 1: Verify Table Creation**
 ```sql
--- Check table count (should be 57)
-SELECT COUNT(*) FROM information_schema.tables 
-WHERE table_schema = 'public' AND table_type = 'BASE TABLE';
+-- Check table count (should be 21)
+SELECT COUNT(*) FROM information_schema.tables
+WHERE table_schema = 'sunrise' AND table_type = 'BASE TABLE';
 
 -- List all tables
-\dt
+SELECT table_name FROM information_schema.tables
+WHERE table_schema = 'sunrise' AND table_type = 'BASE TABLE'
+ORDER BY table_name;
 ```
 
 ### **Step 2: Verify Metadata Population**
 ```sql
--- Check metadata record counts (should total 113)
+-- Check metadata record counts (should total 57)
 SELECT 'user_types' as table_name, COUNT(*) as records FROM user_types
 UNION ALL SELECT 'session_years', COUNT(*) FROM session_years
 UNION ALL SELECT 'classes', COUNT(*) FROM classes
 UNION ALL SELECT 'payment_methods', COUNT(*) FROM payment_methods
+UNION ALL SELECT 'leave_types', COUNT(*) FROM leave_types
+UNION ALL SELECT 'expense_categories', COUNT(*) FROM expense_categories
 ORDER BY table_name;
 ```
 
-### **Step 3: Verify Sample Data (if loaded)**
+### **Step 3: Verify Admin User Creation**
 ```sql
--- Check sample users
-SELECT email, user_type_id, is_active FROM users;
+-- Check admin user
+SELECT email, user_type_id, is_active FROM users WHERE email = 'admin@sunriseschool.edu';
 
 -- Check current session year
 SELECT name, is_current FROM session_years WHERE is_current = true;

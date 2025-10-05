@@ -96,7 +96,6 @@ class Student(Base):
     
     # Academic Information
     admission_date = Column(Date, nullable=False)
-    previous_school = Column(String(200), nullable=True)
     
     # Status
     is_active = Column(Boolean, default=True)
@@ -133,12 +132,13 @@ class Student(Base):
 
     @property
     def current_class_enum(self) -> ClassEnum:
-        """Convert string current_class to ClassEnum for application logic"""
+        """Convert class relationship to ClassEnum for application logic"""
         try:
-            # Handle case-insensitive conversion
-            if isinstance(self.current_class, str):
+            # Handle case-insensitive conversion using the class relationship
+            if self.class_ref and hasattr(self.class_ref, 'name'):
+                class_name = self.class_ref.name
                 for member in ClassEnum:
-                    if member.value.upper() == self.current_class.upper():
+                    if member.value.upper() == class_name.upper():
                         return member
             # Fallback to CLASS_1 if not found
             return ClassEnum.CLASS_1

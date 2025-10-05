@@ -949,6 +949,7 @@ async def get_payment_history(
     payment_history = []
     total_paid = 0
     total_due = 0
+    individual_payments_total = 0  # Track sum of individual payment amounts
 
     for fee_record in fee_records:
         # Get all payments for this fee record with payment method relationship
@@ -985,13 +986,26 @@ async def get_payment_history(
                 "created_at": payment.created_at
             }
             record_info["payments"].append(payment_detail)
+            individual_payments_total += float(payment.amount)  # Add to individual total
 
         # Sort payments by date (most recent first)
         record_info["payments"].sort(key=lambda x: x["payment_date"], reverse=True)
 
         payment_history.append(record_info)
-        total_paid += fee_record.paid_amount
+        # Use individual payment amounts instead of fee_record.paid_amount for consistency
+        # total_paid += fee_record.paid_amount  # OLD: This causes discrepancy
+        # individual_payments_total is already calculated above in the loop
         total_due += fee_record.balance_amount
+
+    # Get student's fee structure to calculate total annual fee
+    from app.crud.crud_fee import fee_structure_crud
+    fee_structure = await fee_structure_crud.get_by_class_and_session(
+        db,
+        class_name=student.class_ref.name if student.class_ref else "",
+        session_year=session_year.value
+    )
+
+    total_annual_fee = float(fee_structure.total_annual_fee) if fee_structure else 0.0
 
     # Sort fee records by payment type (Monthly, Quarterly, etc.)
     payment_history.sort(key=lambda x: x["payment_type_id"])
@@ -1003,7 +1017,9 @@ async def get_payment_history(
         "class": student.class_ref.name if student.class_ref else "",
         "session_year": session_year.value,
         "summary": {
-            "total_paid": total_paid,
+            "total_amount": total_annual_fee,
+            "total_paid": individual_payments_total,  # Use sum of individual payments for consistency
+            "individual_payments_total": individual_payments_total,  # Debug field
             "total_due": total_due,
             "total_records": len(payment_history),
             "total_payments": sum(len(record["payments"]) for record in payment_history)
@@ -1219,7 +1235,7 @@ async def get_fee_metadata(
 
     return {
         "session_years": [{"id": sy.id, "name": sy.name, "is_current": getattr(sy, 'is_current', False)} for sy in session_years],
-        "classes": [{"id": c.id, "name": c.name, "display_name": getattr(c, 'display_name', c.name)} for c in classes],
+        "classes": [{"id": c.id, "name": c.name, "description": getattr(c, 'description', c.name)} for c in classes],
         "payment_statuses": [{"id": ps.id, "name": ps.name, "color_code": getattr(ps, 'color_code', '#000000')} for ps in payment_statuses],
         "payment_methods": [{"id": pm.id, "name": pm.name, "requires_reference": getattr(pm, 'requires_reference', False)} for pm in payment_methods],
         "genders": [{"id": g.id, "name": g.name} for g in genders],
@@ -2027,12 +2043,19 @@ async def pay_monthly_enhanced(
     # Sort months by academic order (April = 4 first, March = 3 last)
     available_months.sort(key=lambda x: x.academic_month if x.academic_month >= 4 else x.academic_month + 12)
 
-    # Create the payment record first
+    # First, calculate how much can actually be allocated
+    total_allocatable = 0
+    for month_record in available_months:
+        month_balance = float(month_record.monthly_amount) - float(month_record.paid_amount)
+        total_allocatable += month_balance
 
-    # Create payment data object with the correct field name for database model
+    # The actual amount to process is the minimum of payment amount and allocatable amount
+    actual_amount_to_process = min(amount, total_allocatable)
+
+    # Create the payment record with the actual amount that will be processed
     payment_data = {
         "fee_record_id": available_months[0].fee_record_id,
-        "amount": amount,
+        "amount": actual_amount_to_process,  # Use actual processable amount
         "payment_method_id": payment_method_id,  # This should be an integer
         "payment_date": date.today(),
         "transaction_id": transaction_id,
@@ -2049,7 +2072,7 @@ async def pay_monthly_enhanced(
     payment = payment_record
 
     # Allocate payment to months using the smart allocation logic
-    remaining_amount = amount
+    remaining_amount = actual_amount_to_process  # Use the actual processable amount
     allocations = []
     payment_breakdown = []
     total_allocated = 0
@@ -2092,11 +2115,19 @@ async def pay_monthly_enhanced(
             db, payment.id, allocations
         )
 
-    # Update the main fee record with only the allocated amount
+    # Update the main fee record with the payment amount (should equal total_allocated now)
     fee_record = await fee_record_crud.get(db, id=available_months[0].fee_record_id)
     # Convert allocated amount to Decimal for compatibility with database field
     from decimal import Decimal
-    fee_record.paid_amount += Decimal(str(total_allocated))
+
+    # Verify that payment amount equals total allocated (they should be equal now)
+    if abs(float(payment.amount) - total_allocated) > 0.01:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Payment amount (₹{payment.amount}) does not match allocated amount (₹{total_allocated})"
+        )
+
+    fee_record.paid_amount += Decimal(str(payment.amount))  # Use payment amount for consistency
     fee_record.balance_amount = fee_record.total_amount - fee_record.paid_amount
 
     # Update payment status
@@ -2115,10 +2146,16 @@ async def pay_monthly_enhanced(
     fully_paid_months = len([m for m in payment_breakdown if m["status"] == "Paid"])
     partial_months = len([m for m in payment_breakdown if m["status"] == "Partial"])
 
+    # Calculate any remaining amount that couldn't be processed
+    remaining_unprocessed = amount - actual_amount_to_process
+
     return {
         "success": True,
-        "message": f"Payment of ₹{amount} processed: ₹{total_allocated} allocated across {total_months_affected} month(s)" + (f", ₹{amount - total_allocated} remaining" if amount > total_allocated else ""),
+        "message": f"Payment of ₹{actual_amount_to_process} processed: ₹{total_allocated} allocated across {total_months_affected} month(s)" + (f", ₹{remaining_unprocessed} could not be processed (no pending amounts)" if remaining_unprocessed > 0 else ""),
         "payment_id": payment.id,
+        "original_amount": amount,
+        "processed_amount": actual_amount_to_process,
+        "remaining_unprocessed": remaining_unprocessed,
         "student": {
             "id": student.id,
             "name": f"{student.first_name} {student.last_name}",
@@ -2673,4 +2710,86 @@ async def enable_monthly_tracking(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to enable monthly tracking: {str(e)}"
+        )
+
+
+@router.get("/validate-payment-consistency/{student_id}")
+async def validate_payment_consistency(
+    student_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Validate payment data consistency for a specific student
+    Checks for mismatches between payment records, fee records, and monthly tracking
+    """
+    try:
+        # Get student
+        student = await student_crud.get(db, id=student_id)
+        if not student:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Student not found"
+            )
+
+        # Check fee records vs payments
+        fee_records = await fee_record_crud.get_by_student(db, student_id=student_id)
+
+        inconsistencies = []
+
+        for record in fee_records:
+            # Get payments for this record
+            payments = await fee_payment_crud.get_by_fee_record(db, fee_record_id=record.id)
+            payments_sum = sum(payment.amount for payment in payments)
+
+            if record.paid_amount != payments_sum:
+                inconsistencies.append({
+                    "type": "fee_record_mismatch",
+                    "fee_record_id": record.id,
+                    "fee_record_paid": float(record.paid_amount),
+                    "payments_sum": float(payments_sum),
+                    "difference": float(record.paid_amount - payments_sum)
+                })
+
+        # Check monthly tracking vs allocations
+        monthly_records_query = select(MonthlyFeeTracking).where(
+            MonthlyFeeTracking.student_id == student_id
+        )
+        monthly_result = await db.execute(monthly_records_query)
+        monthly_records = monthly_result.scalars().all()
+
+        for month_record in monthly_records:
+            allocations_query = select(MonthlyPaymentAllocation).where(
+                MonthlyPaymentAllocation.monthly_tracking_id == month_record.id
+            )
+            allocations_result = await db.execute(allocations_query)
+            allocations = allocations_result.scalars().all()
+
+            allocations_sum = sum(allocation.allocated_amount for allocation in allocations)
+
+            if month_record.paid_amount != allocations_sum:
+                inconsistencies.append({
+                    "type": "monthly_tracking_mismatch",
+                    "monthly_tracking_id": month_record.id,
+                    "month_name": month_record.month_name,
+                    "academic_year": month_record.academic_year,
+                    "monthly_paid": float(month_record.paid_amount),
+                    "allocations_sum": float(allocations_sum),
+                    "difference": float(month_record.paid_amount - allocations_sum)
+                })
+
+        return {
+            "student_id": student_id,
+            "student_name": f"{student.first_name} {student.last_name}",
+            "is_consistent": len(inconsistencies) == 0,
+            "inconsistencies_count": len(inconsistencies),
+            "inconsistencies": inconsistencies
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error validating payment consistency: {str(e)}"
         )

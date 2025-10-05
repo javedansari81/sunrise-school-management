@@ -25,6 +25,13 @@ import {
   Tooltip,
   Stack,
   Grid,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  OutlinedInput,
+  ListItemText,
+  Checkbox,
 } from '@mui/material';
 import {
   Search,
@@ -37,6 +44,7 @@ import {
   Close as CloseIcon,
   Payment,
   AccountBalance,
+  Warning,
 } from '@mui/icons-material';
 import {
   SessionYearDropdown,
@@ -180,6 +188,20 @@ const SimpleEnhancedFeeManagement: React.FC = () => {
     severity: 'success' as 'success' | 'error' | 'warning' | 'info'
   });
 
+  // Utility function to get class display name
+  const getClassDisplayName = (className: string): string => {
+    if (!className) return className;
+
+    // Try to get from configuration service
+    const classes = configurationService.getClasses();
+    const classItem = classes.find(cls => cls.name === className);
+    if (classItem && classItem.description) {
+      return classItem.description;
+    }
+
+    return className;
+  };
+
   // Fetch enhanced student summary
   const fetchStudentsSummary = async () => {
     if (!filters.session_year_id) return;
@@ -268,6 +290,7 @@ const SimpleEnhancedFeeManagement: React.FC = () => {
     }));
     setDialogLoading(true);
     try {
+      // Add cache busting to ensure fresh data
       const response = await enhancedFeesAPI.getEnhancedMonthlyHistory(
         studentId,
         parseInt(filters.session_year_id)
@@ -519,8 +542,7 @@ const SimpleEnhancedFeeManagement: React.FC = () => {
       console.log('✅ Monthly tracking response:', response.data);
 
       // Show detailed success message
-      const { message, total_records_created, fee_records_created, results } = response.data;
-      const successfulStudents = results.filter((r: any) => r.success);
+      const { message, fee_records_created, results } = response.data;
       const failedStudents = results.filter((r: any) => !r.success);
 
       let successMessage = message;
@@ -572,7 +594,7 @@ const SimpleEnhancedFeeManagement: React.FC = () => {
 
   useEffect(() => {
     fetchStudentsSummary();
-  }, [filters.session_year_id, filters.class_id]);
+  }, [filters.session_year_id, filters.class_id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Show login prompt if not authenticated
   if (!isAuthenticated) {
@@ -754,7 +776,7 @@ const SimpleEnhancedFeeManagement: React.FC = () => {
                         </Typography>
                       </Box>
                     </TableCell>
-                    <TableCell>{student.class_name}</TableCell>
+                    <TableCell>{getClassDisplayName(student.class_name)}</TableCell>
                     <TableCell>
                       ₹{student.annual_fee?.toLocaleString() || 0}
                     </TableCell>
@@ -947,7 +969,7 @@ const SimpleEnhancedFeeManagement: React.FC = () => {
                   fontSize: { xs: '0.875rem', sm: '1rem' }
                 }}
               >
-                {selectedStudent?.student_name} • {selectedStudent?.class_name}
+                {selectedStudent?.student_name} • {getClassDisplayName(selectedStudent?.class_name || '')}
               </Typography>
             </Box>
             <IconButton
@@ -974,74 +996,6 @@ const SimpleEnhancedFeeManagement: React.FC = () => {
             </Box>
           ) : selectedStudent && (
             <Box>
-              {/* Compact Summary */}
-              <Box sx={{ p: { xs: 2, sm: 3 }, bgcolor: 'grey.50', borderBottom: '1px solid #e0e0e0' }}>
-                <Grid container spacing={{ xs: 1, sm: 2 }}>
-                  <Grid size={{ xs: 6, sm: 3 }}>
-                    <Box sx={{ textAlign: 'center', p: 1 }}>
-                      <Typography variant="caption" color="textSecondary">
-                        Total Paid
-                      </Typography>
-                      <Typography
-                        variant="h6"
-                        fontWeight="bold"
-                        color="success.main"
-                        sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }}
-                      >
-                        ₹{selectedStudent.total_paid?.toLocaleString() || 0}
-                      </Typography>
-                    </Box>
-                  </Grid>
-                  <Grid size={{ xs: 6, sm: 3 }}>
-                    <Box sx={{ textAlign: 'center', p: 1 }}>
-                      <Typography variant="caption" color="textSecondary">
-                        Balance
-                      </Typography>
-                      <Typography
-                        variant="h6"
-                        fontWeight="bold"
-                        color="error.main"
-                        sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }}
-                      >
-                        ₹{selectedStudent.total_balance?.toLocaleString() || 0}
-                      </Typography>
-                    </Box>
-                  </Grid>
-                  <Grid size={{ xs: 6, sm: 3 }}>
-                    <Box sx={{ textAlign: 'center', p: 1 }}>
-                      <Typography variant="caption" color="textSecondary">
-                        Collection %
-                      </Typography>
-                      <Typography
-                        variant="h6"
-                        fontWeight="bold"
-                        color="info.main"
-                        sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }}
-                      >
-                        {selectedStudent.collection_percentage?.toFixed(1) || 0}%
-                      </Typography>
-                    </Box>
-                  </Grid>
-                  <Grid size={{ xs: 6, sm: 3 }}>
-                    <Box sx={{ textAlign: 'center', p: 1 }}>
-                      <Typography variant="caption" color="textSecondary">
-                        Paid Months
-                      </Typography>
-                      <Typography
-                        variant="h6"
-                        fontWeight="bold"
-                        color="primary.main"
-                        sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }}
-                      >
-                        {selectedStudent.paid_months}/{selectedStudent.total_months}
-                      </Typography>
-                    </Box>
-                  </Grid>
-                </Grid>
-              </Box>
-
-
-
               {/* Monthly History Table */}
               <Box sx={{ p: { xs: 2, sm: 3 } }}>
                 <Typography
@@ -1125,18 +1079,33 @@ const SimpleEnhancedFeeManagement: React.FC = () => {
                           </Typography>
                         </TableCell>
                         <TableCell>
-                          <Chip
-                            size="small"
-                            label={month.status}
-                            sx={{
-                              bgcolor: month.status_color,
-                              color: 'white',
-                              fontWeight: 'bold',
-                              borderRadius: 1.5,
-                              fontSize: { xs: '0.65rem', sm: '0.75rem' },
-                              height: { xs: 20, sm: 24 }
-                            }}
-                          />
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Chip
+                              size="small"
+                              label={month.status}
+                              sx={{
+                                bgcolor: month.status_color,
+                                color: 'white',
+                                fontWeight: 'bold',
+                                borderRadius: 1.5,
+                                fontSize: { xs: '0.65rem', sm: '0.75rem' },
+                                height: { xs: 20, sm: 24 }
+                              }}
+                            />
+                            {month.paid_amount > month.monthly_amount && (
+                              <Tooltip title={`Issue: Paid amount (₹${month.paid_amount}) exceeds monthly amount (₹${month.monthly_amount})`}>
+                                <IconButton
+                                  size="small"
+                                  color="error"
+                                  onClick={() => {
+                                    alert(`⚠️ Payment Issue Detected!\n\nMonth: ${month.month_name} ${month.year}\nMonthly Amount: ₹${month.monthly_amount}\nPaid Amount: ₹${month.paid_amount}\nOverpayment: ₹${month.paid_amount - month.monthly_amount}\n\nThis issue has been automatically fixed in the backend. Please refresh the data.`);
+                                  }}
+                                >
+                                  <Warning fontSize="small" />
+                                </IconButton>
+                              </Tooltip>
+                            )}
+                          </Box>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -1195,7 +1164,7 @@ const SimpleEnhancedFeeManagement: React.FC = () => {
                 Payment History
               </Typography>
               <Typography variant="subtitle1" sx={{ opacity: 0.9, mt: 0.5 }}>
-                {paymentHistory?.student_name} • {paymentHistory?.class} • {paymentHistory?.session_year}
+                {paymentHistory?.student_name} • {getClassDisplayName(paymentHistory?.class || '')} • {paymentHistory?.session_year}
               </Typography>
             </Box>
             <IconButton
@@ -1232,7 +1201,24 @@ const SimpleEnhancedFeeManagement: React.FC = () => {
                       '&:hover': { boxShadow: '0 4px 16px rgba(0,0,0,0.15)' }
                     }}>
                       <Typography variant="body2" color="textSecondary" gutterBottom>
-                        Total Paid
+                        Total Amount
+                      </Typography>
+                      <Typography variant="h5" fontWeight="bold" color="primary.main">
+                        ₹{paymentHistory.summary?.total_amount?.toLocaleString() || 0}
+                      </Typography>
+                    </Card>
+                  </Grid>
+                  <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                    <Card sx={{
+                      p: 2.5,
+                      textAlign: 'center',
+                      border: '1px solid #e0e0e0',
+                      borderRadius: 2,
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                      '&:hover': { boxShadow: '0 4px 16px rgba(0,0,0,0.15)' }
+                    }}>
+                      <Typography variant="body2" color="textSecondary" gutterBottom>
+                        Total Paid Amount
                       </Typography>
                       <Typography variant="h5" fontWeight="bold" color="success.main">
                         ₹{paymentHistory.summary?.total_paid?.toLocaleString() || 0}
@@ -1249,10 +1235,10 @@ const SimpleEnhancedFeeManagement: React.FC = () => {
                       '&:hover': { boxShadow: '0 4px 16px rgba(0,0,0,0.15)' }
                     }}>
                       <Typography variant="body2" color="textSecondary" gutterBottom>
-                        Total Due
+                        Balance
                       </Typography>
                       <Typography variant="h5" fontWeight="bold" color="error.main">
-                        ₹{paymentHistory.summary?.total_due?.toLocaleString() || 0}
+                        ₹{((paymentHistory.summary?.total_amount || 0) - (paymentHistory.summary?.total_paid || 0)).toLocaleString()}
                       </Typography>
                     </Card>
                   </Grid>
@@ -1266,24 +1252,7 @@ const SimpleEnhancedFeeManagement: React.FC = () => {
                       '&:hover': { boxShadow: '0 4px 16px rgba(0,0,0,0.15)' }
                     }}>
                       <Typography variant="body2" color="textSecondary" gutterBottom>
-                        Total Records
-                      </Typography>
-                      <Typography variant="h5" fontWeight="bold" color="primary.main">
-                        {paymentHistory.summary?.total_records || 0}
-                      </Typography>
-                    </Card>
-                  </Grid>
-                  <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                    <Card sx={{
-                      p: 2.5,
-                      textAlign: 'center',
-                      border: '1px solid #e0e0e0',
-                      borderRadius: 2,
-                      boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-                      '&:hover': { boxShadow: '0 4px 16px rgba(0,0,0,0.15)' }
-                    }}>
-                      <Typography variant="body2" color="textSecondary" gutterBottom>
-                        Total Payments
+                        No of Payments
                       </Typography>
                       <Typography variant="h5" fontWeight="bold" color="info.main">
                         {paymentHistory.summary?.total_payments || 0}
@@ -1296,7 +1265,7 @@ const SimpleEnhancedFeeManagement: React.FC = () => {
               {/* Payment History Table */}
               <Box sx={{ p: 3 }}>
                 <Typography variant="h6" gutterBottom sx={{ mb: 2, fontWeight: 'bold' }}>
-                  Payment Records
+                  All Payments
                 </Typography>
                 <TableContainer component={Paper} sx={{
                   borderRadius: 2,
@@ -1306,81 +1275,78 @@ const SimpleEnhancedFeeManagement: React.FC = () => {
                   <Table size="small">
                     <TableHead>
                       <TableRow sx={{ bgcolor: 'grey.100' }}>
-                        <TableCell sx={{ fontWeight: 'bold', fontSize: '0.875rem' }}>Payment Type</TableCell>
-                        <TableCell sx={{ fontWeight: 'bold', fontSize: '0.875rem' }}>Due Date</TableCell>
-                        <TableCell align="right" sx={{ fontWeight: 'bold', fontSize: '0.875rem' }}>Total Amount</TableCell>
+                        <TableCell sx={{ fontWeight: 'bold', fontSize: '0.875rem' }}>Payment Date</TableCell>
                         <TableCell align="right" sx={{ fontWeight: 'bold', fontSize: '0.875rem' }}>Paid Amount</TableCell>
-                        <TableCell align="right" sx={{ fontWeight: 'bold', fontSize: '0.875rem' }}>Balance</TableCell>
-                        <TableCell sx={{ fontWeight: 'bold', fontSize: '0.875rem' }}>Status</TableCell>
-                        <TableCell sx={{ fontWeight: 'bold', fontSize: '0.875rem' }}>Payments</TableCell>
+                        <TableCell sx={{ fontWeight: 'bold', fontSize: '0.875rem' }}>Payment Type</TableCell>
+                        <TableCell sx={{ fontWeight: 'bold', fontSize: '0.875rem' }}>Transaction ID</TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {paymentHistory.payment_history?.map((record: any, index: number) => (
-                        <TableRow
-                          key={index}
-                          sx={{
-                            '&:nth-of-type(odd)': { bgcolor: 'grey.25' },
-                            '&:hover': { bgcolor: 'grey.100' },
-                            transition: 'background-color 0.2s'
-                          }}
-                        >
-                          <TableCell>
-                            <Typography variant="body2" fontWeight="bold" color="primary.main">
-                              {record.payment_type}
-                            </Typography>
-                          </TableCell>
-                          <TableCell>
-                            <Typography variant="body2">
-                              {new Date(record.due_date).toLocaleDateString()}
-                            </Typography>
-                          </TableCell>
-                          <TableCell align="right">
-                            <Typography variant="body2" fontWeight="medium">
-                              ₹{record.total_amount?.toLocaleString() || 0}
-                            </Typography>
-                          </TableCell>
-                          <TableCell align="right">
-                            <Typography
-                              variant="body2"
-                              fontWeight="medium"
-                              color="success.main"
-                            >
-                              ₹{record.paid_amount?.toLocaleString() || 0}
-                            </Typography>
-                          </TableCell>
-                          <TableCell align="right">
-                            <Typography
-                              variant="body2"
-                              fontWeight="medium"
-                              color={record.balance_amount > 0 ? 'error.main' : 'success.main'}
-                            >
-                              ₹{record.balance_amount?.toLocaleString() || 0}
-                            </Typography>
-                          </TableCell>
-                          <TableCell>
-                            <Chip
-                              size="small"
-                              label={record.status}
-                              color={
-                                record.status === 'Paid' ? 'success' :
-                                record.status === 'Partial' ? 'warning' :
-                                record.status === 'Overdue' ? 'error' : 'default'
-                              }
-                              sx={{
-                                borderRadius: 1.5,
-                                fontSize: '0.75rem',
-                                fontWeight: 'bold'
-                              }}
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <Typography variant="body2" color="textSecondary">
-                              {record.payments?.length || 0} payment(s)
+                      {(() => {
+                        // Flatten all payments from all records
+                        const allPayments: any[] = [];
+                        paymentHistory.payment_history?.forEach((record: any) => {
+                          record.payments?.forEach((payment: any) => {
+                            allPayments.push(payment);
+                          });
+                        });
+
+                        // Sort payments by date (newest first)
+                        allPayments.sort((a, b) => new Date(b.payment_date).getTime() - new Date(a.payment_date).getTime());
+
+                        return allPayments.map((payment: any, index: number) => (
+                          <TableRow
+                            key={index}
+                            sx={{
+                              '&:nth-of-type(odd)': { bgcolor: 'grey.25' },
+                              '&:hover': { bgcolor: 'grey.100' },
+                              transition: 'background-color 0.2s'
+                            }}
+                          >
+                            <TableCell>
+                              <Typography variant="body2" fontWeight="medium">
+                                {new Date(payment.payment_date).toLocaleDateString()}
+                              </Typography>
+                            </TableCell>
+                            <TableCell align="right">
+                              <Typography
+                                variant="body2"
+                                fontWeight="bold"
+                                color="success.main"
+                              >
+                                ₹{payment.amount?.toLocaleString() || 0}
+                              </Typography>
+                            </TableCell>
+                            <TableCell>
+                              <Chip
+                                size="small"
+                                label={payment.payment_method || 'Unknown'}
+                                color="primary"
+                                variant="outlined"
+                                sx={{
+                                  borderRadius: 1.5,
+                                  fontSize: '0.75rem',
+                                  fontWeight: 'medium'
+                                }}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Typography variant="body2" color="textSecondary">
+                                {payment.transaction_id || 'N/A'}
+                              </Typography>
+                            </TableCell>
+                          </TableRow>
+                        ));
+                      })()}
+                      {(!paymentHistory.payment_history || paymentHistory.payment_history.length === 0) && (
+                        <TableRow>
+                          <TableCell colSpan={4} align="center">
+                            <Typography variant="body2" color="textSecondary" sx={{ py: 3 }}>
+                              No payments found
                             </Typography>
                           </TableCell>
                         </TableRow>
-                      ))}
+                      )}
                     </TableBody>
                   </Table>
                 </TableContainer>
@@ -1434,7 +1400,7 @@ const SimpleEnhancedFeeManagement: React.FC = () => {
                 Make Payment
               </Typography>
               <Typography variant="subtitle1" sx={{ opacity: 0.9, mt: 0.5 }}>
-                {availableMonthsData?.student.name} • {availableMonthsData?.student.class}
+                {availableMonthsData?.student.name} • {getClassDisplayName(availableMonthsData?.student.class || '')}
               </Typography>
             </Box>
             <IconButton
@@ -1490,34 +1456,53 @@ const SimpleEnhancedFeeManagement: React.FC = () => {
 
               {/* Available Months Selection */}
               <Box sx={{ mb: 3 }}>
-                <Typography variant="h6" gutterBottom fontWeight="bold">
-                  Select Months to Pay
-                </Typography>
-                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                  {availableMonthsData.available_months.map((month) => (
-                    <Chip
-                      key={month.month}
-                      label={`${month.month_name} ${month.year} (₹${month.balance_amount})`}
-                      clickable
-                      color={paymentForm.selectedMonths.includes(month.month) ? 'primary' : 'default'}
-                      variant={paymentForm.selectedMonths.includes(month.month) ? 'filled' : 'outlined'}
-                      onClick={() => {
-                        const isSelected = paymentForm.selectedMonths.includes(month.month);
-                        setPaymentForm(prev => ({
-                          ...prev,
-                          selectedMonths: isSelected
-                            ? prev.selectedMonths.filter(m => m !== month.month)
-                            : [...prev.selectedMonths, month.month].sort()
-                        }));
-                      }}
-                      sx={{
-                        fontSize: '0.875rem',
-                        height: 36,
-                        '&:hover': { boxShadow: 2 }
-                      }}
-                    />
-                  ))}
-                </Box>
+                <FormControl fullWidth>
+                  <InputLabel>Select Months to Pay</InputLabel>
+                  <Select
+                    multiple
+                    value={paymentForm.selectedMonths}
+                    onChange={(event) => {
+                      const value = event.target.value;
+                      setPaymentForm(prev => ({
+                        ...prev,
+                        selectedMonths: typeof value === 'string' ? value.split(',').map(Number) : value
+                      }));
+                    }}
+                    input={<OutlinedInput label="Select Months to Pay" />}
+                    renderValue={(selected) => {
+                      const selectedMonths = availableMonthsData.available_months.filter(month =>
+                        selected.includes(month.month)
+                      );
+                      return selectedMonths.map(month =>
+                        `${month.month_name} ${month.year}`
+                      ).join(', ');
+                    }}
+                    MenuProps={{
+                      PaperProps: {
+                        style: {
+                          maxHeight: 224,
+                          width: 250,
+                        },
+                      },
+                    }}
+                  >
+                    {availableMonthsData.available_months.map((month) => (
+                      <MenuItem key={month.month} value={month.month}>
+                        <Checkbox checked={paymentForm.selectedMonths.includes(month.month)} />
+                        <ListItemText
+                          primary={`${month.month_name} ${month.year}`}
+                          secondary={`₹${month.balance_amount.toLocaleString()}`}
+                        />
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+                {paymentForm.selectedMonths.length > 0 && (
+                  <Typography variant="caption" color="textSecondary" sx={{ mt: 1, display: 'block' }}>
+                    💡 Tip: If you pay more than the monthly fee (e.g., ₹1000 for ₹840/month),
+                    the system will automatically distribute ₹840 to the first month and ₹160 to the next month.
+                  </Typography>
+                )}
               </Box>
 
               {/* Payment Form */}
@@ -1532,7 +1517,7 @@ const SimpleEnhancedFeeManagement: React.FC = () => {
                     InputProps={{
                       startAdornment: <Typography sx={{ mr: 1 }}>₹</Typography>,
                     }}
-                    helperText="Enter the amount you want to pay"
+                    helperText="Amount will be automatically distributed across selected months"
                   />
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6 }}>

@@ -69,8 +69,8 @@ class FeeStructure(Base):
 
     @property
     def class_name(self) -> str:
-        """Get class display name from relationship"""
-        return self.class_ref.display_name if self.class_ref else ""
+        """Get class name from relationship"""
+        return self.class_ref.description if self.class_ref else ""
 
     @property
     def session_year_name(self) -> str:

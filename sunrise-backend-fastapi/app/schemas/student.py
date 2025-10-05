@@ -126,7 +126,6 @@ class StudentBase(BaseModel):
     emergency_contact_phone: Optional[str] = None
     emergency_contact_relation: Optional[str] = None
     admission_date: date
-    previous_school: Optional[str] = None
 
     @field_validator('aadhar_no', mode='before')
     @classmethod
@@ -178,7 +177,6 @@ class StudentUpdate(BaseModel):
     emergency_contact_phone: Optional[str] = None
     emergency_contact_relation: Optional[str] = None
     admission_date: Optional[date] = None
-    previous_school: Optional[str] = None
     is_active: Optional[bool] = None
 
 
@@ -197,7 +195,6 @@ class StudentProfileUpdate(BaseModel):
     emergency_contact_name: Optional[str] = None
     emergency_contact_phone: Optional[str] = None
     emergency_contact_relation: Optional[str] = None
-    previous_school: Optional[str] = None
 
 
 class StudentInDBBase(StudentBase):
@@ -255,7 +252,7 @@ class Student(StudentInDBBase):
             "created_at": db_student.created_at,
             "updated_at": db_student.updated_at,
             "gender_name": db_student.gender.name if db_student.gender else None,
-            "class_name": db_student.class_ref.display_name if db_student.class_ref else None,
+            "class_name": db_student.class_ref.description if db_student.class_ref else None,
             "session_year_name": db_student.session_year.name if db_student.session_year else None
         }
         return cls(**student_data)

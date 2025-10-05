@@ -91,7 +91,7 @@ async def get_service_metadata_configuration(db: AsyncSession, service_name: str
             elif metadata_type == "genders":
                 configuration[metadata_type] = [{"id": item.id, "name": item.name, "description": item.description, "is_active": item.is_active} for item in items]
             elif metadata_type == "classes":
-                configuration[metadata_type] = [{"id": item.id, "name": item.name, "description": item.description, "display_name": item.display_name, "sort_order": item.sort_order, "is_active": item.is_active} for item in items]
+                configuration[metadata_type] = [{"id": item.id, "name": item.name, "description": item.description, "sort_order": item.sort_order, "is_active": item.is_active} for item in items]
             elif metadata_type == "payment_types":
                 configuration[metadata_type] = [{"id": item.id, "name": item.name, "description": item.description, "is_active": item.is_active} for item in items]
             elif metadata_type == "payment_statuses":
@@ -150,7 +150,7 @@ async def get_metadata_configuration(db: AsyncSession) -> Dict[str, Any]:
         "user_types": [{"id": item.id, "name": item.name, "description": item.description, "is_active": item.is_active} for item in metadata["user_types"]],
         "session_years": [{"id": item.id, "name": item.name, "description": item.description, "start_date": item.start_date.isoformat() if item.start_date else None, "end_date": item.end_date.isoformat() if item.end_date else None, "is_current": item.is_current, "is_active": item.is_active} for item in metadata["session_years"]],
         "genders": [{"id": item.id, "name": item.name, "description": item.description, "is_active": item.is_active} for item in metadata["genders"]],
-        "classes": [{"id": item.id, "name": item.name, "description": item.description, "display_name": item.display_name, "sort_order": item.sort_order, "is_active": item.is_active} for item in metadata["classes"]],
+        "classes": [{"id": item.id, "name": item.name, "description": item.description, "sort_order": item.sort_order, "is_active": item.is_active} for item in metadata["classes"]],
         "payment_types": [{"id": item.id, "name": item.name, "description": item.description, "is_active": item.is_active} for item in metadata["payment_types"]],
         "payment_statuses": [{"id": item.id, "name": item.name, "description": item.description, "color_code": item.color_code, "is_active": item.is_active} for item in metadata["payment_statuses"]],
         "payment_methods": [{"id": item.id, "name": item.name, "description": item.description, "requires_reference": item.requires_reference, "is_active": item.is_active} for item in metadata["payment_methods"]],

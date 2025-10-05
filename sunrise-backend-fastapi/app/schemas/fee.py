@@ -181,7 +181,7 @@ class FeeStructure(FeeStructureInDBBase):
             "total_annual_fee": db_fee_structure.total_annual_fee,
             "created_at": db_fee_structure.created_at,
             "updated_at": db_fee_structure.updated_at,
-            "class_name": db_fee_structure.class_ref.display_name if db_fee_structure.class_ref else None,
+            "class_name": db_fee_structure.class_ref.description if db_fee_structure.class_ref else None,
             "session_year_name": db_fee_structure.session_year.name if db_fee_structure.session_year else None
         }
         return cls(**fee_data)

@@ -89,9 +89,8 @@ WHERE s.is_active = true
 
 COMMENT ON VIEW enhanced_student_fee_status IS 'Enhanced student fee summary combining legacy and monthly tracking data with metadata-driven architecture support';
 
--- Note: Performance indexes are already created in table creation scripts
--- Database/Tables/05_fees.sql includes all necessary indexes for enhanced fee system
--- Database/Tables/03_students.sql includes student-related indexes
+-- Note: Performance indexes are already created in the consolidated database setup
+-- Database/Init/00_complete_database_setup.sql includes all necessary indexes
 -- No additional indexes needed to avoid conflicts
 
 -- Grant permissions for application access

@@ -86,15 +86,17 @@ async def root():
 @app.get("/health")
 async def health_check():
     import asyncpg
-    from app.core.database import ASYNC_DATABASE_URL
+    from app.core.config import settings
 
     # Test database connectivity
     db_status = "unknown"
     try:
-        conn = await asyncpg.connect(ASYNC_DATABASE_URL)
-        await conn.fetchval("SELECT 1")
+        # Use the original DATABASE_URL for asyncpg connection
+        conn = await asyncpg.connect(settings.DATABASE_URL)
+        schema = await conn.fetchval("SELECT current_schema()")
+        user_count = await conn.fetchval("SELECT COUNT(*) FROM users")
         await conn.close()
-        db_status = "connected"
+        db_status = f"connected (schema: {schema}, users: {user_count})"
     except Exception as e:
         db_status = f"error: {str(e)}"
 

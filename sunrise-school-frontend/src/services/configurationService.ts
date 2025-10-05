@@ -26,7 +26,6 @@ export interface SessionYear extends MetadataItem {
 export interface Gender extends MetadataItem {}
 
 export interface Class extends MetadataItem {
-  display_name?: string;
   sort_order?: number;
 }
 
@@ -119,7 +118,7 @@ export type ServiceType =
 export interface DropdownOption {
   id: number;
   name: string;
-  display_name?: string;
+  description?: string;
   is_active: boolean;
 }
 
@@ -364,7 +363,7 @@ class ConfigurationService {
       .map(cls => ({
         id: cls.id,
         name: cls.name,
-        display_name: cls.display_name || cls.name,
+        description: cls.description || cls.name,
         is_active: cls.is_active
       }));
   }

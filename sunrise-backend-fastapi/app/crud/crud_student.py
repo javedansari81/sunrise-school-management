@@ -288,13 +288,17 @@ class CRUDStudent(CRUDBase[Student, StudentCreate, StudentUpdate]):
             )
         
         if class_filter:
-            conditions.append(Student.current_class == class_filter)
-        
+            # Filter by class name through the class relationship
+            from app.models.metadata import Class
+            conditions.append(Student.class_ref.has(Class.name == class_filter))
+
         if section_filter:
             conditions.append(Student.section == section_filter)
-        
+
         if gender_filter:
-            conditions.append(Student.gender == gender_filter)
+            # Filter by gender name through the gender relationship
+            from app.models.metadata import Gender
+            conditions.append(Student.gender.has(Gender.name == gender_filter))
         
         if search:
             search_conditions = [

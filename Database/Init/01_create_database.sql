@@ -18,16 +18,13 @@ BEGIN;
 -- 1. Create all tables in dependency order
 -- =====================================================
 
--- IMPORTANT: Execute table creation scripts in this order:
--- 1. First: ../Tables/00_metadata_tables.sql (metadata tables)
--- 2. Then: ../Tables/02_users.sql (users with foreign keys to metadata)
--- 3. Then: ../Tables/03_students.sql (students with foreign keys + inline constraints)
--- 4. Then: ../Tables/04_teachers.sql (teachers with foreign keys + inline constraints)
--- 5. Then: ../Tables/05_fees.sql (fees with enhanced monthly tracking + inline constraints)
--- 6. Then: ../Tables/07_leaves.sql (leaves with foreign keys)
--- 7. Then: ../Tables/08_expenses.sql (expenses with inline constraints)
--- 8. Then: ../Tables/09_indexes.sql (performance indexes)
--- 9. Finally: ../Tables/10_constraints.sql (complex business logic constraints only)
+-- IMPORTANT: Use the consolidated database setup approach:
+-- 1. Execute: 00_complete_database_setup.sql (all 21 tables with complete structure)
+-- 2. Execute: 01_load_metadata.sql (all 57 metadata records)
+-- 3. Execute: 02_create_admin_user.sql (default admin user)
+-- 4. Optional: ../Scripts/create_enhanced_views.sql (reporting views)
+--
+-- NOTE: The Database/Tables directory has been removed in favor of the consolidated approach
 --
 -- OPTIMIZED FOR CLOUD DEPLOYMENT:
 -- - All simple constraints are now inline with table definitions

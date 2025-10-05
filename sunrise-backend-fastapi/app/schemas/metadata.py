@@ -40,7 +40,6 @@ class GenderResponse(MetadataBase):
 
 # Class schemas
 class ClassResponse(MetadataBase):
-    display_name: Optional[str] = None
     sort_order: Optional[int] = None
 
 
@@ -115,7 +114,6 @@ class ConfigurationResponse(BaseModel):
 class DropdownOption(BaseModel):
     id: int
     name: str
-    display_name: Optional[str] = None
     is_active: bool = True
 
 
@@ -149,7 +147,6 @@ class SessionYearCreate(MetadataCreate):
 
 
 class ClassCreate(MetadataCreate):
-    display_name: Optional[str] = Field(None, max_length=50)
     sort_order: Optional[int] = None
 
 

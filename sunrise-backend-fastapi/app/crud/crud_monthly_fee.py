@@ -80,6 +80,7 @@ class CRUDMonthlyFeeTracking(CRUDBase[MonthlyFeeTracking, MonthlyFeeTrackingCrea
         monthly_records = monthly_records_query.scalars().all()
         
         # Get actual total payments made by the student (from fee_payments table)
+        # This ensures consistency with Payment History dialog
         from app.models.fee import FeePayment
         payments_query = await db.execute(
             select(func.sum(FeePayment.amount))
@@ -89,7 +90,7 @@ class CRUDMonthlyFeeTracking(CRUDBase[MonthlyFeeTracking, MonthlyFeeTrackingCrea
 
         # Convert to MonthlyFeeStatus objects
         monthly_history = []
-        total_paid = float(actual_total_paid)  # Use actual payments, not sum of monthly allocations
+        total_paid = float(actual_total_paid)  # Use actual payments for consistency
         total_balance = 0
         paid_months = 0
         overdue_months = 0
@@ -149,7 +150,8 @@ class CRUDMonthlyFeeTracking(CRUDBase[MonthlyFeeTracking, MonthlyFeeTrackingCrea
             )
             monthly_history.append(monthly_status)
 
-            # Don't add individual month payments to total_paid (already calculated above)
+            # Don't add individual month payments to total_paid (already calculated above from raw payments)
+            # total_paid += float(record.paid_amount)  # OLD: This caused discrepancy
             total_balance += corrected_balance  # Use corrected balance
         
         # Calculate collection percentage
@@ -322,15 +324,15 @@ class CRUDMonthlyPaymentAllocation(CRUDBase[MonthlyPaymentAllocation, dict, dict
                 db.add(allocation_obj)
                 created_allocations.append(allocation_obj)
             
-            # Update the monthly tracking record
+            # Update the monthly tracking record with validation
             await db.execute(
                 text("""
-                    UPDATE monthly_fee_tracking 
-                    SET 
-                        paid_amount = paid_amount + :amount,
-                        payment_status_id = CASE 
-                            WHEN paid_amount + :amount >= monthly_amount THEN 3
-                            WHEN paid_amount + :amount > 0 THEN 2
+                    UPDATE monthly_fee_tracking
+                    SET
+                        paid_amount = LEAST(paid_amount + :amount, monthly_amount),
+                        payment_status_id = CASE
+                            WHEN LEAST(paid_amount + :amount, monthly_amount) >= monthly_amount THEN 3
+                            WHEN LEAST(paid_amount + :amount, monthly_amount) > 0 THEN 2
                             ELSE payment_status_id
                         END,
                         updated_at = NOW()

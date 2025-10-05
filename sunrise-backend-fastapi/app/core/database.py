@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
@@ -12,11 +12,21 @@ if settings.DATABASE_URL.startswith("sqlite"):
 else:
     ASYNC_DATABASE_URL = settings.DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://")
 
-# Create async engine
+# Create async engine with connection options for schema
+connect_args = {}
+if not settings.DATABASE_URL.startswith("sqlite"):
+    # Set search_path to sunrise schema for PostgreSQL
+    connect_args = {
+        "server_settings": {
+            "search_path": "sunrise"
+        }
+    }
+
 async_engine = create_async_engine(
     ASYNC_DATABASE_URL,
     echo=True,
-    future=True
+    future=True,
+    connect_args=connect_args
 )
 
 # Create async session factory
@@ -32,6 +42,10 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=sync_engine)
 
 Base = declarative_base()
 
+# Set schema for all tables if using PostgreSQL with custom schema
+if not settings.DATABASE_URL.startswith("sqlite"):
+    Base.metadata.schema = "sunrise"
+
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     async with AsyncSessionLocal() as session:
@@ -45,7 +59,11 @@ async def init_db():
     """Initialize database tables"""
     # Import all models here to ensure they are registered with SQLAlchemy
     from app.models import user, teacher, student, fee, leave, expense
-    
-    # Create tables
+
+    # Create tables in the sunrise schema
     async with async_engine.begin() as conn:
+        # Create schema if it doesn't exist (for PostgreSQL)
+        if not settings.DATABASE_URL.startswith("sqlite"):
+            await conn.execute(text("CREATE SCHEMA IF NOT EXISTS sunrise"))
+
         await conn.run_sync(Base.metadata.create_all)

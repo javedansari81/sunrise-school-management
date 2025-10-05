@@ -283,7 +283,7 @@ class Teacher(TeacherInDBBase):
             "gender_name": db_teacher.gender.name if db_teacher.gender else None,
             "qualification_name": db_teacher.qualification.name if db_teacher.qualification else None,
             "employment_status_name": db_teacher.employment_status.name if db_teacher.employment_status else None,
-            "class_teacher_of_name": db_teacher.class_teacher_of_ref.display_name if db_teacher.class_teacher_of_ref else None
+            "class_teacher_of_name": db_teacher.class_teacher_of_ref.description if db_teacher.class_teacher_of_ref else None
         }
         return cls(**teacher_data)
 
