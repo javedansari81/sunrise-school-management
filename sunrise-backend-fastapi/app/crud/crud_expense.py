@@ -672,13 +672,42 @@ class CRUDExpense(CRUDBase[Expense, ExpenseCreate, ExpenseUpdate]):
 
 
 class CRUDVendor(CRUDBase[Vendor, dict, dict]):
-    """CRUD operations for Vendor"""
+    """CRUD operations for Vendor with soft delete support"""
 
-    async def get_active_vendors(self, db: AsyncSession) -> List[Vendor]:
-        """Get all active vendors"""
+    async def get(self, db: AsyncSession, id: Any) -> Optional[Vendor]:
+        """Override to exclude soft-deleted records"""
         result = await db.execute(
             select(Vendor)
-            .where(Vendor.is_active == True)
+            .where(
+                Vendor.id == id,
+                (Vendor.is_deleted == False) | (Vendor.is_deleted.is_(None))
+            )
+        )
+        return result.scalar_one_or_none()
+
+    async def get_multi(
+        self, db: AsyncSession, *, skip: int = 0, limit: int = 100
+    ) -> List[Vendor]:
+        """Override to exclude soft-deleted records"""
+        result = await db.execute(
+            select(Vendor)
+            .where((Vendor.is_deleted == False) | (Vendor.is_deleted.is_(None)))
+            .offset(skip)
+            .limit(limit)
+            .order_by(Vendor.vendor_name)
+        )
+        return result.scalars().all()
+
+    async def get_active_vendors(self, db: AsyncSession) -> List[Vendor]:
+        """Get all active vendors (excluding soft-deleted)"""
+        result = await db.execute(
+            select(Vendor)
+            .where(
+                and_(
+                    Vendor.is_active == True,
+                    (Vendor.is_deleted == False) | (Vendor.is_deleted.is_(None))
+                )
+            )
             .order_by(Vendor.vendor_name)
         )
         return result.scalars().all()
@@ -689,15 +718,82 @@ class CRUDVendor(CRUDBase[Vendor, dict, dict]):
         *,
         category_id: int
     ) -> List[Vendor]:
-        """Get vendors by category"""
+        """Get vendors by category (excluding soft-deleted)"""
         result = await db.execute(
             select(Vendor)
             .where(
                 and_(
                     Vendor.is_active == True,
+                    (Vendor.is_deleted == False) | (Vendor.is_deleted.is_(None)),
                     Vendor.vendor_categories.contains([category_id])
                 )
             )
+        )
+        return result.scalars().all()
+
+    async def soft_delete(self, db: AsyncSession, *, id: int) -> Optional[Vendor]:
+        """
+        Soft delete a vendor record by setting is_deleted=True and deleted_date
+        """
+        try:
+            # Get the vendor
+            result = await db.execute(
+                select(Vendor).where(Vendor.id == id)
+            )
+            obj = result.scalar_one_or_none()
+
+            if not obj:
+                return None
+
+            # Set soft delete flags
+            obj.is_deleted = True
+            obj.deleted_date = datetime.utcnow()
+
+            db.add(obj)
+            await db.commit()
+            await db.refresh(obj)
+
+            return obj
+        except Exception as e:
+            await db.rollback()
+            raise e
+
+    async def restore(self, db: AsyncSession, *, id: int) -> Optional[Vendor]:
+        """
+        Restore a soft-deleted vendor record
+        """
+        try:
+            # Get the vendor (including soft deleted ones)
+            result = await db.execute(
+                select(Vendor).where(Vendor.id == id)
+            )
+            obj = result.scalar_one_or_none()
+
+            if not obj:
+                return None
+
+            # Clear soft delete flags
+            obj.is_deleted = False
+            obj.deleted_date = None
+
+            db.add(obj)
+            await db.commit()
+            await db.refresh(obj)
+
+            return obj
+        except Exception as e:
+            await db.rollback()
+            raise e
+
+    async def get_deleted(
+        self, db: AsyncSession, *, skip: int = 0, limit: int = 100
+    ) -> List[Vendor]:
+        """Get all soft-deleted vendors"""
+        result = await db.execute(
+            select(Vendor)
+            .where(Vendor.is_deleted == True)
+            .offset(skip)
+            .limit(limit)
         )
         return result.scalars().all()
 

@@ -13,7 +13,8 @@ class LeaveRequest(Base):
     __tablename__ = "leave_requests"
 
     id = Column(Integer, primary_key=True, index=True)
-    applicant_id = Column(Integer, nullable=False)  # Can be student_id or teacher_id
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)  # User ID for authentication
+    applicant_id = Column(Integer, nullable=False)  # Student ID or Teacher ID for business logic
     applicant_type = Column(String(10), nullable=False)  # 'student' or 'teacher'
 
     # Leave Details
@@ -57,6 +58,7 @@ class LeaveRequest(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     # Relationships
+    user = relationship("User", foreign_keys=[user_id])
     leave_type = relationship("LeaveType", foreign_keys=[leave_type_id])
     leave_status = relationship("LeaveStatus", foreign_keys=[leave_status_id])
     reviewer = relationship("User", foreign_keys=[reviewed_by])

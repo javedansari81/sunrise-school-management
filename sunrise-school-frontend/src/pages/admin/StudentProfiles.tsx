@@ -34,7 +34,8 @@ import {
 import {
   ClassDropdown,
   GenderDropdown,
-  SessionYearDropdown
+  SessionYearDropdown,
+  FilterDropdown
 } from '../../components/common/MetadataDropdown';
 import ServiceConfigurationLoader from '../../components/common/ServiceConfigurationLoader';
 import {
@@ -522,45 +523,28 @@ const StudentProfilesContent: React.FC = () => {
         <Paper elevation={3} sx={{ p: 3, mb: 3 }}>
           <Grid container spacing={2} alignItems="center">
             <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-              <FormControl fullWidth>
-                <InputLabel>Session Year</InputLabel>
-                <Select
-                  value={filterSessionYear}
-                  label="Session Year"
-                  onChange={(e) => {
-                    console.log('🔄 Session Year filter changed:', e.target.value);
-                    setFilterSessionYear(e.target.value);
-                  }}
-                >
-                  <MenuItem value="all">All Session Years</MenuItem>
-                  <MenuItem value="4">2025-26</MenuItem>
-                  <MenuItem value="3">2024-25</MenuItem>
-                  <MenuItem value="2">2023-24</MenuItem>
-                </Select>
-              </FormControl>
+              <FilterDropdown
+                metadataType="sessionYears"
+                label="Session Year"
+                value={filterSessionYear}
+                onChange={(value) => {
+                  console.log('🔄 Session Year filter changed:', value);
+                  setFilterSessionYear(value as string);
+                }}
+                allLabel="All Session Years"
+              />
             </Grid>
             <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-              <FormControl fullWidth>
-                <InputLabel>Class</InputLabel>
-                <Select
-                  value={filterClass}
-                  label="Class"
-                  onChange={(e) => {
-                    console.log('🔄 Class filter changed:', e.target.value);
-                    setFilterClass(e.target.value);
-                  }}
-                >
-                  <MenuItem value="all">All Classes</MenuItem>
-                  <MenuItem value="1">PG</MenuItem>
-                  <MenuItem value="2">LKG</MenuItem>
-                  <MenuItem value="3">UKG</MenuItem>
-                  <MenuItem value="4">1st</MenuItem>
-                  <MenuItem value="5">2nd</MenuItem>
-                  <MenuItem value="6">3rd</MenuItem>
-                  <MenuItem value="7">4th</MenuItem>
-                  <MenuItem value="8">5th</MenuItem>
-                </Select>
-              </FormControl>
+              <FilterDropdown
+                metadataType="classes"
+                label="Class"
+                value={filterClass}
+                onChange={(value) => {
+                  console.log('🔄 Class filter changed:', value);
+                  setFilterClass(value as string);
+                }}
+                allLabel="All Classes"
+              />
             </Grid>
             <Grid size={{ xs: 12, sm: 6, md: 3 }}>
               <FormControl fullWidth>

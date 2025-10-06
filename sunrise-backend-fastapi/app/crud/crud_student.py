@@ -4,6 +4,7 @@ from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload, joinedload
 from sqlalchemy import and_, or_, func, desc
 from sqlalchemy.exc import IntegrityError
+from datetime import datetime
 
 from app.crud.base import CRUDBase
 from app.models.student import Student
@@ -468,6 +469,72 @@ class CRUDStudent(CRUDBase[Student, StudentCreate, StudentUpdate]):
             'gender_distribution': gender_stats,
             'class_distribution': class_stats
         }
+
+    async def soft_delete(self, db: AsyncSession, *, id: int) -> Optional[Student]:
+        """
+        Soft delete a student record by setting is_deleted=True and deleted_date
+        """
+        try:
+            # Get the student
+            result = await db.execute(
+                select(Student).where(Student.id == id)
+            )
+            obj = result.scalar_one_or_none()
+
+            if not obj:
+                return None
+
+            # Set soft delete flags
+            obj.is_deleted = True
+            obj.deleted_date = datetime.utcnow()
+
+            db.add(obj)
+            await db.commit()
+            await db.refresh(obj)
+
+            return obj
+        except Exception as e:
+            await db.rollback()
+            raise e
+
+    async def restore(self, db: AsyncSession, *, id: int) -> Optional[Student]:
+        """
+        Restore a soft-deleted student record
+        """
+        try:
+            # Get the student (including soft deleted ones)
+            result = await db.execute(
+                select(Student).where(Student.id == id)
+            )
+            obj = result.scalar_one_or_none()
+
+            if not obj:
+                return None
+
+            # Clear soft delete flags
+            obj.is_deleted = False
+            obj.deleted_date = None
+
+            db.add(obj)
+            await db.commit()
+            await db.refresh(obj)
+
+            return obj
+        except Exception as e:
+            await db.rollback()
+            raise e
+
+    async def get_deleted(
+        self, db: AsyncSession, *, skip: int = 0, limit: int = 100
+    ) -> List[Student]:
+        """Get all soft-deleted students"""
+        result = await db.execute(
+            select(Student)
+            .where(Student.is_deleted == True)
+            .offset(skip)
+            .limit(limit)
+        )
+        return result.scalars().all()
 
 
 # Create instance

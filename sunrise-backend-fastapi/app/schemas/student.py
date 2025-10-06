@@ -96,6 +96,7 @@ class ClassEnum(str, Enum):
 
 
 class StudentBase(BaseModel):
+    user_id: Optional[int] = Field(None, description="Foreign key to users table for authentication (nullable)")
     admission_number: str = Field(..., min_length=1, max_length=50)
     first_name: str = Field(..., min_length=1, max_length=100)
     last_name: str = Field(..., min_length=1, max_length=100)
@@ -147,6 +148,7 @@ class StudentCreate(StudentBase):
 
 
 class StudentUpdate(BaseModel):
+    user_id: Optional[int] = None
     admission_number: Optional[str] = Field(None, max_length=50)
     first_name: Optional[str] = Field(None, max_length=100)
     last_name: Optional[str] = Field(None, max_length=100)
@@ -200,6 +202,8 @@ class StudentProfileUpdate(BaseModel):
 class StudentInDBBase(StudentBase):
     id: int
     is_active: bool
+    is_deleted: Optional[bool] = False
+    deleted_date: Optional[datetime] = None
     created_at: datetime
     updated_at: Optional[datetime] = None
 
@@ -218,6 +222,7 @@ class Student(StudentInDBBase):
         """Create Student schema with resolved metadata values"""
         student_data = {
             "id": db_student.id,
+            "user_id": db_student.user_id,
             "admission_number": db_student.admission_number,
             "first_name": db_student.first_name,
             "last_name": db_student.last_name,
@@ -249,6 +254,8 @@ class Student(StudentInDBBase):
             "emergency_contact_phone": db_student.emergency_contact_phone,
             "emergency_contact_relation": db_student.emergency_contact_relation,
             "is_active": db_student.is_active,
+            "is_deleted": db_student.is_deleted if hasattr(db_student, 'is_deleted') else False,
+            "deleted_date": db_student.deleted_date if hasattr(db_student, 'deleted_date') else None,
             "created_at": db_student.created_at,
             "updated_at": db_student.updated_at,
             "gender_name": db_student.gender.name if db_student.gender else None,

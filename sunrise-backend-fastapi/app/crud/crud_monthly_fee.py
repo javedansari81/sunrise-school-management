@@ -215,7 +215,7 @@ class CRUDMonthlyFeeTracking(CRUDBase[MonthlyFeeTracking, MonthlyFeeTrackingCrea
             # Get class name from class_id
             from app.models.metadata import Class
             class_result = await db.execute(
-                select(Class.display_name).where(Class.id == class_id)
+                select(Class.description).where(Class.id == class_id)
             )
             class_name = class_result.scalar_one_or_none()
             if class_name:

@@ -1,4 +1,4 @@
-from typing import Optional, List, Union
+from typing import Optional, List
 from pydantic import BaseModel, Field, validator
 from datetime import date, datetime
 from decimal import Decimal
@@ -299,6 +299,8 @@ class VendorUpdate(BaseModel):
 class VendorInDBBase(VendorBase):
     """Base schema for vendor records in database"""
     id: int
+    is_deleted: Optional[bool] = False
+    deleted_date: Optional[datetime] = None
     created_at: datetime
     updated_at: Optional[datetime] = None
 
