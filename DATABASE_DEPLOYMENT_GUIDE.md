@@ -195,16 +195,79 @@ This script will:
 - `expense_statuses` - Approval workflow (Pending, Approved, Rejected, Paid)
 
 #### **Core Application Tables (10 tables)**
-- `users` - System authentication and user management
-- `students` - Student profiles and academic records with guardian information
-- `teachers` - Teacher profiles and employment details
+- `users` - System authentication and user management (email, password, user_type)
+- `students` - Student profiles and academic records with guardian information (includes user_id, soft delete support)
+- `teachers` - Teacher profiles and employment details (includes user_id, soft delete support)
 - `fee_structures` - Fee definitions by class and session
 - `fee_records` - Individual student fee tracking and payment status
-- `expenses` - School expense management with approval workflow
-- `vendors` - Vendor management for expense tracking
+- `expenses` - School expense management with approval workflow (soft delete support)
+- `vendors` - Vendor management for expense tracking (soft delete support)
 - `leave_requests` - Leave application system for teachers and students
 - `monthly_fee_tracking` - Month-wise fee tracking for students
 - `monthly_payment_allocations` - Payment allocation to specific months
+
+**Note:** User names (first_name, last_name) are stored in entity tables (students, teachers) for proper data normalization. See Migration 09/10 documentation for details.
+
+---
+
+## 🔄 **Database Migrations and Schema Evolution**
+
+### **Migration 09: User Data Normalization and Soft Delete (Phase 1)**
+
+**Status:** ✅ Safe, Non-Breaking, Backward Compatible
+
+**Changes:**
+- Added `user_id` column to `students` table with foreign key to `users(id)`
+- Added soft delete columns (`is_deleted`, `deleted_date`) to `students` table
+- Added soft delete columns (`is_deleted`, `deleted_date`) to `vendors` table
+- Created 5 performance indexes for soft delete queries
+- **Does NOT drop** `first_name`/`last_name` from `users` table (backward compatible)
+
+**How to Apply:**
+```bash
+psql -U sunrise_user -d sunrise_school_db -f Database/Versioning/09_normalize_user_data_and_soft_delete.sql
+```
+
+**Rollback:**
+```bash
+psql -U sunrise_user -d sunrise_school_db -f Database/Versioning/09_rollback_normalize_user_data_and_soft_delete.sql
+```
+
+### **Migration 10: Remove User Name Columns (Phase 2)**
+
+**Status:** ⚠️ Breaking Change, Requires Code Updates
+
+**Prerequisites:**
+- ✅ Migration 09 must be applied
+- ✅ All backend code must be updated to NOT use `user.first_name` or `user.last_name`
+- ✅ Full database backup must be created
+- ✅ All testing must be completed
+
+**Changes:**
+- Drops `first_name` column from `users` table
+- Drops `last_name` column from `users` table
+- Creates `users_name_backup` table for safety
+
+**How to Apply:**
+```bash
+# Create backup first!
+pg_dump -U sunrise_user -d sunrise_school_db -F c -f backup_before_migration_10.dump
+
+# Apply migration (includes 10-second countdown)
+psql -U sunrise_user -d sunrise_school_db -f Database/Versioning/10_remove_user_name_columns.sql
+```
+
+**Rollback:**
+```bash
+psql -U sunrise_user -d sunrise_school_db -f Database/Versioning/10_rollback_remove_user_name_columns.sql
+```
+
+**📖 Detailed Documentation:**
+See `Database/Versioning/MIGRATION_09_10_README.md` for complete migration guide including:
+- Step-by-step instructions
+- Backend code update examples
+- Testing checklist
+- Troubleshooting guide
 
 ---
 

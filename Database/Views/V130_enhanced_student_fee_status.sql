@@ -1,38 +1,27 @@
 -- =====================================================
--- Create Enhanced Fee Management Views - Optimized for Cloud Deployment
+-- View: enhanced_student_fee_status
+-- Description: Enhanced student fee summary combining legacy and monthly tracking data
+-- Dependencies: students, classes, session_years, fee_records, payment_statuses, monthly_fee_tracking
 -- =====================================================
--- This script creates views for the enhanced monthly fee tracking system
--- Compatible with optimized schema and metadata-driven architecture
---
--- PREREQUISITES:
--- - All table creation scripts must be executed first
--- - Enhanced fee system tables (monthly_fee_tracking, monthly_payment_allocations)
--- - Metadata tables with foreign key relationships
---
--- FEATURES:
--- - Combines legacy fee records with enhanced monthly tracking
--- - Supports metadata-driven architecture with proper JOINs
--- - Optimized for performance with existing indexes
--- - Compatible with soft delete functionality
 
--- Drop existing view if it exists
+-- Drop existing view
 DROP VIEW IF EXISTS enhanced_student_fee_status CASCADE;
 
--- Create the enhanced_student_fee_status view with metadata-driven architecture
+-- Create view
 CREATE OR REPLACE VIEW enhanced_student_fee_status AS
 SELECT
     s.id as student_id,
     s.admission_number,
     s.first_name || ' ' || s.last_name as student_name,
-    c.display_name as class_name,
+    c.name as class_name,
     sy.name as session_year,
-    
+
     -- From existing fee_records
     fr.id as fee_record_id,
     fr.total_amount as annual_fee,
     fr.paid_amount as total_paid,
     fr.balance_amount as total_balance,
-    
+
     -- Monthly tracking data (if available)
     COALESCE(monthly_stats.total_months_tracked, 0) as total_months_tracked,
     COALESCE(monthly_stats.paid_months, 0) as paid_months,
@@ -41,17 +30,17 @@ SELECT
     COALESCE(monthly_stats.monthly_total, 0) as monthly_total,
     COALESCE(monthly_stats.monthly_paid, 0) as monthly_paid,
     COALESCE(monthly_stats.monthly_balance, 0) as monthly_balance,
-    
+
     -- Collection percentage
-    CASE 
-        WHEN fr.total_amount > 0 THEN 
-            ROUND((fr.paid_amount * 100.0 / fr.total_amount), 2)
-        ELSE 0 
-    END as collection_percentage,
-    
-    -- Has monthly tracking flag
     CASE
-        WHEN fr.is_monthly_tracked = true THEN true
+        WHEN fr.total_amount > 0 THEN
+            ROUND((fr.paid_amount * 100.0 / fr.total_amount), 2)
+        ELSE 0
+    END as collection_percentage,
+
+    -- Has monthly tracking flag (check if monthly tracking records exist)
+    CASE
+        WHEN monthly_stats.total_months_tracked > 0 THEN true
         ELSE false
     END as has_monthly_tracking,
 
@@ -73,7 +62,7 @@ LEFT JOIN (
         COUNT(CASE WHEN ps.name = 'PAID' THEN 1 END) as paid_months,
         COUNT(CASE WHEN ps.name = 'PENDING' THEN 1 END) as pending_months,
         COUNT(CASE WHEN ps.name = 'OVERDUE' THEN 1 END) as overdue_months,
-        SUM(mft.monthly_amount) as monthly_total,
+        SUM(mft.monthly_fee_amount) as monthly_total,
         SUM(mft.paid_amount) as monthly_paid,
         SUM(mft.balance_amount) as monthly_balance
     FROM monthly_fee_tracking mft
@@ -83,22 +72,10 @@ LEFT JOIN (
 ) monthly_stats ON s.id = monthly_stats.student_id AND s.session_year_id = monthly_stats.session_year_id
 
 WHERE s.is_active = true
-  AND (s.is_deleted = false OR s.is_deleted IS NULL)
+  AND (s.is_deleted = FALSE OR s.is_deleted IS NULL)
   AND c.is_active = true  -- Only include active classes
   AND sy.is_active = true;  -- Only include active session years
 
+-- Add comment
 COMMENT ON VIEW enhanced_student_fee_status IS 'Enhanced student fee summary combining legacy and monthly tracking data with metadata-driven architecture support';
 
--- Note: Performance indexes are already created in the consolidated database setup
--- Database/Init/00_complete_database_setup.sql includes all necessary indexes
--- No additional indexes needed to avoid conflicts
-
--- Grant permissions for application access
-GRANT SELECT ON enhanced_student_fee_status TO PUBLIC;
-
--- =====================================================
--- Success Message
--- =====================================================
-SELECT 'Enhanced fee management views created successfully!' as result;
-SELECT 'View supports both legacy fee records and enhanced monthly tracking' as details;
-SELECT 'Compatible with optimized schema and metadata-driven architecture' as compatibility;
