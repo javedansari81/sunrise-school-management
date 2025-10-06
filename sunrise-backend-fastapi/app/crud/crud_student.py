@@ -216,13 +216,12 @@ class CRUDStudent(CRUDBase[Student, StudentCreate, StudentUpdate]):
 
                         user_account = User(
                             email=user_email,
-                            hashed_password=get_password_hash("Sunrise@001"),  # Default password
+                            password=get_password_hash("Sunrise@001"),  # Default password
                             first_name=obj_in.first_name,
                             last_name=obj_in.last_name,
                             phone=obj_in.phone,
                             user_type_id=student_user_type_obj.id,
-                            is_active=True,
-                            is_verified=False
+                            is_active=True
                         )
                         db.add(user_account)
                         await db.commit()

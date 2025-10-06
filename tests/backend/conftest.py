@@ -136,8 +136,8 @@ def sample_user_data():
         "last_name": "User",
         "phone": "1234567890",
         "user_type_id": 2,  # Teacher
-        "is_active": True,
-        "is_verified": True
+        "is_active": True
+        # Note: is_verified field removed as it doesn't exist in User model
     }
 
 

@@ -1,4 +1,4 @@
-from datetime import timedelta, datetime
+from datetime import timedelta
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -43,9 +43,8 @@ async def login(
             detail="Inactive user"
         )
 
-    # Update last login
-    user.last_login = datetime.utcnow()
-    await user_crud.update(db, db_obj=user, obj_in={"last_login": user.last_login})
+    # Note: last_login field removed as it doesn't exist in User model
+    # If needed, this can be tracked separately or added to the database schema
 
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
@@ -111,21 +110,24 @@ async def login(
         "id": user.id,
         "first_name": user.first_name,
         "last_name": user.last_name,
-        "mobile": user.phone,
+        "phone": user.phone,  # Fixed: use 'phone' not 'mobile'
         "email": user.email,
-        "user_type": user.user_type_enum.value.lower(),  # Return lowercase string for frontend
-        "user_type_id": user.user_type_id,  # Add missing field
-        "student_id": student_id,
-        "teacher_id": teacher_id,
+        "user_type_id": user.user_type_id,
         "is_active": user.is_active,
-        "is_verified": user.is_verified,  # Add missing field
-        "last_login": user.last_login,
         "created_at": user.created_at,
-        "updated_at": user.updated_at
+        "updated_at": user.updated_at,
+        # Additional fields for profile_data
+        "user_type": user.user_type_enum.value.lower(),  # Return lowercase string for frontend
+        "student_id": student_id,
+        "teacher_id": teacher_id
     }
 
+    # Create User schema object from dict
+    from app.schemas.user import User as UserSchema
+    user_schema = UserSchema(**user_dict)
+
     return UserLoginResponse(
-        user=user_dict,
+        user=user_schema,
         access_token=access_token,
         token_type="bearer",
         permissions=permissions,
@@ -224,16 +226,11 @@ async def login_json(
             detail=f"Unexpected authentication error: {str(unexpected_error)}"
         )
 
-    # Step 4: Update last login
-    try:
-        log_auth_step("UPDATE_LOGIN", f"Updating last login", email=user.email)
-        user.last_login = datetime.utcnow()
-        await user_crud.update(db, db_obj=user, obj_in={"last_login": user.last_login})
-        log_auth_step("UPDATE_LOGIN", f"Last login updated successfully", email=user.email)
-    except Exception as update_error:
-        log_auth_step("UPDATE_LOGIN", f"Warning: Could not update last login: {str(update_error)}",
-                     "warning", email=user.email)
-        # Don't fail login for this, just log the warning
+    # Step 4: Note - last_login tracking removed
+    # The last_login field doesn't exist in the User model
+    # If needed, this can be tracked separately or added to the database schema
+    log_auth_step("UPDATE_LOGIN", f"Skipping last login update (field not in schema)",
+                 email=user.email)
 
     # Step 5: Create access token
     try:
@@ -367,21 +364,24 @@ async def login_json(
             "id": user.id,
             "first_name": user.first_name,
             "last_name": user.last_name,
-            "mobile": user.phone,
+            "phone": user.phone,  # Fixed: use 'phone' not 'mobile'
             "email": user.email,
-            "user_type": user.user_type_enum,  # Return enum for API consistency
-            "user_type_id": user.user_type_id,  # Add missing field
-            "student_id": student_id,
-            "teacher_id": teacher_id,
+            "user_type_id": user.user_type_id,
             "is_active": user.is_active,
-            "is_verified": user.is_verified,  # Add missing field
-            "last_login": user.last_login,
             "created_at": user.created_at,
-            "updated_at": user.updated_at
+            "updated_at": user.updated_at,
+            # Additional fields for profile_data
+            "user_type": user.user_type_enum.value.lower(),  # Return lowercase string for frontend
+            "student_id": student_id,
+            "teacher_id": teacher_id
         }
 
+        # Create User schema object from dict
+        from app.schemas.user import User as UserSchema
+        user_schema = UserSchema(**user_dict)
+
         response = UserLoginResponse(
-            user=user_dict,
+            user=user_schema,
             access_token=access_token,
             token_type="bearer",
             permissions=permissions,

@@ -107,12 +107,12 @@ class TestStudentUserLinking:
         # First, create a user
         existing_user = User(
             email="existing.user@example.com",
-            hashed_password=get_password_hash("password123"),
+            password=get_password_hash("password123"),  # Fixed: use 'password' not 'hashed_password'
             first_name="Existing",
             last_name="User",
             user_type_id=test_metadata["user_type"].id,
-            is_active=True,
-            is_verified=False
+            is_active=True
+            # Note: is_verified field removed as it doesn't exist in User model
         )
         db_session.add(existing_user)
         await db_session.commit()

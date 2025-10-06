@@ -135,12 +135,12 @@ async def test_email_generation_integration():
             # Create a user with this email
             existing_user = User(
                 email=base_email,
-                hashed_password=get_password_hash("password123"),
+                password=get_password_hash("password123"),  # Fixed: use 'password' not 'hashed_password'
                 first_name="Existing",
                 last_name="User",
                 user_type_id=3,  # STUDENT
-                is_active=True,
-                is_verified=False
+                is_active=True
+                # Note: is_verified field removed as it doesn't exist in User model
             )
             db.add(existing_user)
             await db.commit()

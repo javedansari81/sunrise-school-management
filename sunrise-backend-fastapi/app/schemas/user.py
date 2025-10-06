@@ -78,8 +78,6 @@ class UserUpdate(BaseModel):
 class UserInDBBase(UserBase):
     id: int
     is_active: bool
-    is_verified: bool
-    last_login: Optional[datetime] = None
     created_at: datetime
     updated_at: Optional[datetime] = None
 
@@ -102,8 +100,6 @@ class User(UserInDBBase):
             "phone": db_user.phone,
             "user_type_id": db_user.user_type_id,
             "is_active": db_user.is_active,
-            "is_verified": db_user.is_verified,
-            "last_login": db_user.last_login,
             "created_at": db_user.created_at,
             "updated_at": db_user.updated_at,
             "user_type_name": db_user.user_type.name if db_user.user_type else None
@@ -112,7 +108,7 @@ class User(UserInDBBase):
 
 
 class UserInDB(UserInDBBase):
-    hashed_password: str
+    password: str  # Changed from hashed_password to match DB schema
 
 
 class UserProfile(User):

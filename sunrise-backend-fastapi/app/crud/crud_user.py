@@ -38,7 +38,7 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
 
         db_obj = User(
             email=obj_in.email,
-            hashed_password=get_password_hash(obj_in.password),
+            password=get_password_hash(obj_in.password),
             first_name=obj_in.first_name,
             last_name=obj_in.last_name,
             phone=obj_in.phone,
@@ -132,7 +132,7 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
 
             # Step 2: Verify password
             try:
-                password_valid = verify_password(password, user.hashed_password)
+                password_valid = verify_password(password, user.password)
                 log_crud_operation("AUTHENTICATE", f"Password verification completed",
                                  email=email, valid=password_valid)
             except Exception as password_error:

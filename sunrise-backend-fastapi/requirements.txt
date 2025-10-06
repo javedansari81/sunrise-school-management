@@ -1,35 +1,151 @@
-# FastAPI and core dependencies
-fastapi==0.104.1
-uvicorn[standard]==0.24.0
-pydantic[email]==2.5.0
-pydantic-settings==2.1.0
+# =====================================================
+# Sunrise School Management System - Backend Dependencies
+# =====================================================
+# This file contains all dependencies with pinned versions for reproducible builds
+# Last updated: 2025-01-06 (after fixing bcrypt compatibility issue)
 
-# Database
-sqlalchemy==2.0.23
-asyncpg==0.29.0
-psycopg2-binary==2.9.9
-aiosqlite==0.21.0
-alembic==1.12.1
+# =====================================================
+# FastAPI and Core Web Framework
+# =====================================================
+fastapi==0.104.1                    # Modern, fast web framework for building APIs
+uvicorn[standard]==0.24.0           # ASGI server with WebSocket and HTTP/2 support
+starlette==0.27.0                   # Lightweight ASGI framework (FastAPI dependency)
 
+# =====================================================
+# Data Validation and Settings
+# =====================================================
+pydantic[email]==2.5.0              # Data validation using Python type annotations
+pydantic-core==2.14.1               # Core validation logic for Pydantic
+pydantic-settings==2.1.0            # Settings management using Pydantic
+email-validator==2.2.0              # Email validation for Pydantic EmailStr
+annotated-types==0.7.0              # Type annotations support
+typing-extensions==4.14.1           # Backport of typing features
+
+# =====================================================
+# Database and ORM
+# =====================================================
+sqlalchemy==2.0.23                  # SQL toolkit and Object-Relational Mapping
+asyncpg==0.29.0                     # Async PostgreSQL database driver
+psycopg2-binary==2.9.9              # PostgreSQL adapter (binary distribution)
+aiosqlite==0.21.0                   # Async SQLite database driver
+alembic==1.12.1                     # Database migration tool for SQLAlchemy
+greenlet==3.2.3                     # Lightweight in-process concurrent programming
+
+# =====================================================
 # Authentication and Security
-python-jose[cryptography]==3.3.0
-passlib[bcrypt]==1.7.4
-python-multipart==0.0.6
+# =====================================================
+python-jose[cryptography]==3.3.0    # JSON Web Token implementation
+passlib[bcrypt]==1.7.4              # Password hashing library
+bcrypt==4.0.1                       # Password hashing (pinned for passlib compatibility)
+cryptography==45.0.5                # Cryptographic recipes and primitives
+python-multipart==0.0.6             # Multipart form data parser
+cffi==1.17.1                        # C Foreign Function Interface
+pycparser==2.22                     # C parser (cffi dependency)
 
-# CORS
-fastapi-cors==0.0.6
+# =====================================================
+# HTTP Client and CORS
+# =====================================================
+httpx==0.25.2                       # HTTP client library
+httpcore==1.0.9                     # HTTP client core functionality
+h11==0.16.0                         # HTTP/1.1 protocol implementation
+anyio==3.7.1                        # Async I/O library
+sniffio==1.3.1                      # Async library detection
+certifi==2025.7.14                  # Mozilla's CA Bundle
+idna==3.10                          # Internationalized Domain Names
+requests==2.32.4                    # HTTP library (for compatibility)
+urllib3==2.5.0                      # HTTP client library
 
-# Environment variables
-python-dotenv==1.0.0
+# =====================================================
+# Environment and Configuration
+# =====================================================
+python-dotenv==1.0.0                # Load environment variables from .env file
 
-# Image processing (keeping from original)
-pillow==11.0.0
+# =====================================================
+# Logging and Monitoring
+# =====================================================
+# Note: Using Python's built-in logging module
+# Additional logging dependencies can be added here if needed
 
-# Testing
-pytest==7.4.3
-pytest-asyncio==0.21.1
-httpx==0.25.2
+# =====================================================
+# Date and Time Handling
+# =====================================================
+# Note: Using Python's built-in datetime module
+# Additional date/time dependencies can be added here if needed
 
-# Development
-black==23.11.0
-isort==5.12.0
+# =====================================================
+# File Processing and Utilities
+# =====================================================
+pillow==11.0.0                      # Python Imaging Library (PIL Fork)
+
+# =====================================================
+# Development and Code Quality
+# =====================================================
+black==23.11.0                      # Code formatter
+isort==5.12.0                       # Import sorter
+mypy-extensions==1.1.0              # Extensions for mypy
+pathspec==0.12.1                    # Path specification library
+platformdirs==4.3.8                 # Platform-specific directories
+click==8.2.1                        # Command line interface creation toolkit
+colorama==0.4.6                     # Cross-platform colored terminal text
+
+# =====================================================
+# Testing Framework
+# =====================================================
+pytest==7.4.3                       # Testing framework
+pytest-asyncio==0.21.1              # Async support for pytest
+iniconfig==2.1.0                    # INI configuration parser
+packaging==25.0                     # Core utilities for Python packages
+pluggy==1.6.0                       # Plugin management system
+
+# =====================================================
+# Template and Markup Processing
+# =====================================================
+mako==1.3.10                        # Template library (used by Alembic)
+markupsafe==3.0.2                   # String handling for templates
+
+# =====================================================
+# Async and Concurrency Support
+# =====================================================
+watchfiles==1.1.0                   # File watching for development
+websockets==15.0.1                  # WebSocket implementation
+httptools==0.6.4                    # HTTP parsing (uvicorn dependency)
+
+# =====================================================
+# Production Server (Optional - for deployment)
+# =====================================================
+gunicorn==21.2.0                    # WSGI HTTP Server for UNIX (production deployment)
+
+# =====================================================
+# JSON and Data Processing
+# =====================================================
+# Note: Using Python's built-in json module
+# Additional JSON processing dependencies can be added here if needed
+
+# =====================================================
+# Regular Expressions and Text Processing
+# =====================================================
+# Note: Using Python's built-in re module
+# Additional text processing dependencies can be added here if needed
+
+# =====================================================
+# Mathematical Operations
+# =====================================================
+# Note: Using Python's built-in math and decimal modules
+# Additional mathematical dependencies can be added here if needed
+
+# =====================================================
+# Additional Utilities
+# =====================================================
+six==1.17.0                         # Python 2 and 3 compatibility utilities
+
+# =====================================================
+# Optional Dependencies (commented out - install if needed)
+# =====================================================
+# redis==5.0.1                      # Redis client for caching
+# celery==5.3.4                     # Distributed task queue
+# flower==2.0.1                     # Celery monitoring tool
+# sentry-sdk[fastapi]==1.40.0       # Error tracking and performance monitoring
+# prometheus-client==0.19.0         # Metrics collection for monitoring
+# structlog==23.2.0                 # Structured logging
+# rich==13.7.0                      # Rich text and beautiful formatting
+# typer==0.9.0                      # CLI application framework
