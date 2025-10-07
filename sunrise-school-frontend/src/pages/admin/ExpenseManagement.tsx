@@ -234,14 +234,8 @@ const ExpenseManagement: React.FC = () => {
     }
   };
 
-  const fetchStatistics = async () => {
-    try {
-      const stats = await expenseAPI.getStatistics();
-      setStatistics(stats);
-    } catch (error: any) {
-      console.error('Error fetching statistics:', error);
-    }
-  };
+  // Statistics are now fetched from the summary field in getExpenses response
+  // No need for a separate statistics endpoint
 
   const handleOpenDialog = (expense?: any, mode: 'add' | 'edit' | 'view' = 'add') => {
     setDialogMode(mode);
@@ -412,8 +406,7 @@ const ExpenseManagement: React.FC = () => {
       }
 
       handleCloseDialog();
-      fetchExpenses();
-      fetchStatistics(); // Refresh statistics after create/update
+      fetchExpenses(); // This will also refresh statistics from the summary field
     } catch (error: any) {
       console.error('Error submitting expense:', error);
       const errorMessage = parseValidationErrors(error);
@@ -432,8 +425,7 @@ const ExpenseManagement: React.FC = () => {
       try {
         await expenseAPI.deleteExpense(expenseId);
         setSnackbar({ open: true, message: 'Expense deleted successfully', severity: 'success' });
-        fetchExpenses();
-        fetchStatistics(); // Refresh statistics after delete
+        fetchExpenses(); // This will also refresh statistics from the summary field
       } catch (error: any) {
         console.error('Error deleting expense:', error);
         const errorMessage = parseValidationErrors(error);
@@ -489,8 +481,7 @@ const ExpenseManagement: React.FC = () => {
   // Effects
   useEffect(() => {
     if (!configLoading) {
-      fetchExpenses();
-      fetchStatistics();
+      fetchExpenses(); // This will also fetch statistics from the summary field
     }
   }, [page, filters, configLoading]);
 
@@ -633,7 +624,7 @@ const ExpenseManagement: React.FC = () => {
                 <MenuItem value="">All Categories</MenuItem>
                 {expenseCategories.filter(cat => cat.is_active).map((category: any) => (
                   <MenuItem key={category.id} value={category.id}>
-                    {category.name}
+                    {category.description || category.name}
                   </MenuItem>
                 ))}
               </Select>
@@ -893,7 +884,7 @@ const ExpenseManagement: React.FC = () => {
                 >
                   {expenseCategories.filter(cat => cat.is_active).map((category: any) => (
                     <MenuItem key={category.id} value={category.id}>
-                      {category.name}
+                      {category.description || category.name}
                     </MenuItem>
                   ))}
                 </Select>
@@ -1011,7 +1002,7 @@ const ExpenseManagement: React.FC = () => {
                 >
                   {paymentMethods.filter(method => method.is_active).map((method: any) => (
                     <MenuItem key={method.id} value={method.id}>
-                      {method.name}
+                      {method.description || method.name}
                     </MenuItem>
                   ))}
                 </Select>

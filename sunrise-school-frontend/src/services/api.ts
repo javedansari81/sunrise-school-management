@@ -300,10 +300,6 @@ export const expenseAPI = {
   approveExpense: (id: number, approvalData: { expense_status_id: number, approval_comments?: string }) =>
     api.patch(`/expenses/${id}/approve`, approvalData).then(response => response.data),
 
-  // Get expense statistics
-  getStatistics: () =>
-    api.get('/expenses/statistics').then(response => response.data),
-
   // Get pending expenses
   getPendingExpenses: () =>
     api.get('/expenses/pending').then(response => response.data),

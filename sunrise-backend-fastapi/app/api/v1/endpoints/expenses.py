@@ -486,41 +486,8 @@ async def get_yearly_expense_report(
 
 # Debug endpoint removed
 
-
-@router.get("/statistics")
-async def get_expense_statistics(
-    year: Optional[int] = None,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
-):
-    """
-    Get expense statistics for the frontend summary cards
-    """
-    try:
-        print(f"🔍 Getting expense statistics for year: {year}")
-
-        # First, let's check if there are any expenses at all
-        from sqlalchemy import text
-        count_result = await db.execute(text("SELECT COUNT(*) as count FROM expenses"))
-        total_count = count_result.fetchone()
-        print(f"📋 Total expenses in database: {total_count.count if total_count else 0}")
-
-        # Check a sample of expenses
-        sample_result = await db.execute(text("SELECT id, description, total_amount, expense_status_id FROM expenses LIMIT 5"))
-        sample_expenses = sample_result.fetchall()
-        print(f"📝 Sample expenses: {[dict(row._mapping) for row in sample_expenses]}")
-
-        stats = await expense_crud.get_expense_statistics(db, year=year)
-        print(f"📊 Statistics retrieved: {stats}")
-        return stats
-    except Exception as e:
-        print(f"❌ Error getting expense statistics: {str(e)}")
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get expense statistics: {str(e)}"
-        )
+# Statistics endpoint removed - statistics are now included in the main GET /expenses endpoint
+# as part of the ExpenseListResponse.summary field
 
 
 @router.get("/dashboard", response_model=ExpenseDashboard)
