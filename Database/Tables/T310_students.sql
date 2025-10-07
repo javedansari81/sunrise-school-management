@@ -37,6 +37,7 @@ CREATE TABLE students (
     mother_phone VARCHAR(20),
     mother_email VARCHAR(255),
     mother_occupation VARCHAR(100),
+    aadhar_no VARCHAR(12),
     guardian_name VARCHAR(200),
     guardian_phone VARCHAR(20),
     guardian_email VARCHAR(255),

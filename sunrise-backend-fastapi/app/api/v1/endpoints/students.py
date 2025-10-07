@@ -362,9 +362,10 @@ async def get_student_profile(
                 "mother_phone": student.mother_phone,
                 "mother_email": student.mother_email,
                 "mother_occupation": student.mother_occupation,
-                "emergency_contact_name": student.emergency_contact_name,
-                "emergency_contact_phone": student.emergency_contact_phone,
-                "emergency_contact_relation": student.emergency_contact_relation
+                "guardian_name": student.guardian_name,
+                "guardian_phone": student.guardian_phone,
+                "guardian_email": student.guardian_email,
+                "guardian_relation": student.guardian_relation
             },
             "fee_status": {
                 "total_fees_due": total_fees_due,
@@ -436,10 +437,11 @@ class StudentProfileUpdate(BaseModel):
     mother_email: Optional[str] = None
     mother_occupation: Optional[str] = Field(None, max_length=100)
 
-    # Emergency Contact (editable)
-    emergency_contact_name: Optional[str] = Field(None, max_length=100)
-    emergency_contact_phone: Optional[str] = Field(None, max_length=15)
-    emergency_contact_relation: Optional[str] = Field(None, max_length=50)
+    # Guardian/Emergency Contact (editable)
+    guardian_name: Optional[str] = Field(None, max_length=200)
+    guardian_phone: Optional[str] = Field(None, max_length=20)
+    guardian_email: Optional[str] = None
+    guardian_relation: Optional[str] = Field(None, max_length=50)
 
     # Academic Information (editable)
     previous_school: Optional[str] = Field(None, max_length=200)

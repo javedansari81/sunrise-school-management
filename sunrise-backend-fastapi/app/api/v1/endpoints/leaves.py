@@ -8,13 +8,11 @@ from app.core.database import get_db
 from app.crud.crud_leave import leave_request_crud, leave_balance_crud, leave_policy_crud
 from app.crud import student_crud, teacher_crud
 from app.schemas.leave import (
-    LeaveRequest, LeaveRequestCreate, LeaveRequestCreateFriendly, LeaveRequestUpdate, LeaveRequestWithDetails,
+    LeaveRequest, LeaveRequestCreate, LeaveRequestUpdate, LeaveRequestWithDetails,
     LeaveApproval, LeaveFilters, LeaveListResponse, LeaveReport,
     ApplicantTypeEnum, LeaveBalanceResponse, LeavePolicyResponse
 )
 from app.utils.identifier_helpers import (
-    resolve_applicant_identifier, resolve_substitute_teacher_identifier,
-    resolve_applied_to_identifier, validate_identifier_format,
     format_student_identifier, format_teacher_identifier
 )
 from app.api.deps import get_current_active_user
@@ -107,87 +105,12 @@ async def create_leave_request(
         total_days = (leave_data.end_date - leave_data.start_date).days + 1
         leave_data.total_days = total_days
 
-    leave_request = await leave_request_crud.create(db, obj_in=leave_data)
-    return leave_request
+    # Create leave request with user_id and applied_by set to current user
+    leave_dict = leave_data.model_dump()
+    leave_dict['user_id'] = current_user.id
+    leave_dict['applied_by'] = current_user.id
 
-
-@router.post("/friendly", response_model=LeaveRequest)
-async def create_leave_request_friendly(
-    leave_data: LeaveRequestCreateFriendly,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
-):
-    """
-    Create a new leave request using human-readable identifiers
-
-    This endpoint accepts:
-    - Student admission numbers (e.g., "STU001") for students
-    - Employee IDs (e.g., "EMP001") for teachers
-    - Employee IDs for substitute teachers
-    - Email addresses for applied_to field
-    """
-    # Validate identifier format
-    if not validate_identifier_format(leave_data.applicant_identifier, leave_data.applicant_type):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid identifier format: {leave_data.applicant_identifier}"
-        )
-
-    # Resolve applicant identifier to database ID
-    applicant_id, applicant_name = await resolve_applicant_identifier(
-        db, leave_data.applicant_identifier, leave_data.applicant_type
-    )
-
-    # Resolve substitute teacher identifier if provided
-    substitute_teacher_id = None
-    if leave_data.substitute_teacher_identifier:
-        substitute_teacher_id = await resolve_substitute_teacher_identifier(
-            db, leave_data.substitute_teacher_identifier
-        )
-
-    # Resolve applied_to identifier if provided
-    applied_to_id = None
-    if leave_data.applied_to_identifier:
-        applied_to_id = await resolve_applied_to_identifier(
-            db, leave_data.applied_to_identifier
-        )
-
-    # Validate dates
-    if leave_data.start_date > leave_data.end_date:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Start date cannot be after end date"
-        )
-
-    # Calculate total days if not provided or incorrect
-    calculated_days = (leave_data.end_date - leave_data.start_date).days + 1
-    if leave_data.total_days != calculated_days:
-        leave_data.total_days = calculated_days
-
-    # Convert to internal schema
-    internal_leave_data = LeaveRequestCreate(
-        applicant_id=applicant_id,
-        applicant_type=leave_data.applicant_type,
-        leave_type_id=leave_data.leave_type_id,
-        start_date=leave_data.start_date,
-        end_date=leave_data.end_date,
-        total_days=leave_data.total_days,
-        reason=leave_data.reason,
-        medical_certificate_url=leave_data.medical_certificate_url,
-        supporting_document_url=leave_data.supporting_document_url,
-        substitute_teacher_id=substitute_teacher_id,
-        substitute_arranged=leave_data.substitute_arranged,
-        parent_consent=leave_data.parent_consent,
-        parent_signature_url=leave_data.parent_signature_url,
-        emergency_contact_name=leave_data.emergency_contact_name,
-        emergency_contact_phone=leave_data.emergency_contact_phone,
-        is_half_day=leave_data.is_half_day,
-        half_day_session=leave_data.half_day_session,
-        applied_to=applied_to_id
-    )
-
-    # Create the leave request
-    leave_request = await leave_request_crud.create(db, obj_in=internal_leave_data)
+    leave_request = await leave_request_crud.create(db, obj_in=leave_dict)
     return leave_request
 
 
@@ -457,7 +380,7 @@ async def approve_leave_request(
         leave_request=leave_request,
         reviewer_id=current_user.id,
         leave_status_id=approval_data.leave_status_id,
-        review_comments=approval_data.review_comments
+        review_comments=approval_data.approval_comments
     )
 
     return updated_leave

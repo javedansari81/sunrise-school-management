@@ -9,49 +9,36 @@ class LeaveRequest(Base):
     """
     Leave Request model for both students and teachers
     Aligned with metadata-driven architecture using leave_types and leave_statuses tables
+    Matches database schema in T600_leave_requests.sql
     """
     __tablename__ = "leave_requests"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)  # User ID for authentication
-    applicant_id = Column(Integer, nullable=False)  # Student ID or Teacher ID for business logic
-    applicant_type = Column(String(10), nullable=False)  # 'student' or 'teacher'
 
-    # Leave Details
+    # Basic Information
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)  # User ID for authentication
     leave_type_id = Column(Integer, ForeignKey("leave_types.id"), nullable=False)
     start_date = Column(Date, nullable=False)
     end_date = Column(Date, nullable=False)
     total_days = Column(Integer, nullable=False)
     reason = Column(Text, nullable=False)
 
-    # Supporting Documents
-    medical_certificate_url = Column(String(500), nullable=True)
-    supporting_document_url = Column(String(500), nullable=True)
+    # Applicant Information
+    applicant_type = Column(String(10), nullable=False)  # 'student' or 'teacher'
+    applicant_id = Column(Integer, nullable=False)  # Student ID or Teacher ID for business logic
 
-    # Application Status
+    # Status and Approval
     leave_status_id = Column(Integer, ForeignKey("leave_statuses.id"), default=1)
-
-    # Approval Workflow
-    applied_to = Column(Integer, ForeignKey("users.id"), nullable=True)  # Teacher/Principal who should approve
-    reviewed_by = Column(Integer, ForeignKey("users.id"), nullable=True)
-    reviewed_at = Column(DateTime(timezone=True), nullable=True)
-    review_comments = Column(Text, nullable=True)
-
-    # For Teachers - Substitute Arrangement
-    substitute_teacher_id = Column(Integer, ForeignKey("teachers.id"), nullable=True)
-    substitute_arranged = Column(Boolean, default=False)
-
-    # For Students - Parent Consent
-    parent_consent = Column(Boolean, default=False)
-    parent_signature_url = Column(String(500), nullable=True)
-
-    # Emergency Contact (for students)
-    emergency_contact_name = Column(String(200), nullable=True)
-    emergency_contact_phone = Column(String(20), nullable=True)
+    applied_by = Column(Integer, ForeignKey("users.id"), nullable=False)
+    approved_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    approved_at = Column(DateTime(timezone=True), nullable=True)
+    approval_comments = Column(Text, nullable=True)
 
     # Additional Information
     is_half_day = Column(Boolean, default=False)
-    half_day_session = Column(String(10), nullable=True)  # 'morning' or 'afternoon'
+    half_day_period = Column(String(10), nullable=True)  # 'Morning' or 'Afternoon'
+    emergency_contact = Column(String(20), nullable=True)
+    medical_certificate_url = Column(String(500), nullable=True)
 
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -61,9 +48,8 @@ class LeaveRequest(Base):
     user = relationship("User", foreign_keys=[user_id])
     leave_type = relationship("LeaveType", foreign_keys=[leave_type_id])
     leave_status = relationship("LeaveStatus", foreign_keys=[leave_status_id])
-    reviewer = relationship("User", foreign_keys=[reviewed_by])
-    applied_to_user = relationship("User", foreign_keys=[applied_to])
-    substitute_teacher = relationship("Teacher", foreign_keys=[substitute_teacher_id])
+    applied_by_user = relationship("User", foreign_keys=[applied_by])
+    approver = relationship("User", foreign_keys=[approved_by])
 
 
 class LeaveBalance(Base):

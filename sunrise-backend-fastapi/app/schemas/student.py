@@ -123,9 +123,10 @@ class StudentBase(BaseModel):
     mother_phone: Optional[str] = None
     mother_email: Optional[EmailStr] = None
     mother_occupation: Optional[str] = None
-    emergency_contact_name: Optional[str] = None
-    emergency_contact_phone: Optional[str] = None
-    emergency_contact_relation: Optional[str] = None
+    guardian_name: Optional[str] = None
+    guardian_phone: Optional[str] = None
+    guardian_email: Optional[EmailStr] = None
+    guardian_relation: Optional[str] = None
     admission_date: date
 
     @field_validator('aadhar_no', mode='before')
@@ -175,9 +176,10 @@ class StudentUpdate(BaseModel):
     mother_phone: Optional[str] = None
     mother_email: Optional[EmailStr] = None
     mother_occupation: Optional[str] = None
-    emergency_contact_name: Optional[str] = None
-    emergency_contact_phone: Optional[str] = None
-    emergency_contact_relation: Optional[str] = None
+    guardian_name: Optional[str] = None
+    guardian_phone: Optional[str] = None
+    guardian_email: Optional[EmailStr] = None
+    guardian_relation: Optional[str] = None
     admission_date: Optional[date] = None
     is_active: Optional[bool] = None
 
@@ -194,9 +196,10 @@ class StudentProfileUpdate(BaseModel):
     state: Optional[str] = Field(None, max_length=100)
     postal_code: Optional[str] = Field(None, max_length=20)
     country: Optional[str] = Field(None, max_length=100)
-    emergency_contact_name: Optional[str] = None
-    emergency_contact_phone: Optional[str] = None
-    emergency_contact_relation: Optional[str] = None
+    guardian_name: Optional[str] = None
+    guardian_phone: Optional[str] = None
+    guardian_email: Optional[EmailStr] = None
+    guardian_relation: Optional[str] = None
 
 
 class StudentInDBBase(StudentBase):
@@ -250,9 +253,10 @@ class Student(StudentInDBBase):
             "mother_phone": db_student.mother_phone,
             "mother_email": db_student.mother_email,
             "mother_occupation": db_student.mother_occupation,
-            "emergency_contact_name": db_student.emergency_contact_name,
-            "emergency_contact_phone": db_student.emergency_contact_phone,
-            "emergency_contact_relation": db_student.emergency_contact_relation,
+            "guardian_name": db_student.guardian_name,
+            "guardian_phone": db_student.guardian_phone,
+            "guardian_email": db_student.guardian_email,
+            "guardian_relation": db_student.guardian_relation,
             "is_active": db_student.is_active,
             "is_deleted": db_student.is_deleted if hasattr(db_student, 'is_deleted') else False,
             "deleted_date": db_student.deleted_date if hasattr(db_student, 'deleted_date') else None,

@@ -20,19 +20,18 @@ from app.schemas.leave import (
 class CRUDLeaveRequest(CRUDBase[LeaveRequest, LeaveRequestCreate, LeaveRequestUpdate]):
     """CRUD operations for Leave Requests with metadata-driven architecture"""
 
-    async def create(self, db: AsyncSession, *, obj_in: LeaveRequestCreate) -> LeaveRequest:
+    async def create(self, db: AsyncSession, *, obj_in: dict) -> LeaveRequest:
         """Create a new leave request with automatic total days calculation"""
         # Calculate total days if not provided
-        if not obj_in.total_days:
-            total_days = (obj_in.end_date - obj_in.start_date).days + 1
-            obj_in.total_days = total_days
+        if not obj_in.get('total_days'):
+            total_days = (obj_in['end_date'] - obj_in['start_date']).days + 1
+            obj_in['total_days'] = total_days
 
-        # Set default status to Pending (ID = 1)
-        db_obj = LeaveRequest(
-            **obj_in.dict(),
-            leave_status_id=1,  # Pending status
-            created_at=datetime.utcnow()
-        )
+        # Set default status to Pending (ID = 1) if not provided
+        if 'leave_status_id' not in obj_in:
+            obj_in['leave_status_id'] = 1
+
+        db_obj = LeaveRequest(**obj_in)
         db.add(db_obj)
         await db.commit()
         await db.refresh(db_obj)
@@ -78,7 +77,7 @@ class CRUDLeaveRequest(CRUDBase[LeaveRequest, LeaveRequestCreate, LeaveRequestUp
         LEFT JOIN teachers t ON lr.applicant_type = 'teacher' AND lr.applicant_id = t.id
         LEFT JOIN leave_types lt ON lr.leave_type_id = lt.id
         LEFT JOIN leave_statuses ls ON lr.leave_status_id = ls.id
-        LEFT JOIN users u ON lr.reviewed_by = u.id
+        LEFT JOIN users u ON lr.approved_by = u.id
         WHERE lr.id = :leave_id
         """
 
@@ -206,7 +205,7 @@ class CRUDLeaveRequest(CRUDBase[LeaveRequest, LeaveRequestCreate, LeaveRequestUp
         LEFT JOIN teachers t ON lr.applicant_type = 'teacher' AND lr.applicant_id = t.id
         LEFT JOIN leave_types lt ON lr.leave_type_id = lt.id
         LEFT JOIN leave_statuses ls ON lr.leave_status_id = ls.id
-        LEFT JOIN users u ON lr.reviewed_by = u.id
+        LEFT JOIN users u ON lr.approved_by = u.id
         {where_clause}
         ORDER BY lr.created_at DESC
         LIMIT :limit OFFSET :skip
@@ -270,7 +269,7 @@ class CRUDLeaveRequest(CRUDBase[LeaveRequest, LeaveRequestCreate, LeaveRequestUp
         LEFT JOIN teachers t ON lr.applicant_type = 'teacher' AND lr.applicant_id = t.id
         LEFT JOIN leave_types lt ON lr.leave_type_id = lt.id
         LEFT JOIN leave_statuses ls ON lr.leave_status_id = ls.id
-        LEFT JOIN users u ON lr.reviewed_by = u.id
+        LEFT JOIN users u ON lr.approved_by = u.id
         WHERE lr.applicant_id = :applicant_id AND lr.applicant_type = :applicant_type
         ORDER BY lr.created_at DESC
         LIMIT :limit
@@ -331,7 +330,7 @@ class CRUDLeaveRequest(CRUDBase[LeaveRequest, LeaveRequestCreate, LeaveRequestUp
         LEFT JOIN teachers t ON lr.applicant_type = 'teacher' AND lr.applicant_id = t.id
         LEFT JOIN leave_types lt ON lr.leave_type_id = lt.id
         LEFT JOIN leave_statuses ls ON lr.leave_status_id = ls.id
-        LEFT JOIN users u ON lr.reviewed_by = u.id
+        LEFT JOIN users u ON lr.approved_by = u.id
         WHERE lr.leave_status_id = 1
         ORDER BY lr.created_at ASC
         """
@@ -363,11 +362,11 @@ class CRUDLeaveRequest(CRUDBase[LeaveRequest, LeaveRequestCreate, LeaveRequestUp
     ) -> LeaveRequest:
         """Approve or reject a leave request"""
         leave_request.leave_status_id = leave_status_id
-        leave_request.reviewed_by = reviewer_id
-        leave_request.reviewed_at = datetime.utcnow()
+        leave_request.approved_by = reviewer_id
+        leave_request.approved_at = datetime.utcnow()
 
         if review_comments:
-            leave_request.review_comments = review_comments
+            leave_request.approval_comments = review_comments
 
         db.add(leave_request)
         await db.commit()
@@ -464,6 +463,75 @@ class CRUDLeaveRequest(CRUDBase[LeaveRequest, LeaveRequestCreate, LeaveRequestUp
             'leave_type_breakdown': type_breakdown,
             'applicant_type_breakdown': applicant_breakdown
         }
+
+    async def get_monthly_leave_trend(
+        self, db: AsyncSession, *, year: int
+    ) -> List[Dict[str, Any]]:
+        """Get monthly leave trend for a specific year"""
+        query = """
+        SELECT
+            EXTRACT(month FROM lr.start_date) as month,
+            COUNT(lr.id) as count,
+            SUM(lr.total_days) as total_days,
+            COUNT(CASE WHEN lr.leave_status_id = 2 THEN 1 END) as approved_count,
+            COUNT(CASE WHEN lr.leave_status_id = 3 THEN 1 END) as rejected_count,
+            COUNT(CASE WHEN lr.leave_status_id = 1 THEN 1 END) as pending_count
+        FROM leave_requests lr
+        WHERE EXTRACT(year FROM lr.start_date) = :year
+        GROUP BY EXTRACT(month FROM lr.start_date)
+        ORDER BY EXTRACT(month FROM lr.start_date)
+        """
+
+        result = await db.execute(text(query), {"year": year})
+
+        return [
+            {
+                'month': int(row.month),
+                'count': row.count,
+                'total_days': int(row.total_days or 0),
+                'approved_count': row.approved_count,
+                'rejected_count': row.rejected_count,
+                'pending_count': row.pending_count
+            }
+            for row in result
+        ]
+
+    async def get_class_wise_leave_stats(
+        self, db: AsyncSession, *, year: Optional[int] = None
+    ) -> List[Dict[str, Any]]:
+        """Get class-wise leave statistics for students"""
+        where_clause = "AND EXTRACT(year FROM lr.start_date) = :year" if year else ""
+        params = {"year": year} if year else {}
+
+        query = f"""
+        SELECT
+            COALESCE(c.name, 'N/A') as class_name,
+            COUNT(lr.id) as total_requests,
+            COUNT(CASE WHEN lr.leave_status_id = 2 THEN 1 END) as approved_requests,
+            COUNT(CASE WHEN lr.leave_status_id = 3 THEN 1 END) as rejected_requests,
+            COUNT(CASE WHEN lr.leave_status_id = 1 THEN 1 END) as pending_requests,
+            SUM(lr.total_days) as total_days
+        FROM leave_requests lr
+        LEFT JOIN students s ON lr.applicant_type = 'student' AND lr.applicant_id = s.id
+        LEFT JOIN classes c ON s.class_id = c.id
+        WHERE lr.applicant_type = 'student' {where_clause}
+        GROUP BY c.name
+        ORDER BY c.name
+        """
+
+        result = await db.execute(text(query), params)
+
+        return [
+            {
+                'class_name': row.class_name,
+                'total_requests': row.total_requests,
+                'approved_requests': row.approved_requests,
+                'rejected_requests': row.rejected_requests,
+                'pending_requests': row.pending_requests,
+                'total_days': int(row.total_days or 0)
+            }
+            for row in result
+        ]
 
 
 class CRUDLeaveBalance(CRUDBase[LeaveBalance, dict, dict]):

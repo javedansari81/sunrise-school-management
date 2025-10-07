@@ -161,12 +161,14 @@ class LeaveRequestUpdate(BaseModel):
 
 
 class LeaveRequestInDBBase(LeaveRequestBase):
-    """Base schema for leave requests in database"""
+    """Base schema for leave requests in database - matches database schema"""
     id: int
+    user_id: int
     leave_status_id: int = Field(..., description="Leave status ID from metadata")
-    reviewed_by: Optional[int] = None
-    reviewed_at: Optional[datetime] = None
-    review_comments: Optional[str] = None
+    applied_by: int
+    approved_by: Optional[int] = None
+    approved_at: Optional[datetime] = None
+    approval_comments: Optional[str] = None
     created_at: datetime
     updated_at: Optional[datetime] = None
 
@@ -194,7 +196,7 @@ class LeaveRequestWithDetails(LeaveRequest):
 class LeaveApproval(BaseModel):
     """Schema for leave approval/rejection"""
     leave_status_id: int = Field(..., description="New status ID from metadata")
-    review_comments: Optional[str] = Field(None, description="Comments from reviewer")
+    approval_comments: Optional[str] = Field(None, description="Comments from approver")
 
 
 class LeaveFilters(BaseModel):

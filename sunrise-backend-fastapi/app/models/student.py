@@ -77,22 +77,23 @@ class Student(Base):
     state = Column(String(100), nullable=True)
     postal_code = Column(String(20), nullable=True)
     country = Column(String(100), default='India')
-    
+
     # Parent Information
     father_name = Column(String(100), nullable=False)
     father_phone = Column(String(15), nullable=True)
     father_email = Column(String(100), nullable=True)
     father_occupation = Column(String(100), nullable=True)
-    
+
     mother_name = Column(String(100), nullable=False)
     mother_phone = Column(String(15), nullable=True)
     mother_email = Column(String(100), nullable=True)
     mother_occupation = Column(String(100), nullable=True)
-    
-    # Emergency Contact
-    emergency_contact_name = Column(String(100), nullable=True)
-    emergency_contact_phone = Column(String(15), nullable=True)
-    emergency_contact_relation = Column(String(50), nullable=True)
+
+    # Guardian/Emergency Contact
+    guardian_name = Column(String(200), nullable=True)
+    guardian_phone = Column(String(20), nullable=True)
+    guardian_email = Column(String(255), nullable=True)
+    guardian_relation = Column(String(50), nullable=True)
     
     # Academic Information
     admission_date = Column(Date, nullable=False)
