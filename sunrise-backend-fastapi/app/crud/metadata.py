@@ -10,7 +10,8 @@ from sqlalchemy.future import select
 
 from app.models.metadata import (
     UserType, SessionYear, Gender, Class, PaymentType, PaymentStatus, PaymentMethod,
-    LeaveType, LeaveStatus, ExpenseCategory, ExpenseStatus, EmploymentStatus, Qualification
+    LeaveType, LeaveStatus, ExpenseCategory, ExpenseStatus, EmploymentStatus, Qualification,
+    Department, Position
 )
 # Note: Schema imports removed to avoid circular dependencies
 # Schemas will be imported in endpoints as needed
@@ -87,6 +88,8 @@ expense_category_crud = MetadataCRUD(ExpenseCategory)
 expense_status_crud = MetadataCRUD(ExpenseStatus)
 employment_status_crud = MetadataCRUD(EmploymentStatus)
 qualification_crud = MetadataCRUD(Qualification)
+department_crud = MetadataCRUD(Department)
+position_crud = MetadataCRUD(Position)
 
 
 def get_all_metadata(db: Session) -> Dict[str, List[Any]]:
@@ -104,7 +107,9 @@ def get_all_metadata(db: Session) -> Dict[str, List[Any]]:
         "expense_categories": expense_category_crud.get_all(db),
         "expense_statuses": expense_status_crud.get_all(db),
         "employment_statuses": employment_status_crud.get_all(db),
-        "qualifications": qualification_crud.get_all(db)
+        "qualifications": qualification_crud.get_all(db),
+        "departments": department_crud.get_all(db),
+        "positions": position_crud.get_all(db)
     }
 
 
@@ -230,6 +235,24 @@ async def get_all_metadata_async(db: AsyncSession) -> Dict[str, List[Any]]:
                NULL::BOOLEAN as requires_reference, is_active, created_at, updated_at
         FROM qualifications WHERE is_active = true
 
+        UNION ALL
+
+        SELECT 'departments' as table_name, id, name, description,
+               NULL::INTEGER as sort_order, NULL::DATE as start_date, NULL::DATE as end_date, NULL::BOOLEAN as is_current,
+               NULL::INTEGER as max_days_per_year, NULL::BOOLEAN as requires_medical_certificate, NULL::DECIMAL as budget_limit,
+               NULL::BOOLEAN as requires_approval, NULL::VARCHAR as color_code, NULL::BOOLEAN as is_final, NULL::INTEGER as level_order,
+               NULL::BOOLEAN as requires_reference, is_active, created_at, updated_at
+        FROM departments WHERE is_active = true
+
+        UNION ALL
+
+        SELECT 'positions' as table_name, id, name, description,
+               NULL::INTEGER as sort_order, NULL::DATE as start_date, NULL::DATE as end_date, NULL::BOOLEAN as is_current,
+               NULL::INTEGER as max_days_per_year, NULL::BOOLEAN as requires_medical_certificate, NULL::DECIMAL as budget_limit,
+               NULL::BOOLEAN as requires_approval, NULL::VARCHAR as color_code, NULL::BOOLEAN as is_final, NULL::INTEGER as level_order,
+               NULL::BOOLEAN as requires_reference, is_active, created_at, updated_at
+        FROM positions WHERE is_active = true
+
         ORDER BY table_name, id
     """)
 
@@ -254,7 +277,9 @@ async def get_all_metadata_async(db: AsyncSession) -> Dict[str, List[Any]]:
         "expense_categories": [],
         "expense_statuses": [],
         "employment_statuses": [],
-        "qualifications": []
+        "qualifications": [],
+        "departments": [],
+        "positions": []
     }
 
     # Process results efficiently
@@ -334,6 +359,16 @@ async def get_all_metadata_async(db: AsyncSession) -> Dict[str, List[Any]]:
             obj = type('Qualification', (), {
                 'id': row.id, 'name': row.name, 'description': row.description,
                 'level_order': row.level_order, 'is_active': row.is_active
+            })()
+        elif table_name == 'departments':
+            obj = type('Department', (), {
+                'id': row.id, 'name': row.name, 'description': row.description,
+                'is_active': row.is_active
+            })()
+        elif table_name == 'positions':
+            obj = type('Position', (), {
+                'id': row.id, 'name': row.name, 'description': row.description,
+                'is_active': row.is_active
             })()
         else:
             continue

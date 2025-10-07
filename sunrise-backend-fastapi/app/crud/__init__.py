@@ -10,6 +10,7 @@ from .metadata import (
     payment_type_crud, payment_status_crud, payment_method_crud,
     leave_type_crud, leave_status_crud, expense_category_crud,
     expense_status_crud, employment_status_crud, qualification_crud,
+    department_crud, position_crud,
     get_all_metadata, get_all_metadata_async, get_current_session_year, get_dropdown_options,
     validate_metadata_ids, get_metadata_name_by_id
 )
@@ -28,6 +29,7 @@ __all__ = [
     "payment_type_crud", "payment_status_crud", "payment_method_crud",
     "leave_type_crud", "leave_status_crud", "expense_category_crud",
     "expense_status_crud", "employment_status_crud", "qualification_crud",
+    "department_crud", "position_crud",
     # Metadata helpers
     "get_all_metadata", "get_all_metadata_async", "get_current_session_year", "get_dropdown_options",
     "validate_metadata_ids", "get_metadata_name_by_id"

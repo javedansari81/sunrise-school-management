@@ -110,14 +110,10 @@ async def get_service_metadata_configuration(db: AsyncSession, service_name: str
                 configuration[metadata_type] = [{"id": item.id, "name": item.name, "description": item.description, "is_active": item.is_active} for item in items]
             elif metadata_type == "qualifications":
                 configuration[metadata_type] = [{"id": item.id, "name": item.name, "description": item.description, "level_order": item.level_order, "is_active": item.is_active} for item in items]
-        elif metadata_type == "departments":
-            # Fetch departments from teacher_crud
-            departments = await teacher_crud.get_departments(db)
-            configuration[metadata_type] = [{"name": dept, "is_active": True} for dept in departments]
-        elif metadata_type == "positions":
-            # Fetch positions from teacher_crud
-            positions = await teacher_crud.get_positions(db)
-            configuration[metadata_type] = [{"name": pos, "is_active": True} for pos in positions]
+            elif metadata_type == "departments":
+                configuration[metadata_type] = [{"id": item.id, "name": item.name, "description": item.description, "is_active": item.is_active} for item in items]
+            elif metadata_type == "positions":
+                configuration[metadata_type] = [{"id": item.id, "name": item.name, "description": item.description, "is_active": item.is_active} for item in items]
 
     # Add service-specific metadata
     configuration["metadata"] = {

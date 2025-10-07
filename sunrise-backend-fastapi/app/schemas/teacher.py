@@ -105,9 +105,9 @@ class TeacherBase(BaseModel):
     emergency_contact_name: Optional[str] = Field(None, max_length=200)
     emergency_contact_phone: Optional[str] = Field(None, max_length=20)
     emergency_contact_relation: Optional[str] = Field(None, max_length=50)
-    position: str = Field(..., max_length=100)
-    department: Optional[str] = Field(None, max_length=100)
     subjects: Optional[str] = None  # JSON string
+    department_id: Optional[int] = Field(None, description="Foreign key to departments table")
+    position_id: Optional[int] = Field(None, description="Foreign key to positions table")
     qualification_id: Optional[int] = Field(None, description="Foreign key to qualifications table")
     employment_status_id: int = Field(default=1, description="Foreign key to employment_statuses table")
     experience_years: int = Field(default=0, ge=0)
@@ -174,9 +174,9 @@ class TeacherUpdate(BaseModel):
     emergency_contact_name: Optional[str] = Field(None, max_length=200)
     emergency_contact_phone: Optional[str] = Field(None, max_length=20)
     emergency_contact_relation: Optional[str] = Field(None, max_length=50)
-    position: Optional[str] = Field(None, max_length=100)
-    department: Optional[str] = Field(None, max_length=100)
     subjects: Optional[str] = None
+    department_id: Optional[int] = None
+    position_id: Optional[int] = None
     qualification_id: Optional[int] = None
     employment_status_id: Optional[int] = None
     experience_years: Optional[int] = Field(None, ge=0)
@@ -242,6 +242,8 @@ class TeacherInDBBase(TeacherBase):
 class Teacher(TeacherInDBBase):
     # Computed fields for API responses
     gender_name: Optional[str] = Field(None, description="Resolved gender name")
+    department_name: Optional[str] = Field(None, description="Resolved department name")
+    position_name: Optional[str] = Field(None, description="Resolved position name")
     qualification_name: Optional[str] = Field(None, description="Resolved qualification name")
     employment_status_name: Optional[str] = Field(None, description="Resolved employment status name")
     class_teacher_of_name: Optional[str] = Field(None, description="Resolved class teacher of name")
@@ -267,9 +269,9 @@ class Teacher(TeacherInDBBase):
             "emergency_contact_name": db_teacher.emergency_contact_name,
             "emergency_contact_phone": db_teacher.emergency_contact_phone,
             "emergency_contact_relation": db_teacher.emergency_contact_relation,
-            "position": db_teacher.position,
-            "department": db_teacher.department,
             "subjects": db_teacher.subjects,
+            "department_id": db_teacher.department_id,
+            "position_id": db_teacher.position_id,
             "qualification_id": db_teacher.qualification_id,
             "employment_status_id": db_teacher.employment_status_id,
             "experience_years": db_teacher.experience_years,
@@ -281,6 +283,8 @@ class Teacher(TeacherInDBBase):
             "created_at": db_teacher.created_at,
             "updated_at": db_teacher.updated_at,
             "gender_name": db_teacher.gender.name if db_teacher.gender else None,
+            "department_name": db_teacher.department.name if db_teacher.department else None,
+            "position_name": db_teacher.position.name if db_teacher.position else None,
             "qualification_name": db_teacher.qualification.name if db_teacher.qualification else None,
             "employment_status_name": db_teacher.employment_status.name if db_teacher.employment_status else None,
             "class_teacher_of_name": db_teacher.class_teacher_of_ref.description if db_teacher.class_teacher_of_ref else None

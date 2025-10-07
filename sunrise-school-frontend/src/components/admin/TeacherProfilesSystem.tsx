@@ -85,7 +85,12 @@ interface Teacher {
   emergency_contact_name?: string;
   emergency_contact_phone?: string;
   emergency_contact_relation?: string;
-  position: string;
+  position_id?: number;
+  position_name?: string;
+  department_id?: number;
+  department_name?: string;
+  // Legacy fields for backward compatibility
+  position?: string;
   department?: string;
   subjects?: string;
   qualification_id?: number;
@@ -123,8 +128,8 @@ interface TeacherFormData {
   emergency_contact_name: string;
   emergency_contact_phone: string;
   emergency_contact_relation: string;
-  position: string;
-  department: string;
+  position_id: string;
+  department_id: string;
   subjects: string;
   qualification_id: string;
   employment_status_id: string;
@@ -191,8 +196,8 @@ const TeacherProfilesSystem: React.FC = () => {
     emergency_contact_name: '',
     emergency_contact_phone: '',
     emergency_contact_relation: '',
-    position: '',
-    department: '',
+    position_id: '',
+    department_id: '',
     subjects: '',
     qualification_id: '',
     employment_status_id: '',
@@ -294,8 +299,8 @@ const TeacherProfilesSystem: React.FC = () => {
       emergency_contact_name: '',
       emergency_contact_phone: '',
       emergency_contact_relation: '',
-      position: '',
-      department: '',
+      position_id: '',
+      department_id: '',
       subjects: '',
       qualification_id: '',
       employment_status_id: '',
@@ -336,7 +341,7 @@ const TeacherProfilesSystem: React.FC = () => {
     if (!formData.gender_id) errors.gender_id = 'Gender is required';
     if (!formData.phone.trim()) errors.phone = 'Phone number is required';
     // Email is no longer required - will be auto-generated
-    if (!formData.position.trim()) errors.position = 'Position is required';
+    if (!formData.position_id.trim()) errors.position_id = 'Position is required';
     if (!formData.employment_status_id) errors.employment_status_id = 'Employment status is required';
     if (!formData.joining_date) errors.joining_date = 'Joining date is required';
 
@@ -420,6 +425,8 @@ const TeacherProfilesSystem: React.FC = () => {
       const teacherData = {
         ...formData,
         gender_id: Number(formData.gender_id),
+        position_id: formData.position_id ? Number(formData.position_id) : null,
+        department_id: formData.department_id ? Number(formData.department_id) : null,
         qualification_id: formData.qualification_id ? Number(formData.qualification_id) : null,
         employment_status_id: Number(formData.employment_status_id),
         experience_years: Number(formData.experience_years) || 0,
@@ -510,8 +517,8 @@ const TeacherProfilesSystem: React.FC = () => {
         emergency_contact_name: teacherData.emergency_contact_name || '',
         emergency_contact_phone: teacherData.emergency_contact_phone || '',
         emergency_contact_relation: teacherData.emergency_contact_relation || '',
-        position: teacherData.position || '',
-        department: teacherData.department || '',
+        position_id: teacherData.position_id || '',
+        department_id: teacherData.department_id || '',
         subjects: teacherData.subjects || '',
         qualification_id: teacherData.qualification_id || '',
         employment_status_id: teacherData.employment_status_id || '',
@@ -575,6 +582,8 @@ const TeacherProfilesSystem: React.FC = () => {
       const teacherData = {
         ...editFormData,
         gender_id: Number(editFormData.gender_id),
+        position_id: editFormData.position_id ? Number(editFormData.position_id) : null,
+        department_id: editFormData.department_id ? Number(editFormData.department_id) : null,
         qualification_id: editFormData.qualification_id ? Number(editFormData.qualification_id) : null,
         employment_status_id: Number(editFormData.employment_status_id),
         experience_years: Number(editFormData.experience_years) || 0,
@@ -621,7 +630,7 @@ const TeacherProfilesSystem: React.FC = () => {
     if (!editFormData.gender_id) errors.gender_id = 'Gender is required';
     if (!editFormData.phone?.trim()) errors.phone = 'Phone number is required';
     // Email is system-generated and read-only, no validation needed
-    if (!editFormData.position?.trim()) errors.position = 'Position is required';
+    if (!editFormData.position_id) errors.position_id = 'Position is required';
     if (!editFormData.employment_status_id) errors.employment_status_id = 'Employment status is required';
     if (!editFormData.joining_date) errors.joining_date = 'Joining date is required';
 
@@ -671,8 +680,8 @@ const TeacherProfilesSystem: React.FC = () => {
       if (!matchesSearch) return false;
     }
 
-    // Department filter
-    if (filterDepartment !== 'all' && teacher.department !== filterDepartment) {
+    // Department filter (comparing by ID)
+    if (filterDepartment !== 'all' && teacher.department_id?.toString() !== filterDepartment) {
       return false;
     }
 
@@ -764,8 +773,8 @@ const TeacherProfilesSystem: React.FC = () => {
               >
                 <MenuItem value="all">All Departments</MenuItem>
                 {configuration?.departments?.map((dept: any) => (
-                  <MenuItem key={dept.name} value={dept.name}>
-                    {dept.name}
+                  <MenuItem key={dept.id} value={dept.id.toString()}>
+                    {dept.description}
                   </MenuItem>
                 ))}
               </Select>
@@ -842,8 +851,8 @@ const TeacherProfilesSystem: React.FC = () => {
                         </Box>
                       </TableCell>
                       <TableCell>{teacher.employee_id}</TableCell>
-                      <TableCell>{teacher.department || 'Not Assigned'}</TableCell>
-                      <TableCell>{teacher.position}</TableCell>
+                      <TableCell>{teacher.department_name || teacher.department || 'Not Assigned'}</TableCell>
+                      <TableCell>{teacher.position_name || teacher.position || 'Not Assigned'}</TableCell>
                       <TableCell>
                         <Box display="flex" flexDirection="column" gap={0.5}>
                           <Box display="flex" alignItems="center" gap={1}>
@@ -944,8 +953,8 @@ const TeacherProfilesSystem: React.FC = () => {
                           </Box>
                         </TableCell>
                         <TableCell>{teacher.employee_id}</TableCell>
-                        <TableCell>{teacher.department || 'Not Assigned'}</TableCell>
-                        <TableCell>{teacher.position}</TableCell>
+                        <TableCell>{teacher.department_name || teacher.department || 'Not Assigned'}</TableCell>
+                        <TableCell>{teacher.position_name || teacher.position || 'Not Assigned'}</TableCell>
                         <TableCell>
                           <Box display="flex" flexDirection="column" gap={0.5}>
                             <Box display="flex" alignItems="center" gap={1}>
@@ -1042,8 +1051,8 @@ const TeacherProfilesSystem: React.FC = () => {
                           </Box>
                         </TableCell>
                         <TableCell>{teacher.employee_id}</TableCell>
-                        <TableCell>{teacher.department || 'Not Assigned'}</TableCell>
-                        <TableCell>{teacher.position}</TableCell>
+                        <TableCell>{teacher.department_name || teacher.department || 'Not Assigned'}</TableCell>
+                        <TableCell>{teacher.position_name || teacher.position || 'Not Assigned'}</TableCell>
                         <TableCell>
                           <Box display="flex" flexDirection="column" gap={0.5}>
                             <Box display="flex" alignItems="center" gap={1}>
@@ -1218,38 +1227,38 @@ const TeacherProfilesSystem: React.FC = () => {
 
             <Box display="flex" flexDirection="column" gap={2}>
               <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} gap={2}>
-                <FormControl fullWidth size="small" error={!!formErrors.position} required>
+                <FormControl fullWidth size="small" error={!!formErrors.position_id} required>
                   <InputLabel>Position</InputLabel>
                   <Select
-                    value={formData.position}
+                    value={formData.position_id}
                     label="Position"
-                    onChange={(e) => handleFormChange('position', e.target.value)}
+                    onChange={(e) => handleFormChange('position_id', e.target.value)}
                   >
                     {configuration?.positions?.map((pos: any) => (
-                      <MenuItem key={pos.name} value={pos.name}>
-                        {pos.name}
+                      <MenuItem key={pos.id} value={pos.id}>
+                        {pos.description}
                       </MenuItem>
                     ))}
                   </Select>
-                  {formErrors.position && (
+                  {formErrors.position_id && (
                     <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 1.5 }}>
-                      {formErrors.position}
+                      {formErrors.position_id}
                     </Typography>
                   )}
                 </FormControl>
                 <FormControl fullWidth size="small">
                   <InputLabel>Department</InputLabel>
                   <Select
-                    value={formData.department}
+                    value={formData.department_id}
                     label="Department"
-                    onChange={(e) => handleFormChange('department', e.target.value)}
+                    onChange={(e) => handleFormChange('department_id', e.target.value)}
                   >
                     <MenuItem value="">
                       <em>Not Assigned</em>
                     </MenuItem>
                     {configuration?.departments?.map((dept: any) => (
-                      <MenuItem key={dept.name} value={dept.name}>
-                        {dept.name}
+                      <MenuItem key={dept.id} value={dept.id}>
+                        {dept.description}
                       </MenuItem>
                     ))}
                   </Select>
@@ -1411,11 +1420,11 @@ const TeacherProfilesSystem: React.FC = () => {
               <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} gap={2} mb={3}>
                 <Box flex={1}>
                   <Typography variant="body2" color="text.secondary">Position</Typography>
-                  <Typography variant="body1" fontWeight="medium">{selectedTeacher.position}</Typography>
+                  <Typography variant="body1" fontWeight="medium">{selectedTeacher.position_name || selectedTeacher.position || 'Not specified'}</Typography>
                 </Box>
                 <Box flex={1}>
                   <Typography variant="body2" color="text.secondary">Department</Typography>
-                  <Typography variant="body1">{selectedTeacher.department || 'Not specified'}</Typography>
+                  <Typography variant="body1">{selectedTeacher.department_name || selectedTeacher.department || 'Not specified'}</Typography>
                 </Box>
               </Box>
 
@@ -1611,38 +1620,38 @@ const TeacherProfilesSystem: React.FC = () => {
               Professional Information
             </Typography>
             <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} gap={2} mb={2}>
-              <FormControl fullWidth size="small" error={!!formErrors.position} required>
+              <FormControl fullWidth size="small" error={!!formErrors.position_id} required>
                 <InputLabel>Position</InputLabel>
                 <Select
-                  value={editFormData.position || ''}
+                  value={editFormData.position_id || ''}
                   label="Position"
-                  onChange={(e) => handleEditFormChange('position', e.target.value)}
+                  onChange={(e) => handleEditFormChange('position_id', e.target.value)}
                 >
                   {configuration?.positions?.map((pos: any) => (
-                    <MenuItem key={pos.name} value={pos.name}>
-                      {pos.name}
+                    <MenuItem key={pos.id} value={pos.id}>
+                      {pos.description}
                     </MenuItem>
                   ))}
                 </Select>
-                {formErrors.position && (
+                {formErrors.position_id && (
                   <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 1.5 }}>
-                    {formErrors.position}
+                    {formErrors.position_id}
                   </Typography>
                 )}
               </FormControl>
               <FormControl fullWidth size="small">
                 <InputLabel>Department</InputLabel>
                 <Select
-                  value={editFormData.department || ''}
+                  value={editFormData.department_id || ''}
                   label="Department"
-                  onChange={(e) => handleEditFormChange('department', e.target.value)}
+                  onChange={(e) => handleEditFormChange('department_id', e.target.value)}
                 >
                   <MenuItem value="">
                     <em>Not Assigned</em>
                   </MenuItem>
                   {configuration?.departments?.map((dept: any) => (
-                    <MenuItem key={dept.name} value={dept.name}>
-                      {dept.name}
+                    <MenuItem key={dept.id} value={dept.id}>
+                      {dept.description}
                     </MenuItem>
                   ))}
                 </Select>

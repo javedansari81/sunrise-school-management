@@ -1,7 +1,7 @@
 -- =====================================================
 -- View: teacher_summary
 -- Description: Teacher information summary with metadata relationships
--- Dependencies: teachers, classes, employment_statuses, qualifications, genders
+-- Dependencies: teachers, classes, employment_statuses, qualifications, genders, departments, positions
 -- =====================================================
 
 -- Drop existing view
@@ -13,8 +13,8 @@ SELECT
     t.id,
     t.employee_id,
     t.first_name || ' ' || t.last_name AS full_name,
-    t.position,
-    t.department,
+    p.name AS position,
+    d.name AS department,
     c.name AS class_teacher_of,
     es.name AS employment_status,
     q.name AS qualification,
@@ -24,6 +24,8 @@ SELECT
     EXTRACT(YEAR FROM AGE(t.date_of_birth)) AS age
 FROM teachers t
 LEFT JOIN classes c ON t.class_teacher_of_id = c.id
+LEFT JOIN departments d ON t.department_id = d.id
+LEFT JOIN positions p ON t.position_id = p.id
 LEFT JOIN employment_statuses es ON t.employment_status_id = es.id
 LEFT JOIN qualifications q ON t.qualification_id = q.id
 LEFT JOIN genders g ON t.gender_id = g.id

@@ -233,6 +233,48 @@ ON CONFLICT (id) DO UPDATE SET
     is_active = EXCLUDED.is_active,
     updated_at = NOW();
 
+-- =====================================================
+-- Departments Data
+-- =====================================================
+INSERT INTO departments (id, name, description, is_active) VALUES
+(1, 'SCIENCE', 'Science Department', TRUE),
+(2, 'MATHEMATICS', 'Mathematics Department', TRUE),
+(3, 'ENGLISH', 'English Department', TRUE),
+(4, 'HINDI', 'Hindi Department', TRUE),
+(5, 'SOCIAL_STUDIES', 'Social Studies Department', TRUE),
+(6, 'COMPUTER_SCIENCE', 'Computer Science Department', TRUE),
+(7, 'PHYSICAL_EDUCATION', 'Physical Education Department', TRUE),
+(8, 'ARTS', 'Arts Department', TRUE),
+(9, 'MUSIC', 'Music Department', TRUE),
+(10, 'ADMINISTRATION', 'Administration Department', TRUE)
+ON CONFLICT (id) DO UPDATE SET
+    name = EXCLUDED.name,
+    description = EXCLUDED.description,
+    is_active = EXCLUDED.is_active,
+    updated_at = NOW();
+
+-- =====================================================
+-- Positions Data
+-- =====================================================
+INSERT INTO positions (id, name, description, is_active) VALUES
+(1, 'PRINCIPAL', 'Principal', TRUE),
+(2, 'VICE_PRINCIPAL', 'Vice Principal', TRUE),
+(3, 'HEAD_TEACHER', 'Head Teacher', TRUE),
+(4, 'SENIOR_TEACHER', 'Senior Teacher', TRUE),
+(5, 'TEACHER', 'Teacher', TRUE),
+(6, 'ASSISTANT_TEACHER', 'Assistant Teacher', TRUE),
+(7, 'PRT', 'Primary Teacher (PRT)', TRUE),
+(8, 'TGT', 'Trained Graduate Teacher (TGT)', TRUE),
+(9, 'PGT', 'Post Graduate Teacher (PGT)', TRUE),
+(10, 'LIBRARIAN', 'Librarian', TRUE),
+(11, 'LAB_ASSISTANT', 'Lab Assistant', TRUE),
+(12, 'COUNSELOR', 'Counselor', TRUE)
+ON CONFLICT (id) DO UPDATE SET
+    name = EXCLUDED.name,
+    description = EXCLUDED.description,
+    is_active = EXCLUDED.is_active,
+    updated_at = NOW();
+
 -- Commit transaction
 COMMIT;
 
@@ -256,6 +298,8 @@ COMMIT;
 \echo '- 4 Expense statuses (with color codes and finality flags)'
 \echo '- 6 Employment statuses'
 \echo '- 9 Qualifications (with level ordering)'
+\echo '- 10 Departments'
+\echo '- 12 Positions'
 \echo ''
-\echo 'Total: 78 metadata records loaded'
+\echo 'Total: 100 metadata records loaded'
 \echo '=========================================='

@@ -67,11 +67,15 @@ class CRUDTeacher(CRUDBase[Teacher, TeacherCreate, TeacherUpdate]):
             SELECT
                 t.*,
                 g.name as gender_name,
+                d.name as department_name,
+                p.name as position_name,
                 q.name as qualification_name,
                 es.name as employment_status_name,
                 c.name as class_teacher_of_name
             FROM teachers t
             LEFT JOIN genders g ON t.gender_id = g.id
+            LEFT JOIN departments d ON t.department_id = d.id
+            LEFT JOIN positions p ON t.position_id = p.id
             LEFT JOIN qualifications q ON t.qualification_id = q.id
             LEFT JOIN employment_statuses es ON t.employment_status_id = es.id
             LEFT JOIN classes c ON t.class_teacher_of_id = c.id
@@ -91,8 +95,8 @@ class CRUDTeacher(CRUDBase[Teacher, TeacherCreate, TeacherUpdate]):
         *,
         skip: int = 0,
         limit: int = 100,
-        department_filter: Optional[str] = None,
-        position_filter: Optional[str] = None,
+        department_filter: Optional[int] = None,
+        position_filter: Optional[int] = None,
         qualification_filter: Optional[int] = None,
         employment_status_filter: Optional[int] = None,
         search: Optional[str] = None,
@@ -109,11 +113,11 @@ class CRUDTeacher(CRUDBase[Teacher, TeacherCreate, TeacherUpdate]):
             params["is_active"] = is_active
 
         if department_filter:
-            where_conditions.append("t.department = :department_filter")
+            where_conditions.append("t.department_id = :department_filter")
             params["department_filter"] = department_filter
 
         if position_filter:
-            where_conditions.append("t.position = :position_filter")
+            where_conditions.append("t.position_id = :position_filter")
             params["position_filter"] = position_filter
 
         if qualification_filter:
@@ -151,11 +155,15 @@ class CRUDTeacher(CRUDBase[Teacher, TeacherCreate, TeacherUpdate]):
             SELECT
                 t.*,
                 g.name as gender_name,
+                d.name as department_name,
+                p.name as position_name,
                 q.name as qualification_name,
                 es.name as employment_status_name,
                 c.name as class_teacher_of_name
             FROM teachers t
             LEFT JOIN genders g ON t.gender_id = g.id
+            LEFT JOIN departments d ON t.department_id = d.id
+            LEFT JOIN positions p ON t.position_id = p.id
             LEFT JOIN qualifications q ON t.qualification_id = q.id
             LEFT JOIN employment_statuses es ON t.employment_status_id = es.id
             LEFT JOIN classes c ON t.class_teacher_of_id = c.id
@@ -171,12 +179,12 @@ class CRUDTeacher(CRUDBase[Teacher, TeacherCreate, TeacherUpdate]):
         return teachers, total
 
     async def get_by_department(
-        self, db: AsyncSession, *, department: str
+        self, db: AsyncSession, *, department_id: int
     ) -> List[Teacher]:
         result = await db.execute(
             select(Teacher).where(
                 and_(
-                    Teacher.department == department,
+                    Teacher.department_id == department_id,
                     Teacher.is_active == True,
                     Teacher.is_deleted != True  # Exclude soft deleted
                 )
@@ -425,35 +433,6 @@ class CRUDTeacher(CRUDBase[Teacher, TeacherCreate, TeacherUpdate]):
             .limit(limit)
         )
         return result.scalars().all()
-
-    async def get_departments(self, db: AsyncSession) -> List[str]:
-        result = await db.execute(
-            select(Teacher.department)
-            .where(
-                and_(
-                    Teacher.is_active == True,
-                    Teacher.is_deleted != True,
-                    Teacher.department.isnot(None)
-                )
-            )
-            .distinct()
-            .order_by(Teacher.department)
-        )
-        return [row.department for row in result]
-
-    async def get_positions(self, db: AsyncSession) -> List[str]:
-        result = await db.execute(
-            select(Teacher.position)
-            .where(
-                and_(
-                    Teacher.is_active == True,
-                    Teacher.is_deleted != True
-                )
-            )
-            .distinct()
-            .order_by(Teacher.position)
-        )
-        return [row.position for row in result]
 
 
 # Create instance

@@ -86,11 +86,11 @@ class Teacher(Base):
     emergency_contact_relation = Column(String(50), nullable=True)
 
     # Professional Information
-    position = Column(String(100), nullable=False)
-    department = Column(String(100), nullable=True)
     subjects = Column(Text, nullable=True)  # JSON array of subjects
 
     # Foreign keys to metadata tables
+    department_id = Column(Integer, ForeignKey("departments.id"), nullable=True)
+    position_id = Column(Integer, ForeignKey("positions.id"), nullable=True)
     qualification_id = Column(Integer, ForeignKey("qualifications.id"), nullable=True)
     employment_status_id = Column(Integer, ForeignKey("employment_statuses.id"), default=1)
 
@@ -124,6 +124,8 @@ class Teacher(Base):
     # Relationships
     user = relationship("User", back_populates="teacher_profile")
     gender = relationship("Gender", back_populates="teachers")
+    department = relationship("Department", back_populates="teachers")
+    position = relationship("Position", back_populates="teachers")
     qualification = relationship("Qualification", back_populates="teachers")
     employment_status = relationship("EmploymentStatus", back_populates="teachers")
     class_teacher_of_ref = relationship("Class", back_populates="teachers")
@@ -138,6 +140,16 @@ class Teacher(Base):
     def gender_name(self) -> str:
         """Get gender name from relationship"""
         return self.gender.name if self.gender else ""
+
+    @property
+    def department_name(self) -> str:
+        """Get department name from relationship"""
+        return self.department.name if self.department else ""
+
+    @property
+    def position_name(self) -> str:
+        """Get position name from relationship"""
+        return self.position.name if self.position else ""
 
     @property
     def qualification_name(self) -> str:
