@@ -107,8 +107,8 @@ const TeacherLeaveRequestDialog: React.FC<TeacherLeaveRequestDialogProps> = ({
   // Initialize form data when dialog opens
   useEffect(() => {
     if (open) {
-      if (selectedLeave && isViewMode) {
-        // Populate form with existing leave data for viewing
+      if (selectedLeave) {
+        // Populate form with existing leave data for viewing or editing
         setFormData({
           leave_type_id: selectedLeave.leave_type_id?.toString() || '',
           start_date: selectedLeave.start_date ? new Date(selectedLeave.start_date) : null,
@@ -198,12 +198,19 @@ const TeacherLeaveRequestDialog: React.FC<TeacherLeaveRequestDialogProps> = ({
         supporting_document_url: formData.supporting_document_url || null
       };
 
-      await leaveAPI.createMyLeaveRequest(leaveData);
+      if (selectedLeave) {
+        // Update existing leave request
+        await leaveAPI.updateLeave(selectedLeave.id, leaveData);
+      } else {
+        // Create new leave request
+        await leaveAPI.createMyLeaveRequest(leaveData);
+      }
+
       onSuccess();
       onClose();
     } catch (error: any) {
-      console.error('Error creating leave request:', error);
-      setError(error.response?.data?.detail || 'Error creating leave request');
+      console.error(`Error ${selectedLeave ? 'updating' : 'creating'} leave request:`, error);
+      setError(error.response?.data?.detail || `Error ${selectedLeave ? 'updating' : 'creating'} leave request`);
     } finally {
       setLoading(false);
     }
@@ -232,16 +239,16 @@ const TeacherLeaveRequestDialog: React.FC<TeacherLeaveRequestDialogProps> = ({
           }
         }}
       >
-        <DialogTitle sx={{ 
-          display: 'flex', 
-          justifyContent: 'space-between', 
+        <DialogTitle sx={{
+          display: 'flex',
+          justifyContent: 'space-between',
           alignItems: 'center',
           pb: 1
         }}>
           <Box display="flex" alignItems="center" gap={1}>
             <CalendarIcon color="primary" />
             <Typography variant="h6">
-              {isViewMode ? 'Leave Request Details' : 'New Leave Request'}
+              {isViewMode ? 'Leave Request Details' : selectedLeave ? 'Edit Leave Request' : 'New Leave Request'}
             </Typography>
           </Box>
           <IconButton onClick={handleClose} disabled={loading}>
@@ -493,7 +500,10 @@ const TeacherLeaveRequestDialog: React.FC<TeacherLeaveRequestDialogProps> = ({
               disabled={loading}
               startIcon={loading ? <CircularProgress size={16} /> : null}
             >
-              {loading ? 'Submitting...' : 'Submit Request'}
+              {loading
+                ? (selectedLeave ? 'Updating...' : 'Submitting...')
+                : (selectedLeave ? 'Update Request' : 'Submit Request')
+              }
             </Button>
           )}
         </DialogActions>

@@ -27,6 +27,7 @@ import {
 import {
   Add as AddIcon,
   Visibility as ViewIcon,
+  Edit as EditIcon,
   Search as SearchIcon,
   FilterList as FilterListIcon,
   EventNote,
@@ -222,6 +223,13 @@ const TeacherLeaveManagement: React.FC = () => {
   const handleViewLeave = (leave: LeaveRequest) => {
     setSelectedLeave(leave);
     setIsViewMode(true);
+    setDialogOpen(true);
+  };
+
+  // Handle edit leave request
+  const handleEditLeave = (leave: LeaveRequest) => {
+    setSelectedLeave(leave);
+    setIsViewMode(false);
     setDialogOpen(true);
   };
 
@@ -463,6 +471,17 @@ const TeacherLeaveManagement: React.FC = () => {
                           <ViewIcon fontSize="small" />
                         </IconButton>
                       </Tooltip>
+                      {leave.leave_status_name.toLowerCase() === 'pending' && (
+                        <Tooltip title="Edit Request">
+                          <IconButton
+                            size="small"
+                            onClick={() => handleEditLeave(leave)}
+                            color="secondary"
+                          >
+                            <EditIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))
@@ -496,7 +515,9 @@ const TeacherLeaveManagement: React.FC = () => {
           loadLeaveRequests();
           setSnackbar({
             open: true,
-            message: 'Leave request submitted successfully',
+            message: selectedLeave && !isViewMode
+              ? 'Leave request updated successfully'
+              : 'Leave request submitted successfully',
             severity: 'success'
           });
         }}

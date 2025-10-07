@@ -473,7 +473,7 @@ const LeaveManagementSystem: React.FC = () => {
                 {configuration?.leave_statuses && Array.isArray(configuration.leave_statuses) ?
                   configuration.leave_statuses.map((status: any) => (
                     <MenuItem key={status.id} value={status.id.toString()}>
-                      {status.name}
+                      {status.description || status.name}
                     </MenuItem>
                   )) : null}
               </Select>
@@ -496,7 +496,7 @@ const LeaveManagementSystem: React.FC = () => {
                 {configuration?.leave_types && Array.isArray(configuration.leave_types) ?
                   configuration.leave_types.map((type: any) => (
                     <MenuItem key={type.id} value={type.id.toString()}>
-                      {type.name}
+                      {type.description || type.name}
                     </MenuItem>
                   )) : null}
               </Select>
@@ -633,7 +633,7 @@ const LeaveManagementSystem: React.FC = () => {
                           <ViewIcon />
                         </IconButton>
                       </Tooltip>
-                      {leave.leave_status_name === 'Pending' && (
+                      {leave.leave_status_name?.toUpperCase() === 'PENDING' && (
                         <>
                           <Tooltip title="Approve">
                             <IconButton
@@ -692,7 +692,7 @@ const LeaveManagementSystem: React.FC = () => {
           ) : (
             <Paper elevation={3} sx={{ p: 3 }}>
               <Typography variant="h6" fontWeight="bold" mb={2} color="warning.main">
-                Pending Approval ({Array.isArray(leaveRequests) ? leaveRequests.filter(leave => leave.leave_status_name === 'Pending').length : 0})
+                Pending Approval ({Array.isArray(leaveRequests) ? leaveRequests.filter(leave => leave.leave_status_name?.toUpperCase() === 'PENDING').length : 0})
               </Typography>
               <TableContainer
                 sx={{
@@ -729,7 +729,7 @@ const LeaveManagementSystem: React.FC = () => {
                 <TableBody>
                   {Array.isArray(leaveRequests) && leaveRequests.length > 0 ? (
                     leaveRequests
-                      .filter(leave => leave && typeof leave === 'object' && leave.id && leave.leave_status_name === 'Pending')
+                      .filter(leave => leave && typeof leave === 'object' && leave.id && leave.leave_status_name?.toUpperCase() === 'PENDING')
                       .map((leave) => (
                         <TableRow key={leave.id}>
                           <TableCell>
@@ -778,7 +778,7 @@ const LeaveManagementSystem: React.FC = () => {
                                   <ViewIcon />
                                 </IconButton>
                               </Tooltip>
-                              {leave.leave_status_name === 'Pending' && (
+                              {leave.leave_status_name?.toUpperCase() === 'PENDING' && (
                                 <>
                                   <Tooltip title="Approve Request">
                                     <IconButton
@@ -798,7 +798,15 @@ const LeaveManagementSystem: React.FC = () => {
                                       <RejectIcon />
                                     </IconButton>
                                   </Tooltip>
-                                  {/* Edit removed - admin interface is review-only */}
+                                  <Tooltip title="Delete Request">
+                                    <IconButton
+                                      size="small"
+                                      onClick={() => handleDelete(leave.id)}
+                                      sx={{ color: 'error.main' }}
+                                    >
+                                      <DeleteIcon />
+                                    </IconButton>
+                                  </Tooltip>
                                 </>
                               )}
                             </Stack>
@@ -937,7 +945,37 @@ const LeaveManagementSystem: React.FC = () => {
                                   <ViewIcon />
                                 </IconButton>
                               </Tooltip>
-                              {/* Edit removed - admin interface is review-only */}
+                              {leave.leave_status_name?.toUpperCase() === 'PENDING' && (
+                                <>
+                                  <Tooltip title="Approve Request">
+                                    <IconButton
+                                      size="small"
+                                      onClick={() => handleApprove(leave.id, 2, 'Approved')}
+                                      sx={{ color: 'success.main' }}
+                                    >
+                                      <ApproveIcon />
+                                    </IconButton>
+                                  </Tooltip>
+                                  <Tooltip title="Reject Request">
+                                    <IconButton
+                                      size="small"
+                                      onClick={() => handleApprove(leave.id, 3, 'Rejected')}
+                                      sx={{ color: 'error.main' }}
+                                    >
+                                      <RejectIcon />
+                                    </IconButton>
+                                  </Tooltip>
+                                  <Tooltip title="Delete Request">
+                                    <IconButton
+                                      size="small"
+                                      onClick={() => handleDelete(leave.id)}
+                                      sx={{ color: 'error.main' }}
+                                    >
+                                      <DeleteIcon />
+                                    </IconButton>
+                                  </Tooltip>
+                                </>
+                              )}
                             </Stack>
                           </TableCell>
                         </TableRow>
