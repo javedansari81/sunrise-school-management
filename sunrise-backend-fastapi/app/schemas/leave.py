@@ -11,7 +11,7 @@ class ApplicantTypeEnum(str, Enum):
 
 
 class LeaveRequestBase(BaseModel):
-    """Base schema for leave requests supporting both students and teachers"""
+    """Base schema for leave requests supporting both students and teachers - matches database schema"""
     applicant_id: int = Field(..., description="Student ID or Teacher ID")
     applicant_type: ApplicantTypeEnum = Field(..., description="Type of applicant: student or teacher")
     leave_type_id: int = Field(..., description="Leave type ID from metadata")
@@ -22,35 +22,18 @@ class LeaveRequestBase(BaseModel):
 
     # Supporting Documents
     medical_certificate_url: Optional[str] = Field(None, description="URL to medical certificate")
-    supporting_document_url: Optional[str] = Field(None, description="URL to supporting document")
 
-    # For Teachers - Substitute Arrangement
-    substitute_teacher_id: Optional[int] = Field(None, description="Substitute teacher ID")
-    substitute_arranged: bool = Field(False, description="Whether substitute is arranged")
-
-    # For Students - Parent Consent
-    parent_consent: bool = Field(False, description="Parent consent for student leave")
-    parent_signature_url: Optional[str] = Field(None, description="URL to parent signature")
-
-    # Emergency Contact (for students)
-    emergency_contact_name: Optional[str] = Field(None, description="Emergency contact name")
-    emergency_contact_phone: Optional[str] = Field(None, description="Emergency contact phone")
+    # Emergency Contact
+    emergency_contact: Optional[str] = Field(None, max_length=20, description="Emergency contact phone number")
 
     # Additional Information
     is_half_day: bool = Field(False, description="Whether it's a half day leave")
-    half_day_session: Optional[str] = Field(None, description="Morning or afternoon session")
+    half_day_period: Optional[str] = Field(None, description="Morning or Afternoon")
 
-    @validator('substitute_teacher_id', pre=True)
-    def validate_substitute_teacher_id(cls, v):
-        """Convert empty string to None for optional integer field"""
-        if v == "" or v is None:
-            return None
-        return v
-
-    @validator('half_day_session')
-    def validate_half_day_session(cls, v, values):
-        if values.get('is_half_day') and v not in ['morning', 'afternoon']:
-            raise ValueError('half_day_session must be either "morning" or "afternoon" for half day leaves')
+    @validator('half_day_period')
+    def validate_half_day_period(cls, v, values):
+        if values.get('is_half_day') and v not in ['Morning', 'Afternoon', None]:
+            raise ValueError('half_day_period must be either "Morning" or "Afternoon" for half day leaves')
         return v
 
     @validator('end_date')
@@ -73,10 +56,10 @@ class LeaveRequestCreate(LeaveRequestBase):
 
 
 class LeaveRequestCreateFriendly(BaseModel):
-    """User-friendly schema for creating leave requests using human-readable identifiers"""
+    """User-friendly schema for creating leave requests using human-readable identifiers - matches database schema"""
     applicant_identifier: str = Field(
         ...,
-        description="Human-readable identifier: 'Roll 001 - Class 5A' for students or 'EMP001' for teachers. Also supports legacy formats."
+        description="Human-readable identifier: 'Roll 001: John Doe' for students or 'John Smith (EMP001)' for teachers"
     )
     applicant_type: ApplicantTypeEnum = Field(..., description="Type of applicant: student or teacher")
     leave_type_id: int = Field(..., description="Leave type ID from metadata")
@@ -87,48 +70,18 @@ class LeaveRequestCreateFriendly(BaseModel):
 
     # Supporting Documents
     medical_certificate_url: Optional[str] = Field(None, description="URL to medical certificate")
-    supporting_document_url: Optional[str] = Field(None, description="URL to supporting document")
 
-    # For Teachers - Substitute Arrangement
-    substitute_teacher_identifier: Optional[str] = Field(
-        None,
-        description="Substitute teacher identifier: 'John Smith (EMP001)' or legacy employee ID 'EMP001'"
-    )
-    substitute_arranged: bool = Field(False, description="Whether substitute is arranged")
-
-    # For Students - Parent Consent
-    parent_consent: bool = Field(False, description="Parent consent for student leave")
-    parent_signature_url: Optional[str] = Field(None, description="URL to parent signature")
-
-    # Emergency Contact (for students)
-    emergency_contact_name: Optional[str] = Field(None, description="Emergency contact name")
-    emergency_contact_phone: Optional[str] = Field(None, description="Emergency contact phone")
+    # Emergency Contact
+    emergency_contact: Optional[str] = Field(None, max_length=20, description="Emergency contact phone number")
 
     # Additional Information
     is_half_day: bool = Field(False, description="Whether it's a half day leave")
-    half_day_session: Optional[str] = Field(None, description="Morning or afternoon session")
+    half_day_period: Optional[str] = Field(None, description="Morning or Afternoon")
 
-    # Applied to (optional)
-    applied_to_identifier: Optional[str] = Field(None, description="User identifier to whom leave is applied")
-
-    @validator('substitute_teacher_identifier', pre=True)
-    def validate_substitute_teacher_identifier(cls, v):
-        """Convert empty string to None for optional field"""
-        if v == "" or v is None:
-            return None
-        return v
-
-    @validator('applied_to_identifier', pre=True)
-    def validate_applied_to_identifier(cls, v):
-        """Convert empty string to None for optional field"""
-        if v == "" or v is None:
-            return None
-        return v
-
-    @validator('half_day_session')
-    def validate_half_day_session(cls, v, values):
-        if values.get('is_half_day') and v not in ['morning', 'afternoon']:
-            raise ValueError('half_day_session must be either "morning" or "afternoon" for half day leaves')
+    @validator('half_day_period')
+    def validate_half_day_period(cls, v, values):
+        if values.get('is_half_day') and v not in ['Morning', 'Afternoon', None]:
+            raise ValueError('half_day_period must be either "Morning" or "Afternoon" for half day leaves')
         return v
 
     @validator('end_date')
@@ -139,7 +92,7 @@ class LeaveRequestCreateFriendly(BaseModel):
 
 
 class LeaveRequestUpdate(BaseModel):
-    """Schema for updating leave requests"""
+    """Schema for updating leave requests - matches database schema"""
     applicant_id: Optional[int] = None
     applicant_type: Optional[ApplicantTypeEnum] = None
     leave_type_id: Optional[int] = None
@@ -148,16 +101,9 @@ class LeaveRequestUpdate(BaseModel):
     total_days: Optional[int] = None
     reason: Optional[str] = None
     medical_certificate_url: Optional[str] = None
-    supporting_document_url: Optional[str] = None
-    substitute_teacher_id: Optional[int] = None
-    substitute_arranged: Optional[bool] = None
-    parent_consent: Optional[bool] = None
-    parent_signature_url: Optional[str] = None
-    emergency_contact_name: Optional[str] = None
-    emergency_contact_phone: Optional[str] = None
+    emergency_contact: Optional[str] = None
     is_half_day: Optional[bool] = None
-    half_day_session: Optional[str] = None
-    applied_to: Optional[int] = None
+    half_day_period: Optional[str] = None
 
 
 class LeaveRequestInDBBase(LeaveRequestBase):

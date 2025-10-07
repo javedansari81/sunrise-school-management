@@ -59,7 +59,7 @@ class CRUDLeaveRequest(CRUDBase[LeaveRequest, LeaveRequestCreate, LeaveRequestUp
             COALESCE(
                 CASE
                     WHEN lr.applicant_type = 'student' AND c.id IS NOT NULL THEN c.name
-                    WHEN lr.applicant_type = 'teacher' AND t.id IS NOT NULL THEN t.department
+                    WHEN lr.applicant_type = 'teacher' AND t.id IS NOT NULL THEN d.description
                     ELSE 'N/A'
                 END,
                 'N/A'
@@ -75,6 +75,7 @@ class CRUDLeaveRequest(CRUDBase[LeaveRequest, LeaveRequestCreate, LeaveRequestUp
         LEFT JOIN students s ON lr.applicant_type = 'student' AND lr.applicant_id = s.id
         LEFT JOIN classes c ON lr.applicant_type = 'student' AND s.class_id = c.id
         LEFT JOIN teachers t ON lr.applicant_type = 'teacher' AND lr.applicant_id = t.id
+        LEFT JOIN departments d ON t.department_id = d.id
         LEFT JOIN leave_types lt ON lr.leave_type_id = lt.id
         LEFT JOIN leave_statuses ls ON lr.leave_status_id = ls.id
         LEFT JOIN users u ON lr.approved_by = u.id
@@ -145,7 +146,7 @@ class CRUDLeaveRequest(CRUDBase[LeaveRequest, LeaveRequestCreate, LeaveRequestUp
             params["class_name"] = filters.class_name
 
         if filters.department:
-            where_conditions.append("t.department = :department")
+            where_conditions.append("d.description = :department")
             params["department"] = filters.department
 
         where_clause = "WHERE " + " AND ".join(where_conditions) if where_conditions else ""
@@ -157,6 +158,7 @@ class CRUDLeaveRequest(CRUDBase[LeaveRequest, LeaveRequestCreate, LeaveRequestUp
         LEFT JOIN students s ON lr.applicant_type = 'student' AND lr.applicant_id = s.id
         LEFT JOIN classes c ON lr.applicant_type = 'student' AND s.class_id = c.id
         LEFT JOIN teachers t ON lr.applicant_type = 'teacher' AND lr.applicant_id = t.id
+        LEFT JOIN departments d ON t.department_id = d.id
         {where_clause}
         """
 
@@ -179,7 +181,7 @@ class CRUDLeaveRequest(CRUDBase[LeaveRequest, LeaveRequestCreate, LeaveRequestUp
             COALESCE(
                 CASE
                     WHEN lr.applicant_type = 'student' AND c.id IS NOT NULL THEN c.name
-                    WHEN lr.applicant_type = 'teacher' AND t.id IS NOT NULL THEN t.department
+                    WHEN lr.applicant_type = 'teacher' AND t.id IS NOT NULL THEN d.description
                     ELSE 'N/A'
                 END,
                 'N/A'
@@ -203,6 +205,7 @@ class CRUDLeaveRequest(CRUDBase[LeaveRequest, LeaveRequestCreate, LeaveRequestUp
         LEFT JOIN students s ON lr.applicant_type = 'student' AND lr.applicant_id = s.id
         LEFT JOIN classes c ON lr.applicant_type = 'student' AND s.class_id = c.id
         LEFT JOIN teachers t ON lr.applicant_type = 'teacher' AND lr.applicant_id = t.id
+        LEFT JOIN departments d ON t.department_id = d.id
         LEFT JOIN leave_types lt ON lr.leave_type_id = lt.id
         LEFT JOIN leave_statuses ls ON lr.leave_status_id = ls.id
         LEFT JOIN users u ON lr.approved_by = u.id
@@ -251,7 +254,7 @@ class CRUDLeaveRequest(CRUDBase[LeaveRequest, LeaveRequestCreate, LeaveRequestUp
             COALESCE(
                 CASE
                     WHEN lr.applicant_type = 'student' AND c.id IS NOT NULL THEN c.name
-                    WHEN lr.applicant_type = 'teacher' AND t.id IS NOT NULL THEN t.department
+                    WHEN lr.applicant_type = 'teacher' AND t.id IS NOT NULL THEN d.description
                     ELSE 'N/A'
                 END,
                 'N/A'
@@ -267,6 +270,7 @@ class CRUDLeaveRequest(CRUDBase[LeaveRequest, LeaveRequestCreate, LeaveRequestUp
         LEFT JOIN students s ON lr.applicant_type = 'student' AND lr.applicant_id = s.id
         LEFT JOIN classes c ON lr.applicant_type = 'student' AND s.class_id = c.id
         LEFT JOIN teachers t ON lr.applicant_type = 'teacher' AND lr.applicant_id = t.id
+        LEFT JOIN departments d ON t.department_id = d.id
         LEFT JOIN leave_types lt ON lr.leave_type_id = lt.id
         LEFT JOIN leave_statuses ls ON lr.leave_status_id = ls.id
         LEFT JOIN users u ON lr.approved_by = u.id
@@ -312,7 +316,7 @@ class CRUDLeaveRequest(CRUDBase[LeaveRequest, LeaveRequestCreate, LeaveRequestUp
             COALESCE(
                 CASE
                     WHEN lr.applicant_type = 'student' AND c.id IS NOT NULL THEN c.name
-                    WHEN lr.applicant_type = 'teacher' AND t.id IS NOT NULL THEN t.department
+                    WHEN lr.applicant_type = 'teacher' AND t.id IS NOT NULL THEN d.description
                     ELSE 'N/A'
                 END,
                 'N/A'
@@ -328,6 +332,7 @@ class CRUDLeaveRequest(CRUDBase[LeaveRequest, LeaveRequestCreate, LeaveRequestUp
         LEFT JOIN students s ON lr.applicant_type = 'student' AND lr.applicant_id = s.id
         LEFT JOIN classes c ON lr.applicant_type = 'student' AND s.class_id = c.id
         LEFT JOIN teachers t ON lr.applicant_type = 'teacher' AND lr.applicant_id = t.id
+        LEFT JOIN departments d ON t.department_id = d.id
         LEFT JOIN leave_types lt ON lr.leave_type_id = lt.id
         LEFT JOIN leave_statuses ls ON lr.leave_status_id = ls.id
         LEFT JOIN users u ON lr.approved_by = u.id

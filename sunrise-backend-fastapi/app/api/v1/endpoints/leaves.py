@@ -106,9 +106,22 @@ async def create_leave_request(
         leave_data.total_days = total_days
 
     # Create leave request with user_id and applied_by set to current user
-    leave_dict = leave_data.model_dump()
-    leave_dict['user_id'] = current_user.id
-    leave_dict['applied_by'] = current_user.id
+    # Only include fields that exist in the database model
+    leave_dict = {
+        'user_id': current_user.id,
+        'applied_by': current_user.id,
+        'leave_type_id': leave_data.leave_type_id,
+        'start_date': leave_data.start_date,
+        'end_date': leave_data.end_date,
+        'total_days': leave_data.total_days,
+        'reason': leave_data.reason,
+        'applicant_type': leave_data.applicant_type.value,
+        'applicant_id': leave_data.applicant_id,
+        'is_half_day': leave_data.is_half_day,
+        'half_day_period': leave_data.half_day_period,
+        'medical_certificate_url': leave_data.medical_certificate_url,
+        'emergency_contact': leave_data.emergency_contact,
+    }
 
     leave_request = await leave_request_crud.create(db, obj_in=leave_dict)
     return leave_request

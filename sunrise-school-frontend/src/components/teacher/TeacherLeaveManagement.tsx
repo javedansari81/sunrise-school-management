@@ -92,9 +92,12 @@ const TeacherLeaveManagement: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   
   // Filters
-  const [filters, setFilters] = useState({
-    leave_status_id: '',
-    leave_type_id: ''
+  const [filters, setFilters] = useState<{
+    leave_status_id: string | number;
+    leave_type_id: string | number;
+  }>({
+    leave_status_id: 'all',
+    leave_type_id: 'all'
   });
 
   // Load teacher profile
@@ -153,22 +156,36 @@ const TeacherLeaveManagement: React.FC = () => {
     // Search filter
     if (searchTerm) {
       const searchLower = searchTerm.toLowerCase();
-      const matchesSearch = 
+      const matchesSearch =
         leave.leave_type_name.toLowerCase().includes(searchLower) ||
         leave.reason.toLowerCase().includes(searchLower) ||
         leave.leave_status_name.toLowerCase().includes(searchLower);
-      
+
       if (!matchesSearch) return false;
     }
 
-    // Status filter
-    if (filters.leave_status_id && leave.leave_status_id.toString() !== filters.leave_status_id) {
-      return false;
+    // Status filter - only apply if a specific status is selected (not 'all')
+    if (filters.leave_status_id !== 'all' && filters.leave_status_id !== '') {
+      // Convert both to numbers for comparison
+      const filterStatusId = typeof filters.leave_status_id === 'number'
+        ? filters.leave_status_id
+        : parseInt(filters.leave_status_id, 10);
+
+      if (leave.leave_status_id !== filterStatusId) {
+        return false;
+      }
     }
 
-    // Type filter
-    if (filters.leave_type_id && leave.leave_type_id.toString() !== filters.leave_type_id) {
-      return false;
+    // Type filter - only apply if a specific type is selected (not 'all')
+    if (filters.leave_type_id !== 'all' && filters.leave_type_id !== '') {
+      // Convert both to numbers for comparison
+      const filterTypeId = typeof filters.leave_type_id === 'number'
+        ? filters.leave_type_id
+        : parseInt(filters.leave_type_id, 10);
+
+      if (leave.leave_type_id !== filterTypeId) {
+        return false;
+      }
     }
 
     return true;
@@ -223,7 +240,8 @@ const TeacherLeaveManagement: React.FC = () => {
   };
 
   // Handle filter change
-  const handleFilterChange = (field: string, value: string) => {
+  const handleFilterChange = (field: string, value: string | number) => {
+    console.log(`Filter changed - ${field}:`, value, typeof value);
     setFilters(prev => ({
       ...prev,
       [field]: value
@@ -354,7 +372,7 @@ const TeacherLeaveManagement: React.FC = () => {
                 metadataType="leaveStatuses"
                 label="Status"
                 value={filters.leave_status_id}
-                onChange={(value) => handleFilterChange('leave_status_id', value as string)}
+                onChange={(value) => handleFilterChange('leave_status_id', value)}
                 size="small"
                 fullWidth
               />
@@ -365,7 +383,7 @@ const TeacherLeaveManagement: React.FC = () => {
                 metadataType="leaveTypes"
                 label="Leave Type"
                 value={filters.leave_type_id}
-                onChange={(value) => handleFilterChange('leave_type_id', value as string)}
+                onChange={(value) => handleFilterChange('leave_type_id', value)}
                 size="small"
                 fullWidth
               />
