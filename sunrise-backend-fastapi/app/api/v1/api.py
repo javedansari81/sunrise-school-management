@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 
 from app.api.v1.endpoints import (
-    auth, teachers, students, leaves, expenses, fees, configuration, public
+    auth, teachers, students, leaves, expenses, fees, configuration, public, database
 )
 # users endpoints removed - not used in frontend, user management handled through student/teacher endpoints
 
@@ -9,6 +9,9 @@ api_router = APIRouter()
 
 # Public endpoints (no authentication required)
 api_router.include_router(public.router, prefix="/public", tags=["public"])
+
+# Database management endpoints (admin only - no auth for initial deployment)
+api_router.include_router(database.router, prefix="/database", tags=["database"])
 
 # Authenticated endpoints
 api_router.include_router(auth.router, prefix="/auth", tags=["authentication"])
