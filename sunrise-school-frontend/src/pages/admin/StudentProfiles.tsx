@@ -422,9 +422,9 @@ const StudentProfilesContent: React.FC = () => {
       student.father_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       student.mother_name.toLowerCase().includes(searchTerm.toLowerCase());
 
-    const matchesClass = filterClass === 'all' || student.class_id.toString() === filterClass;
+    const matchesClass = filterClass === 'all' || student.class_id.toString() === filterClass.toString();
     const matchesSection = filterSection === 'all' || student.section === filterSection;
-    const matchesSessionYear = filterSessionYear === 'all' || student.session_year_id.toString() === filterSessionYear;
+    const matchesSessionYear = filterSessionYear === 'all' || student.session_year_id.toString() === filterSessionYear.toString();
     const matchesTab = tabValue === 0 || (tabValue === 1 && student.is_active) || (tabValue === 2 && !student.is_active);
 
     // Debug logging for first student
@@ -432,11 +432,15 @@ const StudentProfilesContent: React.FC = () => {
       console.log('🔍 Filter Debug for first student:', {
         student: `${student.first_name} ${student.last_name}`,
         filterClass,
+        filterClassType: typeof filterClass,
         filterSection,
         filterSessionYear,
+        filterSessionYearType: typeof filterSessionYear,
         student_class_id: student.class_id,
+        student_class_id_type: typeof student.class_id,
         student_section: student.section,
         student_session_year_id: student.session_year_id,
+        student_session_year_id_type: typeof student.session_year_id,
         matchesClass,
         matchesSection,
         matchesSessionYear,
@@ -632,7 +636,7 @@ const StudentProfilesContent: React.FC = () => {
                             </Box>
                           </Box>
                         </TableCell>
-                        <TableCell>{student.admission_number}</TableCell>
+                        <TableCell>{student.roll_number || 'Not Assigned'}</TableCell>
                         <TableCell>
                           <Box>
                             <Typography variant="body2">
@@ -649,7 +653,7 @@ const StudentProfilesContent: React.FC = () => {
                               {student.father_name}
                             </Typography>
                             <Typography variant="caption" color="text.secondary">
-                              {student.father_phone}
+                              {student.father_phone || student.phone || 'No Phone'}
                             </Typography>
                           </Box>
                         </TableCell>
@@ -717,12 +721,7 @@ const StudentProfilesContent: React.FC = () => {
                           </Box>
                         </Box>
                       </TableCell>
-                      <TableCell>{student.admission_number}</TableCell>
-                      <TableCell>
-                        <Box>
-                          <Typography variant="body2">{student.roll_number || 'Not Assigned'}</Typography>
-                        </Box>
-                      </TableCell>
+                      <TableCell>{student.roll_number || 'Not Assigned'}</TableCell>
                       <TableCell>
                         <Box>
                           <Typography variant="body2">{student.class_name}</Typography>
@@ -788,12 +787,7 @@ const StudentProfilesContent: React.FC = () => {
                           </Box>
                         </Box>
                       </TableCell>
-                      <TableCell>{student.admission_number}</TableCell>
-                      <TableCell>
-                        <Box>
-                          <Typography variant="body2">{student.roll_number || 'Not Assigned'}</Typography>
-                        </Box>
-                      </TableCell>
+                      <TableCell>{student.roll_number || 'Not Assigned'}</TableCell>
                       <TableCell>
                         <Box>
                           <Typography variant="body2">{student.class_name}</Typography>
