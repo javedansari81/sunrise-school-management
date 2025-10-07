@@ -763,7 +763,7 @@ const ExpenseManagement: React.FC = () => {
                                 <Visibility />
                               </IconButton>
                             </Tooltip>
-                            {expense.expense_status_name === 'Pending' && (
+                            {expense.expense_status_name?.toUpperCase() === 'PENDING' && (
                               <>
                                 <Tooltip title="Edit">
                                   <IconButton
