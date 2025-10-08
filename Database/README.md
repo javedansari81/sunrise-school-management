@@ -164,13 +164,14 @@ All database objects follow a standardized naming pattern:
 |------|-------|-------------|
 | T600 | leave_requests | Leave request records |
 
-### Functions Created: 3
+### Functions Created: 4
 
 | File | Function | Description |
 |------|----------|-------------|
 | F100 | calculate_age | Calculates age from date of birth |
 | F110 | get_academic_year | Returns academic year for a given date |
 | F120 | calculate_fee_balance | Trigger function to calculate fee balance |
+| F130 | enable_monthly_tracking_complete | Creates fee records and 12 monthly tracking records |
 
 ### Views Created: 4
 

@@ -186,37 +186,116 @@ class ConfigurationService {
   }
 
   /**
-   * Fetch service-specific configuration from API
+   * Utility function to delay execution (for retry backoff)
+   */
+  private delay(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  /**
+   * Check if an error is retryable
+   */
+  private isRetryableError(error: any): boolean {
+    // Don't retry on client errors (4xx) except for specific cases
+    if (error.response?.status >= 400 && error.response?.status < 500) {
+      // Don't retry on authentication errors, not found, etc.
+      return false;
+    }
+
+    // Retry on server errors (5xx)
+    if (error.response?.status >= 500) {
+      return true;
+    }
+
+    // Retry on network errors (no response received)
+    if (!error.response && error.message === 'Network Error') {
+      return true;
+    }
+
+    // Retry on timeout errors
+    if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
+      return true;
+    }
+
+    // Don't retry on session expired
+    if (error.message === 'Session expired') {
+      return false;
+    }
+
+    // Default: don't retry
+    return false;
+  }
+
+  /**
+   * Fetch service-specific configuration from API with retry logic
    */
   private async fetchServiceConfiguration(service: ServiceType): Promise<Configuration> {
-    try {
-      console.log(`🔄 Fetching ${service} configuration from /configuration/${service}/`);
-      const response = await api.get(`/configuration/${service}/`);
-      console.log(`✅ ${service} configuration fetched successfully:`, {
-        status: response.status,
-        dataKeys: Object.keys(response.data),
-        metadata: response.data.metadata
-      });
-      return response.data;
-    } catch (error: any) {
-      console.error(`❌ Error fetching ${service} configuration:`, {
-        error,
-        status: error.response?.status,
-        statusText: error.response?.statusText,
-        data: error.response?.data,
-        url: `/configuration/${service}/`
-      });
+    const MAX_RETRIES = 3;
+    const BASE_DELAY_MS = 1000; // 1 second base delay
+    let lastError: any;
 
-      // Provide more specific error messages
-      if (error.response?.status === 404) {
-        throw new Error(`${service} configuration endpoint not found. Please check if the service is properly configured.`);
-      } else if (error.response?.status === 401) {
-        throw new Error(`Authentication required to load ${service} configuration.`);
-      } else if (error.response?.status >= 500) {
-        throw new Error(`Server error while loading ${service} configuration. Please try again later.`);
-      } else {
-        throw new Error(`Failed to load ${service} configuration: ${error.message}`);
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        console.log(`🔄 Fetching ${service} configuration from /configuration/${service}/ (attempt ${attempt}/${MAX_RETRIES})`);
+        const response = await api.get(`/configuration/${service}/`);
+        console.log(`✅ ${service} configuration fetched successfully:`, {
+          status: response.status,
+          dataKeys: Object.keys(response.data),
+          metadata: response.data.metadata,
+          attempt
+        });
+        return response.data;
+      } catch (error: any) {
+        lastError = error;
+
+        console.error(`❌ Error fetching ${service} configuration (attempt ${attempt}/${MAX_RETRIES}):`, {
+          error,
+          errorMessage: error.message,
+          errorName: error.name,
+          status: error.response?.status,
+          statusText: error.response?.statusText,
+          data: error.response?.data,
+          url: `/configuration/${service}/`,
+          hasResponse: !!error.response,
+          isAxiosError: error.isAxiosError,
+          code: error.code
+        });
+
+        // Check if we should retry
+        const shouldRetry = this.isRetryableError(error);
+        const isLastAttempt = attempt === MAX_RETRIES;
+
+        if (!shouldRetry || isLastAttempt) {
+          // Don't retry, throw error immediately
+          console.error(`❌ Not retrying ${service} configuration load. shouldRetry: ${shouldRetry}, isLastAttempt: ${isLastAttempt}`);
+          break;
+        }
+
+        // Calculate exponential backoff delay: 1s, 2s, 4s
+        const delayMs = BASE_DELAY_MS * Math.pow(2, attempt - 1);
+        console.warn(`⏳ Retrying ${service} configuration load in ${delayMs}ms... (attempt ${attempt + 1}/${MAX_RETRIES})`);
+        await this.delay(delayMs);
       }
+    }
+
+    // All retries exhausted, throw final error with context
+    const attemptText = MAX_RETRIES > 1 ? `after ${MAX_RETRIES} attempts` : '';
+
+    // Provide more specific error messages
+    if (lastError.response?.status === 404) {
+      throw new Error(`${service} configuration endpoint not found. Please check if the service is properly configured.`);
+    } else if (lastError.response?.status === 401) {
+      throw new Error(`Authentication required to load ${service} configuration. Please login again.`);
+    } else if (lastError.response?.status >= 500) {
+      throw new Error(`Server error while loading ${service} configuration ${attemptText}. Please try again later.`);
+    } else if (lastError.message === 'Session expired') {
+      throw new Error(`Your session has expired. Please login again.`);
+    } else if (lastError.code === 'ECONNABORTED' || lastError.message.includes('timeout')) {
+      throw new Error(`Request timeout while loading ${service} configuration ${attemptText}. Please check your connection and try again.`);
+    } else if (!lastError.response && lastError.message === 'Network Error') {
+      throw new Error(`Network error while loading ${service} configuration ${attemptText}. Please check your internet connection and ensure the backend server is running.`);
+    } else {
+      throw new Error(`Failed to load ${service} configuration ${attemptText}: ${lastError.message}`);
     }
   }
 

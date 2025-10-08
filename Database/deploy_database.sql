@@ -80,6 +80,7 @@
 
 \ir Tables/T400_fee_structures.sql
 \ir Tables/T410_fee_records.sql
+\ir Tables/T415_fee_payments.sql
 \ir Tables/T420_monthly_fee_tracking.sql
 \ir Tables/T430_monthly_payment_allocations.sql
 
@@ -127,6 +128,7 @@
 \ir Functions/F100_calculate_age.sql
 \ir Functions/F110_get_academic_year.sql
 \ir Functions/F120_calculate_fee_balance.sql
+\ir Functions/F130_enable_monthly_tracking_complete.sql
 
 \echo ''
 \echo '✓ All functions created'

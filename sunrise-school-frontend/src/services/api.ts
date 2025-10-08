@@ -26,15 +26,26 @@ api.interceptors.request.use(
     if (token) {
       // Check if token is expired before making request
       if (sessionService.isTokenExpired(token)) {
-        console.log('API Request: Token expired, clearing session');
+        console.error('❌ API Request: Token expired, clearing session', {
+          url: config.url,
+          method: config.method,
+          timestamp: new Date().toISOString()
+        });
         sessionService.handleSessionInvalid();
         return Promise.reject(new Error('Session expired'));
       }
       config.headers.Authorization = `Bearer ${token}`;
+    } else if (!config.url?.includes('/auth/login')) {
+      // Only log missing token for non-login requests
+      console.warn('⚠️ API Request: No auth token found', {
+        url: config.url,
+        method: config.method
+      });
     }
     return config;
   },
   (error) => {
+    console.error('❌ API Request interceptor error:', error);
     return Promise.reject(error);
   }
 );
@@ -43,11 +54,21 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    console.log('API Error intercepted:', error.response?.status, error.response?.data);
+    console.error('❌ API Error intercepted:', {
+      url: error.config?.url,
+      method: error.config?.method,
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      data: error.response?.data,
+      message: error.message,
+      hasResponse: !!error.response,
+      isAxiosError: error.isAxiosError,
+      code: error.code
+    });
 
     if (error.response?.status === 401) {
       // Handle unauthorized access - session expired or invalid
-      console.log('401 Unauthorized - handling session invalidation');
+      console.error('❌ 401 Unauthorized - handling session invalidation');
       sessionService.handleSessionInvalid();
 
       // Don't redirect here - let the session service callbacks handle it

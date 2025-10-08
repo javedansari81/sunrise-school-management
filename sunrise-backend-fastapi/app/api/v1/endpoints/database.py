@@ -306,6 +306,7 @@ async def deploy_database():
             "F100_calculate_age.sql",
             "F110_get_academic_year.sql",
             "F120_calculate_fee_balance.sql",
+            "F130_enable_monthly_tracking_complete.sql",
         ]
 
         for function_file in functions:
@@ -541,3 +542,98 @@ async def get_database_status():
             "message": f"Error getting database status: {str(e)}"
         }
 
+
+@router.post("/deploy-function")
+async def deploy_monthly_tracking_function():
+    """
+    Deploy only the enable_monthly_tracking_complete function
+
+    This endpoint will:
+    1. Create/update the enable_monthly_tracking_complete function
+    2. NOT drop any existing data
+
+    Use this to add the missing function to an existing database.
+
+    Returns:
+        Status of the function deployment
+    """
+    conn = None
+
+    try:
+        # Get database URL from settings
+        database_url = settings.DATABASE_URL
+
+        if not database_url or database_url.startswith("sqlite"):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="This endpoint only works with PostgreSQL databases. SQLite does not support PL/pgSQL functions."
+            )
+
+        # Connect to database
+        logger.info("Connecting to database...")
+        conn = await asyncpg.connect(database_url)
+
+        # Get the workspace root
+        current_file = Path(__file__).resolve()
+        workspace_root = current_file.parent.parent.parent.parent.parent.parent
+        database_folder = workspace_root / "Database"
+
+        if not database_folder.exists():
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Database folder not found at {database_folder}"
+            )
+
+        function_file = database_folder / "Functions" / "F130_enable_monthly_tracking_complete.sql"
+
+        if not function_file.exists():
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Function file not found at {function_file}"
+            )
+
+        # Read and execute the function file
+        logger.info(f"Deploying function from: {function_file}")
+
+        with open(function_file, 'r', encoding='utf-8') as f:
+            sql_content = f.read()
+
+        # Execute the SQL
+        await conn.execute(sql_content)
+
+        # Verify the function was created
+        function_exists = await conn.fetchval("""
+            SELECT EXISTS (
+                SELECT 1
+                FROM pg_proc p
+                JOIN pg_namespace n ON p.pronamespace = n.oid
+                WHERE p.proname = 'enable_monthly_tracking_complete'
+                AND n.nspname = 'public'
+            )
+        """)
+
+        await conn.close()
+
+        if function_exists:
+            return {
+                "success": True,
+                "message": "Function enable_monthly_tracking_complete deployed successfully",
+                "function_name": "enable_monthly_tracking_complete",
+                "status": "deployed"
+            }
+        else:
+            return {
+                "success": False,
+                "message": "Function deployment completed but verification failed",
+                "function_name": "enable_monthly_tracking_complete",
+                "status": "unknown"
+            }
+
+    except Exception as e:
+        logger.error(f"Error deploying function: {str(e)}")
+        if conn:
+            await conn.close()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to deploy function: {str(e)}"
+        )
