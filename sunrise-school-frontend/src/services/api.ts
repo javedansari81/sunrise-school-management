@@ -89,6 +89,11 @@ export const authAPI = {
     api.get('/auth/me'),
   logout: () =>
     api.post('/auth/logout'),
+  // Profile management
+  getProfile: () =>
+    api.get('/auth/profile'),
+  updateProfile: (profileData: any) =>
+    api.put('/auth/profile/update', profileData),
 };
 
 // Enhanced Fee Management APIs

@@ -153,7 +153,6 @@
 📧 Email: ${data.user.email}
 🏷️ User Type: ${data.user.user_type_name || 'ID: ' + data.user.user_type_id}
 🔐 Permissions: ${data.permissions ? data.permissions.slice(0, 5).join(', ') + '...' : 'None'}
-⏰ Last Login: ${data.user.last_login}
 
 ✨ Token saved for testing /auth/me endpoint`;
                     
@@ -192,8 +191,7 @@
 📧 Email: ${data.email}
 🏷️ User Type: ${data.user_type || 'Unknown'}
 🆔 User ID: ${data.id}
-✅ Active: ${data.is_active}
-⏰ Last Login: ${data.last_login}`;
+✅ Active: ${data.is_active}`;
                     
                     showResult(result, true);
                 } else {

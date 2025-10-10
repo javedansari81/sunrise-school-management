@@ -42,10 +42,22 @@ class MetadataCRUD:
     def get_by_id(self, db: Session, id: int) -> Optional[Any]:
         """Get record by ID"""
         return db.query(self.model_class).filter(self.model_class.id == id).first()
-    
+
+    async def get_by_id_async(self, db: AsyncSession, id: int) -> Optional[Any]:
+        """Get record by ID (async version)"""
+        query = select(self.model_class).filter(self.model_class.id == id)
+        result = await db.execute(query)
+        return result.scalar_one_or_none()
+
     def get_by_name(self, db: Session, name: str) -> Optional[Any]:
         """Get record by name"""
         return db.query(self.model_class).filter(self.model_class.name == name).first()
+
+    async def get_by_name_async(self, db: AsyncSession, name: str) -> Optional[Any]:
+        """Get record by name (async version)"""
+        query = select(self.model_class).filter(self.model_class.name == name)
+        result = await db.execute(query)
+        return result.scalar_one_or_none()
     
     def create(self, db: Session, obj_in: Dict[str, Any]) -> Any:
         """Create new record"""

@@ -10,7 +10,7 @@ from app.core.config import settings
 from app.core.logging import log_auth_step
 from app.core.permissions import get_user_permissions, get_dashboard_permissions, filter_menu_items
 from app.crud.crud_user import CRUDUser
-from app.crud import student_crud, teacher_crud
+from app.crud import student_crud, teacher_crud, user_crud
 from app.schemas.auth import LoginRequest, LoginResponse, Token
 from app.schemas.user import User as UserSchema, UserCreate, UserLoginResponse, UserProfile, UserTypeEnum
 from app.api.deps import get_current_active_user
@@ -502,65 +502,314 @@ async def get_user_profile(
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Get user profile with role-specific data
+    Get comprehensive user profile with role-specific data and metadata resolution
     """
+    from app.crud.metadata import (
+        gender_crud, class_crud, session_year_crud, department_crud,
+        position_crud, qualification_crud, employment_status_crud
+    )
+
+    # Common user information
     profile_data = {
         "user_info": {
             "id": current_user.id,
             "first_name": current_user.first_name,
             "last_name": current_user.last_name,
             "email": current_user.email,
-            "mobile": current_user.phone,
-            "user_type": current_user.user_type_enum,
-            "last_login": current_user.last_login,
-            "created_at": current_user.created_at
+            "phone": current_user.phone,
+            "user_type": current_user.user_type_enum.value,
+            "user_type_id": current_user.user_type_id,
+            "created_at": current_user.created_at,
+            "updated_at": current_user.updated_at,
+            "is_active": current_user.is_active
         }
     }
 
-    # Add role-specific profile data
-    if current_user.user_type_enum == UserTypeEnum.STUDENT and current_user.student_id:
-        student = await student_crud.get_with_fees(db, id=current_user.student_id)
+    # Add role-specific profile data with comprehensive information
+    if current_user.user_type_enum == UserTypeEnum.STUDENT:
+        # Find student by user_id (use get_by_user_id instead of student_id)
+        student = await student_crud.get_by_user_id(db, user_id=current_user.id)
         if student:
-            # Calculate fee summary
-            total_fees_due = sum(fee.balance_amount for fee in student.fee_records)
-            total_fees_paid = sum(fee.paid_amount for fee in student.fee_records)
+            # Get metadata for resolution
+            gender = await gender_crud.get_by_id_async(db, id=student.gender_id) if student.gender_id else None
+            class_info = await class_crud.get_by_id_async(db, id=student.class_id) if student.class_id else None
+            session_year = await session_year_crud.get_by_id_async(db, id=student.session_year_id) if student.session_year_id else None
 
             profile_data["student_profile"] = {
+                # Basic Information
+                "id": student.id,
                 "admission_number": student.admission_number,
-                "current_class": student.current_class,
-                "section": student.section,
                 "roll_number": student.roll_number,
+                "first_name": student.first_name,
+                "last_name": student.last_name,
                 "date_of_birth": student.date_of_birth,
-                "gender": student.gender,
+                "blood_group": student.blood_group,
+
+                # Contact Information
+                "phone": student.phone,
+                "email": student.email,
+                "aadhar_no": student.aadhar_no,
+
+                # Address Information
                 "address": student.address,
-                "father_name": student.father_name,
-                "mother_name": student.mother_name,
+                "city": student.city,
+                "state": student.state,
+                "postal_code": student.postal_code,
+                "country": student.country,
+
+                # Academic Information
+                "class_id": student.class_id,
+                "class_name": class_info.name if class_info else None,
+                "class_description": class_info.description if class_info else None,
+                "section": student.section,
+                "session_year_id": student.session_year_id,
+                "session_year_name": session_year.name if session_year else None,
+                "session_year_description": session_year.description if session_year else None,
                 "admission_date": student.admission_date,
-                "fee_summary": {
-                    "total_due": total_fees_due,
-                    "total_paid": total_fees_paid,
-                    "status": "Paid" if total_fees_due == 0 else "Pending"
-                }
+
+                # Gender Information
+                "gender_id": student.gender_id,
+                "gender_name": gender.name if gender else None,
+                "gender_description": gender.description if gender else None,
+
+                # Parent/Guardian Information
+                "father_name": student.father_name,
+                "father_phone": student.father_phone,
+                "father_email": student.father_email,
+                "father_occupation": student.father_occupation,
+                "mother_name": student.mother_name,
+                "mother_phone": student.mother_phone,
+                "mother_email": student.mother_email,
+                "mother_occupation": student.mother_occupation,
+                "guardian_name": student.guardian_name,
+                "guardian_phone": student.guardian_phone,
+                "guardian_email": student.guardian_email,
+                "guardian_relation": student.guardian_relation,
+
+                # Status
+                "is_active": student.is_active
             }
 
     elif current_user.user_type_enum == UserTypeEnum.TEACHER:
         # Find teacher by user_id
         teacher = await teacher_crud.get_by_user_id(db, user_id=current_user.id)
         if teacher:
+            # Get metadata for resolution
+            gender = await gender_crud.get_by_id_async(db, id=teacher.gender_id) if teacher.gender_id else None
+            department = await department_crud.get_by_id_async(db, id=teacher.department_id) if teacher.department_id else None
+            position = await position_crud.get_by_id_async(db, id=teacher.position_id) if teacher.position_id else None
+            qualification = await qualification_crud.get_by_id_async(db, id=teacher.qualification_id) if teacher.qualification_id else None
+            employment_status = await employment_status_crud.get_by_id_async(db, id=teacher.employment_status_id) if teacher.employment_status_id else None
+            class_teacher_of = await class_crud.get_by_id_async(db, id=teacher.class_teacher_of_id) if teacher.class_teacher_of_id else None
+
             profile_data["teacher_profile"] = {
+                # Basic Information
+                "id": teacher.id,
                 "employee_id": teacher.employee_id,
-                "position": teacher.position,
-                "department": teacher.department,
-                "qualification": teacher.qualification,
+                "first_name": teacher.first_name,
+                "last_name": teacher.last_name,
+                "date_of_birth": teacher.date_of_birth,
+
+                # Contact Information
+                "phone": teacher.phone,
+                "email": teacher.email,
+                "aadhar_no": teacher.aadhar_no,
+
+                # Address Information
+                "address": teacher.address,
+                "city": teacher.city,
+                "state": teacher.state,
+                "postal_code": teacher.postal_code,
+                "country": teacher.country,
+
+                # Emergency Contact
+                "emergency_contact_name": teacher.emergency_contact_name,
+                "emergency_contact_phone": teacher.emergency_contact_phone,
+                "emergency_contact_relation": teacher.emergency_contact_relation,
+
+                # Professional Information
+                "department_id": teacher.department_id,
+                "department_name": department.name if department else None,
+                "department_description": department.description if department else None,
+                "position_id": teacher.position_id,
+                "position_name": position.name if position else None,
+                "position_description": position.description if position else None,
+                "qualification_id": teacher.qualification_id,
+                "qualification_name": qualification.name if qualification else None,
+                "qualification_description": qualification.description if qualification else None,
+                "employment_status_id": teacher.employment_status_id,
+                "employment_status_name": employment_status.name if employment_status else None,
+                "employment_status_description": employment_status.description if employment_status else None,
                 "experience_years": teacher.experience_years,
                 "joining_date": teacher.joining_date,
-                "employment_status": teacher.employment_status,
                 "subjects": teacher.subjects,
-                "specializations": teacher.specializations,
-                "bio": teacher.bio
+                "classes_assigned": teacher.classes_assigned,
+                "class_teacher_of_id": teacher.class_teacher_of_id,
+                "class_teacher_of_name": class_teacher_of.name if class_teacher_of else None,
+                "salary": teacher.salary,
+
+                # Gender Information
+                "gender_id": teacher.gender_id,
+                "gender_name": gender.name if gender else None,
+                "gender_description": gender.description if gender else None,
+
+                # Status
+                "is_active": teacher.is_active
+            }
+
+    elif current_user.user_type_enum == UserTypeEnum.ADMIN:
+        # For admin users, check if they have a teacher profile (admin can also be a teacher)
+        teacher = await teacher_crud.get_by_user_id(db, user_id=current_user.id)
+        if teacher:
+            # Get metadata for resolution (same as teacher)
+            gender = await gender_crud.get_by_id_async(db, id=teacher.gender_id) if teacher.gender_id else None
+            department = await department_crud.get_by_id_async(db, id=teacher.department_id) if teacher.department_id else None
+            position = await position_crud.get_by_id_async(db, id=teacher.position_id) if teacher.position_id else None
+            qualification = await qualification_crud.get_by_id_async(db, id=teacher.qualification_id) if teacher.qualification_id else None
+            employment_status = await employment_status_crud.get_by_id_async(db, id=teacher.employment_status_id) if teacher.employment_status_id else None
+
+            profile_data["admin_profile"] = {
+                # Basic Information
+                "id": teacher.id,
+                "employee_id": teacher.employee_id,
+                "first_name": teacher.first_name,
+                "last_name": teacher.last_name,
+                "date_of_birth": teacher.date_of_birth,
+
+                # Contact Information
+                "phone": teacher.phone,
+                "email": teacher.email,
+                "aadhar_no": teacher.aadhar_no,
+
+                # Address Information
+                "address": teacher.address,
+                "city": teacher.city,
+                "state": teacher.state,
+                "postal_code": teacher.postal_code,
+                "country": teacher.country,
+
+                # Professional Information
+                "department_id": teacher.department_id,
+                "department_name": department.name if department else None,
+                "department_description": department.description if department else None,
+                "position_id": teacher.position_id,
+                "position_name": position.name if position else None,
+                "position_description": position.description if position else None,
+                "qualification_id": teacher.qualification_id,
+                "qualification_name": qualification.name if qualification else None,
+                "qualification_description": qualification.description if qualification else None,
+                "employment_status_id": teacher.employment_status_id,
+                "employment_status_name": employment_status.name if employment_status else None,
+                "employment_status_description": employment_status.description if employment_status else None,
+                "experience_years": teacher.experience_years,
+                "joining_date": teacher.joining_date,
+
+                # Gender Information
+                "gender_id": teacher.gender_id,
+                "gender_name": gender.name if gender else None,
+                "gender_description": gender.description if gender else None,
+
+                # Status
+                "is_active": teacher.is_active
             }
 
     return profile_data
+
+
+@router.put("/profile/update")
+async def update_user_profile(
+    profile_update: dict,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Update user profile with role-specific data validation
+    """
+    from app.crud.metadata import (
+        gender_crud, class_crud, session_year_crud, department_crud,
+        position_crud, qualification_crud, employment_status_crud
+    )
+
+    try:
+        # Update common user information if provided
+        user_updates = {}
+        if "first_name" in profile_update:
+            user_updates["first_name"] = profile_update["first_name"]
+        if "last_name" in profile_update:
+            user_updates["last_name"] = profile_update["last_name"]
+        if "phone" in profile_update:
+            user_updates["phone"] = profile_update["phone"]
+
+        # Update user table if there are user-level changes
+        if user_updates:
+            await user_crud.update(db, db_obj=current_user, obj_in=user_updates)
+
+        # Handle role-specific profile updates
+        if current_user.user_type_enum == UserTypeEnum.STUDENT:
+            student = await student_crud.get_by_user_id(db, user_id=current_user.id)
+            if student and "student_profile" in profile_update:
+                student_data = profile_update["student_profile"]
+
+                # Validate metadata IDs if provided
+                if "gender_id" in student_data and student_data["gender_id"]:
+                    gender = await gender_crud.get_by_id_async(db, id=student_data["gender_id"])
+                    if not gender:
+                        raise HTTPException(status_code=400, detail="Invalid gender ID")
+
+                if "class_id" in student_data and student_data["class_id"]:
+                    class_info = await class_crud.get_by_id_async(db, id=student_data["class_id"])
+                    if not class_info:
+                        raise HTTPException(status_code=400, detail="Invalid class ID")
+
+                if "session_year_id" in student_data and student_data["session_year_id"]:
+                    session_year = await session_year_crud.get_by_id_async(db, id=student_data["session_year_id"])
+                    if not session_year:
+                        raise HTTPException(status_code=400, detail="Invalid session year ID")
+
+                # Update student profile
+                await student_crud.update(db, db_obj=student, obj_in=student_data)
+
+        elif current_user.user_type_enum in [UserTypeEnum.TEACHER, UserTypeEnum.ADMIN]:
+            teacher = await teacher_crud.get_by_user_id(db, user_id=current_user.id)
+            profile_key = "teacher_profile" if current_user.user_type_enum == UserTypeEnum.TEACHER else "admin_profile"
+
+            if teacher and profile_key in profile_update:
+                teacher_data = profile_update[profile_key]
+
+                # Validate metadata IDs if provided
+                if "gender_id" in teacher_data and teacher_data["gender_id"]:
+                    gender = await gender_crud.get_by_id_async(db, id=teacher_data["gender_id"])
+                    if not gender:
+                        raise HTTPException(status_code=400, detail="Invalid gender ID")
+
+                if "department_id" in teacher_data and teacher_data["department_id"]:
+                    department = await department_crud.get_by_id_async(db, id=teacher_data["department_id"])
+                    if not department:
+                        raise HTTPException(status_code=400, detail="Invalid department ID")
+
+                if "position_id" in teacher_data and teacher_data["position_id"]:
+                    position = await position_crud.get_by_id_async(db, id=teacher_data["position_id"])
+                    if not position:
+                        raise HTTPException(status_code=400, detail="Invalid position ID")
+
+                if "qualification_id" in teacher_data and teacher_data["qualification_id"]:
+                    qualification = await qualification_crud.get_by_id_async(db, id=teacher_data["qualification_id"])
+                    if not qualification:
+                        raise HTTPException(status_code=400, detail="Invalid qualification ID")
+
+                if "employment_status_id" in teacher_data and teacher_data["employment_status_id"]:
+                    employment_status = await employment_status_crud.get_by_id_async(db, id=teacher_data["employment_status_id"])
+                    if not employment_status:
+                        raise HTTPException(status_code=400, detail="Invalid employment status ID")
+
+                # Update teacher profile
+                await teacher_crud.update(db, db_obj=teacher, obj_in=teacher_data)
+
+        # Return updated profile data
+        return await get_user_profile(current_user, db)
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to update profile: {str(e)}")
 
 
 # Protected test route removed - not needed in production

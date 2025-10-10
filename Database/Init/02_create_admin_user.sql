@@ -26,7 +26,7 @@ INSERT INTO users (
     'Admin',
     'User',
     '7842350875',
-    'admin@sunriseschool.edu',
+    'admin@sunriseschool.com',
     '$2b$12$lsBmuOua4csDUY6k0hWgWO.G7GN2oHTN.388/BfgTqH51Os01ttnu', -- password: admin123 (corrected hash)
     (SELECT id FROM user_types WHERE name = 'ADMIN' LIMIT 1),
     true,

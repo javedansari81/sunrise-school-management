@@ -48,7 +48,7 @@ def generate_base_email(first_name: str, last_name: str, date_of_birth: date, us
     """
     Generate base email address format.
 
-    Format: {firstname}.{lastname}.{MMYYYY}@sunrise.edu
+    Format: {firstname}.{lastname}.{MMYYYY}@sunrise.com
 
     Args:
         first_name: User's first name
@@ -67,7 +67,7 @@ def generate_base_email(first_name: str, last_name: str, date_of_birth: date, us
     date_str = format_date_for_email(date_of_birth)
 
     # Generate base email
-    base_email = f"{clean_first}.{clean_last}.{date_str}@sunrise.edu"
+    base_email = f"{clean_first}.{clean_last}.{date_str}@sunrise.com"
 
     log_crud_operation("EMAIL_GENERATION", f"Generated base email for {user_type}",
                       first_name=first_name, last_name=last_name,
@@ -100,7 +100,7 @@ async def ensure_unique_email(db: AsyncSession, base_email: str, user_type: str 
     # If base email exists, try with sequential numbers
     counter = 2
     while counter <= 999:  # Reasonable limit
-        numbered_email = base_email.replace("@sunrise.edu", f".{counter}@sunrise.edu")
+        numbered_email = base_email.replace("@sunrise.com", f".{counter}@sunrise.com")
         
         existing_numbered_result = await db.execute(select(User).where(User.email == numbered_email))
         existing_numbered = existing_numbered_result.scalar_one_or_none()
@@ -173,8 +173,8 @@ def validate_generated_email(email: str) -> bool:
     Returns:
         True if email follows the generated format, False otherwise
     """
-    # Pattern: firstname.lastname.mmyyyy[@.number]@sunrise.edu
-    pattern = r'^[a-z]+\.[a-z]+\.\d{6}(?:\.\d+)?@sunrise\.edu$'
+    # Pattern: firstname.lastname.mmyyyy[@.number]@sunrise.com
+    pattern = r'^[a-z]+\.[a-z]+\.\d{6}(?:\.\d+)?@sunrise\.com$'
 
     return bool(re.match(pattern, email))
 
