@@ -133,6 +133,7 @@ class LeaveRequestWithDetails(LeaveRequest):
     applicant_details: Optional[str] = None  # Class for students, Department for teachers
     applicant_employee_id: Optional[str] = None  # Employee ID for teachers
     applicant_roll_number: Optional[int] = None  # Roll number for students
+    applicant_class_id: Optional[int] = None  # Class ID for students
     leave_type_name: str
     leave_status_name: str
     leave_status_color: Optional[str] = None

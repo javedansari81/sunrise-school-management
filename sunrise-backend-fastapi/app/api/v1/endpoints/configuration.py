@@ -43,7 +43,7 @@ SERVICE_METADATA_MAPPINGS = {
         "genders", "classes", "session_years", "user_types"
     ],
     "leave-management": [
-        "leave_types", "leave_statuses", "session_years"
+        "leave_types", "leave_statuses", "session_years", "classes"
     ],
     "expense-management": [
         "expense_categories", "expense_statuses",
@@ -305,7 +305,7 @@ async def get_leave_management_configuration(
     Get configuration for Leave Management System
 
     Returns only metadata required for leave management:
-    - leave_types, leave_statuses, session_years
+    - leave_types, leave_statuses, session_years, classes
     """
     try:
         print(f"🔄 Loading leave-management configuration for user: {current_user.email}")

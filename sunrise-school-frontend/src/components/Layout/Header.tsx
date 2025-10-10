@@ -23,6 +23,7 @@ import LogoutIcon from '@mui/icons-material/Logout';
 import PersonIcon from '@mui/icons-material/Person';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import MenuIcon from '@mui/icons-material/Menu';
+import BeachAccessIcon from '@mui/icons-material/BeachAccess';
 import { useAuth } from '../../contexts/AuthContext';
 import LoginPopup from '../LoginPopup';
 
@@ -145,6 +146,20 @@ const Header: React.FC = () => {
                     <MenuItem onClick={() => { handleMenuClose(); navigate('/teacher/dashboard'); }}>
                       <DashboardIcon sx={{ mr: 1 }} />
                       Dashboard
+                    </MenuItem>
+                  )}
+
+                  {/* Show Leave Management for students and teachers */}
+                  {user?.user_type?.toUpperCase() === 'STUDENT' && (
+                    <MenuItem onClick={() => { handleMenuClose(); navigate('/student/leaves'); }}>
+                      <BeachAccessIcon sx={{ mr: 1 }} />
+                      Leave Management
+                    </MenuItem>
+                  )}
+                  {user?.user_type?.toUpperCase() === 'TEACHER' && (
+                    <MenuItem onClick={() => { handleMenuClose(); navigate('/teacher/leaves'); }}>
+                      <BeachAccessIcon sx={{ mr: 1 }} />
+                      Leave Management
                     </MenuItem>
                   )}
 

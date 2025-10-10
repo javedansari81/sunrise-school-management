@@ -18,7 +18,9 @@ import ExpenseManagement from './pages/admin/ExpenseManagement';
 import StudentProfiles from './pages/admin/StudentProfiles';
 import TeacherProfiles from './pages/admin/TeacherProfiles';
 import TeacherDashboard from './pages/teacher/TeacherDashboard';
+import TeacherLeaveManagementPage from './pages/teacher/TeacherLeaveManagementPage';
 import StudentDashboard from './pages/student/StudentDashboard';
+import StudentLeaveManagementPage from './pages/student/StudentLeaveManagementPage';
 import Profile from './pages/Profile';
 // import ConfigurationTest from './components/common/ConfigurationTest';
 
@@ -255,11 +257,21 @@ function App() {
                     <TeacherDashboard />
                   </ProtectedRoute>
                 } />
+                <Route path="/teacher/leaves" element={
+                  <ProtectedRoute requiredRole="TEACHER">
+                    <TeacherLeaveManagementPage />
+                  </ProtectedRoute>
+                } />
 
                 {/* Student Routes */}
                 <Route path="/student/dashboard" element={
                   <ProtectedRoute requiredRole="STUDENT">
                     <StudentDashboard />
+                  </ProtectedRoute>
+                } />
+                <Route path="/student/leaves" element={
+                  <ProtectedRoute requiredRole="STUDENT">
+                    <StudentLeaveManagementPage />
                   </ProtectedRoute>
                 } />
 

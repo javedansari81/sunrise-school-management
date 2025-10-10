@@ -62,6 +62,7 @@ interface LeaveRequest {
   applicant_details: string;
   applicant_employee_id?: string;  // Employee ID for teachers
   applicant_roll_number?: number;  // Roll number for students
+  applicant_class_id?: number;  // Class ID for students
   leave_type_id: number;
   leave_type_name: string;
   leave_status_id: number;
@@ -252,11 +253,12 @@ const LeaveManagementSystem: React.FC = () => {
   const handleOpenDialog = (leave?: LeaveRequest, viewMode = true) => {
     if (leave) {
       setSelectedLeave(leave);
+
       // Admin interface is now view-only
       setLeaveForm({
         applicant_type: leave.applicant_type,
         roll_number: leave.applicant_roll_number?.toString() || '',
-        class_id: '',
+        class_id: leave.applicant_class_id?.toString() || '',
         employee_id: leave.applicant_employee_id || '',
         leave_type_id: leave.leave_type_id.toString(),
         start_date: new Date(leave.start_date),

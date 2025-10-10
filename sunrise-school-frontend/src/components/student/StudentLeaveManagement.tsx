@@ -55,7 +55,7 @@ interface StudentProfile {
   admission_number: string;
   first_name: string;
   last_name: string;
-  current_class: string;
+  class_name: string;
   section: string;
   roll_number: number;
 }
@@ -185,7 +185,7 @@ const StudentLeaveManagement: React.FC = () => {
                 {studentProfile.first_name} {studentProfile.last_name}
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Roll No: {studentProfile.roll_number} | Class: {studentProfile.current_class} 
+                Roll No: {studentProfile.roll_number} | Class: {studentProfile.class_name}
                 {studentProfile.section && ` - ${studentProfile.section}`}
               </Typography>
               <Typography variant="body2" color="text.secondary">
