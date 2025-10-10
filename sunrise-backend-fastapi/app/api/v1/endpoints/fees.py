@@ -979,7 +979,7 @@ async def get_payment_history(
                 "payment_id": payment.id,
                 "amount": payment.amount,
                 "payment_date": payment.payment_date,
-                "payment_method": payment.payment_method.name if payment.payment_method else "Unknown",
+                "payment_method": payment.payment_method.description if payment.payment_method else "Unknown",
                 "transaction_id": payment.transaction_id,
                 "receipt_number": payment.receipt_number,
                 "remarks": payment.remarks,
@@ -1765,10 +1765,10 @@ async def pay_monthly_fee(
 
     # Update payment status based on balance
     if fee_record.balance_amount <= 0:
-        fee_record.payment_status_id = PaymentStatusEnum.VALUE.PAID  # 2
+        fee_record.payment_status_id = 2  # PAID
         fee_record.balance_amount = 0
     elif fee_record.paid_amount > 0:
-        fee_record.payment_status_id = PaymentStatusEnum.VALUE.PARTIAL  # 3
+        fee_record.payment_status_id = 3  # PARTIAL
 
     await db.commit()
     await db.refresh(fee_record)
@@ -1840,26 +1840,21 @@ async def pay_monthly_enhanced(
 
     # Extract payment data
     amount = float(payment_data.get("amount", 0))
-    payment_method = payment_data.get("payment_method", "CASH")  # Default to CASH
+    payment_method_id = payment_data.get("payment_method_id", 1)  # Default to CASH (ID: 1)
     selected_months = payment_data.get("selected_months", [])  # Can be month names or numbers
     session_year = payment_data.get("session_year", "2025-26")
     transaction_id = payment_data.get("transaction_id")
     remarks = payment_data.get("remarks", "")
 
-    # Map payment method string to ID (based on configuration endpoint)
-    payment_method_mapping = {
-        "CASH": 1,
-        "CHEQUE": 2,
-        "ONLINE": 3,
-        "UPI": 4,
-        "CARD": 5
-    }
+    # Ensure payment_method_id is a valid integer
+    if not isinstance(payment_method_id, int):
+        try:
+            payment_method_id = int(payment_method_id)
+        except (ValueError, TypeError):
+            payment_method_id = 1  # Default to CASH (ID: 1)
 
-    # Ensure payment_method_id is always set to a valid value
-    if payment_method and isinstance(payment_method, str):
-        payment_method_upper = payment_method.upper()
-        payment_method_id = payment_method_mapping.get(payment_method_upper, 1)  # Default to CASH (ID: 1)
-    else:
+    # Validate payment_method_id is in valid range (1-6 based on our configuration)
+    if payment_method_id < 1 or payment_method_id > 6:
         payment_method_id = 1  # Default to CASH (ID: 1)
 
     # Month name to number mapping
@@ -2132,10 +2127,10 @@ async def pay_monthly_enhanced(
 
     # Update payment status
     if fee_record.balance_amount <= 0:
-        fee_record.payment_status_id = PaymentStatusEnum.VALUE.PAID  # 2
+        fee_record.payment_status_id = 2  # PAID
         fee_record.balance_amount = 0
     elif fee_record.paid_amount > 0:
-        fee_record.payment_status_id = PaymentStatusEnum.VALUE.PARTIAL  # 3
+        fee_record.payment_status_id = 3  # PARTIAL
 
     await db.commit()
     await db.refresh(fee_record)

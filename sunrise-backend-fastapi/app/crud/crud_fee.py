@@ -259,10 +259,10 @@ class CRUDFeeRecord(CRUDBase[FeeRecord, FeeRecordCreate, FeeRecordUpdate]):
         fee_record.balance_amount = fee_record.total_amount - fee_record.paid_amount
         
         if fee_record.balance_amount <= 0:
-            fee_record.payment_status_id = PaymentStatusEnum.VALUE.PAID
+            fee_record.payment_status_id = 2  # PAID
             fee_record.balance_amount = 0
         elif fee_record.paid_amount > 0:
-            fee_record.payment_status_id = PaymentStatusEnum.VALUE.PARTIAL
+            fee_record.payment_status_id = 3  # PARTIAL
         
         db.add(fee_record)
         await db.commit()
@@ -308,10 +308,10 @@ class CRUDFeePayment(CRUDBase[FeePayment, FeePaymentCreate, FeePaymentUpdate]):
         fee_record.balance_amount = fee_record.total_amount - fee_record.paid_amount
         
         if fee_record.balance_amount <= 0:
-            fee_record.payment_status_id = PaymentStatusEnum.VALUE.PAID
+            fee_record.payment_status_id = 2  # PAID
             fee_record.balance_amount = 0
         elif fee_record.paid_amount > 0:
-            fee_record.payment_status_id = PaymentStatusEnum.VALUE.PARTIAL
+            fee_record.payment_status_id = 3  # PARTIAL
         
         fee_record.payment_method = obj_in.payment_method
         fee_record.transaction_id = obj_in.transaction_id

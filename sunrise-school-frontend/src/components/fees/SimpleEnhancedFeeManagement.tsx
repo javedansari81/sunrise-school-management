@@ -32,6 +32,7 @@ import {
   OutlinedInput,
   ListItemText,
   Checkbox,
+  FormHelperText,
 } from '@mui/material';
 import {
   Search,
@@ -148,6 +149,14 @@ interface AvailableMonthsData {
 const SimpleEnhancedFeeManagement: React.FC = () => {
   const { isAuthenticated, user } = useAuth();
   const { isLoaded: configLoaded } = useServiceConfiguration('fee-management');
+
+  // Get payment methods from configuration
+  const getPaymentMethods = () => {
+    if (!configLoaded) return [];
+    const config = configurationService.getServiceConfiguration('fee-management');
+    return config?.payment_methods || [];
+  };
+
   const [loading, setLoading] = useState(false);
   const [dialogLoading, setDialogLoading] = useState(false);
   const [paymentHistoryLoading, setPaymentHistoryLoading] = useState(false);
@@ -472,6 +481,17 @@ const SimpleEnhancedFeeManagement: React.FC = () => {
       setSnackbar({
         open: true,
         message: 'Please select months and enter payment amount',
+        severity: 'warning'
+      });
+      return;
+    }
+
+    // Check if transaction ID is required for selected payment method
+    const selectedMethod = getPaymentMethods().find(m => m.id === paymentForm.paymentMethodId);
+    if (selectedMethod?.requires_reference && !paymentForm.transactionId.trim()) {
+      setSnackbar({
+        open: true,
+        message: `Transaction ID is required for ${selectedMethod.description}`,
         severity: 'warning'
       });
       return;
@@ -1277,7 +1297,7 @@ const SimpleEnhancedFeeManagement: React.FC = () => {
                       <TableRow sx={{ bgcolor: 'grey.100' }}>
                         <TableCell sx={{ fontWeight: 'bold', fontSize: '0.875rem' }}>Payment Date</TableCell>
                         <TableCell align="right" sx={{ fontWeight: 'bold', fontSize: '0.875rem' }}>Paid Amount</TableCell>
-                        <TableCell sx={{ fontWeight: 'bold', fontSize: '0.875rem' }}>Payment Type</TableCell>
+                        <TableCell sx={{ fontWeight: 'bold', fontSize: '0.875rem' }}>Payment Method</TableCell>
                         <TableCell sx={{ fontWeight: 'bold', fontSize: '0.875rem' }}>Transaction ID</TableCell>
                       </TableRow>
                     </TableHead>
@@ -1521,12 +1541,45 @@ const SimpleEnhancedFeeManagement: React.FC = () => {
                   />
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6 }}>
+                  <FormControl fullWidth>
+                    <InputLabel>Payment Method</InputLabel>
+                    <Select
+                      value={paymentForm.paymentMethodId}
+                      onChange={(e) => setPaymentForm(prev => ({ ...prev, paymentMethodId: e.target.value as number }))}
+                      label="Payment Method"
+                      disabled={!configLoaded}
+                    >
+                      {getPaymentMethods().length > 0 ? (
+                        getPaymentMethods().map((method: any) => (
+                          <MenuItem key={method.id} value={method.id}>
+                            {method.description}
+                          </MenuItem>
+                        ))
+                      ) : (
+                        <MenuItem value={1}>Cash Payment</MenuItem>
+                      )}
+                    </Select>
+                    <FormHelperText>
+                      {configLoaded ? 'Select payment method' : 'Loading payment methods...'}
+                    </FormHelperText>
+                  </FormControl>
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <TextField
                     fullWidth
                     label="Transaction ID"
                     value={paymentForm.transactionId}
                     onChange={(e) => setPaymentForm(prev => ({ ...prev, transactionId: e.target.value }))}
-                    helperText="Optional: Bank/UPI transaction ID"
+                    helperText={(() => {
+                      const selectedMethod = getPaymentMethods().find(m => m.id === paymentForm.paymentMethodId);
+                      return selectedMethod?.requires_reference
+                        ? "Required: Enter transaction/reference ID"
+                        : "Optional: Transaction reference ID";
+                    })()}
+                    required={(() => {
+                      const selectedMethod = getPaymentMethods().find(m => m.id === paymentForm.paymentMethodId);
+                      return selectedMethod?.requires_reference || false;
+                    })()}
                   />
                 </Grid>
                 <Grid size={{ xs: 12 }}>
@@ -1556,7 +1609,11 @@ const SimpleEnhancedFeeManagement: React.FC = () => {
             onClick={makePayment}
             variant="contained"
             size="large"
-            disabled={paymentLoading || !paymentForm.amount || paymentForm.selectedMonths.length === 0}
+            disabled={(() => {
+              const selectedMethod = getPaymentMethods().find(m => m.id === paymentForm.paymentMethodId);
+              const isTransactionIdRequired = selectedMethod?.requires_reference && !paymentForm.transactionId.trim();
+              return paymentLoading || !paymentForm.amount || paymentForm.selectedMonths.length === 0 || isTransactionIdRequired;
+            })()}
             startIcon={paymentLoading ? <CircularProgress size={20} /> : <AccountBalance />}
             sx={{
               minWidth: 140,
