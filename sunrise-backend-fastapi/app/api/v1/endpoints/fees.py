@@ -305,7 +305,7 @@ async def get_student_fees(
         "student_id": student_id,
         "student_name": f"{student.first_name} {student.last_name}",
         "admission_number": student.admission_number,
-        "current_class": student.current_class,
+        "current_class": student.class_ref.name if student.class_ref else "",
         "current_session": session_year.value if session_year else "2025-26",
         "fee_records": fee_records
     }

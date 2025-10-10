@@ -36,7 +36,7 @@ class ConfigurationTester:
             
             print(f"📚 Classes in database: {len(class_list)}")
             for cls in class_list:
-                print(f"   - ID: {cls.id}, Name: {cls.name}, Display: {cls.display_name}, Active: {cls.is_active}")
+                print(f"   - ID: {cls.id}, Name: {cls.name}, Display: {cls.description}, Active: {cls.is_active}")
             
             # Check genders
             genders = await db.execute(select(Gender))

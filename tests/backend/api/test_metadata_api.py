@@ -47,7 +47,7 @@ async def test_metadata_tables():
             classes = result.scalars().all()
             print(f"✅ Classes: {len(classes)} records")
             for c in classes:
-                print(f"   - {c.id}: {c.name} ({c.display_name})")
+                print(f"   - {c.id}: {c.name} ({c.description})")
             
             # Test SessionYear
             result = await db.execute(select(SessionYear))
@@ -162,7 +162,7 @@ async def test_student_with_metadata():
                     print(f"   - Gender Name: {student_with_metadata.gender.name}")
                 print(f"   - Class ID: {student_with_metadata.class_id}")
                 if student_with_metadata.class_ref:
-                    print(f"   - Class Name: {student_with_metadata.class_ref.display_name}")
+                    print(f"   - Class Name: {student_with_metadata.class_ref.description}")
                 print(f"   - Session Year ID: {student_with_metadata.session_year_id}")
                 if student_with_metadata.session_year:
                     print(f"   - Session Year: {student_with_metadata.session_year.name}")
