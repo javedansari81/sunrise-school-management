@@ -87,10 +87,10 @@ async def enable_monthly_tracking_for_students():
                     
                     # Make some months paid for testing
                     if month in [4, 5]:  # April and May paid
-                        payment_status_id = 3  # Paid
+                        payment_status_id = 2  # Paid
                         paid_amount = monthly_amount
                     elif month == 6:  # June partially paid
-                        payment_status_id = 2  # Partial
+                        payment_status_id = 3  # Partial
                         paid_amount = Decimal('400.00')
                     elif month == 7 and due_date < date.today():  # July overdue
                         payment_status_id = 4  # Overdue

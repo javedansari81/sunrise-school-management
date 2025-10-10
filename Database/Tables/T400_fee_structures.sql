@@ -35,7 +35,10 @@ CREATE TABLE fee_structures (
 
     -- Foreign Key Constraints
     FOREIGN KEY (class_id) REFERENCES classes(id),
-    FOREIGN KEY (session_year_id) REFERENCES session_years(id)
+    FOREIGN KEY (session_year_id) REFERENCES session_years(id),
+
+    -- Unique constraint to ensure one fee structure per class per session
+    UNIQUE (class_id, session_year_id)
 );
 
 -- Add indexes for performance

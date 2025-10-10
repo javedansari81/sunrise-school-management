@@ -1765,10 +1765,10 @@ async def pay_monthly_fee(
 
     # Update payment status based on balance
     if fee_record.balance_amount <= 0:
-        fee_record.payment_status_id = 2  # Paid
+        fee_record.payment_status_id = PaymentStatusEnum.VALUE.PAID  # 2
         fee_record.balance_amount = 0
     elif fee_record.paid_amount > 0:
-        fee_record.payment_status_id = 3  # Partial
+        fee_record.payment_status_id = PaymentStatusEnum.VALUE.PARTIAL  # 3
 
     await db.commit()
     await db.refresh(fee_record)
@@ -2132,10 +2132,10 @@ async def pay_monthly_enhanced(
 
     # Update payment status
     if fee_record.balance_amount <= 0:
-        fee_record.payment_status_id = 2  # Paid
+        fee_record.payment_status_id = PaymentStatusEnum.VALUE.PAID  # 2
         fee_record.balance_amount = 0
     elif fee_record.paid_amount > 0:
-        fee_record.payment_status_id = 3  # Partial
+        fee_record.payment_status_id = PaymentStatusEnum.VALUE.PARTIAL  # 3
 
     await db.commit()
     await db.refresh(fee_record)

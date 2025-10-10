@@ -111,19 +111,18 @@ BEGIN
                 -- First, get fee structure for this class and session
                 SELECT
                     fs.id,
-                    fs.amount
+                    fs.total_annual_fee
                 INTO v_fee_structure
                 FROM fee_structures fs
                 WHERE fs.class_id = v_student.class_id
                   AND fs.session_year_id = p_session_year_id
-                  AND fs.is_active = TRUE
                 LIMIT 1;
 
                 IF NOT FOUND THEN
                     -- No fee structure found, use default
                     v_monthly_fee := 1000.00; -- Default monthly fee
                 ELSE
-                    v_monthly_fee := ROUND(v_fee_structure.amount / 12, 2);
+                    v_monthly_fee := ROUND(v_fee_structure.total_annual_fee / 12, 2);
                 END IF;
                 
                 -- Create fee record

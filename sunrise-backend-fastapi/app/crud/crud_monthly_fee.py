@@ -331,8 +331,8 @@ class CRUDMonthlyPaymentAllocation(CRUDBase[MonthlyPaymentAllocation, dict, dict
                     SET
                         paid_amount = LEAST(paid_amount + :amount, monthly_amount),
                         payment_status_id = CASE
-                            WHEN LEAST(paid_amount + :amount, monthly_amount) >= monthly_amount THEN 3
-                            WHEN LEAST(paid_amount + :amount, monthly_amount) > 0 THEN 2
+                            WHEN LEAST(paid_amount + :amount, monthly_amount) >= monthly_amount THEN 2
+                            WHEN LEAST(paid_amount + :amount, monthly_amount) > 0 THEN 3
                             ELSE payment_status_id
                         END,
                         updated_at = NOW()
