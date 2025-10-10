@@ -200,12 +200,11 @@ BEGIN
                     fee_record_id,
                     student_id,
                     session_year_id,
-                    month,
-                    year,
+                    academic_month,
+                    academic_year,
                     month_name,
-                    monthly_fee_amount,
+                    monthly_amount,
                     paid_amount,
-                    balance_amount,
                     due_date,
                     payment_status_id,
                     late_fee,
@@ -220,15 +219,12 @@ BEGIN
                     v_month_name,
                     v_monthly_fee,
                     0.00, -- Initially unpaid
-                    v_monthly_fee, -- Balance = monthly_fee initially
                     v_due_date,
                     1, -- Pending status
                     0.00, -- No late fee initially
                     0.00, -- No discount initially
                     NOW()
-                )
-                ON CONFLICT ON CONSTRAINT monthly_fee_tracking_student_id_session_year_id_month_year_key
-                DO NOTHING; -- Skip if already exists (shouldn't happen due to earlier check)
+                ); -- Remove ON CONFLICT for now to avoid ambiguous column reference
                 
                 -- Increment counter if insert was successful
                 IF FOUND THEN

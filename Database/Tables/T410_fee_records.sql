@@ -19,6 +19,7 @@ CREATE TABLE fee_records (
     payment_type_id INTEGER NOT NULL DEFAULT 1,
     payment_status_id INTEGER NOT NULL DEFAULT 1,
     due_date DATE,
+    is_monthly_tracked BOOLEAN DEFAULT FALSE,
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE,
@@ -32,9 +33,11 @@ CREATE TABLE fee_records (
 -- Create indexes
 CREATE INDEX IF NOT EXISTS idx_fee_records_student ON fee_records(student_id);
 CREATE INDEX IF NOT EXISTS idx_fee_records_session ON fee_records(session_year_id);
+CREATE INDEX IF NOT EXISTS idx_fee_records_monthly_tracked ON fee_records(is_monthly_tracked) WHERE is_monthly_tracked = TRUE;
 
 -- Add comments
 COMMENT ON TABLE fee_records IS 'Student fee records';
 COMMENT ON COLUMN fee_records.student_id IS 'Foreign key to students table';
 COMMENT ON COLUMN fee_records.balance_amount IS 'Calculated as total_amount - paid_amount';
+COMMENT ON COLUMN fee_records.is_monthly_tracked IS 'Whether this fee record uses monthly tracking system';
 
