@@ -218,6 +218,8 @@ async def deploy_database():
             "T200_expense_statuses.sql",
             "T210_employment_statuses.sql",
             "T220_qualifications.sql",
+            "T230_departments.sql",
+            "T240_positions.sql",
         ]
         
         for table_file in metadata_tables:

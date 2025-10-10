@@ -1,7 +1,7 @@
 -- =====================================================
 -- Table: teachers
 -- Description: Stores teacher profile information
--- Dependencies: users, genders, qualifications, employment_statuses, classes
+-- Dependencies: users, genders, qualifications, employment_statuses, classes, departments, positions
 -- =====================================================
 
 -- Drop existing table
@@ -27,8 +27,8 @@ CREATE TABLE teachers (
     emergency_contact_name VARCHAR(200),
     emergency_contact_phone VARCHAR(20),
     emergency_contact_relation VARCHAR(50),
-    position VARCHAR(100) NOT NULL,
-    department VARCHAR(100),
+    position_id INTEGER NOT NULL,
+    department_id INTEGER,
     subjects TEXT,
     qualification_id INTEGER,
     employment_status_id INTEGER DEFAULT 1,
@@ -46,7 +46,9 @@ CREATE TABLE teachers (
     FOREIGN KEY (gender_id) REFERENCES genders(id),
     FOREIGN KEY (qualification_id) REFERENCES qualifications(id),
     FOREIGN KEY (employment_status_id) REFERENCES employment_statuses(id),
-    FOREIGN KEY (class_teacher_of_id) REFERENCES classes(id)
+    FOREIGN KEY (class_teacher_of_id) REFERENCES classes(id),
+    FOREIGN KEY (position_id) REFERENCES positions(id),
+    FOREIGN KEY (department_id) REFERENCES departments(id)
 );
 
 -- Create indexes
@@ -55,8 +57,8 @@ CREATE INDEX IF NOT EXISTS idx_teachers_user_id ON teachers(user_id);
 CREATE INDEX IF NOT EXISTS idx_teachers_qualification ON teachers(qualification_id);
 CREATE INDEX IF NOT EXISTS idx_teachers_employment_status ON teachers(employment_status_id);
 CREATE INDEX IF NOT EXISTS idx_teachers_class_teacher_of ON teachers(class_teacher_of_id);
-CREATE INDEX IF NOT EXISTS idx_teachers_department ON teachers(department);
-CREATE INDEX IF NOT EXISTS idx_teachers_position ON teachers(position);
+CREATE INDEX IF NOT EXISTS idx_teachers_department ON teachers(department_id);
+CREATE INDEX IF NOT EXISTS idx_teachers_position ON teachers(position_id);
 CREATE INDEX IF NOT EXISTS idx_teachers_not_deleted ON teachers(is_deleted) WHERE is_deleted = FALSE;
 
 -- Add comments

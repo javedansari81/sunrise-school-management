@@ -62,7 +62,7 @@ LEFT JOIN (
         COUNT(CASE WHEN ps.name = 'PAID' THEN 1 END) as paid_months,
         COUNT(CASE WHEN ps.name = 'PENDING' THEN 1 END) as pending_months,
         COUNT(CASE WHEN ps.name = 'OVERDUE' THEN 1 END) as overdue_months,
-        SUM(mft.monthly_fee_amount) as monthly_total,
+        SUM(mft.monthly_amount) as monthly_total,
         SUM(mft.paid_amount) as monthly_paid,
         SUM(mft.balance_amount) as monthly_balance
     FROM monthly_fee_tracking mft
