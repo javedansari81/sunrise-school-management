@@ -44,8 +44,8 @@ class PaymentStatusEnum(str, Enum):
     # Metadata table ID mappings
     class VALUE:
         PENDING = 1
-        PARTIAL = 2
-        PAID = 3
+        PAID = 2
+        PARTIAL = 3
         OVERDUE = 4
 
     @classmethod
