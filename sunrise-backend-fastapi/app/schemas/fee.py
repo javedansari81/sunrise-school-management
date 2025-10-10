@@ -286,7 +286,7 @@ class FeeRecordWithStudent(FeeRecord):
 class FeePaymentBase(BaseModel):
     fee_record_id: int
     amount: float
-    payment_method: PaymentMethodEnum
+    payment_method_id: int  # Changed from PaymentMethodEnum to int to match database model
     transaction_id: Optional[str] = None
     payment_date: date
     remarks: Optional[str] = None
@@ -298,7 +298,7 @@ class FeePaymentCreate(FeePaymentBase):
 
 class FeePaymentUpdate(BaseModel):
     amount: Optional[float] = None
-    payment_method: Optional[PaymentMethodEnum] = None
+    payment_method_id: Optional[int] = None  # Changed from PaymentMethodEnum to int
     transaction_id: Optional[str] = None
     payment_date: Optional[date] = None
     remarks: Optional[str] = None

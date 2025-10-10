@@ -1835,8 +1835,6 @@ async def pay_monthly_enhanced(
 
     Example: 3200 rs for 1000/month = 3 full months + 200 rs partial for 4th month
     """
-    from datetime import datetime, date
-    import calendar
 
     # Extract payment data
     amount = float(payment_data.get("amount", 0))
@@ -1897,7 +1895,7 @@ async def pay_monthly_enhanced(
             detail="Payment amount must be greater than 0"
         )
 
-    if not payment_method:
+    if not payment_method_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Payment method is required"
@@ -2048,23 +2046,19 @@ async def pay_monthly_enhanced(
     actual_amount_to_process = min(amount, total_allocatable)
 
     # Create the payment record with the actual amount that will be processed
-    payment_data = {
-        "fee_record_id": available_months[0].fee_record_id,
-        "amount": actual_amount_to_process,  # Use actual processable amount
-        "payment_method_id": payment_method_id,  # This should be an integer
-        "payment_date": date.today(),
-        "transaction_id": transaction_id,
-        "remarks": f"Enhanced monthly payment: {remarks}" if remarks else "Enhanced monthly payment"
-    }
+    today_date = date.today()
 
-    # Create the payment record directly using the model
-    from app.models.fee import FeePayment
-    payment_record = FeePayment(**payment_data)
-    db.add(payment_record)
-    await db.flush()  # Get the ID without committing
+    payment_data = FeePaymentCreate(
+        fee_record_id=available_months[0].fee_record_id,
+        amount=actual_amount_to_process,  # Use actual processable amount
+        payment_method_id=payment_method_id,  # Use payment_method_id directly (integer)
+        payment_date=today_date,
+        transaction_id=transaction_id,
+        remarks=f"Enhanced monthly payment: {remarks}" if remarks else "Enhanced monthly payment"
+    )
 
-    # Use the payment_record as our payment object
-    payment = payment_record
+    # Create the payment record using CRUD
+    payment = await fee_payment_crud.create(db, obj_in=payment_data)
 
     # Allocate payment to months using the smart allocation logic
     remaining_amount = actual_amount_to_process  # Use the actual processable amount
