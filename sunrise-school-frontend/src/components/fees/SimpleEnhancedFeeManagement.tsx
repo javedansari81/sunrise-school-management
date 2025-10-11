@@ -52,6 +52,7 @@ import {
   ClassDropdown
 } from '../common/MetadataDropdown';
 import { useAuth } from '../../contexts/AuthContext';
+import { dialogStyles } from '../../styles/dialogTheme';
 import { useServiceConfiguration } from '../../contexts/ConfigurationContext';
 import { enhancedFeesAPI } from '../../services/api';
 import { configurationService } from '../../services/configurationService';
@@ -635,6 +636,30 @@ const SimpleEnhancedFeeManagement: React.FC = () => {
 
   return (
     <Box sx={{ p: 3 }}>
+      {/* Header Section */}
+      <Box sx={{ mb: { xs: 2, sm: 3 } }}>
+        <Typography
+          variant="h4"
+          component="h1"
+          fontWeight="bold"
+          sx={{
+            fontSize: { xs: '1.5rem', sm: '2rem', md: '2.125rem' }
+          }}
+        >
+          Fee Management System
+        </Typography>
+        <Typography
+          variant="body2"
+          color="text.secondary"
+          sx={{
+            mt: 0.5,
+            fontSize: { xs: '0.875rem', sm: '1rem' }
+          }}
+        >
+          Manage student fees, payments, and monthly tracking
+        </Typography>
+      </Box>
+
       {/* Filters - Mobile Responsive */}
       <Paper sx={{ p: { xs: 1.5, sm: 2 }, mb: { xs: 2, sm: 3 } }}>
         <Stack
@@ -929,22 +954,48 @@ const SimpleEnhancedFeeManagement: React.FC = () => {
       <Dialog
         open={enableTrackingDialog}
         onClose={() => setEnableTrackingDialog(false)}
+        maxWidth="sm"
+        fullWidth
+        slotProps={{
+          paper: {
+            sx: dialogStyles.paper
+          }
+        }}
       >
-        <DialogTitle>Enable Monthly Tracking</DialogTitle>
-        <DialogContent>
-          <Typography>
-            Enable monthly fee tracking for {selectedStudentIds.length} selected students?
+        <DialogTitle sx={dialogStyles.title}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Settings sx={{ fontSize: 28 }} />
+            <Typography sx={dialogStyles.titleText}>Enable Monthly Tracking</Typography>
+          </Box>
+          <IconButton
+            onClick={() => setEnableTrackingDialog(false)}
+            sx={dialogStyles.closeButton}
+          >
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent sx={dialogStyles.content}>
+          <Typography variant="body1" sx={{ lineHeight: 1.6 }}>
+            Enable monthly fee tracking for <strong>{selectedStudentIds.length}</strong> selected students?
             This will create month-wise fee records for better payment tracking.
           </Typography>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setEnableTrackingDialog(false)}>Cancel</Button>
+        <DialogActions sx={dialogStyles.actions}>
+          <Button
+            onClick={() => setEnableTrackingDialog(false)}
+            variant="outlined"
+            sx={dialogStyles.secondaryButton}
+          >
+            Cancel
+          </Button>
           <Button
             onClick={enableMonthlyTracking}
             variant="contained"
             disabled={loading}
+            startIcon={loading ? <CircularProgress size={20} /> : <Settings />}
+            sx={dialogStyles.primaryButton}
           >
-            {loading ? <CircularProgress size={20} /> : 'Enable Tracking'}
+            {loading ? 'Enabling...' : 'Enable Tracking'}
           </Button>
         </DialogActions>
       </Dialog>
@@ -955,58 +1006,38 @@ const SimpleEnhancedFeeManagement: React.FC = () => {
         onClose={() => setDialogOpen(false)}
         maxWidth="md"
         fullWidth
-        PaperProps={{
-          sx: {
-            borderRadius: 2,
-            boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
-            m: { xs: 1, sm: 2 },
-            maxHeight: { xs: '95vh', sm: '90vh' }
+        slotProps={{
+          paper: {
+            sx: dialogStyles.paper
           }
         }}
       >
-        <DialogTitle sx={{
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-          color: 'white',
-          py: { xs: 1.5, sm: 2 },
-          px: { xs: 2, sm: 3 }
-        }}>
-          <Box display="flex" justifyContent="space-between" alignItems="center">
+        <DialogTitle sx={dialogStyles.title}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <History sx={{ fontSize: 28 }} />
             <Box>
-              <Typography
-                variant="h5"
-                fontWeight="bold"
-                sx={{
-                  fontSize: { xs: '1.25rem', sm: '1.5rem' }
-                }}
-              >
+              <Typography sx={dialogStyles.titleText}>
                 Monthly Fee History
               </Typography>
               <Typography
-                variant="subtitle1"
+                variant="subtitle2"
                 sx={{
                   opacity: 0.9,
-                  mt: 0.5,
                   fontSize: { xs: '0.875rem', sm: '1rem' }
                 }}
               >
                 {selectedStudent?.student_name} • {getClassDisplayName(selectedStudent?.class_name || '')}
               </Typography>
             </Box>
-            <IconButton
-              onClick={() => setDialogOpen(false)}
-              size="medium"
-              sx={{
-                color: 'white',
-                '&:hover': { backgroundColor: 'rgba(255,255,255,0.1)' },
-                width: { xs: 32, sm: 40 },
-                height: { xs: 32, sm: 40 }
-              }}
-            >
-              <CloseIcon />
-            </IconButton>
           </Box>
+          <IconButton
+            onClick={() => setDialogOpen(false)}
+            sx={dialogStyles.closeButton}
+          >
+            <CloseIcon />
+          </IconButton>
         </DialogTitle>
-        <DialogContent sx={{ p: 0 }}>
+        <DialogContent sx={{ ...dialogStyles.content, p: 0 }}>
           {dialogLoading ? (
             <Box display="flex" flexDirection="column" justifyContent="center" alignItems="center" minHeight="300px">
               <CircularProgress size={48} />
@@ -1136,24 +1167,11 @@ const SimpleEnhancedFeeManagement: React.FC = () => {
             </Box>
           )}
         </DialogContent>
-        <DialogActions sx={{
-          p: { xs: 2, sm: 3 },
-          bgcolor: 'grey.50',
-          borderTop: '1px solid #e0e0e0',
-          justifyContent: 'center'
-        }}>
+        <DialogActions sx={dialogStyles.actions}>
           <Button
             onClick={() => setDialogOpen(false)}
             variant="contained"
-            size="large"
-            sx={{
-              minWidth: { xs: 100, sm: 120 },
-              borderRadius: 2,
-              textTransform: 'none',
-              fontWeight: 'bold',
-              fontSize: { xs: '0.875rem', sm: '1rem' },
-              py: { xs: 1, sm: 1.5 }
-            }}
+            sx={dialogStyles.primaryButton}
           >
             Close
           </Button>
@@ -1166,39 +1184,38 @@ const SimpleEnhancedFeeManagement: React.FC = () => {
         onClose={() => setPaymentHistoryDialogOpen(false)}
         maxWidth="lg"
         fullWidth
-        PaperProps={{
-          sx: {
-            borderRadius: 2,
-            boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
+        slotProps={{
+          paper: {
+            sx: dialogStyles.paper
           }
         }}
       >
-        <DialogTitle sx={{
-          background: 'linear-gradient(135deg, #4caf50 0%, #2e7d32 100%)',
-          color: 'white',
-          py: 2
-        }}>
-          <Box display="flex" justifyContent="space-between" alignItems="center">
+        <DialogTitle sx={dialogStyles.title}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Payment sx={{ fontSize: 28 }} />
             <Box>
-              <Typography variant="h5" fontWeight="bold">
+              <Typography sx={dialogStyles.titleText}>
                 Payment History
               </Typography>
-              <Typography variant="subtitle1" sx={{ opacity: 0.9, mt: 0.5 }}>
+              <Typography
+                variant="subtitle2"
+                sx={{
+                  opacity: 0.9,
+                  fontSize: { xs: '0.875rem', sm: '1rem' }
+                }}
+              >
                 {paymentHistory?.student_name} • {getClassDisplayName(paymentHistory?.class || '')} • {paymentHistory?.session_year}
               </Typography>
             </Box>
-            <IconButton
-              onClick={() => setPaymentHistoryDialogOpen(false)}
-              sx={{
-                color: 'white',
-                '&:hover': { backgroundColor: 'rgba(255,255,255,0.1)' }
-              }}
-            >
-              <CloseIcon />
-            </IconButton>
           </Box>
+          <IconButton
+            onClick={() => setPaymentHistoryDialogOpen(false)}
+            sx={dialogStyles.closeButton}
+          >
+            <CloseIcon />
+          </IconButton>
         </DialogTitle>
-        <DialogContent sx={{ p: 0 }}>
+        <DialogContent sx={{ ...dialogStyles.content, p: 0 }}>
           {paymentHistoryLoading ? (
             <Box display="flex" flexDirection="column" justifyContent="center" alignItems="center" minHeight="300px">
               <CircularProgress size={48} />
@@ -1374,22 +1391,11 @@ const SimpleEnhancedFeeManagement: React.FC = () => {
             </Box>
           )}
         </DialogContent>
-        <DialogActions sx={{
-          p: 3,
-          bgcolor: 'grey.50',
-          borderTop: '1px solid #e0e0e0',
-          justifyContent: 'center'
-        }}>
+        <DialogActions sx={dialogStyles.actions}>
           <Button
             onClick={() => setPaymentHistoryDialogOpen(false)}
             variant="contained"
-            size="large"
-            sx={{
-              minWidth: 120,
-              borderRadius: 2,
-              textTransform: 'none',
-              fontWeight: 'bold'
-            }}
+            sx={dialogStyles.primaryButton}
           >
             Close
           </Button>
@@ -1402,39 +1408,38 @@ const SimpleEnhancedFeeManagement: React.FC = () => {
         onClose={() => setPaymentDialogOpen(false)}
         maxWidth="md"
         fullWidth
-        PaperProps={{
-          sx: {
-            borderRadius: 2,
-            boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
+        slotProps={{
+          paper: {
+            sx: dialogStyles.paper
           }
         }}
       >
-        <DialogTitle sx={{
-          background: 'linear-gradient(135deg, #2196f3 0%, #1976d2 100%)',
-          color: 'white',
-          py: 2
-        }}>
-          <Box display="flex" justifyContent="space-between" alignItems="center">
+        <DialogTitle sx={dialogStyles.title}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <AccountBalance sx={{ fontSize: 28 }} />
             <Box>
-              <Typography variant="h5" fontWeight="bold">
+              <Typography sx={dialogStyles.titleText}>
                 Make Payment
               </Typography>
-              <Typography variant="subtitle1" sx={{ opacity: 0.9, mt: 0.5 }}>
+              <Typography
+                variant="subtitle2"
+                sx={{
+                  opacity: 0.9,
+                  fontSize: { xs: '0.875rem', sm: '1rem' }
+                }}
+              >
                 {availableMonthsData?.student.name} • {getClassDisplayName(availableMonthsData?.student.class || '')}
               </Typography>
             </Box>
-            <IconButton
-              onClick={() => setPaymentDialogOpen(false)}
-              sx={{
-                color: 'white',
-                '&:hover': { backgroundColor: 'rgba(255,255,255,0.1)' }
-              }}
-            >
-              <CloseIcon />
-            </IconButton>
           </Box>
+          <IconButton
+            onClick={() => setPaymentDialogOpen(false)}
+            sx={dialogStyles.closeButton}
+          >
+            <CloseIcon />
+          </IconButton>
         </DialogTitle>
-        <DialogContent sx={{ p: 3 }}>
+        <DialogContent sx={dialogStyles.content}>
           {paymentLoading ? (
             <Box display="flex" flexDirection="column" justifyContent="center" alignItems="center" minHeight="200px">
               <CircularProgress size={48} />
@@ -1597,30 +1602,24 @@ const SimpleEnhancedFeeManagement: React.FC = () => {
             </Box>
           )}
         </DialogContent>
-        <DialogActions sx={{ p: 3, bgcolor: 'grey.50', borderTop: '1px solid #e0e0e0' }}>
+        <DialogActions sx={dialogStyles.actions}>
           <Button
             onClick={() => setPaymentDialogOpen(false)}
             variant="outlined"
-            size="large"
+            sx={dialogStyles.secondaryButton}
           >
             Cancel
           </Button>
           <Button
             onClick={makePayment}
             variant="contained"
-            size="large"
             disabled={(() => {
               const selectedMethod = getPaymentMethods().find(m => m.id === paymentForm.paymentMethodId);
               const isTransactionIdRequired = selectedMethod?.requires_reference && !paymentForm.transactionId.trim();
               return paymentLoading || !paymentForm.amount || paymentForm.selectedMonths.length === 0 || isTransactionIdRequired;
             })()}
             startIcon={paymentLoading ? <CircularProgress size={20} /> : <AccountBalance />}
-            sx={{
-              minWidth: 140,
-              borderRadius: 2,
-              textTransform: 'none',
-              fontWeight: 'bold'
-            }}
+            sx={dialogStyles.primaryButton}
           >
             {paymentLoading ? 'Processing...' : 'Make Payment'}
           </Button>
