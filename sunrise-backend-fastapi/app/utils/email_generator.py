@@ -39,16 +39,17 @@ def format_date_for_email(birth_date: date) -> str:
     """
     Format date of birth for email generation.
 
-    Format: MMYYYY (e.g., 031995 for March 1995)
+    Format: DDMM (e.g., 1503 for 15th March)
     """
-    return birth_date.strftime("%m%Y")
+    return birth_date.strftime("%d%m")
 
 
 def generate_base_email(first_name: str, last_name: str, date_of_birth: date, user_type: str = "student") -> str:
     """
     Generate base email address format.
 
-    Format: {firstname}.{lastname}.{MMYYYY}@sunrise.com
+    Format: {firstname}.{lastname}.{DDMM}@sunrise.com
+    Example: john.smith.1503@sunrise.com for John Smith born on 15th March
 
     Args:
         first_name: User's first name
@@ -173,8 +174,8 @@ def validate_generated_email(email: str) -> bool:
     Returns:
         True if email follows the generated format, False otherwise
     """
-    # Pattern: firstname.lastname.mmyyyy[@.number]@sunrise.com
-    pattern = r'^[a-z]+\.[a-z]+\.\d{6}(?:\.\d+)?@sunrise\.com$'
+    # Pattern: firstname.lastname.ddmm[@.number]@sunrise.com
+    pattern = r'^[a-z]+\.[a-z]+\.\d{4}(?:\.\d+)?@sunrise\.com$'
 
     return bool(re.match(pattern, email))
 
@@ -182,42 +183,45 @@ def validate_generated_email(email: str) -> bool:
 def extract_info_from_generated_email(email: str) -> Optional[dict]:
     """
     Extract information from a generated email address.
-    
+
     Args:
         email: Generated email address
-    
+
     Returns:
         Dictionary with extracted info or None if not a generated email
     """
     if not validate_generated_email(email):
         return None
-    
+
     # Remove domain
     local_part = email.split('@')[0]
-    
+
     # Split by dots
     parts = local_part.split('.')
-    
+
     if len(parts) < 3:
         return None
-    
+
     first_name = parts[0]
     last_name = parts[1]
     date_part = parts[2]
     suffix = parts[3] if len(parts) > 3 else None
 
-    # Parse date (MMYYYY)
-    if len(date_part) != 6:
+    # Parse date (DDMM)
+    if len(date_part) != 4:
         return None
 
     try:
-        month = int(date_part[:2])
-        year = int(date_part[2:6])
-        # Use day 1 as we only have month and year
-        birth_date = date(year, month, 1)
+        day = int(date_part[:2])
+        month = int(date_part[2:4])
+        # Use current year as we only have day and month
+        # This is primarily for validation purposes
+        from datetime import datetime
+        current_year = datetime.now().year
+        birth_date = date(current_year, month, day)
     except (ValueError, TypeError):
         return None
-    
+
     return {
         'first_name': first_name,
         'last_name': last_name,

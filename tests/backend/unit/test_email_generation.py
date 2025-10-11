@@ -47,57 +47,63 @@ class TestEmailGeneration:
     def test_format_date_for_email(self):
         """Test date formatting for email"""
         test_date = date(1995, 3, 15)
-        assert format_date_for_email(test_date) == "15031995"
-        
+        assert format_date_for_email(test_date) == "1503"
+
         test_date2 = date(2000, 12, 31)
-        assert format_date_for_email(test_date2) == "31122000"
-        
+        assert format_date_for_email(test_date2) == "3112"
+
         test_date3 = date(1985, 1, 1)
-        assert format_date_for_email(test_date3) == "01011985"
+        assert format_date_for_email(test_date3) == "0101"
     
     def test_generate_base_email(self):
         """Test base email generation"""
         email = generate_base_email("John", "Smith", date(1995, 3, 15))
-        assert email == "john.smith.15031995@sunriseschool.edu"
-        
+        assert email == "john.smith.1503@sunrise.com"
+
         email2 = generate_base_email("Mary Jane", "O'Connor", date(2000, 12, 31))
-        assert email2 == "maryjane.oconnor.31122000@sunriseschool.edu"
-        
+        assert email2 == "maryjane.oconnor.3112@sunrise.com"
+
         email3 = generate_base_email("José", "García", date(1985, 1, 1))
-        assert email3 == "jos.garca.01011985@sunriseschool.edu"
+        assert email3 == "jos.garca.0101@sunrise.com"
     
     def test_validate_generated_email(self):
         """Test email validation"""
         # Valid emails
-        assert validate_generated_email("john.smith.15031995@sunriseschool.edu") == True
-        assert validate_generated_email("mary.jane.31122000@sunriseschool.edu") == True
-        assert validate_generated_email("john.smith.15031995.2@sunriseschool.edu") == True
-        assert validate_generated_email("a.b.01011985@sunriseschool.edu") == True
-        
+        assert validate_generated_email("john.smith.1503@sunrise.com") == True
+        assert validate_generated_email("mary.jane.3112@sunrise.com") == True
+        assert validate_generated_email("john.smith.1503.2@sunrise.com") == True
+        assert validate_generated_email("a.b.0101@sunrise.com") == True
+
         # Invalid emails
-        assert validate_generated_email("john.smith@sunriseschool.edu") == False  # Missing date
-        assert validate_generated_email("john.smith.1995@sunriseschool.edu") == False  # Wrong date format
-        assert validate_generated_email("john.smith.15031995@gmail.com") == False  # Wrong domain
-        assert validate_generated_email("john@sunriseschool.edu") == False  # Missing lastname and date
-        assert validate_generated_email("john.smith.15031995@sunriseschool.com") == False  # Wrong TLD
+        assert validate_generated_email("john.smith@sunrise.com") == False  # Missing date
+        assert validate_generated_email("john.smith.95@sunrise.com") == False  # Wrong date format
+        assert validate_generated_email("john.smith.1503@gmail.com") == False  # Wrong domain
+        assert validate_generated_email("john@sunrise.com") == False  # Missing lastname and date
+        assert validate_generated_email("john.smith.15031995@sunrise.com") == False  # Old format (6 digits)
     
     def test_extract_info_from_generated_email(self):
         """Test extracting information from generated emails"""
-        info = extract_info_from_generated_email("john.smith.15031995@sunriseschool.edu")
+        from datetime import datetime
+        current_year = datetime.now().year
+
+        info = extract_info_from_generated_email("john.smith.1503@sunrise.com")
         assert info is not None
         assert info['first_name'] == 'john'
         assert info['last_name'] == 'smith'
-        assert info['date_of_birth'] == date(1995, 3, 15)
+        # Note: Year will be current year since we only store DDMM
+        assert info['date_of_birth'].day == 15
+        assert info['date_of_birth'].month == 3
         assert info['suffix'] is None
         assert info['is_generated'] == True
-        
-        info2 = extract_info_from_generated_email("mary.jane.31122000.2@sunriseschool.edu")
+
+        info2 = extract_info_from_generated_email("mary.jane.3112.2@sunrise.com")
         assert info2 is not None
         assert info2['first_name'] == 'mary'
         assert info2['last_name'] == 'jane'
-        assert info2['date_of_birth'] == date(2000, 12, 31)
+        assert info2['date_of_birth'].day == 31
+        assert info2['date_of_birth'].month == 12
         assert info2['suffix'] == '2'
-        
+
         # Invalid email
         info3 = extract_info_from_generated_email("invalid@email.com")
         assert info3 is None
@@ -117,8 +123,8 @@ async def test_email_generation_integration():
             )
             print(f"Generated student email: {student_email}")
             assert validate_generated_email(student_email)
-            assert "test.student.15031995" in student_email
-            
+            assert "test.student.1503" in student_email
+
             # Test teacher email generation
             print("\n👨‍🏫 Testing teacher email generation...")
             teacher_email = await generate_teacher_email(
@@ -126,11 +132,11 @@ async def test_email_generation_integration():
             )
             print(f"Generated teacher email: {teacher_email}")
             assert validate_generated_email(teacher_email)
-            assert "test.teacher.25121985" in teacher_email
-            
+            assert "test.teacher.2512" in teacher_email
+
             # Test uniqueness - create a user with the base email
             print("\n🔄 Testing email uniqueness...")
-            base_email = "duplicate.test.01011990@sunriseschool.edu"
+            base_email = "duplicate.test.0101@sunrise.com"
             
             # Create a user with this email
             existing_user = User(
@@ -153,26 +159,26 @@ async def test_email_generation_integration():
             )
             print(f"Generated unique email: {unique_email}")
             assert unique_email != base_email
-            assert "duplicate.test.01011990.2@sunriseschool.edu" == unique_email
-            
+            assert "duplicate.test.0101.2@sunrise.com" == unique_email
+
             # Test edge cases
             print("\n🔍 Testing edge cases...")
-            
+
             # Names with special characters
             special_email = await generate_student_email(
                 db, "José María", "García-López", date(2000, 6, 15)
             )
             print(f"Special characters email: {special_email}")
             assert validate_generated_email(special_email)
-            assert "josmara.garcalopez.15062000" in special_email
-            
+            assert "josmara.garcalopez.1506" in special_email
+
             # Very long names
             long_email = await generate_teacher_email(
                 db, "VeryLongFirstName", "VeryLongLastName", date(1975, 11, 30)
             )
             print(f"Long names email: {long_email}")
             assert validate_generated_email(long_email)
-            assert "verylongfirstname.verylonglastname.30111975" in long_email
+            assert "verylongfirstname.verylonglastname.3011" in long_email
             
             print("\n✅ All email generation tests passed!")
             return True
@@ -236,10 +242,10 @@ async def test_student_creation_with_email_generation():
             print(f"   User ID: {student.user_id}")
             
             # Verify email was generated correctly
-            expected_email_base = "autoemail.teststudent.20052010@sunriseschool.edu"
+            expected_email_base = "autoemail.teststudent.2005@sunrise.com"
             assert student.email is not None
             assert validate_generated_email(student.email)
-            assert "autoemail.teststudent.20052010" in student.email
+            assert "autoemail.teststudent.2005" in student.email
             
             # Verify user account was created and linked
             assert student.user_id is not None
