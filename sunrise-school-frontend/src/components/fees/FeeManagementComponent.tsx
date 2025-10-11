@@ -165,7 +165,7 @@ const FeeManagementComponent: React.FC = () => {
   const [selectedStudent, setSelectedStudent] = useState<StudentMonthlyFeeHistory | null>(null);
   const [paymentHistory, setPaymentHistory] = useState<any>(null);
   const [filters, setFilters] = useState({
-    session_year_id: '',
+    session_year_id: DEFAULT_SESSION_YEAR_ID, // Default to 2025-26
     class_id: 'all',
     search: '',
   });
@@ -173,6 +173,8 @@ const FeeManagementComponent: React.FC = () => {
   const [paymentHistoryDialogOpen, setPaymentHistoryDialogOpen] = useState(false);
   const [enableTrackingDialog, setEnableTrackingDialog] = useState(false);
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+  const [monthlyTrackingWarningDialog, setMonthlyTrackingWarningDialog] = useState(false);
+  const [selectedStudentForWarning, setSelectedStudentForWarning] = useState<EnhancedStudentFeeSummary | null>(null);
   const [selectedStudentIds, setSelectedStudentIds] = useState<number[]>([]);
   const [availableMonthsData, setAvailableMonthsData] = useState<AvailableMonthsData | null>(null);
   const [paymentForm, setPaymentForm] = useState({
@@ -293,6 +295,12 @@ const FeeManagementComponent: React.FC = () => {
       return;
     }
 
+    // Check if monthly tracking is enabled
+    const student = students.find(s => s.student_id === studentId);
+    if (student && !checkMonthlyTrackingEnabled(student)) {
+      return;
+    }
+
     // Set loading state for this specific student
     setLoadingStates(prev => ({
       ...prev,
@@ -351,6 +359,25 @@ const FeeManagementComponent: React.FC = () => {
     }
   };
 
+  // Check if monthly tracking is enabled for a student
+  const checkMonthlyTrackingEnabled = (student: EnhancedStudentFeeSummary): boolean => {
+    if (!student.has_monthly_tracking) {
+      setSelectedStudentForWarning(student);
+      setMonthlyTrackingWarningDialog(true);
+      return false;
+    }
+    return true;
+  };
+
+  // Handle enabling monthly tracking from warning dialog
+  const handleEnableTrackingFromWarning = () => {
+    if (selectedStudentForWarning) {
+      setMonthlyTrackingWarningDialog(false);
+      setSelectedStudentIds([selectedStudentForWarning.student_id]);
+      setEnableTrackingDialog(true);
+    }
+  };
+
   // Fetch payment history for a student
   const fetchPaymentHistory = async (studentId: number) => {
     if (!filters.session_year_id) {
@@ -359,6 +386,12 @@ const FeeManagementComponent: React.FC = () => {
         message: 'Please select a session year first',
         severity: 'warning'
       });
+      return;
+    }
+
+    // Check if monthly tracking is enabled
+    const student = students.find(s => s.student_id === studentId);
+    if (student && !checkMonthlyTrackingEnabled(student)) {
       return;
     }
 
@@ -426,6 +459,12 @@ const FeeManagementComponent: React.FC = () => {
         message: 'Please select a session year first',
         severity: 'warning'
       });
+      return;
+    }
+
+    // Check if monthly tracking is enabled
+    const student = students.find(s => s.student_id === studentId);
+    if (student && !checkMonthlyTrackingEnabled(student)) {
       return;
     }
 
@@ -855,8 +894,25 @@ const FeeManagementComponent: React.FC = () => {
                       ) : (
                         <Chip
                           size="small"
-                          label={student.total_balance && student.total_balance > 0 ? 'Pending' : 'Paid'}
-                          color={student.total_balance && student.total_balance > 0 ? 'warning' : 'success'}
+                          label={
+                            // Show "Paid" only if:
+                            // 1. There's a payment made (total_paid > 0) AND
+                            // 2. Balance is 0 or null AND
+                            // 3. Annual fee exists (not 0 or null)
+                            // Otherwise show "Pending"
+                            (student.total_paid && student.total_paid > 0 &&
+                             (!student.total_balance || student.total_balance === 0) &&
+                             student.annual_fee && student.annual_fee > 0)
+                              ? 'Paid'
+                              : 'Pending'
+                          }
+                          color={
+                            (student.total_paid && student.total_paid > 0 &&
+                             (!student.total_balance || student.total_balance === 0) &&
+                             student.annual_fee && student.annual_fee > 0)
+                              ? 'success'
+                              : 'warning'
+                          }
                         />
                       )}
                     </TableCell>
@@ -870,65 +926,71 @@ const FeeManagementComponent: React.FC = () => {
                     </TableCell>
                     <TableCell>
                       <Stack direction="row" spacing={1}>
-                        <Tooltip title="Make Payment">
-                          <IconButton
-                            size="small"
-                            onClick={() => fetchAvailableMonths(student.student_id)}
-                            disabled={loadingStates.payment[student.student_id] || paymentLoading}
-                            color={loadingStates.payment[student.student_id] ? "secondary" : "primary"}
-                            sx={{
-                              opacity: loadingStates.payment[student.student_id] ? 0.6 : 1,
-                              '&.Mui-disabled': {
-                                opacity: loadingStates.payment[student.student_id] ? 0.6 : 0.3
-                              }
-                            }}
-                          >
-                            {loadingStates.payment[student.student_id] ? (
-                              <CircularProgress size={16} />
-                            ) : (
-                              <Payment />
-                            )}
-                          </IconButton>
+                        <Tooltip title={student.has_monthly_tracking ? "Make Payment" : "Enable monthly tracking to make payment"}>
+                          <span>
+                            <IconButton
+                              size="small"
+                              onClick={() => fetchAvailableMonths(student.student_id)}
+                              disabled={!student.has_monthly_tracking || loadingStates.payment[student.student_id] || paymentLoading}
+                              color={loadingStates.payment[student.student_id] ? "secondary" : "primary"}
+                              sx={{
+                                opacity: (!student.has_monthly_tracking || loadingStates.payment[student.student_id]) ? 0.4 : 1,
+                                '&.Mui-disabled': {
+                                  opacity: loadingStates.payment[student.student_id] ? 0.6 : 0.3
+                                }
+                              }}
+                            >
+                              {loadingStates.payment[student.student_id] ? (
+                                <CircularProgress size={16} />
+                              ) : (
+                                <Payment />
+                              )}
+                            </IconButton>
+                          </span>
                         </Tooltip>
-                        <Tooltip title="View Details">
-                          <IconButton
-                            size="small"
-                            onClick={() => fetchStudentMonthlyHistory(student.student_id)}
-                            disabled={loadingStates.monthlyHistory[student.student_id]}
-                            color={loadingStates.monthlyHistory[student.student_id] ? "secondary" : "default"}
-                            sx={{
-                              opacity: loadingStates.monthlyHistory[student.student_id] ? 0.6 : 1,
-                              '&.Mui-disabled': {
-                                opacity: loadingStates.monthlyHistory[student.student_id] ? 0.6 : 0.3
-                              }
-                            }}
-                          >
-                            {loadingStates.monthlyHistory[student.student_id] ? (
-                              <CircularProgress size={16} />
-                            ) : (
-                              <Visibility />
-                            )}
-                          </IconButton>
+                        <Tooltip title={student.has_monthly_tracking ? "View Details" : "Enable monthly tracking to view details"}>
+                          <span>
+                            <IconButton
+                              size="small"
+                              onClick={() => fetchStudentMonthlyHistory(student.student_id)}
+                              disabled={!student.has_monthly_tracking || loadingStates.monthlyHistory[student.student_id]}
+                              color={loadingStates.monthlyHistory[student.student_id] ? "secondary" : "default"}
+                              sx={{
+                                opacity: (!student.has_monthly_tracking || loadingStates.monthlyHistory[student.student_id]) ? 0.4 : 1,
+                                '&.Mui-disabled': {
+                                  opacity: loadingStates.monthlyHistory[student.student_id] ? 0.6 : 0.3
+                                }
+                              }}
+                            >
+                              {loadingStates.monthlyHistory[student.student_id] ? (
+                                <CircularProgress size={16} />
+                              ) : (
+                                <Visibility />
+                              )}
+                            </IconButton>
+                          </span>
                         </Tooltip>
-                        <Tooltip title="Payment History">
-                          <IconButton
-                            size="small"
-                            onClick={() => fetchPaymentHistory(student.student_id)}
-                            disabled={loadingStates.paymentHistory[student.student_id] || paymentHistoryLoading}
-                            color={loadingStates.paymentHistory[student.student_id] ? "secondary" : "default"}
-                            sx={{
-                              opacity: loadingStates.paymentHistory[student.student_id] ? 0.6 : 1,
-                              '&.Mui-disabled': {
-                                opacity: loadingStates.paymentHistory[student.student_id] ? 0.6 : 0.3
-                              }
-                            }}
-                          >
-                            {loadingStates.paymentHistory[student.student_id] ? (
-                              <CircularProgress size={16} />
-                            ) : (
-                              <History />
-                            )}
-                          </IconButton>
+                        <Tooltip title={student.has_monthly_tracking ? "Payment History" : "Enable monthly tracking to view payment history"}>
+                          <span>
+                            <IconButton
+                              size="small"
+                              onClick={() => fetchPaymentHistory(student.student_id)}
+                              disabled={!student.has_monthly_tracking || loadingStates.paymentHistory[student.student_id] || paymentHistoryLoading}
+                              color={loadingStates.paymentHistory[student.student_id] ? "secondary" : "default"}
+                              sx={{
+                                opacity: (!student.has_monthly_tracking || loadingStates.paymentHistory[student.student_id]) ? 0.4 : 1,
+                                '&.Mui-disabled': {
+                                  opacity: loadingStates.paymentHistory[student.student_id] ? 0.6 : 0.3
+                                }
+                              }}
+                            >
+                              {loadingStates.paymentHistory[student.student_id] ? (
+                                <CircularProgress size={16} />
+                              ) : (
+                                <History />
+                              )}
+                            </IconButton>
+                          </span>
                         </Tooltip>
                       </Stack>
                     </TableCell>
@@ -1612,6 +1674,64 @@ const FeeManagementComponent: React.FC = () => {
             sx={dialogStyles.primaryButton}
           >
             {paymentLoading ? 'Processing...' : 'Make Payment'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Monthly Tracking Warning Dialog */}
+      <Dialog
+        open={monthlyTrackingWarningDialog}
+        onClose={() => setMonthlyTrackingWarningDialog(false)}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{ sx: dialogStyles.paper }}
+      >
+        <DialogTitle sx={dialogStyles.title}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Warning color="warning" />
+            <Typography variant="h6">Monthly Tracking Required</Typography>
+          </Box>
+        </DialogTitle>
+        <DialogContent sx={dialogStyles.content}>
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            Monthly tracking is currently disabled for this student.
+          </Alert>
+          <Typography variant="body1" sx={{ mb: 2 }}>
+            Please enable monthly tracking for <strong>{selectedStudentForWarning?.student_name}</strong> ({selectedStudentForWarning?.admission_number}) before making payments or viewing fee details.
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Monthly tracking allows you to:
+          </Typography>
+          <Box component="ul" sx={{ mt: 1, pl: 2 }}>
+            <Typography component="li" variant="body2" color="text.secondary">
+              Track month-by-month fee payments
+            </Typography>
+            <Typography component="li" variant="body2" color="text.secondary">
+              View detailed payment history
+            </Typography>
+            <Typography component="li" variant="body2" color="text.secondary">
+              Make payments for specific months
+            </Typography>
+            <Typography component="li" variant="body2" color="text.secondary">
+              Monitor overdue and pending fees
+            </Typography>
+          </Box>
+        </DialogContent>
+        <DialogActions sx={dialogStyles.actions}>
+          <Button
+            onClick={() => setMonthlyTrackingWarningDialog(false)}
+            variant="outlined"
+            sx={dialogStyles.secondaryButton}
+          >
+            Close
+          </Button>
+          <Button
+            onClick={handleEnableTrackingFromWarning}
+            variant="contained"
+            startIcon={<Settings />}
+            sx={dialogStyles.primaryButton}
+          >
+            Enable Monthly Tracking
           </Button>
         </DialogActions>
       </Dialog>
