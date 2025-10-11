@@ -116,18 +116,6 @@ const AdminDashboard: React.FC = () => {
         >
           Dashboard Overview
         </Typography>
-        <Typography
-          variant="body1"
-          color="textSecondary"
-          sx={{
-            mb: { xs: 2, sm: 3 },
-            fontSize: { xs: '0.875rem', sm: '1rem' }
-          }}
-        >
-          School operations summary and key metrics
-        </Typography>
-
-        {/* Dashboard Cards - Mobile Responsive Grid */}
         <Box
           sx={{
             display: 'grid',

@@ -147,7 +147,7 @@ interface AvailableMonthsData {
   };
 }
 
-const SimpleEnhancedFeeManagement: React.FC = () => {
+const FeeManagementComponent: React.FC = () => {
   const { isAuthenticated, user } = useAuth();
   const { isLoaded: configLoaded } = useServiceConfiguration('fee-management');
 
@@ -647,16 +647,6 @@ const SimpleEnhancedFeeManagement: React.FC = () => {
           }}
         >
           Fee Management System
-        </Typography>
-        <Typography
-          variant="body2"
-          color="text.secondary"
-          sx={{
-            mt: 0.5,
-            fontSize: { xs: '0.875rem', sm: '1rem' }
-          }}
-        >
-          Manage student fees, payments, and monthly tracking
         </Typography>
       </Box>
 
@@ -1643,4 +1633,4 @@ const SimpleEnhancedFeeManagement: React.FC = () => {
   );
 };
 
-export default SimpleEnhancedFeeManagement;
+export default FeeManagementComponent;

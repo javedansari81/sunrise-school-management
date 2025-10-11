@@ -1,13 +1,13 @@
 import React from 'react';
 import AdminLayout from '../../components/Layout/AdminLayout';
-import SimpleEnhancedFeeManagement from '../../components/fees/SimpleEnhancedFeeManagement';
+import FeeManagementComponent from '../../components/fees/FeeManagementComponent';
 import ServiceConfigurationLoader from '../../components/common/ServiceConfigurationLoader';
 
 const FeesManagement: React.FC = () => {
   return (
     <AdminLayout>
       <ServiceConfigurationLoader service="fee-management">
-        <SimpleEnhancedFeeManagement />
+        <FeeManagementComponent />
       </ServiceConfigurationLoader>
     </AdminLayout>
   );
