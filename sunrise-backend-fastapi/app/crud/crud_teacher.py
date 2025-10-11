@@ -67,10 +67,15 @@ class CRUDTeacher(CRUDBase[Teacher, TeacherCreate, TeacherUpdate]):
             SELECT
                 t.*,
                 g.name as gender_name,
+                g.description as gender_description,
                 d.name as department_name,
+                d.description as department_description,
                 p.name as position_name,
+                p.description as position_description,
                 q.name as qualification_name,
+                q.description as qualification_description,
                 es.name as employment_status_name,
+                es.description as employment_status_description,
                 c.name as class_teacher_of_name
             FROM teachers t
             LEFT JOIN genders g ON t.gender_id = g.id
@@ -155,10 +160,15 @@ class CRUDTeacher(CRUDBase[Teacher, TeacherCreate, TeacherUpdate]):
             SELECT
                 t.*,
                 g.name as gender_name,
+                g.description as gender_description,
                 d.name as department_name,
+                d.description as department_description,
                 p.name as position_name,
+                p.description as position_description,
                 q.name as qualification_name,
+                q.description as qualification_description,
                 es.name as employment_status_name,
+                es.description as employment_status_description,
                 c.name as class_teacher_of_name
             FROM teachers t
             LEFT JOIN genders g ON t.gender_id = g.id

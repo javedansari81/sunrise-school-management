@@ -242,10 +242,15 @@ class TeacherInDBBase(TeacherBase):
 class Teacher(TeacherInDBBase):
     # Computed fields for API responses
     gender_name: Optional[str] = Field(None, description="Resolved gender name")
+    gender_description: Optional[str] = Field(None, description="Resolved gender description")
     department_name: Optional[str] = Field(None, description="Resolved department name")
+    department_description: Optional[str] = Field(None, description="Resolved department description")
     position_name: Optional[str] = Field(None, description="Resolved position name")
+    position_description: Optional[str] = Field(None, description="Resolved position description")
     qualification_name: Optional[str] = Field(None, description="Resolved qualification name")
+    qualification_description: Optional[str] = Field(None, description="Resolved qualification description")
     employment_status_name: Optional[str] = Field(None, description="Resolved employment status name")
+    employment_status_description: Optional[str] = Field(None, description="Resolved employment status description")
     class_teacher_of_name: Optional[str] = Field(None, description="Resolved class teacher of name")
 
     @classmethod
@@ -283,10 +288,15 @@ class Teacher(TeacherInDBBase):
             "created_at": db_teacher.created_at,
             "updated_at": db_teacher.updated_at,
             "gender_name": db_teacher.gender.name if db_teacher.gender else None,
+            "gender_description": db_teacher.gender.description if db_teacher.gender else None,
             "department_name": db_teacher.department.name if db_teacher.department else None,
+            "department_description": db_teacher.department.description if db_teacher.department else None,
             "position_name": db_teacher.position.name if db_teacher.position else None,
+            "position_description": db_teacher.position.description if db_teacher.position else None,
             "qualification_name": db_teacher.qualification.name if db_teacher.qualification else None,
+            "qualification_description": db_teacher.qualification.description if db_teacher.qualification else None,
             "employment_status_name": db_teacher.employment_status.name if db_teacher.employment_status else None,
+            "employment_status_description": db_teacher.employment_status.description if db_teacher.employment_status else None,
             "class_teacher_of_name": db_teacher.class_teacher_of_ref.description if db_teacher.class_teacher_of_ref else None
         }
         return cls(**teacher_data)

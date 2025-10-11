@@ -106,6 +106,7 @@ interface Teacher {
   gender_name?: string;
   qualification_name?: string;
   employment_status_name?: string;
+  employment_status_description?: string;
   class_teacher_of_name?: string;
   user_id?: number;
 }
@@ -116,7 +117,7 @@ interface TeacherFormData {
   first_name: string;
   last_name: string;
   date_of_birth: string;
-  gender_id: string;
+  gender_id: number | string;
   phone: string;
   email: string;
   aadhar_no: string;
@@ -128,14 +129,14 @@ interface TeacherFormData {
   emergency_contact_name: string;
   emergency_contact_phone: string;
   emergency_contact_relation: string;
-  position_id: string;
-  department_id: string;
+  position_id: number | string;
+  department_id: number | string;
   subjects: string;
-  qualification_id: string;
-  employment_status_id: string;
+  qualification_id: number | string;
+  employment_status_id: number | string;
   experience_years: string;
   joining_date: string;
-  class_teacher_of_id: string;
+  class_teacher_of_id: number | string;
   classes_assigned: string;
   salary: string;
   is_active: boolean;
@@ -341,7 +342,7 @@ const TeacherProfilesSystem: React.FC = () => {
     if (!formData.gender_id) errors.gender_id = 'Gender is required';
     if (!formData.phone.trim()) errors.phone = 'Phone number is required';
     // Email is no longer required - will be auto-generated
-    if (!formData.position_id.trim()) errors.position_id = 'Position is required';
+    if (!formData.position_id) errors.position_id = 'Position is required';
     if (!formData.employment_status_id) errors.employment_status_id = 'Employment status is required';
     if (!formData.joining_date) errors.joining_date = 'Joining date is required';
 
@@ -1273,10 +1274,11 @@ const TeacherProfilesSystem: React.FC = () => {
                     label="Employment Status"
                     onChange={(e) => handleFormChange('employment_status_id', e.target.value)}
                   >
-                    <MenuItem value={1}>Full-time</MenuItem>
-                    <MenuItem value={2}>Part-time</MenuItem>
-                    <MenuItem value={3}>Contract</MenuItem>
-                    <MenuItem value={4}>Temporary</MenuItem>
+                    {configuration?.employment_statuses?.map((status: any) => (
+                      <MenuItem key={status.id} value={status.id}>
+                        {status.description}
+                      </MenuItem>
+                    ))}
                   </Select>
                   {formErrors.employment_status_id && (
                     <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 1.5 }}>
@@ -1431,7 +1433,7 @@ const TeacherProfilesSystem: React.FC = () => {
               <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} gap={2} mb={3}>
                 <Box flex={1}>
                   <Typography variant="body2" color="text.secondary">Employment Status</Typography>
-                  <Typography variant="body1">{selectedTeacher.employment_status_name || 'Not specified'}</Typography>
+                  <Typography variant="body1">{selectedTeacher.employment_status_description || selectedTeacher.employment_status_name || 'Not specified'}</Typography>
                 </Box>
                 <Box flex={1}>
                   <Typography variant="body2" color="text.secondary">Experience Years</Typography>
@@ -1668,7 +1670,7 @@ const TeacherProfilesSystem: React.FC = () => {
                 >
                   {configuration?.employment_statuses?.map((status: any) => (
                     <MenuItem key={status.id} value={status.id}>
-                      {status.name}
+                      {status.description}
                     </MenuItem>
                   ))}
                 </Select>

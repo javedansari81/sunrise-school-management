@@ -65,15 +65,9 @@ export interface Qualification extends MetadataItem {
   level_order?: number;
 }
 
-export interface Department {
-  name: string;
-  is_active: boolean;
-}
+export interface Department extends MetadataItem {}
 
-export interface Position {
-  name: string;
-  is_active: boolean;
-}
+export interface Position extends MetadataItem {}
 
 export interface Configuration {
   user_types?: UserType[];
