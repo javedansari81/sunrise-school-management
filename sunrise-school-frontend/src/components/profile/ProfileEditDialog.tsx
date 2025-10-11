@@ -25,6 +25,7 @@ import {
 import { ProfileData, ProfileUpdateData, ProfileConfiguration } from '../../types/profile';
 import { authAPI } from '../../services/api';
 import { configurationAPI } from '../../services/configurationService';
+import { dialogStyles } from '../../styles/dialogTheme';
 
 interface ProfileEditDialogProps {
   open: boolean;
@@ -260,19 +261,30 @@ const ProfileEditDialog: React.FC<ProfileEditDialogProps> = ({
   }
 
   return (
-    <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
-      <DialogTitle>
-        <Box display="flex" alignItems="center" justifyContent="space-between">
-          <Typography variant="h6">Edit Profile</Typography>
-          <IconButton onClick={handleClose} disabled={saving}>
-            <CloseIcon />
-          </IconButton>
+    <Dialog
+      open={open}
+      onClose={handleClose}
+      maxWidth="md"
+      fullWidth
+      slotProps={{
+        paper: {
+          sx: dialogStyles.paper
+        }
+      }}
+    >
+      <DialogTitle sx={dialogStyles.title}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <SaveIcon sx={{ fontSize: 28 }} />
+          <Typography sx={dialogStyles.titleText}>Edit Profile</Typography>
         </Box>
+        <IconButton onClick={handleClose} disabled={saving} sx={dialogStyles.closeButton}>
+          <CloseIcon />
+        </IconButton>
       </DialogTitle>
       
-      <DialogContent dividers>
+      <DialogContent sx={dialogStyles.content} dividers>
         {error && (
-          <Alert severity="error" sx={{ mb: 2 }}>
+          <Alert severity="error" sx={dialogStyles.alert}>
             {error}
           </Alert>
         )}
@@ -291,6 +303,7 @@ const ProfileEditDialog: React.FC<ProfileEditDialogProps> = ({
               error={!!formErrors.first_name}
               helperText={formErrors.first_name}
               required
+              sx={dialogStyles.textField}
             />
           </Grid>
           <Grid size={{ xs: 12, sm: 6 }}>
@@ -322,8 +335,13 @@ const ProfileEditDialog: React.FC<ProfileEditDialogProps> = ({
         </Alert>
       </DialogContent>
 
-      <DialogActions>
-        <Button onClick={handleClose} disabled={saving}>
+      <DialogActions sx={dialogStyles.actions}>
+        <Button
+          onClick={handleClose}
+          disabled={saving}
+          variant="outlined"
+          sx={dialogStyles.secondaryButton}
+        >
           Cancel
         </Button>
         <Button
@@ -331,6 +349,7 @@ const ProfileEditDialog: React.FC<ProfileEditDialogProps> = ({
           variant="contained"
           disabled={saving}
           startIcon={saving ? <CircularProgress size={20} /> : <SaveIcon />}
+          sx={dialogStyles.primaryButton}
         >
           {saving ? 'Saving...' : 'Save Changes'}
         </Button>

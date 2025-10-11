@@ -10,8 +10,6 @@ import {
   Alert,
   IconButton,
   InputAdornment,
-  Divider,
-  Chip,
 } from '@mui/material';
 import {
   Close as CloseIcon,
@@ -24,6 +22,7 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { sessionService } from '../services/sessionService';
+import { dialogStyles } from '../styles/dialogTheme';
 
 interface LoginPopupProps {
   open: boolean;
@@ -48,7 +47,7 @@ const LoginPopup: React.FC<LoginPopupProps> = ({ open, onClose }) => {
       if (token && sessionService.isTokenExpired(token)) {
         setSessionExpiredMessage('Your session has expired. Please log in again to continue.');
       } else if (!token) {
-        setSessionExpiredMessage('Please log in to access this page.');
+        setSessionExpiredMessage('Welcome to Sunrise School. Please sign in to access your account.');
       } else {
         setSessionExpiredMessage('');
       }
@@ -99,63 +98,40 @@ const LoginPopup: React.FC<LoginPopupProps> = ({ open, onClose }) => {
     setShowPassword(!showPassword);
   };
 
-  const fillDemoCredentials = (userType: 'admin' | 'teacher' | 'student') => {
-    const credentials = {
-      admin: { email: 'admin@sunrise.com', password: 'admin123' },
-      teacher: { email: 'teacher@sunrise.com', password: 'admin123' },
-      student: { email: '9876543212', password: 'Sunrise@001' },
-    };
-    
-    setEmail(credentials[userType].email);
-    setPassword(credentials[userType].password);
-    setError('');
-  };
+
 
   return (
-    <Dialog 
-      open={open} 
+    <Dialog
+      open={open}
       onClose={handleClose}
       maxWidth="sm"
       fullWidth
-      PaperProps={{
-        sx: {
-          borderRadius: 3,
-          background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
+      slotProps={{
+        paper: {
+          sx: dialogStyles.paper
         }
       }}
     >
-      <DialogTitle sx={{ 
-        textAlign: 'center', 
-        pb: 1,
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-        color: 'white',
-        position: 'relative'
-      }}>
-        <IconButton
-          onClick={handleClose}
-          sx={{ 
-            position: 'absolute', 
-            right: 8, 
-            top: 8,
-            color: 'white'
-          }}
-        >
-          <CloseIcon />
-        </IconButton>
-        
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mt: 1 }}>
+      <DialogTitle sx={dialogStyles.title}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <SchoolIcon sx={{ fontSize: 32 }} />
-          <Typography variant="h5" fontWeight="bold">
+          <Typography sx={dialogStyles.titleText}>
             Login to Sunrise School
           </Typography>
         </Box>
+        <IconButton
+          onClick={handleClose}
+          sx={dialogStyles.closeButton}
+        >
+          <CloseIcon />
+        </IconButton>
       </DialogTitle>
 
-      <DialogContent sx={{ pt: 3 }}>
+      <DialogContent sx={dialogStyles.content}>
         {sessionExpiredMessage && (
           <Alert
-            severity="warning"
-            sx={{ mb: 2 }}
+            severity="info"
+            sx={dialogStyles.alert}
             icon={<WarningIcon />}
           >
             {sessionExpiredMessage}
@@ -163,7 +139,7 @@ const LoginPopup: React.FC<LoginPopupProps> = ({ open, onClose }) => {
         )}
 
         {error && (
-          <Alert severity="error" sx={{ mb: 2 }}>
+          <Alert severity="error" sx={dialogStyles.alert}>
             {error}
           </Alert>
         )}
@@ -178,7 +154,7 @@ const LoginPopup: React.FC<LoginPopupProps> = ({ open, onClose }) => {
             required
             margin="normal"
             variant="outlined"
-            sx={{ mb: 2 }}
+            sx={{ ...dialogStyles.textField, mb: 2 }}
             helperText="Please enter your registered email address"
           />
 
@@ -191,19 +167,21 @@ const LoginPopup: React.FC<LoginPopupProps> = ({ open, onClose }) => {
             required
             margin="normal"
             variant="outlined"
-            sx={{ mb: 3 }}
-            InputProps={{
-              endAdornment: (
-                <InputAdornment position="end">
-                  <IconButton
-                    aria-label="toggle password visibility"
-                    onClick={togglePasswordVisibility}
-                    edge="end"
-                  >
-                    {showPassword ? <VisibilityOff /> : <Visibility />}
-                  </IconButton>
-                </InputAdornment>
-              ),
+            sx={{ ...dialogStyles.textField, mb: 3 }}
+            slotProps={{
+              input: {
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton
+                      aria-label="toggle password visibility"
+                      onClick={togglePasswordVisibility}
+                      edge="end"
+                    >
+                      {showPassword ? <VisibilityOff /> : <Visibility />}
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }
             }}
           />
 
@@ -215,53 +193,17 @@ const LoginPopup: React.FC<LoginPopupProps> = ({ open, onClose }) => {
             disabled={loading}
             startIcon={<LoginIcon />}
             sx={{
+              ...dialogStyles.primaryButton,
               py: 1.5,
               fontSize: '1.1rem',
-              fontWeight: 'bold',
-              borderRadius: 2,
               mb: 2,
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              '&:hover': {
-                background: 'linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%)',
-              }
             }}
           >
             {loading ? 'Signing In...' : 'Sign In'}
           </Button>
         </Box>
 
-        <Divider sx={{ my: 2 }}>
-          <Typography variant="body2" color="text.secondary">
-            Demo Credentials
-          </Typography>
-        </Divider>
 
-        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', justifyContent: 'center' }}>
-          <Chip
-            label="👨‍💼 Admin"
-            onClick={() => fillDemoCredentials('admin')}
-            clickable
-            variant="outlined"
-            size="small"
-            sx={{ '&:hover': { backgroundColor: 'primary.light', color: 'white' } }}
-          />
-          <Chip
-            label="👨‍🏫 Teacher"
-            onClick={() => fillDemoCredentials('teacher')}
-            clickable
-            variant="outlined"
-            size="small"
-            sx={{ '&:hover': { backgroundColor: 'secondary.light', color: 'white' } }}
-          />
-          <Chip
-            label="👨‍🎓 Student"
-            onClick={() => fillDemoCredentials('student')}
-            clickable
-            variant="outlined"
-            size="small"
-            sx={{ '&:hover': { backgroundColor: 'success.light', color: 'white' } }}
-          />
-        </Box>
       </DialogContent>
     </Dialog>
   );

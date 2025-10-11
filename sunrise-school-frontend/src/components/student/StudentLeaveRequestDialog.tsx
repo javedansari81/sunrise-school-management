@@ -29,6 +29,7 @@ import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { useServiceConfiguration } from '../../contexts/ConfigurationContext';
 import { studentLeaveAPI } from '../../services/api';
 import { configurationService } from '../../services/configurationService';
+import { dialogStyles } from '../../styles/dialogTheme';
 
 interface StudentLeaveRequestDialogProps {
   open: boolean;
@@ -186,31 +187,25 @@ const StudentLeaveRequestDialog: React.FC<StudentLeaveRequestDialogProps> = ({
         onClose={handleClose}
         maxWidth="md"
         fullWidth
-        PaperProps={{
-          sx: {
-            borderRadius: 2,
-            maxHeight: '90vh'
+        slotProps={{
+          paper: {
+            sx: dialogStyles.paper
           }
         }}
       >
-        <DialogTitle sx={{ 
-          display: 'flex', 
-          justifyContent: 'space-between', 
-          alignItems: 'center',
-          pb: 1
-        }}>
-          <Box display="flex" alignItems="center" gap={1}>
-            <CalendarIcon color="primary" />
-            <Typography variant="h6">
+        <DialogTitle sx={dialogStyles.title}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <CalendarIcon sx={{ fontSize: 28 }} />
+            <Typography sx={dialogStyles.titleText}>
               {isViewMode ? 'Leave Request Details' : 'New Leave Request'}
             </Typography>
           </Box>
-          <IconButton onClick={handleClose} disabled={loading}>
+          <IconButton onClick={handleClose} disabled={loading} sx={dialogStyles.closeButton}>
             <CloseIcon />
           </IconButton>
         </DialogTitle>
 
-        <DialogContent dividers>
+        <DialogContent sx={dialogStyles.content} dividers>
           {/* Student Info */}
           {studentProfile && (
             <Box sx={{ mb: 3, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>

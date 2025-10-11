@@ -18,6 +18,7 @@ import {
   Warning as WarningIcon,
   Info as InfoIcon
 } from '@mui/icons-material';
+import { dialogStyles } from '../../styles/dialogTheme';
 
 export interface ErrorDialogProps {
   open: boolean;
@@ -110,58 +111,45 @@ const ErrorDialog: React.FC<ErrorDialogProps> = ({
       maxWidth="sm"
       fullWidth
       fullScreen={isMobile}
-      PaperProps={{
-        sx: {
-          borderRadius: isMobile ? 0 : 2,
-          maxHeight: isMobile ? '100vh' : '80vh',
-          m: isMobile ? 0 : 2
+      slotProps={{
+        paper: {
+          sx: {
+            ...dialogStyles.paper,
+            borderRadius: isMobile ? 0 : 3,
+            maxHeight: isMobile ? '100vh' : '90vh',
+            m: isMobile ? 0 : 2
+          }
         }
       }}
     >
       {/* Dialog Title */}
       <DialogTitle
         sx={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 1,
-          pb: 1,
-          borderBottom: `1px solid ${theme.palette.divider}`,
-          bgcolor: severity === 'error' ? 'error.light' : 
-                  severity === 'warning' ? 'warning.light' : 'info.light',
-          color: severity === 'error' ? 'error.contrastText' : 
-                 severity === 'warning' ? 'warning.contrastText' : 'info.contrastText'
+          ...dialogStyles.title,
+          bgcolor: severity === 'error' ? 'error.main' :
+                  severity === 'warning' ? 'warning.main' : 'info.main',
         }}
       >
-        {getSeverityIcon()}
-        <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-          {title || getDefaultTitle()}
-        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          {getSeverityIcon()}
+          <Typography sx={dialogStyles.titleText}>
+            {title || getDefaultTitle()}
+          </Typography>
+        </Box>
         <IconButton
           onClick={onClose}
-          size="small"
-          sx={{
-            color: 'inherit',
-            '&:hover': {
-              bgcolor: 'rgba(255, 255, 255, 0.1)'
-            }
-          }}
+          sx={dialogStyles.closeButton}
         >
           <CloseIcon />
         </IconButton>
       </DialogTitle>
 
       {/* Dialog Content */}
-      <DialogContent sx={{ pt: 2, pb: 1 }}>
+      <DialogContent sx={dialogStyles.content}>
         {/* Main Error Message */}
-        <Alert 
-          severity={severity} 
-          sx={{ 
-            mb: 2,
-            '& .MuiAlert-message': {
-              fontSize: '1rem',
-              lineHeight: 1.5
-            }
-          }}
+        <Alert
+          severity={severity}
+          sx={dialogStyles.alert}
         >
           {message}
         </Alert>
@@ -240,13 +228,13 @@ const ErrorDialog: React.FC<ErrorDialogProps> = ({
       </DialogContent>
 
       {/* Dialog Actions */}
-      <DialogActions sx={{ p: 2, pt: 1, gap: 1 }}>
+      <DialogActions sx={dialogStyles.actions}>
         {showCancel && (
           <Button
             onClick={onClose}
             variant="outlined"
-            color="inherit"
             fullWidth={isMobile}
+            sx={dialogStyles.secondaryButton}
           >
             {cancelText}
           </Button>
@@ -257,6 +245,7 @@ const ErrorDialog: React.FC<ErrorDialogProps> = ({
           color={severity === 'error' ? 'error' : severity === 'warning' ? 'warning' : 'primary'}
           fullWidth={isMobile}
           autoFocus
+          sx={dialogStyles.primaryButton}
         >
           {actionText}
         </Button>
