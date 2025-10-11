@@ -20,11 +20,48 @@ import {
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import AdminLayout from '../../components/Layout/AdminLayout';
-import { leaveAPI } from '../../services/api';
+import { leaveAPI, enhancedFeesAPI } from '../../services/api';
+
+interface DashboardStats {
+  students: {
+    total: number;
+    added_this_month: number;
+    change_text: string;
+  };
+  teachers: {
+    total: number;
+    added_this_month: number;
+    change_text: string;
+  };
+  fees: {
+    pending_amount: number;
+    collected_this_week: number;
+    change_text: string;
+    total_collected: number;
+    collection_rate: number;
+  };
+  leave_requests: {
+    total: number;
+    pending: number;
+    change_text: string;
+  };
+  expenses: {
+    current_month: number;
+    last_month: number;
+    change: number;
+    change_text: string;
+  };
+  revenue_growth: {
+    percentage: number;
+    current_quarter: number;
+    last_quarter: number;
+    change_text: string;
+  };
+}
 
 const AdminDashboard: React.FC = () => {
   const navigate = useNavigate();
-  const [leaveStats, setLeaveStats] = useState<any>(null);
+  const [dashboardStats, setDashboardStats] = useState<DashboardStats | null>(null);
   const [pendingLeaves, setPendingLeaves] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -37,69 +74,118 @@ const AdminDashboard: React.FC = () => {
     try {
       setLoading(true);
       const [statsResponse, pendingResponse] = await Promise.all([
-        leaveAPI.getLeaveStatistics(),
+        enhancedFeesAPI.getAdminDashboardStats(4), // 2025-26 session year
         leaveAPI.getPendingLeaves()
       ]);
 
-      setLeaveStats(statsResponse);
+      setDashboardStats(statsResponse.data);
       setPendingLeaves(Array.isArray(pendingResponse) ? pendingResponse : []);
       setError(null);
     } catch (err: any) {
       console.error('Error loading dashboard data:', err);
       setError('Failed to load dashboard data');
-      setLeaveStats(null);
+      setDashboardStats(null);
       setPendingLeaves([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const getDashboardCards = () => [
-    {
-      title: 'Total Students',
-      value: '245',
-      icon: <People fontSize="large" />,
-      color: '#1976d2',
-      change: '+12 this month',
-    },
-    {
-      title: 'Total Teachers',
-      value: '18',
-      icon: <School fontSize="large" />,
-      color: '#388e3c',
-      change: '+2 this month',
-    },
-    {
-      title: 'Pending Fees',
-      value: '₹1,25,000',
-      icon: <Payment fontSize="large" />,
-      color: '#f57c00',
-      change: '-₹15,000 this week',
-    },
-    {
-      title: 'Leave Requests',
-      value: leaveStats?.summary?.total_requests?.toString() || '0',
-      icon: <EventNote fontSize="large" />,
-      color: '#7b1fa2',
-      change: `${leaveStats?.summary?.pending_requests || 0} pending approval`,
-      clickable: true,
-      onClick: () => navigate('/admin/leaves'),
-    },
-    {
-      title: 'Monthly Expenses',
-      value: '₹85,000',
-      icon: <AccountBalance fontSize="large" />,
-      color: '#d32f2f',
-      change: '+₹5,000 from last month',
-    },
-    {
-      title: 'Revenue Growth',
-      value: '12.5%',
-      icon: <TrendingUp fontSize="large" />,
-      color: '#0288d1',
-      change: '+2.3% from last quarter',
-    },
-  ];
+  const getDashboardCards = () => {
+    if (!dashboardStats) {
+      return [
+        {
+          title: 'Total Students',
+          value: '0',
+          icon: <People fontSize="large" />,
+          color: '#1976d2',
+          change: 'Loading...',
+        },
+        {
+          title: 'Total Teachers',
+          value: '0',
+          icon: <School fontSize="large" />,
+          color: '#388e3c',
+          change: 'Loading...',
+        },
+        {
+          title: 'Pending Fees',
+          value: '₹0',
+          icon: <Payment fontSize="large" />,
+          color: '#f57c00',
+          change: 'Loading...',
+        },
+        {
+          title: 'Leave Requests',
+          value: '0',
+          icon: <EventNote fontSize="large" />,
+          color: '#7b1fa2',
+          change: 'Loading...',
+        },
+        {
+          title: 'Monthly Expenses',
+          value: '₹0',
+          icon: <AccountBalance fontSize="large" />,
+          color: '#d32f2f',
+          change: 'Loading...',
+        },
+        {
+          title: 'Revenue Growth',
+          value: '0%',
+          icon: <TrendingUp fontSize="large" />,
+          color: '#0288d1',
+          change: 'Loading...',
+        },
+      ];
+    }
+
+    return [
+      {
+        title: 'Total Students',
+        value: dashboardStats.students.total.toString(),
+        icon: <People fontSize="large" />,
+        color: '#1976d2',
+        change: dashboardStats.students.change_text,
+      },
+      {
+        title: 'Total Teachers',
+        value: dashboardStats.teachers.total.toString(),
+        icon: <School fontSize="large" />,
+        color: '#388e3c',
+        change: dashboardStats.teachers.change_text,
+      },
+      {
+        title: 'Pending Fees',
+        value: `₹${dashboardStats.fees.pending_amount.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`,
+        icon: <Payment fontSize="large" />,
+        color: '#f57c00',
+        change: dashboardStats.fees.change_text,
+      },
+      {
+        title: 'Leave Requests',
+        value: dashboardStats.leave_requests.total.toString(),
+        icon: <EventNote fontSize="large" />,
+        color: '#7b1fa2',
+        change: dashboardStats.leave_requests.change_text,
+        clickable: true,
+        onClick: () => navigate('/admin/leaves'),
+      },
+      {
+        title: 'Monthly Expenses',
+        value: `₹${dashboardStats.expenses.current_month.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`,
+        icon: <AccountBalance fontSize="large" />,
+        color: '#d32f2f',
+        change: dashboardStats.expenses.change_text,
+      },
+      {
+        title: 'Revenue Growth',
+        value: `${dashboardStats.revenue_growth.percentage}%`,
+        icon: <TrendingUp fontSize="large" />,
+        color: '#0288d1',
+        change: dashboardStats.revenue_growth.change_text,
+      },
+    ];
+  };
 
 
 
@@ -116,20 +202,37 @@ const AdminDashboard: React.FC = () => {
         >
           Dashboard Overview
         </Typography>
-        <Box
-          sx={{
-            display: 'grid',
-            gridTemplateColumns: {
-              xs: '1fr',
-              sm: 'repeat(2, 1fr)',
-              md: 'repeat(3, 1fr)',
-              lg: 'repeat(3, 1fr)',
-              xl: 'repeat(4, 1fr)'
-            },
-            gap: { xs: 2, sm: 2, md: 3 },
-            mb: { xs: 3, sm: 4 }
-          }}
-        >
+
+        {/* Error Alert */}
+        {error && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            {error}
+          </Alert>
+        )}
+
+        {/* Loading State */}
+        {loading && (
+          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
+            <CircularProgress size={60} />
+          </Box>
+        )}
+
+        {/* Dashboard Cards */}
+        {!loading && (
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: {
+                xs: '1fr',
+                sm: 'repeat(2, 1fr)',
+                md: 'repeat(3, 1fr)',
+                lg: 'repeat(3, 1fr)',
+                xl: 'repeat(4, 1fr)'
+              },
+              gap: { xs: 2, sm: 2, md: 3 },
+              mb: { xs: 3, sm: 4 }
+            }}
+          >
           {getDashboardCards().map((card, index) => (
             <Card
               key={index}
@@ -206,7 +309,8 @@ const AdminDashboard: React.FC = () => {
               </CardContent>
             </Card>
           ))}
-        </Box>
+          </Box>
+        )}
 
         {/* Pending Leave Requests Section - Mobile Responsive */}
         {!loading && pendingLeaves.length > 0 && (

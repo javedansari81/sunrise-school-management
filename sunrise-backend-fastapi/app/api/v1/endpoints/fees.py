@@ -8,7 +8,7 @@ import math
 import calendar
 
 from app.core.database import get_db
-from app.crud import fee_structure_crud, fee_record_crud, fee_payment_crud, student_crud
+from app.crud import fee_structure_crud, fee_record_crud, fee_payment_crud, student_crud, teacher_crud
 from app.crud.crud_monthly_fee import monthly_fee_tracking_crud, monthly_payment_allocation_crud
 from app.schemas.fee import (
     FeeStructure, FeeStructureCreate, FeeStructureUpdate,
@@ -22,6 +22,8 @@ from app.schemas.fee import (
 from app.api.deps import get_current_active_user
 from app.models.user import User
 from app.models.student import Student
+from app.models.teacher import Teacher
+from app.models.expense import Expense as ExpenseModel
 from app.models.fee import FeeRecord as FeeRecordModel, FeePayment as FeePaymentModel, MonthlyFeeTracking as MonthlyFeeTrackingModel
 
 router = APIRouter()
@@ -1126,6 +1128,278 @@ async def get_fee_dashboard(
         class_wise_collection=[],  # TODO: Implement class-wise collection data
         payment_method_breakdown=[]  # TODO: Implement payment method breakdown
     )
+
+
+@router.get("/admin-dashboard-stats")
+async def get_admin_dashboard_stats(
+    session_year_id: Optional[int] = 4,  # Default to 2025-26
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Get comprehensive dashboard statistics for admin dashboard overview
+    Includes students, teachers, fees, leave requests, and expenses data
+    """
+    import logging
+    import traceback
+    from datetime import datetime, timedelta
+    from app.crud.crud_expense import expense_crud
+    from app.crud.crud_leave import leave_request_crud
+
+    logger = logging.getLogger(__name__)
+    logger.info(f"=== Starting get_admin_dashboard_stats for session_year_id={session_year_id} ===")
+
+    try:
+        # Get current date for time-based calculations
+        logger.info("Calculating date ranges...")
+        current_date = datetime.now().date()
+        current_month_start = current_date.replace(day=1)
+        last_month_start = (current_month_start - timedelta(days=1)).replace(day=1)
+        current_week_start = current_date - timedelta(days=current_date.weekday())
+        logger.info(f"Date ranges: current_date={current_date}, current_month_start={current_month_start}, current_week_start={current_week_start}")
+
+        # Initialize response data with defaults
+        response_data = {
+            "students": {"total": 0, "added_this_month": 0, "change_text": "+0 this month"},
+            "teachers": {"total": 0, "added_this_month": 0, "change_text": "+0 this month"},
+            "fees": {"pending_amount": 0, "collected_this_week": 0, "change_text": "-₹0 this week", "total_collected": 0, "collection_rate": 0},
+            "leave_requests": {"total": 0, "pending": 0, "change_text": "0 pending approval"},
+            "expenses": {"current_month": 0, "last_month": 0, "change": 0, "change_text": "+₹0 from last month"},
+            "revenue_growth": {"percentage": 0, "current_quarter": 0, "last_quarter": 0, "change_text": "+0.0% from last quarter"}
+        }
+
+        # 1. Get student statistics
+        try:
+            logger.info("Section 1: Fetching student statistics...")
+            student_stats = await student_crud.get_dashboard_stats(db)
+            logger.info(f"Student stats retrieved: {student_stats}")
+
+            # Calculate students added this month
+            logger.info("Calculating students added this month...")
+            students_this_month_query = select(func.count(Student.id)).where(
+                and_(
+                    Student.is_active == True,
+                    Student.created_at >= current_month_start
+                )
+            )
+            students_this_month_result = await db.execute(students_this_month_query)
+            students_this_month = students_this_month_result.scalar() or 0
+            logger.info(f"Students added this month: {students_this_month}")
+
+            response_data["students"] = {
+                "total": student_stats['total_students'],
+                "added_this_month": students_this_month,
+                "change_text": f"+{students_this_month} this month"
+            }
+            logger.info("✓ Section 1 completed successfully")
+        except Exception as e:
+            logger.error(f"✗ Section 1 FAILED - Student statistics error: {str(e)}")
+            logger.error(f"Traceback: {traceback.format_exc()}")
+            response_data["students"]["error"] = str(e)
+
+        # 2. Get teacher statistics
+        try:
+            logger.info("Section 2: Fetching teacher statistics...")
+            teacher_stats = await teacher_crud.get_dashboard_stats(db)
+            logger.info(f"Teacher stats retrieved: {teacher_stats}")
+
+            # Calculate teachers added this month
+            logger.info("Calculating teachers added this month...")
+            teachers_this_month_query = select(func.count(Teacher.id)).where(
+                and_(
+                    Teacher.is_active == True,
+                    or_(Teacher.is_deleted == False, Teacher.is_deleted.is_(None)),
+                    Teacher.created_at >= current_month_start
+                )
+            )
+            teachers_this_month_result = await db.execute(teachers_this_month_query)
+            teachers_this_month = teachers_this_month_result.scalar() or 0
+            logger.info(f"Teachers added this month: {teachers_this_month}")
+
+            response_data["teachers"] = {
+                "total": teacher_stats['total_teachers'],
+                "added_this_month": teachers_this_month,
+                "change_text": f"+{teachers_this_month} this month"
+            }
+            logger.info("✓ Section 2 completed successfully")
+        except Exception as e:
+            logger.error(f"✗ Section 2 FAILED - Teacher statistics error: {str(e)}")
+            logger.error(f"Traceback: {traceback.format_exc()}")
+            response_data["teachers"]["error"] = str(e)
+
+        # 3. Get fee statistics for the session year
+        try:
+            logger.info("Section 3: Fetching fee statistics...")
+            # Map session_year_id to session year string
+            session_year_mapping = {
+                1: "2022-23", 2: "2023-24", 3: "2024-25", 4: "2025-26", 5: "2026-27"
+            }
+            session_year_str = session_year_mapping.get(session_year_id, "2025-26")
+            logger.info(f"Session year mapping: {session_year_id} -> {session_year_str}")
+
+            logger.info("Fetching fee collection summary...")
+            fee_summary = await fee_record_crud.get_collection_summary(db, session_year=session_year_str)
+            logger.info(f"Fee summary retrieved: {fee_summary}")
+
+            # Get fees collected this week
+            logger.info("Calculating fees collected this week...")
+            fees_this_week_query = select(func.sum(FeePaymentModel.amount)).join(
+                FeeRecordModel
+            ).where(
+                and_(
+                    FeePaymentModel.payment_date >= current_week_start,
+                    FeeRecordModel.session_year_id == session_year_id
+                )
+            )
+            fees_this_week_result = await db.execute(fees_this_week_query)
+            fees_collected_this_week = float(fees_this_week_result.scalar() or 0)
+            logger.info(f"Fees collected this week: {fees_collected_this_week}")
+
+            response_data["fees"] = {
+                "pending_amount": fee_summary['pending_amount'],
+                "collected_this_week": fees_collected_this_week,
+                "change_text": f"-₹{fees_collected_this_week:,.0f} this week",
+                "total_collected": fee_summary['paid_amount'],
+                "collection_rate": fee_summary['collection_rate']
+            }
+            logger.info("✓ Section 3 completed successfully")
+        except Exception as e:
+            logger.error(f"✗ Section 3 FAILED - Fee statistics error: {str(e)}")
+            logger.error(f"Traceback: {traceback.format_exc()}")
+            response_data["fees"]["error"] = str(e)
+
+        # 4. Get leave request statistics
+        try:
+            logger.info("Section 4: Fetching leave request statistics...")
+            leave_stats = await leave_request_crud.get_leave_statistics(db)
+            logger.info(f"Leave stats retrieved: {leave_stats}")
+
+            response_data["leave_requests"] = {
+                "total": leave_stats.get('total_requests', 0),
+                "pending": leave_stats.get('pending_requests', 0),
+                "change_text": f"{leave_stats.get('pending_requests', 0)} pending approval"
+            }
+            logger.info("✓ Section 4 completed successfully")
+        except Exception as e:
+            logger.error(f"✗ Section 4 FAILED - Leave statistics error: {str(e)}")
+            logger.error(f"Traceback: {traceback.format_exc()}")
+            response_data["leave_requests"]["error"] = str(e)
+
+        # 5. Calculate expenses for current and last month
+        try:
+            logger.info("Section 5: Calculating expense statistics...")
+            logger.info("Fetching current month expenses...")
+            current_month_expenses_query = select(func.sum(ExpenseModel.amount)).where(
+                and_(
+                    ExpenseModel.expense_date >= current_month_start,
+                    ExpenseModel.expense_date <= current_date,
+                    ExpenseModel.is_deleted != True,
+                    ExpenseModel.expense_status_id.in_([2, 4])  # Approved or Paid
+                )
+            )
+            current_month_expenses_result = await db.execute(current_month_expenses_query)
+            current_month_expenses = float(current_month_expenses_result.scalar() or 0)
+            logger.info(f"Current month expenses: {current_month_expenses}")
+
+            # Calculate expenses for last month
+            logger.info("Fetching last month expenses...")
+            last_month_expenses_query = select(func.sum(ExpenseModel.amount)).where(
+                and_(
+                    ExpenseModel.expense_date >= last_month_start,
+                    ExpenseModel.expense_date < current_month_start,
+                    ExpenseModel.is_deleted != True,
+                    ExpenseModel.expense_status_id.in_([2, 4])  # Approved or Paid
+                )
+            )
+            last_month_expenses_result = await db.execute(last_month_expenses_query)
+            last_month_expenses = float(last_month_expenses_result.scalar() or 0)
+            logger.info(f"Last month expenses: {last_month_expenses}")
+
+            # Calculate expense change
+            expense_change = current_month_expenses - last_month_expenses
+            logger.info(f"Expense change: {expense_change}")
+
+            response_data["expenses"] = {
+                "current_month": current_month_expenses,
+                "last_month": last_month_expenses,
+                "change": expense_change,
+                "change_text": f"+₹{expense_change:,.0f} from last month" if expense_change >= 0 else f"-₹{abs(expense_change):,.0f} from last month"
+            }
+            logger.info("✓ Section 5 completed successfully")
+        except Exception as e:
+            logger.error(f"✗ Section 5 FAILED - Expense statistics error: {str(e)}")
+            logger.error(f"Traceback: {traceback.format_exc()}")
+            response_data["expenses"]["error"] = str(e)
+
+        # 6. Calculate revenue growth (fees collected vs last quarter)
+        try:
+            logger.info("Section 6: Calculating revenue growth...")
+            # Get current quarter fees
+            current_quarter_start = current_date.replace(month=((current_date.month - 1) // 3) * 3 + 1, day=1)
+            last_quarter_start = (current_quarter_start - timedelta(days=90)).replace(day=1)
+            logger.info(f"Quarter ranges: current_quarter_start={current_quarter_start}, last_quarter_start={last_quarter_start}")
+
+            logger.info("Fetching current quarter fees...")
+            current_quarter_fees_query = select(func.sum(FeePaymentModel.amount)).join(
+                FeeRecordModel
+            ).where(
+                and_(
+                    FeePaymentModel.payment_date >= current_quarter_start,
+                    FeeRecordModel.session_year_id == session_year_id
+                )
+            )
+            current_quarter_fees_result = await db.execute(current_quarter_fees_query)
+            current_quarter_fees = float(current_quarter_fees_result.scalar() or 0)
+            logger.info(f"Current quarter fees: {current_quarter_fees}")
+
+            logger.info("Fetching last quarter fees...")
+            last_quarter_fees_query = select(func.sum(FeePaymentModel.amount)).join(
+                FeeRecordModel
+            ).where(
+                and_(
+                    FeePaymentModel.payment_date >= last_quarter_start,
+                    FeePaymentModel.payment_date < current_quarter_start,
+                    FeeRecordModel.session_year_id == session_year_id
+                )
+            )
+            last_quarter_fees_result = await db.execute(last_quarter_fees_query)
+            last_quarter_fees = float(last_quarter_fees_result.scalar() or 0)
+            logger.info(f"Last quarter fees: {last_quarter_fees}")
+
+            # Calculate revenue growth percentage
+            revenue_growth = 0.0
+            if last_quarter_fees > 0:
+                revenue_growth = ((current_quarter_fees - last_quarter_fees) / last_quarter_fees) * 100
+            logger.info(f"Revenue growth: {revenue_growth}%")
+
+            response_data["revenue_growth"] = {
+                "percentage": round(revenue_growth, 1),
+                "current_quarter": current_quarter_fees,
+                "last_quarter": last_quarter_fees,
+                "change_text": f"+{revenue_growth:.1f}% from last quarter" if revenue_growth >= 0 else f"{revenue_growth:.1f}% from last quarter"
+            }
+            logger.info("✓ Section 6 completed successfully")
+        except Exception as e:
+            logger.error(f"✗ Section 6 FAILED - Revenue growth error: {str(e)}")
+            logger.error(f"Traceback: {traceback.format_exc()}")
+            response_data["revenue_growth"]["error"] = str(e)
+
+        logger.info("=== get_admin_dashboard_stats completed successfully ===")
+        logger.info(f"Final response data: {response_data}")
+        return response_data
+
+    except Exception as e:
+        logger.error(f"=== CRITICAL ERROR in get_admin_dashboard_stats ===")
+        logger.error(f"Error: {str(e)}")
+        logger.error(f"Full traceback: {traceback.format_exc()}")
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "error": "Failed to fetch admin dashboard statistics",
+                "message": str(e),
+                "traceback": traceback.format_exc()
+            }
+        )
 
 
 @router.get("/analytics")

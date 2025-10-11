@@ -126,6 +126,12 @@ export const enhancedFeesAPI = {
   // Fee Structure API
   getFeeStructure: () =>
     api.get('/fees/structure'),
+
+  // Admin Dashboard Statistics
+  getAdminDashboardStats: (sessionYearId?: number) =>
+    api.get('/fees/admin-dashboard-stats', {
+      params: { session_year_id: sessionYearId || 4 }
+    }),
 };
 
 // Users API - REMOVED: These endpoints are not used anywhere in the frontend

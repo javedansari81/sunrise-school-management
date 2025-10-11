@@ -343,34 +343,29 @@ class CRUDTeacher(CRUDBase[Teacher, TeacherCreate, TeacherUpdate]):
         return teacher
 
     async def get_dashboard_stats(self, db: AsyncSession) -> Dict[str, Any]:
-        # Total teachers (excluding soft deleted)
+        # Total teachers (excluding soft deleted) - using raw SQL for reliability
         total_result = await db.execute(
-            select(func.count(Teacher.id)).where(
-                and_(
-                    Teacher.is_active == True,
-                    Teacher.is_deleted != True
-                )
-            )
+            text("""
+                SELECT COUNT(id) as total
+                FROM sunrise.teachers
+                WHERE is_active = TRUE AND (is_deleted IS NULL OR is_deleted = FALSE)
+            """)
         )
-        total_teachers = total_result.scalar()
+        total_teachers = total_result.scalar() or 0
 
         # Active teachers (assuming all active teachers are currently active)
         active_teachers = total_teachers
 
-        # Department distribution
+        # Department distribution using metadata
         dept_result = await db.execute(
-            select(
-                Teacher.department,
-                func.count(Teacher.id).label('count')
-            )
-            .where(
-                and_(
-                    Teacher.is_active == True,
-                    Teacher.is_deleted != True
-                )
-            )
-            .group_by(Teacher.department)
-            .order_by(Teacher.department)
+            text("""
+                SELECT d.name as department, COUNT(t.id) as count
+                FROM sunrise.teachers t
+                LEFT JOIN sunrise.departments d ON t.department_id = d.id
+                WHERE t.is_active = TRUE AND (t.is_deleted IS NULL OR t.is_deleted = FALSE)
+                GROUP BY d.name
+                ORDER BY d.name
+            """)
         )
 
         departments = [
@@ -382,8 +377,8 @@ class CRUDTeacher(CRUDBase[Teacher, TeacherCreate, TeacherUpdate]):
         qual_result = await db.execute(
             text("""
                 SELECT q.name as qualification, COUNT(t.id) as count
-                FROM teachers t
-                LEFT JOIN qualifications q ON t.qualification_id = q.id
+                FROM sunrise.teachers t
+                LEFT JOIN sunrise.qualifications q ON t.qualification_id = q.id
                 WHERE t.is_active = TRUE AND (t.is_deleted IS NULL OR t.is_deleted = FALSE)
                 GROUP BY q.name
                 ORDER BY q.name
@@ -395,24 +390,22 @@ class CRUDTeacher(CRUDBase[Teacher, TeacherCreate, TeacherUpdate]):
             for row in qual_result
         ]
 
-        # Experience breakdown
+        # Experience breakdown using raw SQL to avoid func.case issues
         exp_result = await db.execute(
-            select(
-                func.case(
-                    (Teacher.experience_years < 2, '0-2 years'),
-                    (Teacher.experience_years < 5, '2-5 years'),
-                    (Teacher.experience_years < 10, '5-10 years'),
-                    else_='10+ years'
-                ).label('experience_range'),
-                func.count(Teacher.id).label('count')
-            )
-            .where(
-                and_(
-                    Teacher.is_active == True,
-                    Teacher.is_deleted != True
-                )
-            )
-            .group_by('experience_range')
+            text("""
+                SELECT
+                    CASE
+                        WHEN experience_years < 2 THEN '0-2 years'
+                        WHEN experience_years < 5 THEN '2-5 years'
+                        WHEN experience_years < 10 THEN '5-10 years'
+                        ELSE '10+ years'
+                    END as experience_range,
+                    COUNT(id) as count
+                FROM sunrise.teachers
+                WHERE is_active = TRUE AND (is_deleted IS NULL OR is_deleted = FALSE)
+                GROUP BY experience_range
+                ORDER BY experience_range
+            """)
         )
 
         experience_breakdown = [
@@ -436,7 +429,7 @@ class CRUDTeacher(CRUDBase[Teacher, TeacherCreate, TeacherUpdate]):
             .where(
                 and_(
                     Teacher.is_active == True,
-                    Teacher.is_deleted != True
+                    or_(Teacher.is_deleted == False, Teacher.is_deleted.is_(None))
                 )
             )
             .order_by(desc(Teacher.joining_date))

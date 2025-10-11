@@ -433,7 +433,7 @@ class CRUDLeaveRequest(CRUDBase[LeaveRequest, LeaveRequestCreate, LeaveRequestUp
             COUNT(CASE WHEN lr.leave_status_id = 3 THEN 1 END) as rejected_requests,
             COUNT(CASE WHEN lr.leave_status_id = 1 THEN 1 END) as pending_requests,
             SUM(lr.total_days) as total_days
-        FROM leave_requests lr
+        FROM sunrise.leave_requests lr
         {where_clause}
         """
 
@@ -445,8 +445,8 @@ class CRUDLeaveRequest(CRUDBase[LeaveRequest, LeaveRequestCreate, LeaveRequestUp
         SELECT
             lt.name as leave_type_name,
             COUNT(lr.id) as count
-        FROM leave_requests lr
-        JOIN leave_types lt ON lr.leave_type_id = lt.id
+        FROM sunrise.leave_requests lr
+        JOIN sunrise.leave_types lt ON lr.leave_type_id = lt.id
         {where_clause}
         GROUP BY lt.id, lt.name
         ORDER BY count DESC
@@ -463,7 +463,7 @@ class CRUDLeaveRequest(CRUDBase[LeaveRequest, LeaveRequestCreate, LeaveRequestUp
         SELECT
             lr.applicant_type,
             COUNT(lr.id) as count
-        FROM leave_requests lr
+        FROM sunrise.leave_requests lr
         {where_clause}
         GROUP BY lr.applicant_type
         """

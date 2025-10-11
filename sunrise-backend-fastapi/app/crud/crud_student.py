@@ -435,35 +435,35 @@ class CRUDStudent(CRUDBase[Student, StudentCreate, StudentUpdate]):
             select(func.count(Student.id)).where(Student.is_active == True)
         )
         total_students = total_result.scalar()
-        
+
         # Gender distribution
         gender_result = await db.execute(
             select(
-                Student.gender,
+                Student.gender_id,
                 func.count(Student.id).label('count')
             )
             .where(Student.is_active == True)
-            .group_by(Student.gender)
+            .group_by(Student.gender_id)
         )
-        
-        gender_stats = {row.gender: row.count for row in gender_result}
-        
+
+        gender_stats = {row.gender_id: row.count for row in gender_result}
+
         # Class distribution
         class_result = await db.execute(
             select(
-                Student.current_class,
+                Student.class_id,
                 func.count(Student.id).label('count')
             )
             .where(Student.is_active == True)
-            .group_by(Student.current_class)
-            .order_by(Student.current_class)
+            .group_by(Student.class_id)
+            .order_by(Student.class_id)
         )
-        
+
         class_stats = [
-            {'class_name': row.current_class, 'count': row.count}
+            {'class_id': row.class_id, 'count': row.count}
             for row in class_result
         ]
-        
+
         return {
             'total_students': total_students,
             'gender_distribution': gender_stats,
