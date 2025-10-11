@@ -44,13 +44,17 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
   const [mobileOpen, setMobileOpen] = useState(false);
-  // Always start expanded (false = expanded, true = collapsed)
-  const [desktopCollapsed, setDesktopCollapsed] = useState(false);
+  // Start collapsed by default (true = collapsed, false = expanded)
+  // Preserve user preference in localStorage
+  const [desktopCollapsed, setDesktopCollapsed] = useState(() => {
+    const saved = localStorage.getItem('adminDrawerCollapsed');
+    return saved !== null ? saved === 'true' : true; // Default to collapsed
+  });
 
-  // Clear any stale localStorage on mount
+  // Save collapsed state to localStorage whenever it changes
   React.useEffect(() => {
-    localStorage.removeItem('adminDrawerCollapsed');
-  }, []);
+    localStorage.setItem('adminDrawerCollapsed', String(desktopCollapsed));
+  }, [desktopCollapsed]);
 
   const menuItems = [
     { label: 'Dashboard', icon: <DashboardIcon />, path: '/admin/dashboard' },
@@ -127,45 +131,50 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
       <Box sx={{ flexGrow: 1, overflowY: 'auto', overflowX: 'hidden' }}>
         {/* Open Main Website Link */}
         <Box sx={{ px: 1, py: 2 }}>
-          <ListItemButton
-            onClick={() => window.open('/', '_blank', 'noopener,noreferrer')}
-            sx={{
-              borderRadius: 2,
-              minHeight: 48,
-              justifyContent: desktopCollapsed && !isMobile ? 'center' : 'flex-start',
-              px: 2.5,
-              backgroundColor: 'rgba(76, 175, 80, 0.08)',
-              color: '#2e7d32',
-              '&:hover': {
-                backgroundColor: 'rgba(76, 175, 80, 0.15)',
-              },
-              transition: 'all 0.2s',
-              border: '1px solid rgba(76, 175, 80, 0.3)',
-            }}
+          <Tooltip
+            title={desktopCollapsed && !isMobile ? "Open Main Website" : ""}
+            placement="right"
           >
-            <ListItemIcon
+            <ListItemButton
+              onClick={() => window.open('/', '_blank', 'noopener,noreferrer')}
               sx={{
-                minWidth: desktopCollapsed && !isMobile ? 0 : 40,
+                borderRadius: 2,
+                minHeight: 48,
+                justifyContent: desktopCollapsed && !isMobile ? 'center' : 'flex-start',
+                px: 2.5,
+                backgroundColor: 'rgba(76, 175, 80, 0.08)',
                 color: '#2e7d32',
-                justifyContent: 'center',
+                '&:hover': {
+                  backgroundColor: 'rgba(76, 175, 80, 0.15)',
+                },
+                transition: 'all 0.2s',
+                border: '1px solid rgba(76, 175, 80, 0.3)',
               }}
             >
-              <HomeIcon />
-            </ListItemIcon>
-            {(!desktopCollapsed || isMobile) && (
-              <ListItemText
-                primary="Open Main Website"
-                slotProps={{
-                  primary: {
-                    sx: {
-                      fontSize: '0.95rem',
-                      fontWeight: 600,
-                    }
-                  }
+              <ListItemIcon
+                sx={{
+                  minWidth: desktopCollapsed && !isMobile ? 0 : 40,
+                  color: '#2e7d32',
+                  justifyContent: 'center',
                 }}
-              />
-            )}
-          </ListItemButton>
+              >
+                <HomeIcon />
+              </ListItemIcon>
+              {(!desktopCollapsed || isMobile) && (
+                <ListItemText
+                  primary="Open Main Website"
+                  slotProps={{
+                    primary: {
+                      sx: {
+                        fontSize: '0.95rem',
+                        fontWeight: 600,
+                      }
+                    }
+                  }}
+                />
+              )}
+            </ListItemButton>
+          </Tooltip>
         </Box>
 
         <Divider />
@@ -174,53 +183,63 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
         <List sx={{ py: 2 }}>
           {menuItems.map((item) => {
             const active = isActive(item.path);
-            return (
-              <ListItem key={item.path} disablePadding sx={{ px: 1, mb: 0.5 }}>
-                <ListItemButton
-                  onClick={() => handleNavigation(item.path)}
+            const menuButton = (
+              <ListItemButton
+                onClick={() => handleNavigation(item.path)}
+                sx={{
+                  borderRadius: 2,
+                  minHeight: 48,
+                  justifyContent: desktopCollapsed && !isMobile ? 'center' : 'flex-start',
+                  px: 2.5,
+                  backgroundColor: active ? 'rgba(25, 118, 210, 0.12)' : 'transparent',
+                  color: active ? 'primary.main' : 'text.primary',
+                  '&:hover': {
+                    backgroundColor: active
+                      ? 'rgba(25, 118, 210, 0.2)'
+                      : 'rgba(0, 0, 0, 0.04)',
+                  },
+                  transition: 'all 0.2s',
+                  ...(active && {
+                    borderLeft: '4px solid',
+                    borderColor: 'primary.main',
+                    fontWeight: 600,
+                  }),
+                }}
+              >
+                <ListItemIcon
                   sx={{
-                    borderRadius: 2,
-                    minHeight: 48,
-                    justifyContent: desktopCollapsed && !isMobile ? 'center' : 'flex-start',
-                    px: 2.5,
-                    backgroundColor: active ? 'rgba(25, 118, 210, 0.12)' : 'transparent',
-                    color: active ? 'primary.main' : 'text.primary',
-                    '&:hover': {
-                      backgroundColor: active
-                        ? 'rgba(25, 118, 210, 0.2)'
-                        : 'rgba(0, 0, 0, 0.04)',
-                    },
-                    transition: 'all 0.2s',
-                    ...(active && {
-                      borderLeft: '4px solid',
-                      borderColor: 'primary.main',
-                      fontWeight: 600,
-                    }),
+                    minWidth: desktopCollapsed && !isMobile ? 0 : 40,
+                    color: active ? 'primary.main' : 'text.secondary',
+                    justifyContent: 'center',
                   }}
                 >
-                  <ListItemIcon
-                    sx={{
-                      minWidth: desktopCollapsed && !isMobile ? 0 : 40,
-                      color: active ? 'primary.main' : 'text.secondary',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    {item.icon}
-                  </ListItemIcon>
-                  {(!desktopCollapsed || isMobile) && (
-                    <ListItemText
-                      primary={item.label}
-                      slotProps={{
-                        primary: {
-                          sx: {
-                            fontSize: '0.95rem',
-                            fontWeight: active ? 600 : 500,
-                          }
+                  {item.icon}
+                </ListItemIcon>
+                {(!desktopCollapsed || isMobile) && (
+                  <ListItemText
+                    primary={item.label}
+                    slotProps={{
+                      primary: {
+                        sx: {
+                          fontSize: '0.95rem',
+                          fontWeight: active ? 600 : 500,
                         }
-                      }}
-                    />
-                  )}
-                </ListItemButton>
+                      }
+                    }}
+                  />
+                )}
+              </ListItemButton>
+            );
+
+            return (
+              <ListItem key={item.path} disablePadding sx={{ px: 1, mb: 0.5 }}>
+                {desktopCollapsed && !isMobile ? (
+                  <Tooltip title={item.label} placement="right">
+                    {menuButton}
+                  </Tooltip>
+                ) : (
+                  menuButton
+                )}
               </ListItem>
             );
           })}
