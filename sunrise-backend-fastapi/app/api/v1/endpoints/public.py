@@ -55,7 +55,7 @@ async def get_public_faculty(
                 "department": teacher.get("department_description"),  # Use description for human-readable text
                 "subjects": subjects_list,
                 "experience_years": teacher.get("experience_years", 0),
-                "qualification": teacher.get("qualification_description"),  # Use description for consistency
+                "qualification_name": teacher.get("qualification_description"),  # Use description for consistency
                 "joining_date": teacher.get("joining_date"),
                 "email": teacher.get("email"),  # Include email for contact
                 "phone": teacher.get("phone"),  # Include phone for contact

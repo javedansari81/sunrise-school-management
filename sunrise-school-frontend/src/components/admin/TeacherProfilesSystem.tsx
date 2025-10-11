@@ -105,6 +105,7 @@ interface Teacher {
   // Metadata fields
   gender_name?: string;
   qualification_name?: string;
+  qualification_description?: string;
   employment_status_name?: string;
   employment_status_description?: string;
   class_teacher_of_name?: string;
@@ -1286,6 +1287,26 @@ const TeacherProfilesSystem: React.FC = () => {
                     </Typography>
                   )}
                 </FormControl>
+                <FormControl fullWidth size="small">
+                  <InputLabel>Qualification</InputLabel>
+                  <Select
+                    value={formData.qualification_id}
+                    label="Qualification"
+                    onChange={(e) => handleFormChange('qualification_id', e.target.value)}
+                  >
+                    <MenuItem value="">
+                      <em>Not Specified</em>
+                    </MenuItem>
+                    {configuration?.qualifications?.map((qual: any) => (
+                      <MenuItem key={qual.id} value={qual.id}>
+                        {qual.description}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Box>
+
+              <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} gap={2}>
                 <TextField
                   fullWidth
                   label="Experience (Years)"
@@ -1296,6 +1317,7 @@ const TeacherProfilesSystem: React.FC = () => {
                   helperText={formErrors.experience_years}
                   size="small"
                 />
+                <Box flex={1} /> {/* Spacer to balance the layout */}
               </Box>
 
               <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} gap={2}>
@@ -1436,16 +1458,23 @@ const TeacherProfilesSystem: React.FC = () => {
                   <Typography variant="body1">{selectedTeacher.employment_status_description || selectedTeacher.employment_status_name || 'Not specified'}</Typography>
                 </Box>
                 <Box flex={1}>
-                  <Typography variant="body2" color="text.secondary">Experience Years</Typography>
-                  <Typography variant="body1">{selectedTeacher.experience_years || 0} years</Typography>
+                  <Typography variant="body2" color="text.secondary">Qualification</Typography>
+                  <Typography variant="body1">{selectedTeacher.qualification_description || selectedTeacher.qualification_name || 'Not specified'}</Typography>
                 </Box>
               </Box>
 
               <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} gap={2} mb={3}>
                 <Box flex={1}>
+                  <Typography variant="body2" color="text.secondary">Experience Years</Typography>
+                  <Typography variant="body1">{selectedTeacher.experience_years || 0} years</Typography>
+                </Box>
+                <Box flex={1}>
                   <Typography variant="body2" color="text.secondary">Joining Date</Typography>
                   <Typography variant="body1">{selectedTeacher.joining_date}</Typography>
                 </Box>
+              </Box>
+
+              <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} gap={2} mb={3}>
                 <Box flex={1}>
                   <Typography variant="body2" color="text.secondary">Status</Typography>
                   <Chip
@@ -1454,6 +1483,7 @@ const TeacherProfilesSystem: React.FC = () => {
                     size="small"
                   />
                 </Box>
+                <Box flex={1} /> {/* Spacer to balance the layout */}
               </Box>
 
               {/* Additional Information */}
@@ -1680,6 +1710,26 @@ const TeacherProfilesSystem: React.FC = () => {
                   </Typography>
                 )}
               </FormControl>
+              <FormControl fullWidth size="small">
+                <InputLabel>Qualification</InputLabel>
+                <Select
+                  value={editFormData.qualification_id || ''}
+                  label="Qualification"
+                  onChange={(e) => handleEditFormChange('qualification_id', e.target.value)}
+                >
+                  <MenuItem value="">
+                    <em>Not Specified</em>
+                  </MenuItem>
+                  {configuration?.qualifications?.map((qual: any) => (
+                    <MenuItem key={qual.id} value={qual.id}>
+                      {qual.description}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Box>
+
+            <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} gap={2} mb={2}>
               <TextField
                 fullWidth
                 size="small"
@@ -1693,6 +1743,7 @@ const TeacherProfilesSystem: React.FC = () => {
                   htmlInput: { min: 0 }
                 }}
               />
+              <Box flex={1} /> {/* Spacer to balance the layout */}
             </Box>
 
             <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} gap={2} mb={3}>
