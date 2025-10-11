@@ -2,7 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
-import Layout from './components/Layout/Layout';
+import MainLayout from './components/Layout/MainLayout';
 import Home from './pages/Home';
 import About from './pages/About';
 import Academics from './pages/Academics';
@@ -205,9 +205,9 @@ function App() {
           <Routes>
           {/* All login is now handled via popup - no separate login routes needed */}
 
-          {/* Routes with Layout */}
+          {/* Public Routes with MainLayout (Sidebar + Footer) */}
           <Route path="/*" element={
-            <Layout>
+            <MainLayout>
               <Routes>
                 <Route path="/" element={<Home />} />
                 <Route path="/about" element={<About />} />
@@ -217,41 +217,8 @@ function App() {
                 <Route path="/gallery" element={<Gallery />} />
                 <Route path="/contact" element={<Contact />} />
                 {/* <Route path="/config-test" element={<ConfigurationTest />} /> */}
-                <Route path="/admin" element={<div>Please use /admin/login to access admin panel</div>} />
 
-                {/* Protected Admin Routes */}
-                <Route path="/admin/dashboard" element={
-                  <ProtectedRoute requiredRole="ADMIN">
-                    <AdminDashboard />
-                  </ProtectedRoute>
-                } />
-                <Route path="/admin/fees" element={
-                  <ProtectedRoute requiredRole="ADMIN">
-                    <FeesManagement />
-                  </ProtectedRoute>
-                } />
-                <Route path="/admin/leaves" element={
-                  <ProtectedRoute requiredRole="ADMIN">
-                    <LeaveManagement />
-                  </ProtectedRoute>
-                } />
-                <Route path="/admin/expenses" element={
-                  <ProtectedRoute requiredRole="ADMIN">
-                    <ExpenseManagement />
-                  </ProtectedRoute>
-                } />
-                <Route path="/admin/students" element={
-                  <ProtectedRoute requiredRole="ADMIN">
-                    <StudentProfiles />
-                  </ProtectedRoute>
-                } />
-                <Route path="/admin/teachers" element={
-                  <ProtectedRoute requiredRole="ADMIN">
-                    <TeacherProfiles />
-                  </ProtectedRoute>
-                } />
-
-                {/* Teacher Routes */}
+                {/* Teacher Routes - with main layout */}
                 <Route path="/teacher/dashboard" element={
                   <ProtectedRoute requiredRole="TEACHER">
                     <TeacherDashboard />
@@ -263,7 +230,7 @@ function App() {
                   </ProtectedRoute>
                 } />
 
-                {/* Student Routes */}
+                {/* Student Routes - with main layout */}
                 <Route path="/student/dashboard" element={
                   <ProtectedRoute requiredRole="STUDENT">
                     <StudentDashboard />
@@ -275,17 +242,49 @@ function App() {
                   </ProtectedRoute>
                 } />
 
-                {/* Profile Route */}
+                {/* Profile Route - with main layout */}
                 <Route path="/profile" element={
                   <ProtectedRoute>
                     <Profile />
                   </ProtectedRoute>
                 } />
 
-                {/* Catch-all route for authenticated users */}
+                {/* Catch-all route */}
                 <Route path="*" element={<Home />} />
               </Routes>
-            </Layout>
+            </MainLayout>
+          } />
+
+          {/* Admin Routes - Standalone (No Header/Footer) */}
+          <Route path="/admin/dashboard" element={
+            <ProtectedRoute requiredRole="ADMIN">
+              <AdminDashboard />
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/fees" element={
+            <ProtectedRoute requiredRole="ADMIN">
+              <FeesManagement />
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/leaves" element={
+            <ProtectedRoute requiredRole="ADMIN">
+              <LeaveManagement />
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/expenses" element={
+            <ProtectedRoute requiredRole="ADMIN">
+              <ExpenseManagement />
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/students" element={
+            <ProtectedRoute requiredRole="ADMIN">
+              <StudentProfiles />
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/teachers" element={
+            <ProtectedRoute requiredRole="ADMIN">
+              <TeacherProfiles />
+            </ProtectedRoute>
           } />
           </Routes>
         </Router>

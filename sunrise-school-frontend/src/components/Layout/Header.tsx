@@ -137,9 +137,12 @@ const Header: React.FC = () => {
                 >
                   {/* Show Dashboard for admin and teacher users */}
                   {user?.user_type?.toUpperCase() === 'ADMIN' && (
-                    <MenuItem onClick={() => { handleMenuClose(); navigate('/admin/dashboard'); }}>
+                    <MenuItem onClick={() => {
+                      handleMenuClose();
+                      window.open('/admin/dashboard', '_blank', 'noopener,noreferrer');
+                    }}>
                       <DashboardIcon sx={{ mr: 1 }} />
-                      Dashboard
+                      Admin Dashboard
                     </MenuItem>
                   )}
                   {user?.user_type?.toUpperCase() === 'TEACHER' && (
