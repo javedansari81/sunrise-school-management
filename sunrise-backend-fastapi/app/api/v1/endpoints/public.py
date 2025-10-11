@@ -43,7 +43,7 @@ async def get_public_faculty(
                     subjects_list = json.loads(teacher['subjects'])
                 except (json.JSONDecodeError, TypeError):
                     subjects_list = []
-            
+
             # Create public teacher profile
             public_teacher = {
                 "id": teacher["id"],
@@ -51,11 +51,11 @@ async def get_public_faculty(
                 "first_name": teacher["first_name"],
                 "last_name": teacher["last_name"],
                 "employee_id": teacher["employee_id"],
-                "position": teacher["position"],
-                "department": teacher.get("department"),
+                "position": teacher.get("position_description"),  # Use description for human-readable text
+                "department": teacher.get("department_description"),  # Use description for human-readable text
                 "subjects": subjects_list,
                 "experience_years": teacher.get("experience_years", 0),
-                "qualification_name": teacher.get("qualification_name"),
+                "qualification": teacher.get("qualification_description"),  # Use description for consistency
                 "joining_date": teacher.get("joining_date"),
                 "email": teacher.get("email"),  # Include email for contact
                 "phone": teacher.get("phone"),  # Include phone for contact
