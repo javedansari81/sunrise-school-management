@@ -396,35 +396,6 @@ const LeaveManagementSystem: React.FC = () => {
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns}>
       <Box sx={{ width: '100%' }}>
-        {/* Header Section with Title */}
-        <Box
-          display="flex"
-          justifyContent="space-between"
-          alignItems={{ xs: 'flex-start', sm: 'center' }}
-          flexDirection={{ xs: 'column', sm: 'row' }}
-          gap={{ xs: 2, sm: 0 }}
-          mb={{ xs: 3, sm: 4 }}
-        >
-          <Typography
-            variant="h4"
-            fontWeight="bold"
-            sx={{
-              fontSize: { xs: '1.5rem', sm: '2rem', md: '2.125rem' }
-            }}
-          >
-            Leave Management System
-          </Typography>
-          <Typography
-            variant="body2"
-            color="text.secondary"
-            sx={{
-              fontSize: { xs: '0.75rem', sm: '0.875rem' },
-              fontStyle: 'italic'
-            }}
-          >
-          </Typography>
-        </Box>
-
         {/* Filters Section - Above Tabs */}
         <Paper elevation={3} sx={{ p: 3, mb: 3 }}>
           <Typography variant="h6" fontWeight="bold" mb={2}>

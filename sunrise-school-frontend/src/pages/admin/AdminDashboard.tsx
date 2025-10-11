@@ -192,17 +192,6 @@ const AdminDashboard: React.FC = () => {
   return (
     <AdminLayout>
       <Box sx={{ p: { xs: 1, sm: 2, md: 3 } }}>
-        <Typography
-          variant="h4"
-          gutterBottom
-          sx={{
-            fontSize: { xs: '1.5rem', sm: '2rem', md: '2.125rem' },
-            mb: { xs: 1, sm: 2 }
-          }}
-        >
-          Dashboard Overview
-        </Typography>
-
         {/* Error Alert */}
         {error && (
           <Alert severity="error" sx={{ mb: 2 }}>

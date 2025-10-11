@@ -542,29 +542,17 @@ const ExpenseManagement: React.FC = () => {
         <ServiceConfigurationLoader service="expense-management">
           <Box
             display="flex"
-            justifyContent="space-between"
-            alignItems={{ xs: 'flex-start', sm: 'center' }}
-            flexDirection={{ xs: 'column', sm: 'row' }}
-            gap={{ xs: 2, sm: 0 }}
+            justifyContent="flex-end"
+            alignItems="center"
             mb={{ xs: 3, sm: 4 }}
           >
-            <Typography
-              variant="h4"
-              fontWeight="bold"
-              sx={{
-                fontSize: { xs: '1.5rem', sm: '2rem', md: '2.125rem' }
-              }}
-            >
-              Expense Management
-            </Typography>
             <Button
               variant="contained"
               startIcon={<Add />}
               onClick={() => handleOpenDialog()}
               sx={{
                 fontSize: { xs: '0.875rem', sm: '1rem' },
-                padding: { xs: '6px 12px', sm: '8px 16px' },
-                alignSelf: { xs: 'flex-end', sm: 'auto' }
+                padding: { xs: '6px 12px', sm: '8px 16px' }
               }}
             >
               Add Expense
