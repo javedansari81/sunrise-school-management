@@ -29,5 +29,4 @@ CREATE INDEX idx_positions_name ON positions(name);
 CREATE INDEX idx_positions_is_active ON positions(is_active);
 
 -- Success message
-\echo 'Table positions created successfully'
 

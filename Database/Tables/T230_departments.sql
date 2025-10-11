@@ -29,5 +29,4 @@ CREATE INDEX idx_departments_name ON departments(name);
 CREATE INDEX idx_departments_is_active ON departments(is_active);
 
 -- Success message
-\echo 'Table departments created successfully'
 
