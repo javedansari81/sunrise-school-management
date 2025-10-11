@@ -386,7 +386,7 @@ https://your-backend-url.onrender.com/redoc
 # Test login endpoint
 curl -X POST "https://your-backend-url.onrender.com/api/v1/auth/login" \
   -H "Content-Type: application/x-www-form-urlencoded" \
-  -d "username=admin@sunriseschool.edu&password=admin123"
+  -d "username=admin@sunrise.com&password=admin123"
 
 # Expected: JWT token in response
 ```
@@ -545,9 +545,9 @@ After successful backend deployment:
 ```bash
 # Configure custom domain in Render dashboard
 1. Go to your web service settings
-2. Add custom domain: api.sunriseschool.edu
+2. Add custom domain: api.sunrise.com
 3. Configure DNS CNAME record:
-   CNAME api.sunriseschool.edu -> your-service.onrender.com
+   CNAME api.sunrise.com -> your-service.onrender.com
 4. SSL certificate will be auto-generated
 ```
 
@@ -802,7 +802,7 @@ from fastapi.middleware.cors import CORSMiddleware
 if settings.ENVIRONMENT == "production":
     allowed_origins = [
         "https://your-frontend.onrender.com",
-        "https://sunriseschool.edu"  # Custom domain
+        "https://sunrise.com"  # Custom domain
     ]
 else:
     allowed_origins = [

@@ -114,7 +114,7 @@ docker-compose -f docker-compose.prod.yml up -d
 ## Admin Access
 
 **Demo Credentials:**
-- Email: admin@sunriseschool.edu
+- Email: admin@sunrise.com
 - Password: admin123
 
 ## API Endpoints

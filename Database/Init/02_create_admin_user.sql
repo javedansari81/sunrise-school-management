@@ -26,7 +26,7 @@ INSERT INTO users (
     'Admin',
     'User',
     '7842350875',
-    'admin@sunriseschool.com',
+    'admin@sunrise.com',
     '$2b$12$lsBmuOua4csDUY6k0hWgWO.G7GN2oHTN.388/BfgTqH51Os01ttnu', -- password: admin123 (corrected hash)
     (SELECT id FROM user_types WHERE name = 'ADMIN' LIMIT 1),
     true,
@@ -46,7 +46,7 @@ COMMIT;
 \echo 'ADMIN USER CREATED SUCCESSFULLY!'
 \echo '=========================================='
 \echo 'Login credentials:'
-\echo 'Email: admin@sunriseschool.edu'
+\echo 'Email: admin@sunrise.com'
 \echo 'Password: admin123'
 \echo ''
 \echo 'IMPORTANT: Change the default password after first login!'

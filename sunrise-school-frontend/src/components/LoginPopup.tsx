@@ -101,8 +101,8 @@ const LoginPopup: React.FC<LoginPopupProps> = ({ open, onClose }) => {
 
   const fillDemoCredentials = (userType: 'admin' | 'teacher' | 'student') => {
     const credentials = {
-      admin: { email: 'admin@sunriseschool.edu', password: 'admin123' },
-      teacher: { email: 'teacher@sunriseschool.edu', password: 'admin123' },
+      admin: { email: 'admin@sunrise.com', password: 'admin123' },
+      teacher: { email: 'teacher@sunrise.com', password: 'admin123' },
       student: { email: '9876543212', password: 'Sunrise@001' },
     };
     

@@ -304,8 +304,8 @@ Each table is in its own file with:
 **Purpose:** Creates default admin user for initial login
 
 **Default Credentials:**
-- Email: admin@sunriseschool.com
-- Password: (check script for default)
+- Email: admin@sunrise.com
+- Password: admin123
 
 **⚠️ IMPORTANT:** Change default password after first login!
 

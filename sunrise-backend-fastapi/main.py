@@ -148,7 +148,7 @@ async def setup_database():
         return {
             "message": "Database setup complete!",
             "users": user_count,
-            "login": "admin@sunriseschool.edu / admin123"
+            "login": "admin@sunrise.com / admin123"
         }
     except Exception as e:
         return {"error": str(e)}

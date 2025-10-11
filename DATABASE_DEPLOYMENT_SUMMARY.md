@@ -105,7 +105,7 @@ The endpoint executes these steps in order:
 - Includes all reference data for dropdowns
 
 ### Step 10: Create Admin User
-- Email: admin@sunriseschool.edu
+- Email: admin@sunrise.com
 - Password: admin123 (hashed)
 
 ### Step 11: Verification

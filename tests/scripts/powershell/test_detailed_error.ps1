@@ -3,7 +3,7 @@
 # First, get authentication token using OAuth2 form
 Write-Host "Getting authentication token using OAuth2 form..."
 $formData = @{
-    username = "admin@sunriseschool.edu"
+    username = "admin@sunrise.com"
     password = "admin123"
 }
 

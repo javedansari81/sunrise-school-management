@@ -119,7 +119,7 @@ Default configuration for PowerShell tests:
 $baseUrl = "http://localhost:8000"
 
 # Test Credentials
-$testEmail = "admin@sunriseschool.edu"
+$testEmail = "admin@sunrise.com"
 $testPassword = "admin123"
 
 # Request Headers
@@ -135,7 +135,7 @@ Configuration for web-based tests:
 // API Configuration
 const API_BASE_URL = 'http://localhost:8000/api/v1';
 const TEST_CREDENTIALS = {
-    email: 'admin@sunriseschool.edu',
+    email: 'admin@sunrise.com',
     password: 'admin123'
 };
 

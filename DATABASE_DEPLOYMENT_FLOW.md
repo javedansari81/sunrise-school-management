@@ -156,7 +156,7 @@
 │                                                                  │
 │  File: Database/Init/02_create_admin_user.sql                  │
 │  User:                                                           │
-│  • Email: admin@sunriseschool.edu                              │
+│  • Email: admin@sunrise.com                                    │
 │  • Password: admin123 (bcrypt hashed)                          │
 │  • User Type: ADMIN                                             │
 │  • Status: Active                                               │

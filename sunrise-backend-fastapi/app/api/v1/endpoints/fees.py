@@ -1092,7 +1092,7 @@ async def get_payment_receipt(
             "name": "Sunrise School",
             "address": "School Address",
             "phone": "School Phone",
-            "email": "school@sunriseschool.edu"
+            "email": "school@sunrise.com"
         }
     }
 

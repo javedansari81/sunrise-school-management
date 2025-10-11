@@ -51,7 +51,7 @@ This guide provides comprehensive instructions for deploying the optimized Postg
 2. **Create New PostgreSQL Database**
    - Click "New +" → "PostgreSQL"
    - **Name**: `sunrise-postgres`
-   - **Database Name**: `sunrise_school`
+   - **Database Name**: `sunrise_school_db`
    - **User**: `sunrise_user`
    - **Region**: **Singapore** (nearest to India for optimal performance)
    - **Plan**: Free (or paid for production)
@@ -102,7 +102,7 @@ sudo systemctl enable postgresql
 sudo -u postgres psql
 
 # Create database and user
-CREATE DATABASE sunrise_school;
+CREATE DATABASE sunrise_school_db;
 CREATE USER sunrise_user WITH PASSWORD 'your_password';
 GRANT ALL PRIVILEGES ON DATABASE sunrise_school TO sunrise_user;
 \q

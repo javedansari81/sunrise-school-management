@@ -113,17 +113,17 @@ Expenses:
 ### Demo Accounts:
 ```
 👨‍💼 Admin:
-Email: admin@sunriseschool.edu
+Email: admin@sunrise.com
 Password: admin123
 Permissions: Full access to all features
 
 👨‍🏫 Teacher:
-Email: teacher@sunriseschool.edu  
+Email: teacher@sunrise.com
 Password: admin123
 Permissions: View students, manage leaves, submit expenses
 
 👨‍🎓 Student:
-Email: student@sunriseschool.edu
+Email: student@sunrise.com
 Password: admin123
 Permissions: View profile, apply for leaves
 ```
@@ -200,7 +200,7 @@ python setup_database.py
 ```bash
 curl -X POST "http://localhost:8000/api/v1/auth/login-json" \
   -H "Content-Type: application/json" \
-  -d '{"email":"admin@sunriseschool.edu","password":"admin123"}'
+  -d '{"email":"admin@sunrise.com","password":"admin123"}'
 ```
 
 ### 2. Test CRUD Operations:

@@ -49,6 +49,8 @@
 \ir Tables/T200_expense_statuses.sql
 \ir Tables/T210_employment_statuses.sql
 \ir Tables/T220_qualifications.sql
+\ir Tables/T230_departments.sql
+\ir Tables/T240_positions.sql
 
 \echo ''
 \echo '✓ All metadata tables created'
@@ -180,6 +182,20 @@
 \echo ''
 
 -- =====================================================
+-- STEP 11: Load Fee Structures Data
+-- =====================================================
+
+\echo '=========================================='
+\echo 'STEP 11: Loading Fee Structures Data'
+\echo '=========================================='
+
+\ir Init/03_fee_structures_data.sql
+
+\echo ''
+\echo '✓ Fee structures data loaded'
+\echo ''
+
+-- =====================================================
 -- Success Message
 -- =====================================================
 
@@ -190,11 +206,11 @@
 \echo ''
 \echo 'Database Structure:'
 \echo '  - Schema: sunrise'
-\echo '  - Tables: 23'
-\echo '  - Functions: 3'
+\echo '  - Tables: 25'
+\echo '  - Functions: 4'
 \echo '  - Views: 4'
-\echo '  - Metadata Records: 78'
-\echo '  - Indexes: 26+'
+\echo '  - Metadata Records: 78+'
+\echo '  - Indexes: 30+'
 \echo ''
 \echo 'Next Steps:'
 \echo '  1. Verify deployment: SELECT * FROM schema_versions;'

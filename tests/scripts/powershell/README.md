@@ -20,7 +20,7 @@ tests/scripts/powershell/
 
 - PowerShell 5.0 or later
 - Backend server running on `http://localhost:8000`
-- Valid admin credentials (admin@sunriseschool.edu / admin123)
+- Valid admin credentials (admin@sunrise.com / admin123)
 
 ## Usage
 
@@ -67,7 +67,7 @@ cd tests/scripts/powershell/student-management
 ## Authentication
 
 All scripts use the following test credentials:
-- **Email**: admin@sunriseschool.edu
+- **Email**: admin@sunrise.com
 - **Password**: admin123
 
 The scripts automatically:

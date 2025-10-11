@@ -3,7 +3,7 @@
 # First, get authentication token
 Write-Host "Getting authentication token..."
 $loginPayload = @{
-    email = "admin@sunriseschool.edu"
+    email = "admin@sunrise.com"
     password = "admin123"
 } | ConvertTo-Json
 
