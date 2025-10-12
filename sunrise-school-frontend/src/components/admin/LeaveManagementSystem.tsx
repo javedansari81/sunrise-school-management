@@ -30,8 +30,10 @@ import {
   Snackbar,
   Card,
   CardContent,
-  Stack
+  Stack,
+  Pagination
 } from '@mui/material';
+import { DEFAULT_PAGE_SIZE, PAGINATION_UI_CONFIG } from '../../config/pagination';
 import {
   Visibility as ViewIcon,
   CheckCircle as ApproveIcon,
@@ -115,6 +117,12 @@ const LeaveManagementSystem: React.FC = () => {
   const [statistics, setStatistics] = useState<any>({});
   const [searchInput, setSearchInput] = useState('');
 
+  // Pagination state
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalLeaves, setTotalLeaves] = useState(0);
+  const perPage = DEFAULT_PAGE_SIZE;
+
 
   
   // Form state - Updated for user-friendly identifiers
@@ -161,6 +169,10 @@ const LeaveManagementSystem: React.FC = () => {
       setLoading(true);
       const queryParams = new URLSearchParams();
 
+      // Add pagination parameters
+      queryParams.append('page', page.toString());
+      queryParams.append('per_page', perPage.toString());
+
       Object.entries(filters).forEach(([key, value]) => {
         if (value) queryParams.append(key, value);
       });
@@ -172,6 +184,8 @@ const LeaveManagementSystem: React.FC = () => {
       const data = await leaveAPI.getLeaves(queryParams);
       console.log('✅ Leave requests loaded:', data);
       setLeaveRequests(Array.isArray(data.leaves) ? data.leaves : []);
+      setTotalPages(data.total_pages || 1);
+      setTotalLeaves(data.total || 0);
     } catch (error: any) {
       console.error('Error loading leave requests:', error);
       setLeaveRequests([]); // Ensure we set an empty array on error
@@ -198,7 +212,7 @@ const LeaveManagementSystem: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [filters, isAuthenticated, user]);
+  }, [filters, isAuthenticated, user, page, perPage]);
 
   const loadStatistics = useCallback(async () => {
     if (!isAuthenticated) return;
@@ -241,6 +255,9 @@ const LeaveManagementSystem: React.FC = () => {
   useEffect(() => {
     const timer = setTimeout(() => {
       setFilters(prev => ({ ...prev, applicant_name: searchInput }));
+      if (searchInput !== '') {
+        setPage(1);
+      }
     }, 300);
 
     return () => clearTimeout(timer);
@@ -248,6 +265,13 @@ const LeaveManagementSystem: React.FC = () => {
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
+    setPage(1); // Reset to first page when changing tabs
+  };
+
+  // Handle filter changes - reset to page 1
+  const handleFilterChange = (newFilters: any) => {
+    setFilters(newFilters);
+    setPage(1);
   };
 
   const handleOpenDialog = (leave?: LeaveRequest, viewMode = true) => {
@@ -421,7 +445,10 @@ const LeaveManagementSystem: React.FC = () => {
               <Select
                 value={filters.applicant_type}
                 label="Applicant Type"
-                onChange={(e) => setFilters(prev => ({ ...prev, applicant_type: e.target.value }))}
+                onChange={(e) => {
+                  setFilters(prev => ({ ...prev, applicant_type: e.target.value }));
+                  setPage(1);
+                }}
               >
                 <MenuItem value="">All</MenuItem>
                 <MenuItem value="student">Students</MenuItem>
@@ -440,7 +467,10 @@ const LeaveManagementSystem: React.FC = () => {
               <Select
                 value={filters.leave_status_id}
                 label="Status"
-                onChange={(e) => setFilters(prev => ({ ...prev, leave_status_id: e.target.value }))}
+                onChange={(e) => {
+                  setFilters(prev => ({ ...prev, leave_status_id: e.target.value }));
+                  setPage(1);
+                }}
               >
                 <MenuItem value="">All</MenuItem>
                 {configuration?.leave_statuses && Array.isArray(configuration.leave_statuses) ?
@@ -463,7 +493,10 @@ const LeaveManagementSystem: React.FC = () => {
               <Select
                 value={filters.leave_type_id}
                 label="Leave Type"
-                onChange={(e) => setFilters(prev => ({ ...prev, leave_type_id: e.target.value }))}
+                onChange={(e) => {
+                  setFilters(prev => ({ ...prev, leave_type_id: e.target.value }));
+                  setPage(1);
+                }}
               >
                 <MenuItem value="">All</MenuItem>
                 {configuration?.leave_types && Array.isArray(configuration.leave_types) ?
@@ -649,6 +682,20 @@ const LeaveManagementSystem: React.FC = () => {
                 </TableBody>
               </Table>
             </TableContainer>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <Box display="flex" justifyContent="center" mt={3}>
+                <Pagination
+                  count={totalPages}
+                  page={page}
+                  onChange={(_, newPage) => setPage(newPage)}
+                  color={PAGINATION_UI_CONFIG.color}
+                  showFirstButton={PAGINATION_UI_CONFIG.showFirstLastButtons}
+                  showLastButton={PAGINATION_UI_CONFIG.showFirstLastButtons}
+                />
+              </Box>
+            )}
             </Paper>
           )}
         </TabPanel>
@@ -795,6 +842,20 @@ const LeaveManagementSystem: React.FC = () => {
                 </TableBody>
               </Table>
             </TableContainer>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <Box display="flex" justifyContent="center" mt={3}>
+                <Pagination
+                  count={totalPages}
+                  page={page}
+                  onChange={(_, newPage) => setPage(newPage)}
+                  color={PAGINATION_UI_CONFIG.color}
+                  showFirstButton={PAGINATION_UI_CONFIG.showFirstLastButtons}
+                  showLastButton={PAGINATION_UI_CONFIG.showFirstLastButtons}
+                />
+              </Box>
+            )}
             </Paper>
           )}
         </TabPanel>
@@ -962,6 +1023,20 @@ const LeaveManagementSystem: React.FC = () => {
                 </TableBody>
               </Table>
             </TableContainer>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <Box display="flex" justifyContent="center" mt={3}>
+                <Pagination
+                  count={totalPages}
+                  page={page}
+                  onChange={(_, newPage) => setPage(newPage)}
+                  color={PAGINATION_UI_CONFIG.color}
+                  showFirstButton={PAGINATION_UI_CONFIG.showFirstLastButtons}
+                  showLastButton={PAGINATION_UI_CONFIG.showFirstLastButtons}
+                />
+              </Box>
+            )}
             </Paper>
           )}
         </TabPanel>

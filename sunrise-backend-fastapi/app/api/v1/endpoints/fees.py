@@ -44,7 +44,7 @@ async def get_fees(
     sort_by: Optional[str] = Query("due_date", description="Sort by: due_date, student_name, amount, status"),
     sort_order: Optional[str] = Query("asc", description="Sort order: asc or desc"),
     page: int = Query(1, ge=1),
-    per_page: int = Query(20, ge=1, le=100),
+    per_page: int = Query(25, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
@@ -1529,7 +1529,7 @@ async def get_students_with_due_fees(
     class_id: Optional[int] = None,
     search: Optional[str] = Query(None, description="Search by student name or admission number"),
     page: int = Query(1, ge=1),
-    per_page: int = Query(20, ge=1, le=100),
+    per_page: int = Query(25, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
@@ -2783,7 +2783,7 @@ async def get_enhanced_students_summary(
     class_id: Optional[int] = Query(None, description="Filter by class ID"),
     search: Optional[str] = Query(None, description="Search by student name or admission number"),
     page: int = Query(1, ge=1, description="Page number"),
-    per_page: int = Query(20, ge=1, le=100, description="Items per page"),
+    per_page: int = Query(25, ge=1, le=100, description="Items per page"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):

@@ -33,7 +33,7 @@ async def get_leave_requests(
     class_name: Optional[str] = None,
     department: Optional[str] = None,
     page: int = Query(1, ge=1),
-    per_page: int = Query(20, ge=1, le=100),
+    per_page: int = Query(25, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):

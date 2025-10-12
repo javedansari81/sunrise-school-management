@@ -30,7 +30,9 @@ import {
   CircularProgress,
   Alert,
   Snackbar,
+  Pagination,
 } from '@mui/material';
+import { DEFAULT_PAGE_SIZE, PAGINATION_UI_CONFIG } from '../../config/pagination';
 import {
   ClassDropdown,
   GenderDropdown,
@@ -131,6 +133,12 @@ const StudentProfilesContent: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
   const [conflictDialog, setConflictDialog] = useState({ open: false, message: '', type: '' });
+
+  // Pagination state
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalStudents, setTotalStudents] = useState(0);
+  const perPage = DEFAULT_PAGE_SIZE;
   const [studentForm, setStudentForm] = useState({
     admission_number: '',
     roll_number: '',
@@ -170,14 +178,35 @@ const StudentProfilesContent: React.FC = () => {
   const loadStudents = async () => {
     setLoading(true);
     try {
-      const response = await studentsAPI.getStudents();
+      const params = new URLSearchParams();
+      params.append('page', page.toString());
+      params.append('per_page', perPage.toString());
+
+      // Add filters
+      if (filterClass !== 'all') params.append('class_filter', filterClass);
+      if (filterSection !== 'all') params.append('section_filter', filterSection);
+      if (searchTerm) params.append('search', searchTerm);
+
+      // Add is_active filter based on tab
+      if (tabValue === 1) {
+        params.append('is_active', 'true');
+      } else if (tabValue === 2) {
+        params.append('is_active', 'false');
+      }
+
+      const response = await studentsAPI.getStudents(params);
       const studentsData = response.data.students || [];
       setStudents(studentsData);
+      setTotalPages(response.data.total_pages || 1);
+      setTotalStudents(response.data.total || 0);
 
       // Debug student data structure
       if (studentsData.length > 0) {
         console.log('👨‍🎓 Student Data Debug:', {
-          totalStudents: studentsData.length,
+          totalStudents: response.data.total,
+          currentPage: page,
+          totalPages: response.data.total_pages,
+          studentsOnPage: studentsData.length,
           firstStudent: studentsData[0],
           studentFields: Object.keys(studentsData[0]),
           classIds: Array.from(new Set(studentsData.map((s: any) => s.class_id))),
@@ -193,13 +222,34 @@ const StudentProfilesContent: React.FC = () => {
     }
   };
 
+  // Load students when page, filters, or tab changes
   useEffect(() => {
     loadStudents();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, filterClass, filterSection, filterSessionYear, searchTerm, tabValue]);
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
+    setPage(1); // Reset to first page when changing tabs
   };
+
+  // Reset to page 1 when filters change
+  const handleFilterChange = (filterType: 'class' | 'section' | 'sessionYear', value: string) => {
+    setPage(1);
+    if (filterType === 'class') setFilterClass(value);
+    else if (filterType === 'section') setFilterSection(value);
+    else if (filterType === 'sessionYear') setFilterSessionYear(value);
+  };
+
+  // Reset to page 1 when search term changes (with debounce)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (searchTerm !== '') {
+        setPage(1);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
 
   const handleOpenDialog = (mode: 'view' | 'edit' | 'create', student?: Student) => {
     // Validate mandatory fields for existing students
@@ -532,7 +582,7 @@ const StudentProfilesContent: React.FC = () => {
                 value={filterClass}
                 onChange={(value) => {
                   console.log('🔄 Class filter changed:', value);
-                  setFilterClass(value as string);
+                  handleFilterChange('class', value as string);
                 }}
                 allLabel="All Classes"
               />
@@ -543,7 +593,7 @@ const StudentProfilesContent: React.FC = () => {
                 <Select
                   value={filterSection}
                   label="Section"
-                  onChange={(e) => setFilterSection(e.target.value)}
+                  onChange={(e) => handleFilterChange('section', e.target.value)}
                 >
                   <MenuItem value="all">All Sections</MenuItem>
                   {sections.map((section) => (
@@ -678,6 +728,20 @@ const StudentProfilesContent: React.FC = () => {
                 </TableBody>
               </Table>
             </TableContainer>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <Box display="flex" justifyContent="center" mt={3}>
+                <Pagination
+                  count={totalPages}
+                  page={page}
+                  onChange={(_, newPage) => setPage(newPage)}
+                  color={PAGINATION_UI_CONFIG.color}
+                  showFirstButton={PAGINATION_UI_CONFIG.showFirstLastButtons}
+                  showLastButton={PAGINATION_UI_CONFIG.showFirstLastButtons}
+                />
+              </Box>
+            )}
           </TabPanel>
 
           <TabPanel value={tabValue} index={1}>
@@ -744,6 +808,20 @@ const StudentProfilesContent: React.FC = () => {
                 </TableBody>
               </Table>
             </TableContainer>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <Box display="flex" justifyContent="center" mt={3}>
+                <Pagination
+                  count={totalPages}
+                  page={page}
+                  onChange={(_, newPage) => setPage(newPage)}
+                  color={PAGINATION_UI_CONFIG.color}
+                  showFirstButton={PAGINATION_UI_CONFIG.showFirstLastButtons}
+                  showLastButton={PAGINATION_UI_CONFIG.showFirstLastButtons}
+                />
+              </Box>
+            )}
           </TabPanel>
 
           <TabPanel value={tabValue} index={2}>
@@ -810,6 +888,20 @@ const StudentProfilesContent: React.FC = () => {
                 </TableBody>
               </Table>
             </TableContainer>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <Box display="flex" justifyContent="center" mt={3}>
+                <Pagination
+                  count={totalPages}
+                  page={page}
+                  onChange={(_, newPage) => setPage(newPage)}
+                  color={PAGINATION_UI_CONFIG.color}
+                  showFirstButton={PAGINATION_UI_CONFIG.showFirstLastButtons}
+                  showLastButton={PAGINATION_UI_CONFIG.showFirstLastButtons}
+                />
+              </Box>
+            )}
           </TabPanel>
         </Paper>
 

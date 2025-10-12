@@ -26,7 +26,7 @@ async def get_teachers(
     search: Optional[str] = Query(None, description="Search by name, employee ID, or email"),
     is_active: bool = Query(True, description="Filter by active status"),
     page: int = Query(1, ge=1),
-    per_page: int = Query(20, ge=1, le=100),
+    per_page: int = Query(25, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):

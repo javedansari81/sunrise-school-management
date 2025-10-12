@@ -31,6 +31,7 @@ import {
   Tooltip,
   Stack,
 } from '@mui/material';
+import { DEFAULT_PAGE_SIZE, PAGINATION_UI_CONFIG } from '../../config/pagination';
 import AdminLayout from '../../components/Layout/AdminLayout';
 import {
   Add,
@@ -157,7 +158,7 @@ const ExpenseManagement: React.FC = () => {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalExpenses, setTotalExpenses] = useState(0);
-  const perPage = 20;
+  const perPage = DEFAULT_PAGE_SIZE;
 
   // Filters
   const [filters, setFilters] = useState<ExpenseFilters>({
@@ -802,9 +803,9 @@ const ExpenseManagement: React.FC = () => {
                   count={totalPages}
                   page={page}
                   onChange={(_, newPage) => setPage(newPage)}
-                  color="primary"
-                  showFirstButton
-                  showLastButton
+                  color={PAGINATION_UI_CONFIG.color}
+                  showFirstButton={PAGINATION_UI_CONFIG.showFirstLastButtons}
+                  showLastButton={PAGINATION_UI_CONFIG.showFirstLastButtons}
                 />
               </Box>
             )}

@@ -27,8 +27,10 @@ import {
   Dialog,
   DialogTitle,
   DialogContent,
-  DialogActions
+  DialogActions,
+  Pagination
 } from '@mui/material';
+import { DEFAULT_PAGE_SIZE, PAGINATION_UI_CONFIG } from '../../config/pagination';
 import {
   Add as AddIcon,
   Edit as EditIcon,
@@ -166,6 +168,12 @@ const TeacherProfilesSystem: React.FC = () => {
   const [tabValue, setTabValue] = useState(0);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
 
+  // Pagination state
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalTeachers, setTotalTeachers] = useState(0);
+  const perPage = DEFAULT_PAGE_SIZE;
+
   // Search and filter states
   const [searchTerm, setSearchTerm] = useState('');
   const [filterDepartment, setFilterDepartment] = useState('all');
@@ -221,48 +229,33 @@ const TeacherProfilesSystem: React.FC = () => {
     setLoading(true);
     try {
       const params = new URLSearchParams();
+      params.append('page', page.toString());
+      params.append('per_page', perPage.toString());
+
       if (searchTerm) params.append('search', searchTerm);
       if (filterDepartment !== 'all') params.append('department_filter', filterDepartment);
 
       // Add is_active parameter based on tab selection
-      // Tab 0: All teachers (load both active and inactive)
+      // Tab 0: All teachers (not supported with pagination - show active only)
       // Tab 1: Active teachers only
       // Tab 2: Inactive teachers only
-      if (tabValue === 1) {
+      if (tabValue === 0 || tabValue === 1) {
         params.append('is_active', 'true');
       } else if (tabValue === 2) {
         params.append('is_active', 'false');
       }
-      // For tab 0 (All), we need to make two API calls to get both active and inactive
 
-      if (tabValue === 0) {
-        // Load both active and inactive teachers
-        const activeParams = new URLSearchParams(params.toString());
-        activeParams.append('is_active', 'true');
-
-        const inactiveParams = new URLSearchParams(params.toString());
-        inactiveParams.append('is_active', 'false');
-
-        const [activeResponse, inactiveResponse] = await Promise.all([
-          teachersAPI.getTeachers(activeParams.toString()),
-          teachersAPI.getTeachers(inactiveParams.toString())
-        ]);
-        const allTeachers = [
-          ...(activeResponse.data.teachers || []),
-          ...(inactiveResponse.data.teachers || [])
-        ];
-        setTeachers(allTeachers);
-      } else {
-        const response = await teachersAPI.getTeachers(params.toString());
-        setTeachers(response.data.teachers || []);
-      }
+      const response = await teachersAPI.getTeachers(params.toString());
+      setTeachers(response.data.teachers || []);
+      setTotalPages(response.data.total_pages || 1);
+      setTotalTeachers(response.data.total || 0);
     } catch (err: any) {
       console.error('Error loading teachers:', err);
       errorDialog.handleApiError(err, 'data_fetch');
     } finally {
       setLoading(false);
     }
-  }, [configLoaded, isAuthenticated, searchTerm, filterDepartment, tabValue]);
+  }, [configLoaded, isAuthenticated, searchTerm, filterDepartment, tabValue, page, perPage]);
 
   // Load teachers when dependencies change
   useEffect(() => {
@@ -274,6 +267,18 @@ const TeacherProfilesSystem: React.FC = () => {
   // Handle tab change
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
+    setPage(1); // Reset to first page when changing tabs
+  };
+
+  // Handle filter changes - reset to page 1
+  const handleSearchChange = (value: string) => {
+    setSearchTerm(value);
+    setPage(1);
+  };
+
+  const handleDepartmentFilterChange = (value: string) => {
+    setFilterDepartment(value);
+    setPage(1);
   };
 
   // Dialog handlers
@@ -743,7 +748,7 @@ const TeacherProfilesSystem: React.FC = () => {
               label="Search Teachers"
               variant="outlined"
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => handleSearchChange(e.target.value)}
               slotProps={{
                 input: {
                   startAdornment: <SearchIcon sx={{ mr: 1, color: 'text.secondary' }} />
@@ -759,7 +764,7 @@ const TeacherProfilesSystem: React.FC = () => {
               <Select
                 value={filterDepartment}
                 label="Department"
-                onChange={(e) => setFilterDepartment(e.target.value)}
+                onChange={(e) => handleDepartmentFilterChange(e.target.value)}
               >
                 <MenuItem value="all">All Departments</MenuItem>
                 {configuration?.departments?.map((dept: any) => (
@@ -884,6 +889,20 @@ const TeacherProfilesSystem: React.FC = () => {
                 </TableBody>
               </Table>
             </TableContainer>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <Box display="flex" justifyContent="center" mt={3}>
+                <Pagination
+                  count={totalPages}
+                  page={page}
+                  onChange={(_, newPage) => setPage(newPage)}
+                  color={PAGINATION_UI_CONFIG.color}
+                  showFirstButton={PAGINATION_UI_CONFIG.showFirstLastButtons}
+                  showLastButton={PAGINATION_UI_CONFIG.showFirstLastButtons}
+                />
+              </Box>
+            )}
           </Paper>
         )}
       </TabPanel>
@@ -982,6 +1001,20 @@ const TeacherProfilesSystem: React.FC = () => {
                 </TableBody>
               </Table>
             </TableContainer>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <Box display="flex" justifyContent="center" mt={3}>
+                <Pagination
+                  count={totalPages}
+                  page={page}
+                  onChange={(_, newPage) => setPage(newPage)}
+                  color={PAGINATION_UI_CONFIG.color}
+                  showFirstButton={PAGINATION_UI_CONFIG.showFirstLastButtons}
+                  showLastButton={PAGINATION_UI_CONFIG.showFirstLastButtons}
+                />
+              </Box>
+            )}
           </Paper>
         )}
       </TabPanel>
@@ -1080,6 +1113,20 @@ const TeacherProfilesSystem: React.FC = () => {
                 </TableBody>
               </Table>
             </TableContainer>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <Box display="flex" justifyContent="center" mt={3}>
+                <Pagination
+                  count={totalPages}
+                  page={page}
+                  onChange={(_, newPage) => setPage(newPage)}
+                  color={PAGINATION_UI_CONFIG.color}
+                  showFirstButton={PAGINATION_UI_CONFIG.showFirstLastButtons}
+                  showLastButton={PAGINATION_UI_CONFIG.showFirstLastButtons}
+                />
+              </Box>
+            )}
           </Paper>
         )}
       </TabPanel>
