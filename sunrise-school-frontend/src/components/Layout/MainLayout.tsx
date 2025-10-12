@@ -39,6 +39,7 @@ import { Tooltip } from '@mui/material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import Footer from './Footer';
+import LoginPopup from '../LoginPopup';
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -52,14 +53,15 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const location = useLocation();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-  const { isAuthenticated, user, logout } = useAuth();
+  const { isAuthenticated, user, logout, showLoginPopup, setShowLoginPopup } = useAuth();
 
   const [mobileOpen, setMobileOpen] = useState(false);
-  // Always start expanded (false = expanded, true = collapsed)
-  const [drawerCollapsed, setDrawerCollapsed] = useState(false);
+  // Start collapsed by default (true = collapsed, false = expanded)
+  // Force collapsed state on initial load for consistency with admin dashboard
+  const [drawerCollapsed, setDrawerCollapsed] = useState(true);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
 
-  // Clear any stale localStorage on mount
+  // Clear any stale localStorage on mount to ensure collapsed state
   React.useEffect(() => {
     localStorage.removeItem('mainDrawerCollapsed');
   }, []);
@@ -319,12 +321,18 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
               </Menu>
             </>
           ) : (
-            <IconButton color="inherit" onClick={() => navigate('/')}>
+            <IconButton color="inherit" onClick={() => setShowLoginPopup(true)}>
               <LoginIcon />
             </IconButton>
           )}
         </Toolbar>
       </AppBar>
+
+      {/* Login Popup */}
+      <LoginPopup
+        open={showLoginPopup}
+        onClose={() => setShowLoginPopup(false)}
+      />
 
       {/* Sidebar Drawer */}
       <Drawer

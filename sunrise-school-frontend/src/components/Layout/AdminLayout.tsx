@@ -15,6 +15,9 @@ import {
   Toolbar,
   Divider,
   Tooltip,
+  Menu,
+  MenuItem,
+  Avatar,
 } from '@mui/material';
 import {
   Menu as MenuIcon,
@@ -25,10 +28,11 @@ import {
   Receipt,
   PersonAdd,
   School as SchoolIcon,
-  Notifications,
   Home as HomeIcon,
+  Logout as LogoutIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -42,19 +46,19 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   const location = useLocation();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const { user, isAuthenticated, logout } = useAuth();
 
   const [mobileOpen, setMobileOpen] = useState(false);
-  // Start collapsed by default (true = collapsed, false = expanded)
-  // Preserve user preference in localStorage
-  const [desktopCollapsed, setDesktopCollapsed] = useState(() => {
-    const saved = localStorage.getItem('adminDrawerCollapsed');
-    return saved !== null ? saved === 'true' : true; // Default to collapsed
-  });
+  const [userMenuAnchor, setUserMenuAnchor] = useState<null | HTMLElement>(null);
 
-  // Save collapsed state to localStorage whenever it changes
+  // Start collapsed by default (true = collapsed, false = expanded)
+  // Force collapsed state on initial load, ignore localStorage
+  const [desktopCollapsed, setDesktopCollapsed] = useState(true);
+
+  // Clear any stale localStorage on mount to ensure collapsed state
   React.useEffect(() => {
-    localStorage.setItem('adminDrawerCollapsed', String(desktopCollapsed));
-  }, [desktopCollapsed]);
+    localStorage.removeItem('adminDrawerCollapsed');
+  }, []);
 
   const menuItems = [
     { label: 'Dashboard', icon: <DashboardIcon />, path: '/admin/dashboard' },
@@ -78,6 +82,21 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
     if (isMobile) {
       setMobileOpen(false);
     }
+  };
+
+  const handleUserMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
+    setUserMenuAnchor(event.currentTarget);
+  };
+
+  const handleUserMenuClose = () => {
+    setUserMenuAnchor(null);
+  };
+
+  const handleLogout = () => {
+    handleUserMenuClose();
+    logout();
+    // Redirect to main website home page after logout
+    window.location.href = '/';
   };
 
   const isActive = (path: string) => location.pathname === path;
@@ -328,9 +347,17 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
             <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
               Admin Dashboard
             </Typography>
-            <IconButton color="inherit">
-              <Notifications />
-            </IconButton>
+            {isAuthenticated && user && (
+              <IconButton
+                color="inherit"
+                onClick={handleUserMenuOpen}
+                sx={{ ml: 1 }}
+              >
+                <Avatar sx={{ width: 32, height: 32, bgcolor: 'secondary.main' }}>
+                  {user.first_name?.[0] || user.email?.[0] || 'A'}
+                </Avatar>
+              </IconButton>
+            )}
           </Toolbar>
         </AppBar>
       )}
@@ -409,15 +436,54 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
               {menuItems.find((item) => item.path === location.pathname)?.label ||
                 'Admin Dashboard'}
             </Typography>
-            <IconButton color="primary">
-              <Notifications />
-            </IconButton>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              {isAuthenticated && user && (
+                <IconButton
+                  color="primary"
+                  onClick={handleUserMenuOpen}
+                >
+                  <Avatar sx={{ width: 36, height: 36, bgcolor: 'primary.main' }}>
+                    {user.first_name?.[0] || user.email?.[0] || 'A'}
+                  </Avatar>
+                </IconButton>
+              )}
+            </Box>
           </Box>
         )}
 
         {/* Page Content */}
         <Box sx={{ p: { xs: 2, sm: 3 } }}>{children}</Box>
       </Box>
+
+      {/* User Menu */}
+      <Menu
+        anchorEl={userMenuAnchor}
+        open={Boolean(userMenuAnchor)}
+        onClose={handleUserMenuClose}
+        anchorOrigin={{
+          vertical: 'bottom',
+          horizontal: 'right',
+        }}
+        transformOrigin={{
+          vertical: 'top',
+          horizontal: 'right',
+        }}
+      >
+        {user && (
+          <Box sx={{ px: 2, py: 1, borderBottom: '1px solid rgba(0, 0, 0, 0.12)' }}>
+            <Typography variant="subtitle2" fontWeight="bold">
+              {user.first_name} {user.last_name}
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              {user.email}
+            </Typography>
+          </Box>
+        )}
+        <MenuItem onClick={handleLogout}>
+          <LogoutIcon sx={{ mr: 1 }} />
+          Logout
+        </MenuItem>
+      </Menu>
     </Box>
   );
 };
