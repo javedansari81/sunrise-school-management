@@ -2,8 +2,10 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import Slider from 'react-slick';
 import { Box, Typography, Button, Container } from '@mui/material';
+import { ArrowBackIos, ArrowForwardIos } from '@mui/icons-material';
 import 'slick-carousel/slick/slick.css';
 import 'slick-carousel/slick/slick-theme.css';
+import './ImageSlider.css';
 
 interface SlideData {
   id: number;
@@ -13,6 +15,91 @@ interface SlideData {
   buttonText?: string;
   buttonLink?: string;
 }
+
+// Custom Arrow Components
+interface ArrowProps {
+  onClick?: () => void;
+}
+
+const PrevArrow: React.FC<ArrowProps> = ({ onClick }) => {
+  return (
+    <Box
+      onClick={onClick}
+      className="slick-arrow-custom slick-prev-custom"
+      sx={{
+        position: 'absolute',
+        left: 0,
+        top: 0,
+        bottom: 0,
+        width: { xs: '60px', sm: '80px', md: '100px' },
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'flex-start',
+        paddingLeft: { xs: '12px', sm: '16px', md: '24px' },
+        zIndex: 2,
+        cursor: 'pointer',
+        background: 'linear-gradient(to right, rgba(0, 0, 0, 0.6) 0%, rgba(0, 0, 0, 0) 100%)',
+        opacity: 0,
+        transition: 'opacity 0.3s ease',
+        '&:hover': {
+          opacity: 1,
+        },
+      }}
+    >
+      <ArrowBackIos
+        sx={{
+          fontSize: { xs: 28, sm: 36, md: 44 },
+          color: '#fff',
+          filter: 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5))',
+          transition: 'transform 0.2s ease',
+          '&:hover': {
+            transform: 'scale(1.2)',
+          },
+        }}
+      />
+    </Box>
+  );
+};
+
+const NextArrow: React.FC<ArrowProps> = ({ onClick }) => {
+  return (
+    <Box
+      onClick={onClick}
+      className="slick-arrow-custom slick-next-custom"
+      sx={{
+        position: 'absolute',
+        right: 0,
+        top: 0,
+        bottom: 0,
+        width: { xs: '60px', sm: '80px', md: '100px' },
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'flex-end',
+        paddingRight: { xs: '12px', sm: '16px', md: '24px' },
+        zIndex: 2,
+        cursor: 'pointer',
+        background: 'linear-gradient(to left, rgba(0, 0, 0, 0.6) 0%, rgba(0, 0, 0, 0) 100%)',
+        opacity: 0,
+        transition: 'opacity 0.3s ease',
+        '&:hover': {
+          opacity: 1,
+        },
+      }}
+    >
+      <ArrowForwardIos
+        sx={{
+          fontSize: { xs: 28, sm: 36, md: 44 },
+          color: '#fff',
+          filter: 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5))',
+          transition: 'transform 0.2s ease',
+          '&:hover': {
+            transform: 'scale(1.2)',
+          },
+        }}
+      />
+    </Box>
+  );
+};
 
 const ImageSlider: React.FC = () => {
   const navigate = useNavigate();
@@ -77,15 +164,24 @@ const ImageSlider: React.FC = () => {
     autoplaySpeed: 5000,
     fade: true,
     cssEase: 'linear',
+    arrows: true,
+    prevArrow: <PrevArrow />,
+    nextArrow: <NextArrow />,
   };
 
   return (
-    <Box sx={{
-      position: 'relative',
-      height: { xs: '50vh', sm: '60vh', md: '70vh' },
-      overflow: 'hidden',
-      minHeight: { xs: '400px', sm: '500px', md: '600px' }
-    }}>
+    <Box
+      className="slider-container"
+      sx={{
+        position: 'relative',
+        height: { xs: '50vh', sm: '60vh', md: '70vh' },
+        overflow: 'hidden',
+        minHeight: { xs: '400px', sm: '500px', md: '600px' },
+        '&:hover .slick-arrow-custom': {
+          opacity: 1,
+        },
+      }}
+    >
       <Slider {...settings}>
         {slides.map((slide) => (
           <Box key={slide.id} sx={{

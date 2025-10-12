@@ -1,0 +1,54 @@
+/* Custom Slider Dots - Prime Video Style */
+.slick-dots {
+  bottom: 20px !important;
+  z-index: 3;
+}
+
+.slick-dots li {
+  margin: 0 4px !important;
+  width: auto !important;
+  height: auto !important;
+}
+
+.slick-dots li button {
+  width: 8px !important;
+  height: 8px !important;
+  padding: 0 !important;
+  border-radius: 50% !important;
+  background-color: rgba(255, 255, 255, 0.5) !important;
+  transition: all 0.3s ease !important;
+}
+
+.slick-dots li button:before {
+  display: none !important;
+}
+
+.slick-dots li.slick-active button {
+  width: 8px !important;
+  height: 8px !important;
+  background-color: rgba(255, 255, 255, 1) !important;
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.8) !important;
+}
+
+.slick-dots li:hover button {
+  background-color: rgba(255, 255, 255, 0.8) !important;
+  transform: scale(1.2);
+}
+
+/* Mobile responsive dots */
+@media (max-width: 600px) {
+  .slick-dots {
+    bottom: 12px !important;
+  }
+  
+  .slick-dots li button {
+    width: 6px !important;
+    height: 6px !important;
+  }
+  
+  .slick-dots li.slick-active button {
+    width: 6px !important;
+    height: 6px !important;
+  }
+}
+
