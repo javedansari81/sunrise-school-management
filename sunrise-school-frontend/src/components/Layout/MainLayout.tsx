@@ -11,12 +11,13 @@ import {
   IconButton,
   useTheme,
   useMediaQuery,
-  AppBar,
-  Toolbar,
   Divider,
   Avatar,
   Menu,
   MenuItem,
+  Fab,
+  AppBar,
+  Toolbar,
 } from '@mui/material';
 import {
   Menu as MenuIcon,
@@ -53,13 +54,14 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const location = useLocation();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-  const { isAuthenticated, user, logout, showLoginPopup, setShowLoginPopup } = useAuth();
+  const { isAuthenticated, user, logout } = useAuth();
 
   const [mobileOpen, setMobileOpen] = useState(false);
   // Start collapsed by default (true = collapsed, false = expanded)
   // Force collapsed state on initial load for consistency with admin dashboard
   const [drawerCollapsed, setDrawerCollapsed] = useState(true);
-  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [userMenuAnchor, setUserMenuAnchor] = useState<null | HTMLElement>(null);
+  const [loginPopupOpen, setLoginPopupOpen] = useState(false);
 
   // Clear any stale localStorage on mount to ensure collapsed state
   React.useEffect(() => {
@@ -91,24 +93,93 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     }
   };
 
-  const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
-    setAnchorEl(event.currentTarget);
+  const handleUserMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
+    setUserMenuAnchor(event.currentTarget);
   };
 
-  const handleMenuClose = () => {
-    setAnchorEl(null);
+  const handleUserMenuClose = () => {
+    setUserMenuAnchor(null);
   };
 
   const handleLogout = () => {
-    handleMenuClose();
+    handleUserMenuClose();
     logout();
     navigate('/');
   };
 
+  const handleLoginClick = () => {
+    setLoginPopupOpen(true);
+  };
+
+  const handleLoginClose = () => {
+    setLoginPopupOpen(false);
+  };
+
   const isActive = (path: string) => location.pathname === path;
 
+  // Get dynamic page title based on current route
+  const getPageTitle = () => {
+    const currentItem = publicMenuItems.find((item) => item.path === location.pathname);
+    if (currentItem) {
+      if (currentItem.path === '/') {
+        return 'Welcome to Sunrise National Public School';
+      }
+      return currentItem.label;
+    }
+    return 'Sunrise National Public School';
+  };
+
   const drawerContent = (
-    <Box sx={{ height: 'calc(100vh - 64px)', display: 'flex', flexDirection: 'column' }}>
+    <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
+      {/* Sidebar Header - Fixed at top */}
+      <Box
+        sx={{
+          p: 2,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: 'linear-gradient(135deg, #1976d2 0%, #1565c0 100%)',
+          color: 'white',
+          minHeight: 64,
+          flexShrink: 0,
+        }}
+      >
+        {(!drawerCollapsed || isMobile) ? (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Box
+              component="img"
+              src="/images/logo/school_logo.jpeg"
+              alt="Sunrise School Logo"
+              sx={{
+                width: 40,
+                height: 40,
+                objectFit: 'contain',
+                borderRadius: 1,
+              }}
+            />
+            <Typography variant="h6" fontWeight="bold" sx={{ fontSize: '1.1rem' }}>
+              Sunrise School
+            </Typography>
+          </Box>
+        ) : (
+          <Box
+            component="img"
+            src="/images/logo/school_logo.jpeg"
+            alt="Sunrise School Logo"
+            sx={{
+              width: 48,
+              height: 48,
+              objectFit: 'contain',
+              borderRadius: 1,
+              backgroundColor: 'rgba(255, 255, 255, 0.1)',
+              p: 0.5,
+            }}
+          />
+        )}
+      </Box>
+
+      <Divider />
+
       {/* Navigation Menu - Scrollable */}
       <Box sx={{ flexGrow: 1, overflowY: 'auto', overflowX: 'hidden' }}>
         <List sx={{ py: 1, px: 1 }}>
@@ -227,112 +298,136 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
 
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh' }}>
-      {/* Top AppBar */}
-      <AppBar
-        position="fixed"
-        sx={{
-          zIndex: theme.zIndex.drawer + 1,
-          backgroundColor: '#1976d2',
-          boxShadow: 'none',
-          borderBottom: 'none',
-        }}
-      >
-        <Toolbar>
-          <IconButton
-            color="inherit"
-            edge="start"
-            onClick={handleDrawerToggle}
-            sx={{ mr: 2, display: { md: 'none' } }}
-          >
-            <MenuIcon />
-          </IconButton>
-          <SchoolIcon sx={{ mr: 1, display: { xs: 'none', sm: 'block' } }} />
-          <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1, fontSize: { xs: '1rem', sm: '1.25rem' } }}>
-            {isMobile ? 'Sunrise School' : 'Sunrise National Public School'}
-          </Typography>
+      {/* Mobile Menu Toggle Button - Floating */}
+      {isMobile && (
+        <Fab
+          color="primary"
+          aria-label="menu"
+          onClick={handleDrawerToggle}
+          sx={{
+            position: 'fixed',
+            top: 16,
+            left: 16,
+            zIndex: theme.zIndex.drawer + 2,
+            boxShadow: 3,
+          }}
+        >
+          <MenuIcon />
+        </Fab>
+      )}
 
-          {/* User Menu */}
-          {isAuthenticated && user ? (
-            <>
-              <IconButton onClick={handleMenuOpen} sx={{ color: 'white' }}>
-                <Avatar sx={{ width: 32, height: 32, bgcolor: 'secondary.main' }}>
+      {/* Desktop AppBar - Positioned next to sidebar */}
+      {!isMobile && (
+        <AppBar
+          position="fixed"
+          sx={{
+            zIndex: theme.zIndex.drawer - 1,
+            backgroundColor: 'white',
+            color: 'text.primary',
+            boxShadow: 'none',
+            borderBottom: '1px solid rgba(0, 0, 0, 0.12)',
+            width: `calc(100% - ${drawerCollapsed ? DRAWER_WIDTH_COLLAPSED : DRAWER_WIDTH}px)`,
+            ml: `${drawerCollapsed ? DRAWER_WIDTH_COLLAPSED : DRAWER_WIDTH}px`,
+            transition: theme.transitions.create(['width', 'margin'], {
+              easing: theme.transitions.easing.sharp,
+              duration: theme.transitions.duration.enteringScreen,
+            }),
+          }}
+        >
+          <Toolbar>
+            {/* Dynamic Page Title */}
+            <Typography variant="h5" fontWeight="bold" color="primary" sx={{ flexGrow: 1 }}>
+              {getPageTitle()}
+            </Typography>
+
+            {/* User Profile Menu */}
+            {isAuthenticated && user ? (
+              <IconButton onClick={handleUserMenuOpen} sx={{ color: 'primary.main' }}>
+                <Avatar sx={{ width: 36, height: 36, bgcolor: 'primary.main' }}>
                   {user.first_name?.[0] || user.email?.[0] || 'U'}
                 </Avatar>
               </IconButton>
-              <Menu
-                anchorEl={anchorEl}
-                open={Boolean(anchorEl)}
-                onClose={handleMenuClose}
-                anchorOrigin={{
-                  vertical: 'bottom',
-                  horizontal: 'right',
-                }}
-                transformOrigin={{
-                  vertical: 'top',
-                  horizontal: 'right',
-                }}
-              >
-                {/* Admin Dashboard */}
-                {user?.user_type?.toUpperCase() === 'ADMIN' && (
-                  <MenuItem onClick={() => { 
-                    handleMenuClose(); 
-                    window.open('/admin/dashboard', '_blank', 'noopener,noreferrer');
-                  }}>
-                    <DashboardIcon sx={{ mr: 1 }} />
-                    Admin Dashboard
-                  </MenuItem>
-                )}
+            ) : (
+              <IconButton color="primary" onClick={handleLoginClick}>
+                <LoginIcon />
+              </IconButton>
+            )}
+          </Toolbar>
+        </AppBar>
+      )}
 
-                {/* Teacher Dashboard */}
-                {user?.user_type?.toUpperCase() === 'TEACHER' && (
-                  <MenuItem onClick={() => { handleMenuClose(); navigate('/teacher/dashboard'); }}>
-                    <DashboardIcon sx={{ mr: 1 }} />
-                    Dashboard
-                  </MenuItem>
-                )}
+      {/* User Menu Dropdown */}
+      <Menu
+        anchorEl={userMenuAnchor}
+        open={Boolean(userMenuAnchor)}
+        onClose={handleUserMenuClose}
+        anchorOrigin={{
+          vertical: 'bottom',
+          horizontal: 'right',
+        }}
+        transformOrigin={{
+          vertical: 'top',
+          horizontal: 'right',
+        }}
+      >
+        {user && (
+          <Box sx={{ px: 2, py: 1, borderBottom: '1px solid rgba(0, 0, 0, 0.12)' }}>
+            <Typography variant="subtitle2" fontWeight="bold">
+              {user.first_name} {user.last_name}
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              {user.email}
+            </Typography>
+          </Box>
+        )}
 
-                {/* Student Leave Management */}
-                {user?.user_type?.toUpperCase() === 'STUDENT' && (
-                  <MenuItem onClick={() => { handleMenuClose(); navigate('/student/leaves'); }}>
-                    <BeachAccessIcon sx={{ mr: 1 }} />
-                    Leave Management
-                  </MenuItem>
-                )}
+        {/* Admin Dashboard */}
+        {user?.user_type?.toUpperCase() === 'ADMIN' && (
+          <MenuItem onClick={() => {
+            handleUserMenuClose();
+            window.open('/admin/dashboard', '_blank', 'noopener,noreferrer');
+          }}>
+            <DashboardIcon sx={{ mr: 1 }} />
+            Admin Dashboard
+          </MenuItem>
+        )}
 
-                {/* Teacher Leave Management */}
-                {user?.user_type?.toUpperCase() === 'TEACHER' && (
-                  <MenuItem onClick={() => { handleMenuClose(); navigate('/teacher/leaves'); }}>
-                    <BeachAccessIcon sx={{ mr: 1 }} />
-                    Leave Management
-                  </MenuItem>
-                )}
+        {/* Teacher Dashboard */}
+        {user?.user_type?.toUpperCase() === 'TEACHER' && (
+          <MenuItem onClick={() => { handleUserMenuClose(); navigate('/teacher/dashboard'); }}>
+            <DashboardIcon sx={{ mr: 1 }} />
+            Dashboard
+          </MenuItem>
+        )}
 
-                {/* Profile */}
-                <MenuItem onClick={() => { handleMenuClose(); navigate('/profile'); }}>
-                  <PersonIcon sx={{ mr: 1 }} />
-                  Profile
-                </MenuItem>
+        {/* Student Leave Management */}
+        {user?.user_type?.toUpperCase() === 'STUDENT' && (
+          <MenuItem onClick={() => { handleUserMenuClose(); navigate('/student/leaves'); }}>
+            <BeachAccessIcon sx={{ mr: 1 }} />
+            Leave Management
+          </MenuItem>
+        )}
 
-                {/* Logout */}
-                <MenuItem onClick={handleLogout}>
-                  <LogoutIcon sx={{ mr: 1 }} />
-                  Logout
-                </MenuItem>
-              </Menu>
-            </>
-          ) : (
-            <IconButton color="inherit" onClick={() => setShowLoginPopup(true)}>
-              <LoginIcon />
-            </IconButton>
-          )}
-        </Toolbar>
-      </AppBar>
+        {/* Teacher Leave Management */}
+        {user?.user_type?.toUpperCase() === 'TEACHER' && (
+          <MenuItem onClick={() => { handleUserMenuClose(); navigate('/teacher/leaves'); }}>
+            <BeachAccessIcon sx={{ mr: 1 }} />
+            Leave Management
+          </MenuItem>
+        )}
 
-      {/* Login Popup */}
-      <LoginPopup
-        open={showLoginPopup}
-        onClose={() => setShowLoginPopup(false)}
-      />
+        {/* Profile */}
+        <MenuItem onClick={() => { handleUserMenuClose(); navigate('/profile'); }}>
+          <PersonIcon sx={{ mr: 1 }} />
+          Profile
+        </MenuItem>
+
+        {/* Logout */}
+        <MenuItem onClick={handleLogout}>
+          <LogoutIcon sx={{ mr: 1 }} />
+          Logout
+        </MenuItem>
+      </Menu>
 
       {/* Sidebar Drawer */}
       <Drawer
@@ -354,8 +449,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
             boxSizing: 'border-box',
             borderRight: '1px solid rgba(0, 0, 0, 0.12)',
             boxShadow: 'none',
-            mt: '64px', // Push drawer below AppBar
-            height: 'calc(100vh - 64px)', // Adjust height to account for AppBar
+            top: 0,
+            height: '100vh',
+            position: 'fixed',
             transition: theme.transitions.create('width', {
               easing: theme.transitions.easing.sharp,
               duration: theme.transitions.duration.enteringScreen,
@@ -378,10 +474,10 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
             md: `calc(100% - ${drawerCollapsed ? DRAWER_WIDTH_COLLAPSED : DRAWER_WIDTH}px)`,
           },
           ml: { xs: 0, md: 0 },
-          mt: '64px', // AppBar height
+          mt: { xs: 0, md: '64px' }, // Add top margin for AppBar on desktop
           display: 'flex',
           flexDirection: 'column',
-          minHeight: 'calc(100vh - 64px)',
+          minHeight: { xs: '100vh', md: 'calc(100vh - 64px)' },
           transition: theme.transitions.create(['width', 'margin'], {
             easing: theme.transitions.easing.sharp,
             duration: theme.transitions.duration.enteringScreen,
@@ -393,6 +489,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
         </Box>
         <Footer />
       </Box>
+
+      {/* Login Popup */}
+      <LoginPopup open={loginPopupOpen} onClose={handleLoginClose} />
     </Box>
   );
 };

@@ -387,6 +387,9 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
             overflowX: 'hidden',
             overflowY: 'hidden',
             borderRight: '1px solid rgba(0, 0, 0, 0.12)',
+            top: 0,
+            height: '100vh',
+            position: 'fixed',
           },
         }}
       >
