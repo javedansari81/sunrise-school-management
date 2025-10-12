@@ -109,38 +109,34 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
           p: 2,
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'space-between',
+          justifyContent: 'center',
           background: 'linear-gradient(135deg, #1976d2 0%, #1565c0 100%)',
           color: 'white',
           minHeight: 64,
           flexShrink: 0,
         }}
       >
-        {(!desktopCollapsed || isMobile) && (
+        {(!desktopCollapsed || isMobile) ? (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <SchoolIcon sx={{ fontSize: 28 }} />
             <Typography variant="h6" fontWeight="bold" sx={{ fontSize: '1.1rem' }}>
               Admin Panel
             </Typography>
           </Box>
-        )}
-        {!isMobile && desktopCollapsed && (
-          <IconButton
-            onClick={handleDesktopToggle}
+        ) : (
+          <Box
+            component="img"
+            src="/logo192.png"
+            alt="Admin Panel"
             sx={{
-              color: 'white',
-              backgroundColor: 'rgba(255, 255, 255, 0.2)',
-              '&:hover': { backgroundColor: 'rgba(255, 255, 255, 0.3)' },
-              boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+              width: 48,
+              height: 48,
+              objectFit: 'contain',
+              borderRadius: 1,
+              backgroundColor: 'rgba(255, 255, 255, 0.1)',
+              p: 0.5,
             }}
-          >
-            <ChevronLeftIcon
-              sx={{
-                transform: desktopCollapsed ? 'rotate(180deg)' : 'rotate(0deg)',
-                transition: 'transform 0.3s',
-              }}
-            />
-          </IconButton>
+          />
         )}
       </Box>
 
