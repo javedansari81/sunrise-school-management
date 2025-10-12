@@ -118,7 +118,17 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
       >
         {(!desktopCollapsed || isMobile) ? (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <SchoolIcon sx={{ fontSize: 28 }} />
+            <Box
+              component="img"
+              src="/images/logo/school_logo.jpeg"
+              alt="Sunrise School Logo"
+              sx={{
+                width: 40,
+                height: 40,
+                objectFit: 'contain',
+                borderRadius: 1,
+              }}
+            />
             <Typography variant="h6" fontWeight="bold" sx={{ fontSize: '1.1rem' }}>
               Admin Panel
             </Typography>
@@ -126,8 +136,8 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
         ) : (
           <Box
             component="img"
-            src="/logo192.png"
-            alt="Admin Panel"
+            src="/images/logo/school_logo.jpeg"
+            alt="Sunrise School Logo"
             sx={{
               width: 48,
               height: 48,
@@ -328,9 +338,10 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
           sx={{
             zIndex: theme.zIndex.drawer + 1,
             backgroundColor: '#1976d2',
+            height: 72,
           }}
         >
-          <Toolbar>
+          <Toolbar sx={{ minHeight: 72, height: 72 }}>
             <IconButton
               color="inherit"
               edge="start"
@@ -339,7 +350,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
             >
               <MenuIcon />
             </IconButton>
-            <SchoolIcon sx={{ mr: 1 }} />
+            <SchoolIcon sx={{ mr: 1, fontSize: 32 }} />
             <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
               Admin Dashboard
             </Typography>
@@ -349,7 +360,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                 onClick={handleUserMenuOpen}
                 sx={{ ml: 1 }}
               >
-                <Avatar sx={{ width: 32, height: 32, bgcolor: 'secondary.main' }}>
+                <Avatar sx={{ width: 36, height: 36, bgcolor: 'secondary.main' }}>
                   {user.first_name?.[0] || user.email?.[0] || 'A'}
                 </Avatar>
               </IconButton>
@@ -416,7 +427,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
         }}
       >
         {/* Mobile Toolbar Spacer */}
-        {isMobile && <Toolbar />}
+        {isMobile && <Toolbar sx={{ minHeight: 72 }} />}
 
         {/* Desktop Header */}
         {!isMobile && (

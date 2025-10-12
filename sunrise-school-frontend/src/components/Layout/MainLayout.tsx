@@ -15,7 +15,6 @@ import {
   Avatar,
   Menu,
   MenuItem,
-  Fab,
   AppBar,
   Toolbar,
 } from '@mui/material';
@@ -56,9 +55,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const { isAuthenticated, user, logout } = useAuth();
 
+  // Mobile drawer starts closed by default to not obstruct content
   const [mobileOpen, setMobileOpen] = useState(false);
-  // Start collapsed by default (true = collapsed, false = expanded)
-  // Force collapsed state on initial load for consistency with admin dashboard
+  // Desktop drawer starts collapsed by default (true = collapsed, false = expanded)
   const [drawerCollapsed, setDrawerCollapsed] = useState(true);
   const [userMenuAnchor, setUserMenuAnchor] = useState<null | HTMLElement>(null);
   const [loginPopupOpen, setLoginPopupOpen] = useState(false);
@@ -186,14 +185,14 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           {publicMenuItems.map((item) => {
             const active = isActive(item.path);
             return (
-              <ListItem key={item.path} disablePadding sx={{ px: drawerCollapsed ? 0.5 : 1, mb: 0.5 }}>
+              <ListItem key={item.path} disablePadding sx={{ px: (drawerCollapsed && !isMobile) ? 0.5 : 1, mb: 0.5 }}>
                 <ListItemButton
                   onClick={() => handleNavigation(item.path)}
                   sx={{
                     borderRadius: 2,
                     minHeight: 48,
-                    px: drawerCollapsed ? 1.5 : 2.5,
-                    justifyContent: drawerCollapsed ? 'center' : 'flex-start',
+                    px: (drawerCollapsed && !isMobile) ? 1.5 : 2.5,
+                    justifyContent: (drawerCollapsed && !isMobile) ? 'center' : 'flex-start',
                     backgroundColor: active ? 'rgba(25, 118, 210, 0.12)' : 'transparent',
                     color: active ? 'primary.main' : 'text.primary',
                     '&:hover': {
@@ -211,14 +210,14 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                 >
                   <ListItemIcon
                     sx={{
-                      minWidth: drawerCollapsed ? 0 : 40,
+                      minWidth: (drawerCollapsed && !isMobile) ? 0 : 40,
                       color: active ? 'primary.main' : 'text.secondary',
                       justifyContent: 'center',
                     }}
                   >
                     {item.icon}
                   </ListItemIcon>
-                  {!drawerCollapsed && (
+                  {(!drawerCollapsed || isMobile) && (
                     <ListItemText
                       primary={item.label}
                       slotProps={{
@@ -298,22 +297,58 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
 
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh' }}>
-      {/* Mobile Menu Toggle Button - Floating */}
+      {/* Mobile AppBar */}
       {isMobile && (
-        <Fab
-          color="primary"
-          aria-label="menu"
-          onClick={handleDrawerToggle}
+        <AppBar
+          position="fixed"
           sx={{
-            position: 'fixed',
-            top: 16,
-            left: 16,
-            zIndex: theme.zIndex.drawer + 2,
-            boxShadow: 3,
+            zIndex: theme.zIndex.drawer + 1,
+            backgroundColor: '#1976d2',
+            color: 'white',
+            boxShadow: 1,
+            height: 72,
           }}
         >
-          <MenuIcon />
-        </Fab>
+          <Toolbar sx={{ minHeight: 72, height: 72 }}>
+            <IconButton
+              color="inherit"
+              edge="start"
+              onClick={handleDrawerToggle}
+              sx={{ mr: 2 }}
+            >
+              <MenuIcon />
+            </IconButton>
+            <Box
+              component="img"
+              src="/images/logo/school_logo.jpeg"
+              alt="Sunrise School Logo"
+              sx={{
+                width: 40,
+                height: 40,
+                objectFit: 'contain',
+                mr: 1,
+              }}
+            />
+            <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1, color: 'white', fontWeight: 'bold' }}>
+              Sunrise School
+            </Typography>
+            {isAuthenticated && user ? (
+              <IconButton
+                color="inherit"
+                onClick={handleUserMenuOpen}
+                sx={{ ml: 1 }}
+              >
+                <Avatar sx={{ width: 36, height: 36, bgcolor: 'white', color: '#1976d2' }}>
+                  {user.first_name?.[0] || user.email?.[0] || 'U'}
+                </Avatar>
+              </IconButton>
+            ) : (
+              <IconButton color="inherit" onClick={handleLoginClick}>
+                <LoginIcon />
+              </IconButton>
+            )}
+          </Toolbar>
+        </AppBar>
       )}
 
       {/* Desktop AppBar - Positioned next to sidebar */}
@@ -326,6 +361,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
             color: 'text.primary',
             boxShadow: 'none',
             borderBottom: '1px solid rgba(0, 0, 0, 0.12)',
+            height: 72,
             width: `calc(100% - ${drawerCollapsed ? DRAWER_WIDTH_COLLAPSED : DRAWER_WIDTH}px)`,
             ml: `${drawerCollapsed ? DRAWER_WIDTH_COLLAPSED : DRAWER_WIDTH}px`,
             transition: theme.transitions.create(['width', 'margin'], {
@@ -334,7 +370,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
             }),
           }}
         >
-          <Toolbar>
+          <Toolbar sx={{ minHeight: 72, height: 72 }}>
             {/* Dynamic Page Title */}
             <Typography variant="h5" fontWeight="bold" color="primary" sx={{ flexGrow: 1 }}>
               {getPageTitle()}
@@ -438,14 +474,14 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           keepMounted: true,
         }}
         sx={{
-          width: drawerCollapsed ? DRAWER_WIDTH_COLLAPSED : DRAWER_WIDTH,
+          width: isMobile ? DRAWER_WIDTH : (drawerCollapsed ? DRAWER_WIDTH_COLLAPSED : DRAWER_WIDTH),
           flexShrink: 0,
           transition: theme.transitions.create('width', {
             easing: theme.transitions.easing.sharp,
             duration: theme.transitions.duration.enteringScreen,
           }),
           '& .MuiDrawer-paper': {
-            width: drawerCollapsed ? DRAWER_WIDTH_COLLAPSED : DRAWER_WIDTH,
+            width: isMobile ? DRAWER_WIDTH : (drawerCollapsed ? DRAWER_WIDTH_COLLAPSED : DRAWER_WIDTH),
             boxSizing: 'border-box',
             borderRight: '1px solid rgba(0, 0, 0, 0.12)',
             boxShadow: 'none',
@@ -474,10 +510,10 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
             md: `calc(100% - ${drawerCollapsed ? DRAWER_WIDTH_COLLAPSED : DRAWER_WIDTH}px)`,
           },
           ml: { xs: 0, md: 0 },
-          mt: { xs: 0, md: '64px' }, // Add top margin for AppBar on desktop
+          mt: '72px', // Add top margin for AppBar (72px for both mobile and desktop)
           display: 'flex',
           flexDirection: 'column',
-          minHeight: { xs: '100vh', md: 'calc(100vh - 64px)' },
+          minHeight: 'calc(100vh - 72px)',
           transition: theme.transitions.create(['width', 'margin'], {
             easing: theme.transitions.easing.sharp,
             duration: theme.transitions.duration.enteringScreen,
