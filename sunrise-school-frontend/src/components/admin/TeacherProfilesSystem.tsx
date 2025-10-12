@@ -797,9 +797,6 @@ const TeacherProfilesSystem: React.FC = () => {
           </Box>
         ) : (
           <Paper elevation={3} sx={{ p: 3 }}>
-            <Typography variant="h6" fontWeight="bold" mb={2}>
-              All Teachers ({filteredTeachers.length})
-            </Typography>
             <TableContainer sx={{ maxHeight: { xs: '60vh', sm: '70vh' }, overflow: 'auto' }}>
               <Table stickyHeader>
                 <TableHead>

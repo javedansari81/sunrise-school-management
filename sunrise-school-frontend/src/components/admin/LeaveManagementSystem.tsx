@@ -528,9 +528,6 @@ const LeaveManagementSystem: React.FC = () => {
             </Box>
           ) : (
             <Paper elevation={3} sx={{ p: 3 }}>
-              <Typography variant="h6" fontWeight="bold" mb={2}>
-                All Leave Requests ({Array.isArray(leaveRequests) ? leaveRequests.length : 0})
-              </Typography>
               <TableContainer
                 sx={{
                   maxHeight: { xs: '60vh', sm: '70vh' },

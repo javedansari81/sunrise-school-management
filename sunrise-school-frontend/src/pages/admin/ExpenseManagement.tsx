@@ -662,11 +662,6 @@ const ExpenseManagement: React.FC = () => {
 
       {/* Expense Table */}
       <Paper elevation={3} sx={{ p: 3 }}>
-        <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-          <Typography variant="h6" fontWeight="bold">
-            Expense Records ({totalExpenses} total)
-          </Typography>
-        </Box>
 
         {loading ? (
           <Box display="flex" justifyContent="center" p={4}>
