@@ -100,6 +100,8 @@ const AdminDashboard: React.FC = () => {
           icon: <People fontSize="large" />,
           color: '#1976d2',
           change: 'Loading...',
+          clickable: false,
+          onClick: undefined,
         },
         {
           title: 'Total Teachers',
@@ -107,6 +109,8 @@ const AdminDashboard: React.FC = () => {
           icon: <School fontSize="large" />,
           color: '#388e3c',
           change: 'Loading...',
+          clickable: false,
+          onClick: undefined,
         },
         {
           title: 'Pending Fees',
@@ -114,6 +118,8 @@ const AdminDashboard: React.FC = () => {
           icon: <Payment fontSize="large" />,
           color: '#f57c00',
           change: 'Loading...',
+          clickable: false,
+          onClick: undefined,
         },
         {
           title: 'Leave Requests',
@@ -121,6 +127,8 @@ const AdminDashboard: React.FC = () => {
           icon: <EventNote fontSize="large" />,
           color: '#7b1fa2',
           change: 'Loading...',
+          clickable: false,
+          onClick: undefined,
         },
         {
           title: 'Monthly Expenses',
@@ -128,6 +136,8 @@ const AdminDashboard: React.FC = () => {
           icon: <AccountBalance fontSize="large" />,
           color: '#d32f2f',
           change: 'Loading...',
+          clickable: false,
+          onClick: undefined,
         },
         {
           title: 'Revenue Growth',
@@ -135,6 +145,8 @@ const AdminDashboard: React.FC = () => {
           icon: <TrendingUp fontSize="large" />,
           color: '#0288d1',
           change: 'Loading...',
+          clickable: false,
+          onClick: undefined,
         },
       ];
     }
@@ -146,6 +158,8 @@ const AdminDashboard: React.FC = () => {
         icon: <People fontSize="large" />,
         color: '#1976d2',
         change: dashboardStats.students.change_text,
+        clickable: true,
+        onClick: () => navigate('/admin/students'),
       },
       {
         title: 'Total Teachers',
@@ -153,6 +167,8 @@ const AdminDashboard: React.FC = () => {
         icon: <School fontSize="large" />,
         color: '#388e3c',
         change: dashboardStats.teachers.change_text,
+        clickable: true,
+        onClick: () => navigate('/admin/teachers'),
       },
       {
         title: 'Pending Fees',
@@ -160,6 +176,8 @@ const AdminDashboard: React.FC = () => {
         icon: <Payment fontSize="large" />,
         color: '#f57c00',
         change: dashboardStats.fees.change_text,
+        clickable: true,
+        onClick: () => navigate('/admin/fees'),
       },
       {
         title: 'Leave Requests',
@@ -176,6 +194,8 @@ const AdminDashboard: React.FC = () => {
         icon: <AccountBalance fontSize="large" />,
         color: '#d32f2f',
         change: dashboardStats.expenses.change_text,
+        clickable: true,
+        onClick: () => navigate('/admin/expenses'),
       },
       {
         title: 'Revenue Growth',
@@ -183,6 +203,8 @@ const AdminDashboard: React.FC = () => {
         icon: <TrendingUp fontSize="large" />,
         color: '#0288d1',
         change: dashboardStats.revenue_growth.change_text,
+        clickable: true,
+        onClick: () => navigate('/admin/fees'),
       },
     ];
   };
