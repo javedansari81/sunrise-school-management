@@ -810,17 +810,17 @@ const FeeManagementComponent: React.FC = () => {
           }}
         >
           <Tab
-            label={`All Students (${allStudents.length})`}
+            label="All Students"
             icon={<SchoolIcon />}
             iconPosition="start"
           />
           <Tab
-            label={`Pending Payments (${filterStudentsByTab(allStudents, 1).length})`}
+            label="Pending Payments"
             icon={<Schedule />}
             iconPosition="start"
           />
           <Tab
-            label={`Paid in Full (${filterStudentsByTab(allStudents, 2).length})`}
+            label="Paid in Full"
             icon={<CheckCircle />}
             iconPosition="start"
           />
@@ -947,7 +947,6 @@ const FeeManagementComponent: React.FC = () => {
                 <TableCell
                   padding="checkbox"
                   sx={{
-                    display: { xs: 'none', sm: 'table-cell' },
                     minWidth: { xs: 'auto', sm: 48 }
                   }}
                 >
@@ -961,7 +960,10 @@ const FeeManagementComponent: React.FC = () => {
                     }}
                     checked={selectedStudentIds.length === students.length && students.length > 0}
                     sx={{
-                      padding: 0.5
+                      padding: { xs: 0.75, sm: 0.5 },
+                      '& .MuiSvgIcon-root': {
+                        fontSize: { xs: '1.5rem', sm: '1.25rem' }
+                      }
                     }}
                   />
                 </TableCell>
@@ -1028,7 +1030,12 @@ const FeeManagementComponent: React.FC = () => {
                             setSelectedStudentIds(prev => prev.filter(id => id !== student.student_id));
                           }
                         }}
-                        sx={{ padding: 0.5 }}
+                        sx={{
+                          padding: { xs: 0.75, sm: 0.5 },
+                          '& .MuiSvgIcon-root': {
+                            fontSize: { xs: '1.5rem', sm: '1.25rem' }
+                          }
+                        }}
                       />
                     </TableCell>
                     <TableCell>
