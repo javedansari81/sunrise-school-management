@@ -33,6 +33,8 @@ import {
   ListItemText,
   Checkbox,
   FormHelperText,
+  Tabs,
+  Tab,
 } from '@mui/material';
 import {
   Search,
@@ -41,11 +43,13 @@ import {
   Settings,
   CheckCircle,
   Schedule,
-  Error,
   Close as CloseIcon,
   Payment,
   AccountBalance,
   Warning,
+  Add as AddIcon,
+  School as SchoolIcon,
+  Assessment as AssessmentIcon,
 } from '@mui/icons-material';
 import {
   SessionYearDropdown,
@@ -162,6 +166,7 @@ const FeeManagementComponent: React.FC = () => {
   const [dialogLoading, setDialogLoading] = useState(false);
   const [paymentHistoryLoading, setPaymentHistoryLoading] = useState(false);
   const [students, setStudents] = useState<EnhancedStudentFeeSummary[]>([]);
+  const [allStudents, setAllStudents] = useState<EnhancedStudentFeeSummary[]>([]); // Store all students for filtering
   const [selectedStudent, setSelectedStudent] = useState<StudentMonthlyFeeHistory | null>(null);
   const [paymentHistory, setPaymentHistory] = useState<any>(null);
   const [filters, setFilters] = useState({
@@ -169,6 +174,7 @@ const FeeManagementComponent: React.FC = () => {
     class_id: 'all',
     search: '',
   });
+  const [tabValue, setTabValue] = useState(0); // 0: All, 1: Pending, 2: Paid, 3: Statistics
   const [dialogOpen, setDialogOpen] = useState(false);
   const [paymentHistoryDialogOpen, setPaymentHistoryDialogOpen] = useState(false);
   const [enableTrackingDialog, setEnableTrackingDialog] = useState(false);
@@ -213,6 +219,46 @@ const FeeManagementComponent: React.FC = () => {
 
     return className;
   };
+
+  // Filter students based on tab selection
+  const filterStudentsByTab = (students: EnhancedStudentFeeSummary[], tab: number) => {
+    switch (tab) {
+      case 0: // All Students
+        return students;
+      case 1: // Pending Payments
+        return students.filter(s =>
+          s.has_monthly_tracking &&
+          (s.pending_months > 0 || s.overdue_months > 0)
+        );
+      case 2: // Paid in Full
+        return students.filter(s =>
+          s.has_monthly_tracking &&
+          s.pending_months === 0 &&
+          s.overdue_months === 0 &&
+          s.paid_months > 0
+        );
+      case 3: // Statistics (show all for now)
+        return students;
+      default:
+        return students;
+    }
+  };
+
+  // Apply filters and tab selection
+  useEffect(() => {
+    const filtered = filterStudentsByTab(allStudents, tabValue);
+    setStudents(filtered);
+  }, [tabValue, allStudents]);
+
+  // Real-time search with debounce
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (filters.session_year_id) {
+        fetchStudentsSummary();
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [filters.search, filters.class_id]);
 
   // Fetch enhanced student summary
   const fetchStudentsSummary = async () => {
@@ -263,7 +309,8 @@ const FeeManagementComponent: React.FC = () => {
         has_monthly_tracking: s.has_monthly_tracking,
         fee_record_id: s.fee_record_id
       })));
-      setStudents(students);
+      setAllStudents(students); // Store all students
+      setStudents(students); // Display all initially
     } catch (error: any) {
       console.error('❌ API Error:', error);
       console.error('❌ Error details:', {
@@ -674,7 +721,35 @@ const FeeManagementComponent: React.FC = () => {
   }
 
   return (
-    <Box sx={{ p: 3 }}>
+    <Box sx={{ p: { xs: 1, sm: 2, md: 3 } }}>
+      {/* Action Button - Positioned above filters */}
+      <Box
+        display="flex"
+        justifyContent="flex-end"
+        alignItems="center"
+        mb={{ xs: 2, sm: 3 }}
+      >
+        {selectedStudentIds.length > 0 && (
+          <Button
+            variant="outlined"
+            startIcon={<Settings />}
+            onClick={() => {
+              console.log('🔍 Enable Monthly Tracking Button Clicked:', {
+                selectedStudentIds: selectedStudentIds,
+                totalStudents: students.length,
+              });
+              setEnableTrackingDialog(true);
+            }}
+            sx={{
+              fontSize: { xs: '0.875rem', sm: '1rem' },
+              padding: { xs: '6px 12px', sm: '8px 16px' },
+            }}
+          >
+            Enable Monthly Tracking ({selectedStudentIds.length})
+          </Button>
+        )}
+      </Box>
+
       {/* Filters - Mobile Responsive */}
       <Paper sx={{ p: { xs: 1.5, sm: 2 }, mb: { xs: 2, sm: 3 } }}>
         <Stack
@@ -684,7 +759,11 @@ const FeeManagementComponent: React.FC = () => {
         >
           <SessionYearDropdown
             value={filters.session_year_id}
-            onChange={(value) => setFilters(prev => ({ ...prev, session_year_id: value as string }))}
+            onChange={(value) => {
+              setFilters(prev => ({ ...prev, session_year_id: value as string }));
+              // Auto-fetch when session year changes
+              setTimeout(() => fetchStudentsSummary(), 100);
+            }}
             required
           />
           <ClassDropdown
@@ -694,70 +773,156 @@ const FeeManagementComponent: React.FC = () => {
             allLabel="ALL"
           />
           <TextField
-            placeholder="Search students..."
+            placeholder="Search by name or admission number..."
             value={filters.search}
             onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
-            InputProps={{
-              startAdornment: <Search />,
+            slotProps={{
+              input: {
+                startAdornment: <Search sx={{ mr: 1, color: 'action.active' }} />,
+              }
             }}
             sx={{
-              minWidth: { xs: '100%', sm: 200 },
+              minWidth: { xs: '100%', sm: 250 },
               '& .MuiInputBase-input': {
                 fontSize: { xs: '0.875rem', sm: '1rem' }
               }
             }}
           />
-          <Button
-            variant="contained"
-            onClick={fetchStudentsSummary}
-            disabled={!filters.session_year_id}
-            sx={{
-              fontSize: { xs: '0.875rem', sm: '1rem' },
-              padding: { xs: '6px 12px', sm: '8px 16px' },
-              minWidth: { xs: '100%', sm: 'auto' }
-            }}
-          >
-            Search
-          </Button>
-          {selectedStudentIds.length > 0 && (
-            <Button
-              variant="outlined"
-              startIcon={<Settings />}
-              onClick={() => {
-                // Debug logging before opening dialog
-                console.log('🔍 Enable Monthly Tracking Button Clicked:', {
-                  selectedStudentIds: selectedStudentIds,
-                  totalStudents: students.length,
-                  selectedStudentsData: students
-                    .filter(s => selectedStudentIds.includes(s.student_id))
-                    .map(s => ({
-                      id: s.student_id,
-                      name: s.student_name,
-                      has_monthly_tracking: s.has_monthly_tracking,
-                      fee_record_id: s.fee_record_id
-                    }))
-                });
-                setEnableTrackingDialog(true);
-              }}
-              sx={{
-                fontSize: { xs: '0.75rem', sm: '0.875rem' },
-                padding: { xs: '4px 8px', sm: '6px 12px' },
-                minWidth: { xs: '100%', sm: 'auto' },
-                '& .MuiButton-startIcon': {
-                  marginRight: { xs: 0.5, sm: 1 }
-                }
-              }}
-            >
-              Enable Monthly Tracking ({selectedStudentIds.length})
-            </Button>
-          )}
         </Stack>
+      </Paper>
+
+      {/* Tabs for filtering */}
+      <Paper sx={{ mb: { xs: 2, sm: 3 } }}>
+        <Tabs
+          value={tabValue}
+          onChange={(_, newValue) => setTabValue(newValue)}
+          variant="scrollable"
+          scrollButtons="auto"
+          sx={{
+            borderBottom: 1,
+            borderColor: 'divider',
+            '& .MuiTab-root': {
+              textTransform: 'none',
+              fontWeight: 500,
+              fontSize: { xs: '0.875rem', sm: '1rem' },
+              minHeight: { xs: 48, sm: 56 },
+            }
+          }}
+        >
+          <Tab
+            label={`All Students (${allStudents.length})`}
+            icon={<SchoolIcon />}
+            iconPosition="start"
+          />
+          <Tab
+            label={`Pending Payments (${filterStudentsByTab(allStudents, 1).length})`}
+            icon={<Schedule />}
+            iconPosition="start"
+          />
+          <Tab
+            label={`Paid in Full (${filterStudentsByTab(allStudents, 2).length})`}
+            icon={<CheckCircle />}
+            iconPosition="start"
+          />
+          <Tab
+            label="Statistics"
+            icon={<AssessmentIcon />}
+            iconPosition="start"
+          />
+        </Tabs>
       </Paper>
 
 
 
-      {/* Students Table - Mobile Responsive */}
-      <Paper sx={{ overflow: 'hidden' }}>
+      {/* Statistics Tab Content */}
+      {tabValue === 3 ? (
+        <Paper sx={{ p: 3 }}>
+          <Typography variant="h5" fontWeight="bold" gutterBottom>
+            Fee Collection Statistics
+          </Typography>
+          <Grid container spacing={3} sx={{ mt: 2 }}>
+            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+              <Card sx={{ p: 2.5, textAlign: 'center', border: '1px solid #e0e0e0' }}>
+                <Typography variant="body2" color="textSecondary" gutterBottom>
+                  Total Students
+                </Typography>
+                <Typography variant="h4" fontWeight="bold" color="primary.main">
+                  {allStudents.length}
+                </Typography>
+              </Card>
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+              <Card sx={{ p: 2.5, textAlign: 'center', border: '1px solid #e0e0e0' }}>
+                <Typography variant="body2" color="textSecondary" gutterBottom>
+                  With Tracking Enabled
+                </Typography>
+                <Typography variant="h4" fontWeight="bold" color="success.main">
+                  {allStudents.filter(s => s.has_monthly_tracking).length}
+                </Typography>
+              </Card>
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+              <Card sx={{ p: 2.5, textAlign: 'center', border: '1px solid #e0e0e0' }}>
+                <Typography variant="body2" color="textSecondary" gutterBottom>
+                  Pending Payments
+                </Typography>
+                <Typography variant="h4" fontWeight="bold" color="warning.main">
+                  {filterStudentsByTab(allStudents, 1).length}
+                </Typography>
+              </Card>
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+              <Card sx={{ p: 2.5, textAlign: 'center', border: '1px solid #e0e0e0' }}>
+                <Typography variant="body2" color="textSecondary" gutterBottom>
+                  Paid in Full
+                </Typography>
+                <Typography variant="h4" fontWeight="bold" color="success.main">
+                  {filterStudentsByTab(allStudents, 2).length}
+                </Typography>
+              </Card>
+            </Grid>
+            <Grid size={{ xs: 12 }}>
+              <Card sx={{ p: 3, border: '1px solid #e0e0e0' }}>
+                <Typography variant="h6" fontWeight="bold" gutterBottom>
+                  Collection Overview
+                </Typography>
+                <Box sx={{ mt: 2 }}>
+                  <Typography variant="body2" color="textSecondary" gutterBottom>
+                    Average Collection Rate
+                  </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 1 }}>
+                    <LinearProgress
+                      variant="determinate"
+                      value={
+                        allStudents.length > 0
+                          ? allStudents.reduce((sum, s) => sum + s.collection_percentage, 0) / allStudents.length
+                          : 0
+                      }
+                      sx={{
+                        flexGrow: 1,
+                        height: 12,
+                        borderRadius: 2,
+                        bgcolor: 'grey.200',
+                        '& .MuiLinearProgress-bar': {
+                          bgcolor: 'primary.main',
+                          borderRadius: 2
+                        }
+                      }}
+                    />
+                    <Typography variant="h6" fontWeight="bold" color="primary.main">
+                      {allStudents.length > 0
+                        ? (allStudents.reduce((sum, s) => sum + s.collection_percentage, 0) / allStudents.length).toFixed(1)
+                        : 0}%
+                    </Typography>
+                  </Box>
+                </Box>
+              </Card>
+            </Grid>
+          </Grid>
+        </Paper>
+      ) : (
+        /* Students Table - Mobile Responsive */
+        <Paper sx={{ overflow: 'hidden' }}>
         <TableContainer sx={{
           maxHeight: { xs: '70vh', sm: '80vh' },
           '& .MuiTable-root': {
@@ -766,7 +931,19 @@ const FeeManagementComponent: React.FC = () => {
         }}>
           <Table size="small">
             <TableHead>
-              <TableRow>
+              <TableRow sx={{
+                bgcolor: 'white',
+                borderBottom: '2px solid',
+                borderColor: 'divider',
+                '& .MuiTableCell-head': {
+                  color: 'text.primary',
+                  fontWeight: 'bold',
+                  fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px',
+                  py: 2
+                }
+              }}>
                 <TableCell
                   padding="checkbox"
                   sx={{
@@ -774,8 +951,7 @@ const FeeManagementComponent: React.FC = () => {
                     minWidth: { xs: 'auto', sm: 48 }
                   }}
                 >
-                  <input
-                    type="checkbox"
+                  <Checkbox
                     onChange={(e) => {
                       if (e.target.checked) {
                         setSelectedStudentIds(students.map(s => s.student_id));
@@ -784,6 +960,9 @@ const FeeManagementComponent: React.FC = () => {
                       }
                     }}
                     checked={selectedStudentIds.length === students.length && students.length > 0}
+                    sx={{
+                      padding: 0.5
+                    }}
                   />
                 </TableCell>
                 <TableCell>Student</TableCell>
@@ -791,31 +970,56 @@ const FeeManagementComponent: React.FC = () => {
                 <TableCell>Annual Fee</TableCell>
                 <TableCell>Collection %</TableCell>
                 <TableCell>Status</TableCell>
-                <TableCell>Monthly Tracking</TableCell>
+                <TableCell>Tracking</TableCell>
                 <TableCell>Actions</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={8} align="center">
-                    <CircularProgress />
+                  <TableCell colSpan={8} align="center" sx={{ py: 8 }}>
+                    <CircularProgress size={48} />
+                    <Typography variant="body1" sx={{ mt: 2, color: 'text.secondary' }}>
+                      Loading students...
+                    </Typography>
                   </TableCell>
                 </TableRow>
               ) : students.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={8} align="center">
-                    <Typography color="textSecondary">
-                      No students found. Please select a session year and try again.
-                    </Typography>
+                    <Box sx={{ py: 8, textAlign: 'center' }}>
+                      <SchoolIcon sx={{ fontSize: 64, color: 'grey.300', mb: 2 }} />
+                      <Typography variant="h6" color="textSecondary" gutterBottom>
+                        No Students Found
+                      </Typography>
+                      <Typography variant="body2" color="textSecondary" sx={{ mb: 3 }}>
+                        {filters.search
+                          ? 'Try adjusting your search criteria'
+                          : 'Select a session year and class to view fee records'
+                        }
+                      </Typography>
+                      {filters.search && (
+                        <Button
+                          variant="outlined"
+                          onClick={() => setFilters(prev => ({ ...prev, search: '' }))}
+                        >
+                          Clear Search
+                        </Button>
+                      )}
+                    </Box>
                   </TableCell>
                 </TableRow>
               ) : (
                 students.map((student) => (
-                  <TableRow key={student.student_id}>
+                  <TableRow
+                    key={student.student_id}
+                    sx={{
+                      '&:hover': { bgcolor: 'action.hover' },
+                      transition: 'background-color 0.2s'
+                    }}
+                  >
                     <TableCell padding="checkbox">
-                      <input
-                        type="checkbox"
+                      <Checkbox
                         checked={selectedStudentIds.includes(student.student_id)}
                         onChange={(e) => {
                           if (e.target.checked) {
@@ -824,68 +1028,94 @@ const FeeManagementComponent: React.FC = () => {
                             setSelectedStudentIds(prev => prev.filter(id => id !== student.student_id));
                           }
                         }}
+                        sx={{ padding: 0.5 }}
                       />
                     </TableCell>
                     <TableCell>
                       <Box>
-                        <Typography variant="body2" fontWeight="bold">
+                        <Typography variant="body2" fontWeight="bold" color="primary.main">
                           {student.student_name}
                         </Typography>
                         <Typography variant="caption" color="textSecondary">
-                          {student.admission_number}
+                          Roll: {student.admission_number}
                         </Typography>
                       </Box>
                     </TableCell>
-                    <TableCell>{getClassDisplayName(student.class_name)}</TableCell>
                     <TableCell>
-                      ₹{student.annual_fee?.toLocaleString() || 0}
+                      <Typography variant="body2">
+                        {getClassDisplayName(student.class_name)}
+                      </Typography>
                     </TableCell>
                     <TableCell>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Typography variant="body2" fontWeight="medium">
+                        ₹{student.annual_fee?.toLocaleString() || 0}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Box sx={{ minWidth: 100 }}>
                         <LinearProgress
                           variant="determinate"
                           value={student.collection_percentage}
-                          sx={{ width: 60, height: 6 }}
+                          sx={{
+                            height: 8,
+                            borderRadius: 1,
+                            bgcolor: 'grey.200',
+                            mb: 0.5,
+                            '& .MuiLinearProgress-bar': {
+                              bgcolor: student.collection_percentage < 50 ? 'error.main' :
+                                       student.collection_percentage < 80 ? 'warning.main' : 'success.main',
+                              borderRadius: 1
+                            }
+                          }}
                         />
-                        <Typography variant="caption">
-                          {student.collection_percentage.toFixed(1)}%
+                        <Typography variant="caption" fontWeight="bold">
+                          {student.collection_percentage.toFixed(0)}%
                         </Typography>
                       </Box>
                     </TableCell>
                     <TableCell>
                       {student.has_monthly_tracking ? (
-                        <Stack direction="row" spacing={1}>
-                          <Chip
-                            size="small"
-                            icon={<CheckCircle />}
-                            label={`${student.paid_months}P`}
-                            color="success"
-                            variant="outlined"
-                          />
-                          <Chip
-                            size="small"
-                            icon={<Schedule />}
-                            label={`${student.pending_months}Pe`}
-                            color="info"
-                            variant="outlined"
-                          />
-                          <Chip
-                            size="small"
-                            icon={<Error />}
-                            label={`${student.overdue_months}O`}
-                            color="error"
-                            variant="outlined"
-                          />
-                        </Stack>
+                        <Tooltip title={`${student.paid_months} Paid, ${student.pending_months} Pending, ${student.overdue_months} Overdue`}>
+                          <Stack direction="row" spacing={0.5}>
+                            <Chip
+                              size="small"
+                              label={`${student.paid_months}P`}
+                              color="success"
+                              sx={{
+                                minWidth: 45,
+                                height: 24,
+                                fontSize: '0.75rem',
+                                fontWeight: 'bold'
+                              }}
+                            />
+                            <Chip
+                              size="small"
+                              label={`${student.pending_months}Pe`}
+                              color="info"
+                              sx={{
+                                minWidth: 45,
+                                height: 24,
+                                fontSize: '0.75rem',
+                                fontWeight: 'bold'
+                              }}
+                            />
+                            <Chip
+                              size="small"
+                              label={`${student.overdue_months}O`}
+                              color="error"
+                              sx={{
+                                minWidth: 45,
+                                height: 24,
+                                fontSize: '0.75rem',
+                                fontWeight: 'bold'
+                              }}
+                            />
+                          </Stack>
+                        </Tooltip>
                       ) : (
                         <Chip
                           size="small"
                           label={
-                            // Show "Paid" only if:
-                            // 1. There's a payment made (total_paid > 0) AND
-                            // 2. Balance is 0 or null AND
-                            // 3. Annual fee exists (not 0 or null)
-                            // Otherwise show "Pending"
                             (student.total_paid && student.total_paid > 0 &&
                              (!student.total_balance || student.total_balance === 0) &&
                              student.annual_fee && student.annual_fee > 0)
@@ -912,13 +1142,13 @@ const FeeManagementComponent: React.FC = () => {
                     </TableCell>
                     <TableCell>
                       <Stack direction="row" spacing={1}>
-                        <Tooltip title={student.has_monthly_tracking ? "Make Payment" : "Enable monthly tracking to make payment"}>
+                        <Tooltip title="Make Payment">
                           <span>
                             <IconButton
                               size="small"
                               onClick={() => fetchAvailableMonths(student.student_id)}
                               disabled={!student.has_monthly_tracking || loadingStates.payment[student.student_id] || paymentLoading}
-                              color={loadingStates.payment[student.student_id] ? "secondary" : "primary"}
+                              color="primary"
                               sx={{
                                 opacity: (!student.has_monthly_tracking || loadingStates.payment[student.student_id]) ? 0.4 : 1,
                                 '&.Mui-disabled': {
@@ -934,13 +1164,13 @@ const FeeManagementComponent: React.FC = () => {
                             </IconButton>
                           </span>
                         </Tooltip>
-                        <Tooltip title={student.has_monthly_tracking ? "View Details" : "Enable monthly tracking to view details"}>
+                        <Tooltip title="View Monthly Details">
                           <span>
                             <IconButton
                               size="small"
                               onClick={() => fetchStudentMonthlyHistory(student.student_id)}
                               disabled={!student.has_monthly_tracking || loadingStates.monthlyHistory[student.student_id]}
-                              color={loadingStates.monthlyHistory[student.student_id] ? "secondary" : "default"}
+                              color="default"
                               sx={{
                                 opacity: (!student.has_monthly_tracking || loadingStates.monthlyHistory[student.student_id]) ? 0.4 : 1,
                                 '&.Mui-disabled': {
@@ -956,13 +1186,13 @@ const FeeManagementComponent: React.FC = () => {
                             </IconButton>
                           </span>
                         </Tooltip>
-                        <Tooltip title={student.has_monthly_tracking ? "Payment History" : "Enable monthly tracking to view payment history"}>
+                        <Tooltip title="Payment History">
                           <span>
                             <IconButton
                               size="small"
                               onClick={() => fetchPaymentHistory(student.student_id)}
                               disabled={!student.has_monthly_tracking || loadingStates.paymentHistory[student.student_id] || paymentHistoryLoading}
-                              color={loadingStates.paymentHistory[student.student_id] ? "secondary" : "default"}
+                              color="default"
                               sx={{
                                 opacity: (!student.has_monthly_tracking || loadingStates.paymentHistory[student.student_id]) ? 0.4 : 1,
                                 '&.Mui-disabled': {
@@ -987,6 +1217,7 @@ const FeeManagementComponent: React.FC = () => {
           </Table>
         </TableContainer>
       </Paper>
+      )}
 
       {/* Enable Monthly Tracking Dialog */}
       <Dialog
@@ -1220,7 +1451,7 @@ const FeeManagementComponent: React.FC = () => {
       <Dialog
         open={paymentHistoryDialogOpen}
         onClose={() => setPaymentHistoryDialogOpen(false)}
-        maxWidth="lg"
+        maxWidth="md"
         fullWidth
         slotProps={{
           paper: {
@@ -1561,10 +1792,12 @@ const FeeManagementComponent: React.FC = () => {
                   </Select>
                 </FormControl>
                 {paymentForm.selectedMonths.length > 0 && (
-                  <Typography variant="caption" color="textSecondary" sx={{ mt: 1, display: 'block' }}>
-                    💡 Tip: If you pay more than the monthly fee (e.g., ₹1000 for ₹840/month),
-                    the system will automatically distribute ₹840 to the first month and ₹160 to the next month.
-                  </Typography>
+                  <Alert severity="info" sx={{ mt: 2 }}>
+                    <Typography variant="body2">
+                      💡 <strong>Smart Distribution:</strong> Payments are automatically distributed
+                      across months. Example: ₹1000 for ₹840/month = ₹840 (Month 1) + ₹160 (Month 2)
+                    </Typography>
+                  </Alert>
                 )}
               </Box>
 
@@ -1577,8 +1810,10 @@ const FeeManagementComponent: React.FC = () => {
                     type="number"
                     value={paymentForm.amount}
                     onChange={(e) => setPaymentForm(prev => ({ ...prev, amount: e.target.value }))}
-                    InputProps={{
-                      startAdornment: <Typography sx={{ mr: 1 }}>₹</Typography>,
+                    slotProps={{
+                      input: {
+                        startAdornment: <Typography sx={{ mr: 1 }}>₹</Typography>,
+                      }
                     }}
                     helperText="Amount will be automatically distributed across selected months"
                   />
@@ -1670,7 +1905,11 @@ const FeeManagementComponent: React.FC = () => {
         onClose={() => setMonthlyTrackingWarningDialog(false)}
         maxWidth="sm"
         fullWidth
-        PaperProps={{ sx: dialogStyles.paper }}
+        slotProps={{
+          paper: {
+            sx: dialogStyles.paper
+          }
+        }}
       >
         <DialogTitle sx={dialogStyles.title}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
