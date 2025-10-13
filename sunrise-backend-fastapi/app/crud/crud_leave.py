@@ -6,7 +6,7 @@ from sqlalchemy import and_, or_, func, desc, extract, text
 from datetime import date, datetime
 
 from app.crud.base import CRUDBase
-from app.models.leave import LeaveRequest, LeaveBalance, LeavePolicy, LeaveApprover, LeaveCalendar
+from app.models.leave import LeaveRequest, LeaveBalance, LeavePolicy, LeaveApprover
 from app.models.student import Student
 from app.models.teacher import Teacher
 from app.models.user import User
@@ -35,10 +35,6 @@ class CRUDLeaveRequest(CRUDBase[LeaveRequest, LeaveRequestCreate, LeaveRequestUp
         db.add(db_obj)
         await db.commit()
         await db.refresh(db_obj)
-
-        # Create leave calendar entries for approved leaves
-        if db_obj.leave_status_id == 2:  # Approved
-            await self._create_calendar_entries(db, db_obj)
 
         return db_obj
 
@@ -393,32 +389,7 @@ class CRUDLeaveRequest(CRUDBase[LeaveRequest, LeaveRequestCreate, LeaveRequestUp
         await db.commit()
         await db.refresh(leave_request)
 
-        # Create leave calendar entries for approved leaves
-        if leave_status_id == 2:  # Approved
-            await self._create_calendar_entries(db, leave_request)
-
         return leave_request
-
-    async def _create_calendar_entries(self, db: AsyncSession, leave_request: LeaveRequest):
-        """Create calendar entries for approved leave requests"""
-        current_date = leave_request.start_date
-        while current_date <= leave_request.end_date:
-            calendar_entry = LeaveCalendar(
-                leave_request_id=leave_request.id,
-                leave_date=current_date,
-                applicant_id=leave_request.applicant_id,
-                applicant_type=leave_request.applicant_type,
-                leave_type_id=leave_request.leave_type_id,
-                is_half_day=leave_request.is_half_day,
-                half_day_session=leave_request.half_day_session,
-                year=current_date.year,
-                month=current_date.month,
-                day_of_week=current_date.weekday() + 1  # Monday = 1
-            )
-            db.add(calendar_entry)
-            current_date += datetime.timedelta(days=1)
-
-        await db.commit()
 
     async def get_leave_statistics(
         self, db: AsyncSession, *, year: Optional[int] = None

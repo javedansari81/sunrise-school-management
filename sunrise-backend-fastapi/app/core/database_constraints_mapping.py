@@ -597,11 +597,11 @@ class DatabaseConstraints:
             "message": "Total leave days must be greater than zero.",
             "field_name": "total_days"
         },
-        "leave_requests_half_day_session_check": {
+        "leave_requests_half_day_period_check": {
             "table": "leave_requests",
-            "columns": ["half_day_session"],
-            "message": "Half day session must be either 'morning' or 'afternoon'.",
-            "field_name": "half_day_session"
+            "columns": ["half_day_period"],
+            "message": "Half day period must be either 'Morning' or 'Afternoon'.",
+            "field_name": "half_day_period"
         },
 
         # Expenses table

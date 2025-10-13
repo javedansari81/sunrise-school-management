@@ -49,7 +49,7 @@ interface LeaveFormData {
   emergency_contact_name: string;
   emergency_contact_phone: string;
   is_half_day: boolean;
-  half_day_session: string;
+  half_day_period: string;
 }
 
 const StudentLeaveRequestDialog: React.FC<StudentLeaveRequestDialogProps> = ({
@@ -75,7 +75,7 @@ const StudentLeaveRequestDialog: React.FC<StudentLeaveRequestDialogProps> = ({
     emergency_contact_name: '',
     emergency_contact_phone: '',
     is_half_day: false,
-    half_day_session: 'morning'
+    half_day_period: 'Morning'
   });
 
   const [loading, setLoading] = useState(false);
@@ -95,7 +95,7 @@ const StudentLeaveRequestDialog: React.FC<StudentLeaveRequestDialogProps> = ({
           emergency_contact_name: selectedLeave.emergency_contact_name || '',
           emergency_contact_phone: selectedLeave.emergency_contact_phone || '',
           is_half_day: selectedLeave.is_half_day || false,
-          half_day_session: selectedLeave.half_day_session || 'morning'
+          half_day_period: selectedLeave.half_day_period || 'Morning'
         });
       } else {
         // Reset form for new request
@@ -108,7 +108,7 @@ const StudentLeaveRequestDialog: React.FC<StudentLeaveRequestDialogProps> = ({
           emergency_contact_name: '',
           emergency_contact_phone: '',
           is_half_day: false,
-          half_day_session: 'morning'
+          half_day_period: 'Morning'
         });
       }
       setError('');
@@ -157,7 +157,7 @@ const StudentLeaveRequestDialog: React.FC<StudentLeaveRequestDialogProps> = ({
         emergency_contact_name: formData.emergency_contact_name || null,
         emergency_contact_phone: formData.emergency_contact_phone || null,
         is_half_day: formData.is_half_day,
-        half_day_session: formData.is_half_day ? formData.half_day_session : null
+        half_day_period: formData.is_half_day ? formData.half_day_period : null
       };
 
       await studentLeaveAPI.createMyLeaveRequest(leaveData);
@@ -266,14 +266,14 @@ const StudentLeaveRequestDialog: React.FC<StudentLeaveRequestDialogProps> = ({
               />
               {formData.is_half_day && (
                 <FormControl fullWidth sx={{ mt: 1 }} disabled={isViewMode}>
-                  <InputLabel>Session</InputLabel>
+                  <InputLabel>Period</InputLabel>
                   <Select
-                    value={formData.half_day_session}
-                    onChange={(e) => handleFieldChange('half_day_session', e.target.value)}
-                    label="Session"
+                    value={formData.half_day_period}
+                    onChange={(e) => handleFieldChange('half_day_period', e.target.value)}
+                    label="Period"
                   >
-                    <MenuItem value="morning">Morning</MenuItem>
-                    <MenuItem value="afternoon">Afternoon</MenuItem>
+                    <MenuItem value="Morning">Morning</MenuItem>
+                    <MenuItem value="Afternoon">Afternoon</MenuItem>
                   </Select>
                 </FormControl>
               )}

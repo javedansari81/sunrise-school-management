@@ -143,31 +143,3 @@ class LeaveApprover(Base):
     # Relationships
     approver = relationship("User", foreign_keys=[approver_id])
     leave_type = relationship("LeaveType", foreign_keys=[leave_type_id])
-
-
-class LeaveCalendar(Base):
-    """
-    Leave Calendar for quick queries and calendar view
-    """
-    __tablename__ = "leave_calendar"
-
-    id = Column(Integer, primary_key=True, index=True)
-    leave_request_id = Column(Integer, ForeignKey("leave_requests.id"), nullable=False)
-    leave_date = Column(Date, nullable=False)
-    applicant_id = Column(Integer, nullable=False)
-    applicant_type = Column(String(10), nullable=False)  # 'student' or 'teacher'
-    leave_type_id = Column(Integer, ForeignKey("leave_types.id"), nullable=False)
-    is_half_day = Column(Boolean, default=False)
-    half_day_session = Column(String(10), nullable=True)  # 'morning' or 'afternoon'
-
-    # For quick queries
-    year = Column(Integer, nullable=False)
-    month = Column(Integer, nullable=False)
-    day_of_week = Column(Integer, nullable=False)  # 1=Monday, 7=Sunday
-
-    # Timestamps
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-
-    # Relationships
-    leave_request = relationship("LeaveRequest", foreign_keys=[leave_request_id])
-    leave_type = relationship("LeaveType", foreign_keys=[leave_type_id])

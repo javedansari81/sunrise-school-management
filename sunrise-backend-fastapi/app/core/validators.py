@@ -325,10 +325,10 @@ class LeaveValidator(BaseValidator):
         if total_days is not None and total_days <= 0:
             errors.append("Total leave days must be greater than zero.")
 
-        # Validate half day session
-        half_day_session = leave_data.get('half_day_session')
-        if half_day_session and half_day_session not in ['morning', 'afternoon']:
-            errors.append("Half day session must be either 'morning' or 'afternoon'.")
+        # Validate half day period
+        half_day_period = leave_data.get('half_day_period')
+        if half_day_period and half_day_period not in ['Morning', 'Afternoon']:
+            errors.append("Half day period must be either 'Morning' or 'Afternoon'.")
 
         # Validate metadata IDs
         metadata_fields = {
