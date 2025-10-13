@@ -54,6 +54,8 @@ import {
 } from '@mui/icons-material';
 import AdminLayout from '../../components/Layout/AdminLayout';
 import { studentsAPI } from '../../services/api';
+import { useErrorDialog } from '../../hooks/useErrorDialog';
+import ErrorDialog from '../../components/common/ErrorDialog';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -132,7 +134,9 @@ const StudentProfilesContent: React.FC = () => {
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
-  const [conflictDialog, setConflictDialog] = useState({ open: false, message: '', type: '' });
+
+  // Use error dialog hook for better error handling
+  const errorDialog = useErrorDialog();
 
   // Pagination state
   const [page, setPage] = useState(1);
@@ -421,14 +425,10 @@ const StudentProfilesContent: React.FC = () => {
       loadStudents(); // Reload the list
     } catch (error: any) {
       console.error('Error saving student:', error);
-      const errorMessage = error.response?.data?.detail || 'Error saving student';
 
-      // Check if it's a conflict error (like duplicate admission number)
-      if (error.response?.status === 400 && errorMessage.includes('already exists')) {
-        setConflictDialog({ open: true, message: errorMessage, type: 'duplicate' });
-      } else {
-        setSnackbar({ open: true, message: errorMessage, severity: 'error' });
-      }
+      // Use error dialog for better error handling
+      errorDialog.handleApiError(error, 'student_creation');
+      // Don't close dialog on error - allow user to fix and retry
     }
   };
 
@@ -1297,28 +1297,6 @@ const StudentProfilesContent: React.FC = () => {
           </DialogActions>
         </Dialog>
 
-        {/* Conflict Dialog for Edit Mode */}
-        <Dialog
-          open={conflictDialog.open}
-          onClose={() => setConflictDialog({ ...conflictDialog, open: false })}
-          maxWidth="xs"
-        >
-          <DialogTitle>
-            {conflictDialog.type === 'duplicate' ? 'Duplicate Record' : 'Error'}
-          </DialogTitle>
-          <DialogContent>
-            <Typography>{conflictDialog.message}</Typography>
-          </DialogContent>
-          <DialogActions>
-            <Button
-              onClick={() => setConflictDialog({ ...conflictDialog, open: false })}
-              variant="contained"
-            >
-              OK
-            </Button>
-          </DialogActions>
-        </Dialog>
-
         {/* Snackbar for notifications */}
         <Snackbar
           open={snackbar.open}
@@ -1333,6 +1311,9 @@ const StudentProfilesContent: React.FC = () => {
             {snackbar.message}
           </Alert>
         </Snackbar>
+
+        {/* Error Dialog for better error handling */}
+        <ErrorDialog {...errorDialog.dialogProps} />
       </Box>
     </AdminLayout>
   );

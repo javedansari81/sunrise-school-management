@@ -130,6 +130,10 @@ async def create_teacher(
             detail=detail
         )
 
+    except HTTPException:
+        # Re-raise HTTP exceptions (these are intentional errors with proper status codes)
+        raise
+
     except Exception as e:
         # Handle any other unexpected errors
         await db.rollback()

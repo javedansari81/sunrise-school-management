@@ -26,10 +26,7 @@ export interface ErrorDialogProps {
   title?: string;
   message: string;
   severity?: 'error' | 'warning' | 'info';
-  errorCode?: string;
   fieldName?: string;
-  details?: Record<string, any>;
-  showDetails?: boolean;
   actionText?: string;
   onAction?: () => void;
   showCancel?: boolean;
@@ -42,10 +39,7 @@ const ErrorDialog: React.FC<ErrorDialogProps> = ({
   title,
   message,
   severity = 'error',
-  errorCode,
   fieldName,
-  details,
-  showDetails = false,
   actionText = 'OK',
   onAction,
   showCancel = false,
@@ -53,7 +47,6 @@ const ErrorDialog: React.FC<ErrorDialogProps> = ({
 }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-  const [showDetailedInfo, setShowDetailedInfo] = React.useState(false);
 
   const getSeverityIcon = () => {
     switch (severity) {
@@ -96,14 +89,6 @@ const ErrorDialog: React.FC<ErrorDialogProps> = ({
     }
   };
 
-  const formatErrorCode = (code: string) => {
-    // Convert error codes like "UNIQUE_VIOLATION_STUDENTS_EMAIL_KEY" to readable format
-    return code
-      .replace(/_/g, ' ')
-      .toLowerCase()
-      .replace(/\b\w/g, l => l.toUpperCase());
-  };
-
   return (
     <Dialog
       open={open}
@@ -122,23 +107,33 @@ const ErrorDialog: React.FC<ErrorDialogProps> = ({
         }
       }}
     >
-      {/* Dialog Title */}
+      {/* Dialog Title - Clean and Simple */}
       <DialogTitle
         sx={{
-          ...dialogStyles.title,
-          bgcolor: severity === 'error' ? 'error.main' :
-                  severity === 'warning' ? 'warning.main' : 'info.main',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          bgcolor: 'background.paper',
+          borderBottom: `3px solid ${getSeverityColor()}`,
+          py: 2,
+          px: 3
         }}
       >
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
           {getSeverityIcon()}
-          <Typography sx={dialogStyles.titleText}>
+          <Typography variant="h6" sx={{ fontWeight: 600, color: 'text.primary' }}>
             {title || getDefaultTitle()}
           </Typography>
         </Box>
         <IconButton
           onClick={onClose}
-          sx={dialogStyles.closeButton}
+          size="small"
+          sx={{
+            color: 'text.secondary',
+            '&:hover': {
+              bgcolor: 'action.hover'
+            }
+          }}
         >
           <CloseIcon />
         </IconButton>
@@ -146,95 +141,54 @@ const ErrorDialog: React.FC<ErrorDialogProps> = ({
 
       {/* Dialog Content */}
       <DialogContent sx={dialogStyles.content}>
-        {/* Main Error Message */}
+        {/* Main Error Message - Prominent Display */}
         <Alert
           severity={severity}
-          sx={dialogStyles.alert}
+          icon={getSeverityIcon()}
+          sx={{
+            ...dialogStyles.alert,
+            fontSize: '1rem',
+            '& .MuiAlert-message': {
+              width: '100%',
+              fontSize: '1rem',
+              lineHeight: 1.6
+            }
+          }}
         >
-          {message}
+          <Typography variant="body1" sx={{ fontWeight: 500 }}>
+            {message}
+          </Typography>
         </Alert>
 
-        {/* Error Code Display */}
-        {errorCode && (
-          <Box sx={{ mb: 2 }}>
-            <Typography variant="body2" color="text.secondary" gutterBottom>
-              Error Code: <strong>{formatErrorCode(errorCode)}</strong>
-            </Typography>
-          </Box>
-        )}
-
-        {/* Field Name Display */}
+        {/* Field Name Display - Only if meaningful */}
         {fieldName && fieldName !== 'validation' && fieldName !== 'unknown_field' && (
-          <Box sx={{ mb: 2 }}>
+          <Box sx={{ mt: 2, p: 1.5, bgcolor: 'grey.50', borderRadius: 1, borderLeft: `4px solid ${getSeverityColor()}` }}>
             <Typography variant="body2" color="text.secondary">
-              Related Field: <strong>{fieldName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</strong>
+              <strong>Field:</strong> {fieldName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
             </Typography>
           </Box>
         )}
-
-        {/* Detailed Information Toggle */}
-        {(details || showDetails) && (
-          <Box sx={{ mt: 2 }}>
-            <Button
-              variant="text"
-              size="small"
-              onClick={() => setShowDetailedInfo(!showDetailedInfo)}
-              sx={{ mb: 1 }}
-            >
-              {showDetailedInfo ? 'Hide Details' : 'Show Details'}
-            </Button>
-            
-            {showDetailedInfo && (
-              <Box
-                sx={{
-                  bgcolor: 'grey.50',
-                  border: `1px solid ${theme.palette.divider}`,
-                  borderRadius: 1,
-                  p: 2,
-                  maxHeight: 200,
-                  overflow: 'auto'
-                }}
-              >
-                {details && (
-                  <Box>
-                    <Typography variant="subtitle2" gutterBottom>
-                      Technical Details:
-                    </Typography>
-                    <pre style={{ 
-                      fontSize: '0.75rem', 
-                      margin: 0, 
-                      whiteSpace: 'pre-wrap',
-                      wordBreak: 'break-word'
-                    }}>
-                      {JSON.stringify(details, null, 2)}
-                    </pre>
-                  </Box>
-                )}
-              </Box>
-            )}
-          </Box>
-        )}
-
-        {/* Help Text */}
-        <Box sx={{ mt: 2, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
-          <Typography variant="body2" color="text.secondary">
-            💡 <strong>What to do next:</strong>
-            <br />
-            {severity === 'error' && 'Please correct the issue and try again. If the problem persists, contact support.'}
-            {severity === 'warning' && 'Please review the warning and decide how to proceed.'}
-            {severity === 'info' && 'This is for your information. No action is required.'}
-          </Typography>
-        </Box>
       </DialogContent>
 
-      {/* Dialog Actions */}
-      <DialogActions sx={dialogStyles.actions}>
+      {/* Dialog Actions - Clean and Prominent */}
+      <DialogActions
+        sx={{
+          px: 3,
+          py: 2,
+          bgcolor: 'grey.50',
+          borderTop: `1px solid ${theme.palette.divider}`,
+          gap: 1
+        }}
+      >
         {showCancel && (
           <Button
             onClick={onClose}
             variant="outlined"
             fullWidth={isMobile}
-            sx={dialogStyles.secondaryButton}
+            sx={{
+              textTransform: 'none',
+              fontWeight: 500
+            }}
           >
             {cancelText}
           </Button>
@@ -245,7 +199,12 @@ const ErrorDialog: React.FC<ErrorDialogProps> = ({
           color={severity === 'error' ? 'error' : severity === 'warning' ? 'warning' : 'primary'}
           fullWidth={isMobile}
           autoFocus
-          sx={dialogStyles.primaryButton}
+          sx={{
+            textTransform: 'none',
+            fontWeight: 600,
+            px: 4,
+            py: 1
+          }}
         >
           {actionText}
         </Button>

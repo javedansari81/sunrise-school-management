@@ -141,6 +141,9 @@ async def create_student(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=detail
             )
+    except HTTPException:
+        # Re-raise HTTP exceptions (these are intentional errors with proper status codes)
+        raise
     except ValueError as e:
         await db.rollback()
         raise HTTPException(
