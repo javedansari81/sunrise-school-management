@@ -111,6 +111,7 @@ interface Teacher {
   employment_status_name?: string;
   employment_status_description?: string;
   class_teacher_of_name?: string;
+  class_teacher_of_description?: string;
   user_id?: number;
 }
 
@@ -1379,6 +1380,23 @@ const TeacherProfilesSystem: React.FC = () => {
 
               <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} gap={2}>
                 <FormControl fullWidth size="small">
+                  <InputLabel>Class Teacher Of</InputLabel>
+                  <Select
+                    value={formData.class_teacher_of_id}
+                    label="Class Teacher Of"
+                    onChange={(e) => handleFormChange('class_teacher_of_id', e.target.value)}
+                  >
+                    <MenuItem value="">
+                      <em>None</em>
+                    </MenuItem>
+                    {configuration?.classes?.map((cls: any) => (
+                      <MenuItem key={cls.id} value={cls.id}>
+                        {cls.description}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+                <FormControl fullWidth size="small">
                   <InputLabel>Status</InputLabel>
                   <Select
                     value={formData.is_active ? 'true' : 'false'}
@@ -1389,7 +1407,6 @@ const TeacherProfilesSystem: React.FC = () => {
                     <MenuItem value="false">Inactive</MenuItem>
                   </Select>
                 </FormControl>
-                <Box flex={1} /> {/* Spacer to balance the layout */}
               </Box>
             </Box>
           </Box>
@@ -1503,6 +1520,17 @@ const TeacherProfilesSystem: React.FC = () => {
                 <Box flex={1}>
                   <Typography variant="body2" color="text.secondary">Joining Date</Typography>
                   <Typography variant="body1">{selectedTeacher.joining_date}</Typography>
+                </Box>
+              </Box>
+
+              <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} gap={2} mb={3}>
+                <Box flex={1}>
+                  <Typography variant="body2" color="text.secondary">Class Teacher Of</Typography>
+                  <Typography variant="body1">{selectedTeacher.class_teacher_of_description || selectedTeacher.class_teacher_of_name || 'Not assigned'}</Typography>
+                </Box>
+                <Box flex={1}>
+                  <Typography variant="body2" color="text.secondary">Subjects</Typography>
+                  <Typography variant="body1">{selectedTeacher.subjects || 'Not specified'}</Typography>
                 </Box>
               </Box>
 
@@ -1778,7 +1806,7 @@ const TeacherProfilesSystem: React.FC = () => {
               <Box flex={1} /> {/* Spacer to balance the layout */}
             </Box>
 
-            <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} gap={2} mb={3}>
+            <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} gap={2} mb={2}>
               <TextField
                 fullWidth
                 size="small"
@@ -1793,6 +1821,34 @@ const TeacherProfilesSystem: React.FC = () => {
                 }}
                 required
               />
+              <TextField
+                fullWidth
+                size="small"
+                label="Subjects"
+                value={editFormData.subjects || ''}
+                onChange={(e) => handleEditFormChange('subjects', e.target.value)}
+                placeholder="e.g., Mathematics, Physics"
+              />
+            </Box>
+
+            <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} gap={2} mb={3}>
+              <FormControl fullWidth size="small">
+                <InputLabel>Class Teacher Of</InputLabel>
+                <Select
+                  value={editFormData.class_teacher_of_id || ''}
+                  label="Class Teacher Of"
+                  onChange={(e) => handleEditFormChange('class_teacher_of_id', e.target.value)}
+                >
+                  <MenuItem value="">
+                    <em>None</em>
+                  </MenuItem>
+                  {configuration?.classes?.map((cls: any) => (
+                    <MenuItem key={cls.id} value={cls.id}>
+                      {cls.description}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
               <FormControl fullWidth size="small">
                 <InputLabel>Status</InputLabel>
                 <Select

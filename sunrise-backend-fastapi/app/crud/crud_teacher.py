@@ -76,7 +76,8 @@ class CRUDTeacher(CRUDBase[Teacher, TeacherCreate, TeacherUpdate]):
                 q.description as qualification_description,
                 es.name as employment_status_name,
                 es.description as employment_status_description,
-                c.name as class_teacher_of_name
+                c.name as class_teacher_of_name,
+                c.description as class_teacher_of_description
             FROM teachers t
             LEFT JOIN genders g ON t.gender_id = g.id
             LEFT JOIN departments d ON t.department_id = d.id
@@ -169,7 +170,8 @@ class CRUDTeacher(CRUDBase[Teacher, TeacherCreate, TeacherUpdate]):
                 q.description as qualification_description,
                 es.name as employment_status_name,
                 es.description as employment_status_description,
-                c.name as class_teacher_of_name
+                c.name as class_teacher_of_name,
+                c.description as class_teacher_of_description
             FROM teachers t
             LEFT JOIN genders g ON t.gender_id = g.id
             LEFT JOIN departments d ON t.department_id = d.id

@@ -52,7 +52,7 @@ SERVICE_METADATA_MAPPINGS = {
     "teacher-management": [
         "employment_statuses", "qualifications",
         "genders", "user_types", "session_years",
-        "departments", "positions"
+        "departments", "positions", "classes"
     ],
     "common": [
         "session_years", "user_types"
@@ -349,7 +349,7 @@ async def get_teacher_management_configuration(
     Get configuration for Teacher Management System
 
     Returns only metadata required for teacher management:
-    - employment_statuses, qualifications, genders, user_types, session_years
+    - employment_statuses, qualifications, genders, user_types, session_years, departments, positions, classes
     """
     return await _get_service_configuration_with_cache(
         db, "teacher-management", request
