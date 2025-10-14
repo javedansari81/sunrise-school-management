@@ -607,7 +607,7 @@ const LeaveManagementSystem: React.FC = () => {
                         </Typography>
                       </Box>
                     </TableCell>
-                    <TableCell>
+                    <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
                       <Chip
                         icon={leave.applicant_type === 'student' ? <School /> : <Work />}
                         label={leave.applicant_type === 'student' ? 'Student' : 'Teacher'}
@@ -616,7 +616,7 @@ const LeaveManagementSystem: React.FC = () => {
                       />
                     </TableCell>
                     <TableCell>{leave.leave_type_name || 'Unknown'}</TableCell>
-                    <TableCell>
+                    <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
                       {leave.start_date ? new Date(leave.start_date).toLocaleDateString() : 'N/A'} - {leave.end_date ? new Date(leave.end_date).toLocaleDateString() : 'N/A'}
                     </TableCell>
                     <TableCell>{leave.total_days || 0}</TableCell>
