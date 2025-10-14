@@ -17,8 +17,46 @@ from app.utils.identifier_helpers import (
 )
 from app.api.deps import get_current_active_user
 from app.models.user import User
+from app.schemas.user import UserTypeEnum
 
 router = APIRouter()
+
+
+async def check_class_teacher_authorization(
+    db: AsyncSession,
+    current_user: User,
+    leave_request: LeaveRequest
+) -> bool:
+    """
+    Check if current user is authorized to act on a student leave request
+    Returns True if:
+    - User is an admin, OR
+    - User is a class teacher for the student's class
+    """
+    # Admins can always act on leave requests
+    if current_user.user_type_enum == UserTypeEnum.ADMIN:
+        return True
+
+    # Only student leaves can be acted upon by class teachers
+    if leave_request.applicant_type != 'student':
+        return False
+
+    # Check if user is a teacher
+    if current_user.user_type_enum != UserTypeEnum.TEACHER:
+        return False
+
+    # Get teacher profile
+    teacher = await teacher_crud.get_by_user_id(db, user_id=current_user.id)
+    if not teacher or not teacher.class_teacher_of_id:
+        return False
+
+    # Get student to check their class
+    student = await student_crud.get(db, id=leave_request.applicant_id)
+    if not student:
+        return False
+
+    # Check if teacher is the class teacher for this student's class
+    return teacher.class_teacher_of_id == student.class_id
 
 
 @router.get("/", response_model=LeaveListResponse)
@@ -140,6 +178,65 @@ async def get_pending_leave_requests(
     """
     pending_leaves = await leave_request_crud.get_pending_requests(db)
     return pending_leaves
+
+
+@router.get("/class-students", response_model=LeaveListResponse)
+async def get_class_student_leaves(
+    leave_status_id: Optional[int] = None,
+    leave_type_id: Optional[int] = None,
+    page: int = Query(1, ge=1),
+    per_page: int = Query(25, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Get student leave requests for the current teacher's assigned class
+    Only accessible by teachers who are assigned as class teachers
+    """
+    from app.schemas.user import UserTypeEnum
+
+    # Verify user is a teacher
+    if current_user.user_type_enum != UserTypeEnum.TEACHER:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only teachers can access this endpoint"
+        )
+
+    # Get teacher profile
+    teacher = await teacher_crud.get_by_user_id(db, user_id=current_user.id)
+    if not teacher:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Teacher profile not found"
+        )
+
+    # Check if teacher is a class teacher
+    if not teacher.class_teacher_of_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only class teachers can access student leave requests"
+        )
+
+    # Get student leaves for this class teacher
+    skip = (page - 1) * per_page
+    leaves, total = await leave_request_crud.get_student_leaves_by_class_teacher(
+        db,
+        teacher_id=teacher.id,
+        leave_status_id=leave_status_id,
+        leave_type_id=leave_type_id,
+        skip=skip,
+        limit=per_page
+    )
+
+    total_pages = math.ceil(total / per_page) if total > 0 else 0
+
+    return LeaveListResponse(
+        leaves=leaves,
+        total=total,
+        page=page,
+        per_page=per_page,
+        total_pages=total_pages
+    )
 
 
 @router.get("/applicant/{applicant_type}/{applicant_id}", response_model=List[LeaveRequestWithDetails])
@@ -345,6 +442,10 @@ async def delete_leave_request(
 ):
     """
     Delete a leave request (only allowed for pending requests)
+    Can be deleted by:
+    - Admins (any leave request)
+    - Class teachers (student leaves from their assigned class only)
+    - The applicant themselves (their own leave request)
     """
     leave_request = await leave_request_crud.get(db, id=leave_id)
     if not leave_request:
@@ -360,6 +461,16 @@ async def delete_leave_request(
             detail="Can only delete pending leave requests"
         )
 
+    # Check authorization
+    is_own_request = leave_request.user_id == current_user.id
+    is_authorized = await check_class_teacher_authorization(db, current_user, leave_request)
+
+    if not is_own_request and not is_authorized:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You are not authorized to delete this leave request"
+        )
+
     await leave_request_crud.remove(db, id=leave_id)
     return {"message": "Leave request deleted successfully"}
 
@@ -373,6 +484,9 @@ async def approve_leave_request(
 ):
     """
     Approve or reject a leave request
+    Can be approved/rejected by:
+    - Admins (any leave request)
+    - Class teachers (student leaves from their assigned class only)
     """
     leave_request = await leave_request_crud.get(db, id=leave_id)
     if not leave_request:
@@ -386,6 +500,15 @@ async def approve_leave_request(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Leave request has already been processed"
+        )
+
+    # Check authorization
+    is_authorized = await check_class_teacher_authorization(db, current_user, leave_request)
+
+    if not is_authorized:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You are not authorized to approve/reject this leave request"
         )
 
     updated_leave = await leave_request_crud.approve_request(

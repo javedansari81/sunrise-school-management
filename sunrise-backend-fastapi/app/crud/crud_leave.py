@@ -368,6 +368,96 @@ class CRUDLeaveRequest(CRUDBase[LeaveRequest, LeaveRequestCreate, LeaveRequestUp
                 continue
         return leaves
 
+    async def get_student_leaves_by_class_teacher(
+        self,
+        db: AsyncSession,
+        *,
+        teacher_id: int,
+        leave_status_id: Optional[int] = None,
+        leave_type_id: Optional[int] = None,
+        skip: int = 0,
+        limit: int = 100
+    ) -> tuple[List[LeaveRequestWithDetails], int]:
+        """
+        Get student leave requests for a class teacher's assigned class
+        Only returns leaves from students in the class where teacher is class teacher
+        """
+        # Build WHERE conditions
+        where_conditions = [
+            "lr.applicant_type = 'student'",
+            "ct.id = :teacher_id",
+            "ct.class_teacher_of_id IS NOT NULL",
+            "s.class_id = ct.class_teacher_of_id"
+        ]
+        params = {"teacher_id": teacher_id}
+
+        if leave_status_id:
+            where_conditions.append("lr.leave_status_id = :leave_status_id")
+            params["leave_status_id"] = leave_status_id
+
+        if leave_type_id:
+            where_conditions.append("lr.leave_type_id = :leave_type_id")
+            params["leave_type_id"] = leave_type_id
+
+        where_clause = "WHERE " + " AND ".join(where_conditions)
+
+        # Count query
+        count_query = f"""
+        SELECT COUNT(DISTINCT lr.id)
+        FROM leave_requests lr
+        INNER JOIN students s ON lr.applicant_type = 'student' AND lr.applicant_id = s.id
+        INNER JOIN teachers ct ON ct.class_teacher_of_id = s.class_id
+        {where_clause}
+        """
+
+        count_result = await db.execute(text(count_query), params)
+        total = count_result.scalar()
+
+        # Main query with details
+        main_query = f"""
+        SELECT
+            lr.*,
+            'Roll ' || LPAD(COALESCE(s.roll_number::text, '000'), 3, '0') || ': ' || s.first_name || ' ' || s.last_name as applicant_name,
+            COALESCE(c.name, 'N/A') as applicant_details,
+            s.roll_number as applicant_roll_number,
+            c.id as applicant_class_id,
+            COALESCE(lt.name, 'Unknown Leave Type') as leave_type_name,
+            COALESCE(ls.name, 'Unknown Status') as leave_status_name,
+            ls.color_code as leave_status_color,
+            CASE
+                WHEN u.id IS NOT NULL THEN u.first_name || ' ' || u.last_name
+                ELSE NULL
+            END as reviewer_name
+        FROM leave_requests lr
+        INNER JOIN students s ON lr.applicant_type = 'student' AND lr.applicant_id = s.id
+        INNER JOIN classes c ON s.class_id = c.id
+        INNER JOIN teachers ct ON ct.class_teacher_of_id = s.class_id
+        LEFT JOIN leave_types lt ON lr.leave_type_id = lt.id
+        LEFT JOIN leave_statuses ls ON lr.leave_status_id = ls.id
+        LEFT JOIN users u ON lr.approved_by = u.id
+        {where_clause}
+        ORDER BY lr.created_at DESC
+        LIMIT :limit OFFSET :skip
+        """
+
+        params.update({"limit": limit, "skip": skip})
+        result = await db.execute(text(main_query), params)
+        rows = result.fetchall()
+
+        leaves = []
+        for row in rows:
+            try:
+                if hasattr(row, '_asdict'):
+                    row_dict = row._asdict()
+                else:
+                    row_dict = dict(zip(result.keys(), row))
+                leaves.append(LeaveRequestWithDetails(**row_dict))
+            except Exception as e:
+                print(f"Error converting row: {e}")
+                continue
+
+        return leaves, total
+
     async def approve_request(
         self,
         db: AsyncSession,

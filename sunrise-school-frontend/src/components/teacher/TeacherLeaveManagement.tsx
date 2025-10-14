@@ -21,7 +21,9 @@ import {
   Stack,
   InputAdornment,
   IconButton,
-  Tooltip
+  Tooltip,
+  Tabs,
+  Tab
 } from '@mui/material';
 
 import {
@@ -34,13 +36,15 @@ import {
   Schedule,
   CheckCircle,
   Cancel,
-  Pending
+  Pending,
+  School as SchoolIcon
 } from '@mui/icons-material';
 import { useAuth } from '../../contexts/AuthContext';
 import { useServiceConfiguration, useConfiguration } from '../../contexts/ConfigurationContext';
 import { leaveAPI, teachersAPI } from '../../services/api';
 import { FilterDropdown } from '../common/MetadataDropdown';
 import TeacherLeaveRequestDialog from './TeacherLeaveRequestDialog';
+import TeacherClassStudentLeaves from './TeacherClassStudentLeaves';
 
 // Types
 interface LeaveRequest {
@@ -72,6 +76,8 @@ interface TeacherProfile {
   last_name: string;
   department: string;
   position: string;
+  class_teacher_of_id?: number;
+  class_teacher_of_name?: string;
 }
 
 const TeacherLeaveManagement: React.FC = () => {
@@ -91,7 +97,8 @@ const TeacherLeaveManagement: React.FC = () => {
   const [isViewMode, setIsViewMode] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
   const [searchTerm, setSearchTerm] = useState('');
-  
+  const [currentTab, setCurrentTab] = useState(0); // 0 = My Requests, 1 = Class Student Leaves
+
   // Filters
   const [filters, setFilters] = useState<{
     leave_status_id: string | number;
@@ -290,15 +297,32 @@ const TeacherLeaveManagement: React.FC = () => {
       {/* Header Section */}
       <Box sx={{ mb: 3 }}>
         <Typography variant="h5" gutterBottom sx={{ fontWeight: 600 }}>
-          My Leave Requests
+          Leave Management
         </Typography>
         <Typography variant="body2" color="textSecondary">
           {teacherProfile && `${teacherProfile.first_name} ${teacherProfile.last_name} (${teacherProfile.employee_id})`}
         </Typography>
       </Box>
 
-      {/* Status Summary Cards */}
-      <Grid container spacing={2} sx={{ mb: 3 }}>
+      {/* Tabs */}
+      <Paper sx={{ mb: 3 }}>
+        <Tabs
+          value={currentTab}
+          onChange={(e, newValue) => setCurrentTab(newValue)}
+          sx={{ borderBottom: 1, borderColor: 'divider' }}
+        >
+          <Tab label="My Requests" icon={<EventNote />} iconPosition="start" />
+          {teacherProfile?.class_teacher_of_id && (
+            <Tab label="Class Student Leaves" icon={<SchoolIcon />} iconPosition="start" />
+          )}
+        </Tabs>
+      </Paper>
+
+      {/* Tab Content */}
+      {currentTab === 0 ? (
+        <>
+          {/* Status Summary Cards */}
+          <Grid container spacing={2} sx={{ mb: 3 }}>
         <Grid size={{ xs: 6, sm: 3 }}>
           <Card sx={{ textAlign: 'center', p: 2 }}>
             <Typography variant="h6" color="primary">
@@ -507,24 +531,29 @@ const TeacherLeaveManagement: React.FC = () => {
         </Alert>
       </Snackbar>
 
-      {/* Leave Request Dialog */}
-      <TeacherLeaveRequestDialog
-        open={dialogOpen}
-        onClose={handleCloseDialog}
-        onSuccess={() => {
-          loadLeaveRequests();
-          setSnackbar({
-            open: true,
-            message: selectedLeave && !isViewMode
-              ? 'Leave request updated successfully'
-              : 'Leave request submitted successfully',
-            severity: 'success'
-          });
-        }}
-        selectedLeave={selectedLeave}
-        isViewMode={isViewMode}
-        teacherProfile={teacherProfile}
-      />
+        {/* Leave Request Dialog */}
+        <TeacherLeaveRequestDialog
+          open={dialogOpen}
+          onClose={handleCloseDialog}
+          onSuccess={() => {
+            loadLeaveRequests();
+            setSnackbar({
+              open: true,
+              message: selectedLeave && !isViewMode
+                ? 'Leave request updated successfully'
+                : 'Leave request submitted successfully',
+              severity: 'success'
+            });
+          }}
+          selectedLeave={selectedLeave}
+          isViewMode={isViewMode}
+          teacherProfile={teacherProfile}
+        />
+      </>
+      ) : (
+        /* Class Student Leaves Tab */
+        <TeacherClassStudentLeaves teacherProfile={teacherProfile} />
+      )}
     </Box>
   );
 };

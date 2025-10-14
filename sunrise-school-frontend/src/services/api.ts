@@ -232,6 +232,22 @@ export const leaveAPI = {
   getLeaveSummaryReport: (year?: number) =>
     api.get('/leaves/reports/summary', { params: year ? { year } : {} }).then(response => response.data),
 
+  // Class teacher methods - for managing student leaves
+  getClassStudentLeaves: (params?: {
+    leave_status_id?: number,
+    leave_type_id?: number,
+    page?: number,
+    per_page?: number
+  }) => {
+    const searchParams = new URLSearchParams();
+    if (params?.leave_status_id) searchParams.append('leave_status_id', params.leave_status_id.toString());
+    if (params?.leave_type_id) searchParams.append('leave_type_id', params.leave_type_id.toString());
+    if (params?.page) searchParams.append('page', params.page.toString());
+    if (params?.per_page) searchParams.append('per_page', params.per_page.toString());
+
+    return api.get('/leaves/class-students', { params: searchParams }).then(response => response.data);
+  },
+
   // Teacher-specific convenience methods
   getMyLeaveRequests: async () => {
     try {
