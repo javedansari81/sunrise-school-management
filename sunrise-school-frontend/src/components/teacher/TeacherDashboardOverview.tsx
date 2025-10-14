@@ -144,7 +144,7 @@ const TeacherDashboardOverview: React.FC = () => {
     },
     {
       title: 'My Profile',
-      value: teacherProfile?.department || 'N/A',
+      value: teacherProfile ? `${teacherProfile.first_name} ${teacherProfile.last_name}` : 'N/A',
       icon: <Person fontSize="large" />,
       color: '#7b1fa2',
       subtitle: `ID: ${teacherProfile?.employee_id || 'N/A'}`,
