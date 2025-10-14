@@ -35,9 +35,12 @@ class CRUDMonthlyFeeTracking(CRUDBase[MonthlyFeeTracking, MonthlyFeeTrackingCrea
         db: AsyncSession,
         student_id: int,
         session_year_id: int
-    ) -> StudentMonthlyFeeHistory:
-        """Get detailed monthly fee history for a student"""
-        
+    ) -> Optional[StudentMonthlyFeeHistory]:
+        """
+        Get detailed monthly fee history for a student
+        Returns None if student not found or monthly tracking not enabled
+        """
+
         # Get student and class info
         student_query = await db.execute(
             select(Student)
@@ -45,16 +48,18 @@ class CRUDMonthlyFeeTracking(CRUDBase[MonthlyFeeTracking, MonthlyFeeTrackingCrea
             .where(Student.id == student_id)
         )
         student = student_query.scalar_one_or_none()
-        
+
         if not student:
-            raise ValueError(f"Student with ID {student_id} not found")
-            
+            # Return None instead of raising exception for better error handling
+            print(f"Student with ID {student_id} not found")
+            return None
+
         # Get session year info
         session_query = await db.execute(
             select(SessionYear).where(SessionYear.id == session_year_id)
         )
         session_year = session_query.scalar_one_or_none()
-        
+
         # Get fee record for this student and session
         fee_record_query = await db.execute(
             select(FeeRecord)
@@ -67,9 +72,11 @@ class CRUDMonthlyFeeTracking(CRUDBase[MonthlyFeeTracking, MonthlyFeeTrackingCrea
             )
         )
         fee_record = fee_record_query.scalar_one_or_none()
-        
+
         if not fee_record:
-            raise ValueError(f"No monthly tracking enabled for student {student_id} in session {session_year_id}. Please enable monthly tracking first.")
+            # Return None instead of raising exception for better error handling
+            print(f"No monthly tracking enabled for student {student_id} in session {session_year_id}")
+            return None
             
         # Get monthly tracking records
         monthly_records_query = await db.execute(
@@ -121,6 +128,7 @@ class CRUDMonthlyFeeTracking(CRUDBase[MonthlyFeeTracking, MonthlyFeeTrackingCrea
                     pending_months += 1
             elif record.payment_status_id == 2:  # Partial
                 status_color = "#fd7e14"  # Orange
+                paid_months += 1  # Count partial payments as paid months
             elif record.payment_status_id == 3:  # Paid
                 paid_months += 1
             elif record.payment_status_id == 4:  # Overdue

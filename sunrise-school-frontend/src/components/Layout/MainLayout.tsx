@@ -32,6 +32,7 @@ import {
   Person as PersonIcon,
   Dashboard as DashboardIcon,
   BeachAccess as BeachAccessIcon,
+  AccountBalanceWallet as AccountBalanceWalletIcon,
   ChevronLeft as ChevronLeftIcon,
   ChevronRight as ChevronRightIcon,
 } from '@mui/icons-material';
@@ -449,6 +450,14 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           <MenuItem onClick={() => { handleUserMenuClose(); navigate('/teacher/leaves'); }}>
             <BeachAccessIcon sx={{ mr: 1 }} />
             Leave Management
+          </MenuItem>
+        )}
+
+        {/* Student Fee Management */}
+        {user?.user_type?.toUpperCase() === 'STUDENT' && (
+          <MenuItem onClick={() => { handleUserMenuClose(); navigate('/student/fees'); }}>
+            <AccountBalanceWalletIcon sx={{ mr: 1 }} />
+            Fee Management
           </MenuItem>
         )}
 

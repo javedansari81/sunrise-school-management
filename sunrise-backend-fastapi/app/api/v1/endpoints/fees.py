@@ -2816,6 +2816,185 @@ async def get_enhanced_students_summary(
     }
 
 
+@router.get("/my-fees")
+async def get_my_fees(
+    session_year_id: int = Query(4, description="Session year ID (default: 2025-26)"),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Get fee information for the currently logged-in student
+    Students can only view their own fee information
+    Returns comprehensive fee statistics and monthly history
+    """
+    # Verify user is a student
+    if current_user.user_type_id != 3:  # 3 = STUDENT
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This endpoint is only accessible to students"
+        )
+
+    # Get student profile from current user with metadata
+    student = await student_crud.get_with_metadata(db, id=current_user.id)
+    if not student:
+        # Fallback to get_by_user_id if get_with_metadata doesn't work
+        student = await student_crud.get_by_user_id(db, user_id=current_user.id)
+        if not student:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Student profile not found for current user"
+            )
+
+    # Extract student info early to avoid lazy loading issues
+    student_id = student.id
+    admission_number = student.admission_number
+    student_name = f"{student.first_name} {student.last_name}"
+    class_name = student.class_ref.description if student.class_ref else "N/A"
+
+    try:
+        # Get enhanced student summary (single student)
+        summaries = await monthly_fee_tracking_crud.get_enhanced_student_summary(
+            db=db,
+            session_year_id=session_year_id,
+            class_id=None,
+            search=admission_number,  # Search by admission number to get specific student
+            limit=1,
+            offset=0
+        )
+
+        if not summaries or len(summaries) == 0:
+            # Student doesn't have fee records yet
+            return {
+                "student_id": student_id,
+                "admission_number": admission_number,
+                "student_name": student_name,
+                "class_name": class_name,
+                "has_fee_records": False,
+                "has_monthly_tracking": False,
+                "message": "No fee records found for current session year"
+            }
+
+        summary = summaries[0]
+
+        # Get monthly history if available
+        monthly_history = None
+        has_monthly_tracking = summary.has_monthly_tracking if summary else False
+
+        if has_monthly_tracking:
+            try:
+                monthly_history = await monthly_fee_tracking_crud.get_student_monthly_history(
+                    db=db,
+                    student_id=student_id,
+                    session_year_id=session_year_id
+                )
+
+                # If monthly_history is None, it means tracking is not properly set up
+                if monthly_history is None:
+                    print(f"Monthly tracking returned None for student {student_id} in session {session_year_id}")
+                    # Update the flag to reflect actual state
+                    has_monthly_tracking = False
+
+            except Exception as e:
+                # If monthly history fails for unexpected reasons, continue without it
+                print(f"Error fetching monthly history: {e}")
+                monthly_history = None
+                has_monthly_tracking = False
+
+        return {
+            "student_id": student_id,
+            "admission_number": admission_number,
+            "student_name": student_name,
+            "class_name": class_name,
+            "has_fee_records": True,
+            "has_monthly_tracking": has_monthly_tracking,
+            "summary": summary,
+            "monthly_history": monthly_history
+        }
+
+    except ValueError as e:
+        # Handle specific business logic errors gracefully
+        error_message = str(e)
+        print(f"Business logic error in get_my_fees: {error_message}")
+
+        # Return a user-friendly response instead of raising an exception
+        return {
+            "student_id": student_id,
+            "admission_number": admission_number,
+            "student_name": student_name,
+            "class_name": class_name,
+            "has_fee_records": False,
+            "has_monthly_tracking": False,
+            "message": "No fee records found for the selected session year"
+        }
+    except Exception as e:
+        # Only raise HTTP exception for unexpected errors
+        print(f"Unexpected error in get_my_fees: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error fetching fee information: {str(e)}"
+        )
+
+
+@router.get("/my-monthly-history")
+async def get_my_monthly_history(
+    session_year_id: int = Query(4, description="Session year ID (default: 2025-26)"),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Get detailed monthly fee history for the currently logged-in student
+    Students can only view their own monthly payment history
+    """
+    # Verify user is a student
+    if current_user.user_type_id != 3:  # 3 = STUDENT
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This endpoint is only accessible to students"
+        )
+
+    # Get student profile from current user with metadata
+    student = await student_crud.get_with_metadata(db, id=current_user.id)
+    if not student:
+        # Fallback to get_by_user_id if get_with_metadata doesn't work
+        student = await student_crud.get_by_user_id(db, user_id=current_user.id)
+        if not student:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Student profile not found for current user"
+            )
+
+    # Extract student info early to avoid lazy loading issues
+    student_id = student.id
+    student_name = f"{student.first_name} {student.last_name}"
+    class_name = student.class_ref.description if student.class_ref else "N/A"
+
+    try:
+        history = await monthly_fee_tracking_crud.get_student_monthly_history(
+            db=db,
+            student_id=student_id,
+            session_year_id=session_year_id
+        )
+
+        if not history:
+            return {
+                "student_id": student_id,
+                "student_name": student_name,
+                "class_name": class_name,
+                "has_monthly_tracking": False,
+                "message": "Monthly fee tracking is not enabled for the selected session year. Please contact the administration."
+            }
+
+        return history
+
+    except Exception as e:
+        # Handle unexpected errors
+        print(f"Error fetching monthly history: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error fetching monthly history: {str(e)}"
+        )
+
+
 @router.get("/enhanced-monthly-history/{student_id}")
 async def get_enhanced_student_monthly_history(
     student_id: int,
@@ -2837,32 +3016,14 @@ async def get_enhanced_student_monthly_history(
         if not history:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Monthly fee history not found for this student"
+                detail="Monthly fee tracking is not enabled for this student in the selected session year"
             )
 
         return history
 
-    except ValueError as e:
-        # Handle specific business logic errors
-        error_message = str(e)
-        if "not found" in error_message.lower():
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=error_message
-            )
-        elif "monthly tracking" in error_message.lower():
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=error_message
-            )
-        else:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=error_message
-            )
-
     except Exception as e:
         # Handle unexpected errors
+        print(f"Error fetching monthly history: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"An unexpected error occurred while fetching monthly history: {str(e)}"

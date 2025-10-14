@@ -322,6 +322,41 @@ export const studentLeaveAPI = {
   },
 };
 
+// Student-specific fee API methods
+export const studentFeeAPI = {
+  /**
+   * Get fee information for the currently logged-in student
+   * Returns comprehensive fee statistics and monthly history
+   */
+  getMyFees: async (sessionYearId: number = 4) => {
+    try {
+      const response = await api.get('/fees/my-fees', {
+        params: { session_year_id: sessionYearId }
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error getting student fee information:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Get detailed monthly fee history for the currently logged-in student
+   * Returns month-wise payment status and history
+   */
+  getMyMonthlyHistory: async (sessionYearId: number = 4) => {
+    try {
+      const response = await api.get('/fees/my-monthly-history', {
+        params: { session_year_id: sessionYearId }
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error getting student monthly fee history:', error);
+      throw error;
+    }
+  },
+};
+
 // Expense Management API
 export const expenseAPI = {
   // Get expenses with filters and pagination

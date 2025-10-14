@@ -24,6 +24,7 @@ import PersonIcon from '@mui/icons-material/Person';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import MenuIcon from '@mui/icons-material/Menu';
 import BeachAccessIcon from '@mui/icons-material/BeachAccess';
+import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
 import { useAuth } from '../../contexts/AuthContext';
 import LoginPopup from '../LoginPopup';
 
@@ -163,6 +164,14 @@ const Header: React.FC = () => {
                     <MenuItem onClick={() => { handleMenuClose(); navigate('/teacher/leaves'); }}>
                       <BeachAccessIcon sx={{ mr: 1 }} />
                       Leave Management
+                    </MenuItem>
+                  )}
+
+                  {/* Show Fee Management for students */}
+                  {user?.user_type?.toUpperCase() === 'STUDENT' && (
+                    <MenuItem onClick={() => { handleMenuClose(); navigate('/student/fees'); }}>
+                      <AccountBalanceWalletIcon sx={{ mr: 1 }} />
+                      Fee Management
                     </MenuItem>
                   )}
 

@@ -21,6 +21,7 @@ import TeacherDashboard from './pages/teacher/TeacherDashboard';
 import TeacherLeaveManagementPage from './pages/teacher/TeacherLeaveManagementPage';
 import StudentDashboard from './pages/student/StudentDashboard';
 import StudentLeaveManagementPage from './pages/student/StudentLeaveManagementPage';
+import StudentFeeManagementPage from './pages/student/StudentFeeManagementPage';
 import Profile from './pages/Profile';
 // import ConfigurationTest from './components/common/ConfigurationTest';
 
@@ -239,6 +240,11 @@ function App() {
                 <Route path="/student/leaves" element={
                   <ProtectedRoute requiredRole="STUDENT">
                     <StudentLeaveManagementPage />
+                  </ProtectedRoute>
+                } />
+                <Route path="/student/fees" element={
+                  <ProtectedRoute requiredRole="STUDENT">
+                    <StudentFeeManagementPage />
                   </ProtectedRoute>
                 } />
 

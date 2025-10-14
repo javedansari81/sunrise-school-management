@@ -22,10 +22,11 @@ import {
   Cancel,
   Pending,
   Person,
+  AccountBalanceWallet,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { studentLeaveAPI, studentsAPI } from '../../services/api';
+import { studentLeaveAPI, studentsAPI, studentFeeAPI } from '../../services/api';
 
 interface LeaveRequest {
   id: number;
@@ -61,6 +62,11 @@ const StudentDashboardOverview: React.FC = () => {
     approved: 0,
     rejected: 0,
   });
+  const [feeStats, setFeeStats] = useState<{
+    totalPaid: number;
+    remainingBalance: number;
+    hasFeeRecords: boolean;
+  } | null>(null);
 
   useEffect(() => {
     loadDashboardData();
@@ -69,20 +75,21 @@ const StudentDashboardOverview: React.FC = () => {
   const loadDashboardData = async () => {
     try {
       setLoading(true);
-      
-      // Load student profile and recent leave requests
-      const [profileResponse, leavesResponse] = await Promise.all([
+
+      // Load student profile, recent leave requests, and fee data
+      const [profileResponse, leavesResponse, feeResponse] = await Promise.all([
         studentsAPI.getMyProfile(),
-        studentLeaveAPI.getMyLeaveRequests()
+        studentLeaveAPI.getMyLeaveRequests(),
+        studentFeeAPI.getMyFees(4).catch(() => null) // Don't fail if fee data unavailable
       ]);
 
       setStudentProfile(profileResponse.data);
-      
+
       // Process leave requests
       const leaves = Array.isArray(leavesResponse) ? leavesResponse : [];
       setRecentLeaves(leaves.slice(0, 5)); // Show only recent 5
-      
-      // Calculate stats
+
+      // Calculate leave stats
       const stats = leaves.reduce((acc, leave) => {
         acc.total++;
         if (leave.leave_status_id === 1) acc.pending++;
@@ -90,8 +97,24 @@ const StudentDashboardOverview: React.FC = () => {
         else if (leave.leave_status_id === 3) acc.rejected++;
         return acc;
       }, { total: 0, pending: 0, approved: 0, rejected: 0 });
-      
+
       setLeaveStats(stats);
+
+      // Process fee data
+      if (feeResponse && feeResponse.has_fee_records && feeResponse.monthly_history) {
+        setFeeStats({
+          totalPaid: feeResponse.monthly_history.total_paid || 0,
+          remainingBalance: feeResponse.monthly_history.total_balance || 0,
+          hasFeeRecords: true
+        });
+      } else {
+        setFeeStats({
+          totalPaid: 0,
+          remainingBalance: 0,
+          hasFeeRecords: false
+        });
+      }
+
       setError(null);
     } catch (err: any) {
       console.error('Error loading dashboard data:', err);
@@ -119,38 +142,52 @@ const StudentDashboardOverview: React.FC = () => {
     }
   };
 
-  const getDashboardCards = () => [
-    {
-      title: 'Total Leave Requests',
-      value: leaveStats.total.toString(),
-      icon: <EventNote fontSize="large" />,
-      color: '#1976d2',
-      subtitle: 'All time requests',
-    },
-    {
-      title: 'Pending Approval',
-      value: leaveStats.pending.toString(),
-      icon: <Pending fontSize="large" />,
-      color: '#f57c00',
-      subtitle: 'Awaiting review',
-    },
-    {
-      title: 'Approved Leaves',
-      value: leaveStats.approved.toString(),
-      icon: <CheckCircle fontSize="large" />,
-      color: '#388e3c',
-      subtitle: 'Successfully approved',
-    },
-    {
-      title: 'My Profile',
-      value: studentProfile?.class_name || 'N/A',
-      icon: <Person fontSize="large" />,
-      color: '#7b1fa2',
-      subtitle: `Roll: ${studentProfile?.roll_number || 'N/A'}`,
-      clickable: true,
-      onClick: () => navigate('/profile'),
-    },
-  ];
+  const getDashboardCards = (): Array<{
+    title: string;
+    value: string;
+    icon: React.ReactElement;
+    color: string;
+    subtitle: string;
+    clickable?: boolean;
+    onClick?: () => void;
+  }> => {
+    const cards = [
+      {
+        title: 'Total Leave Requests',
+        value: leaveStats.total.toString(),
+        icon: <EventNote fontSize="large" />,
+        color: '#1976d2',
+        subtitle: 'All time requests',
+      },
+      {
+        title: 'Pending Approval',
+        value: leaveStats.pending.toString(),
+        icon: <Pending fontSize="large" />,
+        color: '#f57c00',
+        subtitle: 'Awaiting review',
+      },
+      {
+        title: 'Approved Leaves',
+        value: leaveStats.approved.toString(),
+        icon: <CheckCircle fontSize="large" />,
+        color: '#388e3c',
+        subtitle: 'Successfully approved',
+      },
+    ];
+
+    // Add fee card if fee data is available
+    if (feeStats?.hasFeeRecords) {
+      cards.push({
+        title: 'Fee Balance',
+        value: `₹${feeStats.remainingBalance.toFixed(0)}`,
+        icon: <AccountBalanceWallet fontSize="large" />,
+        color: '#9c27b0',
+        subtitle: `Paid: ₹${feeStats.totalPaid.toFixed(0)}`,
+      });
+    }
+
+    return cards;
+  };
 
   if (loading) {
     return (
@@ -322,6 +359,17 @@ const StudentDashboardOverview: React.FC = () => {
             >
               Manage Leave Requests
             </Button>
+            {feeStats?.hasFeeRecords && (
+              <Button
+                variant="contained"
+                startIcon={<AccountBalanceWallet />}
+                onClick={() => navigate('/student/fees')}
+                fullWidth
+                sx={{ backgroundColor: '#9c27b0', '&:hover': { backgroundColor: '#7b1fa2' } }}
+              >
+                View Fee Details
+              </Button>
+            )}
             <Button
               variant="outlined"
               startIcon={<Person />}
