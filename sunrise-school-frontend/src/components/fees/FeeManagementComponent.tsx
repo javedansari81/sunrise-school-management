@@ -256,7 +256,7 @@ const FeeManagementComponent: React.FC = () => {
     setStudents(filtered);
   }, [tabValue, allStudents]);
 
-  // Real-time search with debounce
+  // Real-time search with debounce (only for search field)
   useEffect(() => {
     const timer = setTimeout(() => {
       if (filters.session_year_id) {
@@ -264,7 +264,7 @@ const FeeManagementComponent: React.FC = () => {
       }
     }, 500);
     return () => clearTimeout(timer);
-  }, [filters.search, filters.class_id]);
+  }, [filters.search]); // Removed filters.class_id from here to avoid duplicate calls
 
   // Fetch enhanced student summary
   const fetchStudentsSummary = async () => {
