@@ -61,8 +61,8 @@ ON CONFLICT (id) DO UPDATE SET
 -- =====================================================
 INSERT INTO classes (id, name, description, sort_order, is_active) VALUES
 (2, 'PRE_NURSERY', 'PG', 2, TRUE),
-(3, 'LKG', 'Lower Kindergarten', 3, TRUE),
-(4, 'UKG', 'Upper Kindergarten', 4, TRUE),
+(3, 'LKG', 'LKG', 3, TRUE),
+(4, 'UKG', 'UKG', 4, TRUE),
 (5, 'CLASS_1', 'Class 1', 5, TRUE),
 (6, 'CLASS_2', 'Class 2', 6, TRUE),
 (7, 'CLASS_3', 'Class 3', 7, TRUE),
