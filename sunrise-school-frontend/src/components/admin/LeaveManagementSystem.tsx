@@ -437,7 +437,8 @@ const LeaveManagementSystem: React.FC = () => {
             <FormControl
               size="small"
               sx={{
-                minWidth: { xs: '100%', sm: 120 },
+                flex: { xs: '1 1 100%', sm: '1 1 auto' },
+                minWidth: { xs: '100%', sm: 'auto' },
                 order: { xs: 2, sm: 0 }
               }}
             >
@@ -459,7 +460,8 @@ const LeaveManagementSystem: React.FC = () => {
             <FormControl
               size="small"
               sx={{
-                minWidth: { xs: '100%', sm: 120 },
+                flex: { xs: '1 1 100%', sm: '1 1 auto' },
+                minWidth: { xs: '100%', sm: 'auto' },
                 order: { xs: 3, sm: 0 }
               }}
             >
@@ -485,7 +487,8 @@ const LeaveManagementSystem: React.FC = () => {
             <FormControl
               size="small"
               sx={{
-                minWidth: { xs: '100%', sm: 120 },
+                flex: { xs: '1 1 100%', sm: '1 1 auto' },
+                minWidth: { xs: '100%', sm: 'auto' },
                 order: { xs: 4, sm: 0 }
               }}
             >
@@ -515,7 +518,8 @@ const LeaveManagementSystem: React.FC = () => {
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               sx={{
-                minWidth: { xs: '100%', sm: 200 },
+                flex: { xs: '1 1 100%', sm: '1 1 auto' },
+                minWidth: { xs: '100%', sm: 'auto' },
                 order: { xs: 4, sm: 0 }
               }}
             />
@@ -1043,12 +1047,6 @@ const LeaveManagementSystem: React.FC = () => {
 
         <TabPanel value={tabValue} index={3}>
           {/* Statistics Tab */}
-          <Box sx={{ mb: 3 }}>
-            <Typography variant="h6" color="info.main" sx={{ mb: 2 }}>
-              Leave Management Statistics
-            </Typography>
-          </Box>
-
           {loading ? (
             <Box display="flex" justifyContent="center" p={{ xs: 2, sm: 4 }}>
               <CircularProgress />

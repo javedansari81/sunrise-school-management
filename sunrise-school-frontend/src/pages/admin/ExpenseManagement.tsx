@@ -30,6 +30,8 @@ import {
   Pagination,
   Tooltip,
   Stack,
+  Tabs,
+  Tab,
 } from '@mui/material';
 import { DEFAULT_PAGE_SIZE, PAGINATION_UI_CONFIG } from '../../config/pagination';
 import AdminLayout from '../../components/Layout/AdminLayout';
@@ -89,6 +91,21 @@ const parseValidationErrors = (error: any): string => {
   return 'Validation error occurred';
 };
 
+interface TabPanelProps {
+  children?: React.ReactNode;
+  index: number;
+  value: number;
+}
+
+function TabPanel(props: TabPanelProps) {
+  const { children, value, index, ...other } = props;
+  return (
+    <div role="tabpanel" hidden={value !== index} {...other}>
+      {value === index && <Box>{children}</Box>}
+    </div>
+  );
+}
+
 interface ExpenseFormData {
   expense_date: string;
   expense_category_id: number | '';
@@ -146,6 +163,7 @@ const ExpenseManagement: React.FC = () => {
   };
 
   // State management
+  const [activeTab, setActiveTab] = useState(0);
   const [expenses, setExpenses] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [openDialog, setOpenDialog] = useState(false);
@@ -479,6 +497,10 @@ const ExpenseManagement: React.FC = () => {
     }
   };
 
+  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
+    setActiveTab(newValue);
+  };
+
   // Effects
   useEffect(() => {
     if (!configLoading) {
@@ -541,68 +563,14 @@ const ExpenseManagement: React.FC = () => {
     <AdminLayout>
       <Box sx={{ p: { xs: 1, sm: 2, md: 3 } }}>
         <ServiceConfigurationLoader service="expense-management">
-          <Box
-            display="flex"
-            justifyContent="flex-end"
-            alignItems="center"
-            mb={{ xs: 3, sm: 4 }}
-          >
-            <Button
-              variant="contained"
-              startIcon={<Add />}
-              onClick={() => handleOpenDialog()}
-              sx={{
-                fontSize: { xs: '0.875rem', sm: '1rem' },
-                padding: { xs: '6px 12px', sm: '8px 16px' }
-              }}
-            >
-              Add Expense
-            </Button>
-          </Box>
-
-      {/* Statistics Cards */}
-      <Grid container spacing={3} mb={4}>
-        {expenseStats.map((stat, index) => (
-          <Grid key={index} size={{ xs: 12, sm: 6, md: 3 }}>
-            <Card elevation={3}>
-              <CardContent>
-                <Box display="flex" alignItems="center" justifyContent="space-between">
-                  <Box>
-                    <Typography variant="h5" fontWeight="bold" color={`${stat.color}.main`}>
-                      {stat.value}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      {stat.title}
-                    </Typography>
-                    {stat.subtitle && (
-                      <Typography variant="caption" color="text.secondary" display="block">
-                        {stat.subtitle}
-                      </Typography>
-                    )}
-                    {stat.amount && (
-                      <Typography variant="caption" color="text.secondary">
-                        {stat.amount}
-                      </Typography>
-                    )}
-                  </Box>
-                  <Box color={`${stat.color}.main`}>
-                    {stat.icon}
-                  </Box>
-                </Box>
-              </CardContent>
-            </Card>
-          </Grid>
-        ))}
-      </Grid>
-
       {/* Filters */}
       <Paper elevation={3} sx={{ p: 3, mb: 3 }}>
         <Typography variant="h6" fontWeight="bold" mb={2}>
           <FilterList sx={{ mr: 1 }} />
           Filters
         </Typography>
-        <Grid container spacing={2}>
-          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+        <Grid container spacing={2} alignItems="center">
+          <Grid size={{ xs: 12, sm: 6, md: 2.4 }}>
             <FormControl fullWidth size="small">
               <InputLabel>Category</InputLabel>
               <Select
@@ -619,7 +587,7 @@ const ExpenseManagement: React.FC = () => {
               </Select>
             </FormControl>
           </Grid>
-          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+          <Grid size={{ xs: 12, sm: 6, md: 2.4 }}>
             <FormControl fullWidth size="small">
               <InputLabel>Status</InputLabel>
               <Select
@@ -636,7 +604,7 @@ const ExpenseManagement: React.FC = () => {
               </Select>
             </FormControl>
           </Grid>
-          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+          <Grid size={{ xs: 12, sm: 6, md: 2.4 }}>
             <TextField
               fullWidth
               size="small"
@@ -647,7 +615,7 @@ const ExpenseManagement: React.FC = () => {
               InputLabelProps={{ shrink: true }}
             />
           </Grid>
-          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+          <Grid size={{ xs: 12, sm: 6, md: 2.4 }}>
             <TextField
               fullWidth
               size="small"
@@ -658,32 +626,54 @@ const ExpenseManagement: React.FC = () => {
               InputLabelProps={{ shrink: true }}
             />
           </Grid>
+          <Grid size={{ xs: 12, sm: 6, md: 2.4 }}>
+            <Button
+              variant="contained"
+              startIcon={<Add />}
+              onClick={() => handleOpenDialog()}
+              fullWidth
+              sx={{
+                fontSize: { xs: '0.875rem', sm: '1rem' },
+                padding: { xs: '6px 12px', sm: '8px 16px' },
+                whiteSpace: 'nowrap'
+              }}
+            >
+              New Expense
+            </Button>
+          </Grid>
         </Grid>
       </Paper>
 
-      {/* Expense Table */}
-      <Paper elevation={3} sx={{ p: 3 }}>
+      {/* Tabs */}
+      <Paper sx={{ width: '100%' }}>
+        <Tabs value={activeTab} onChange={handleTabChange}>
+          <Tab label="All Expenses" />
+          <Tab label="Statistics" />
+        </Tabs>
 
-        {loading ? (
-          <Box display="flex" justifyContent="center" p={4}>
-            <CircularProgress />
-          </Box>
-        ) : (
-          <>
-            <TableContainer>
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Date</TableCell>
-                    <TableCell>Category</TableCell>
-                    <TableCell>Description</TableCell>
-                    <TableCell>Amount</TableCell>
-                    <TableCell>Status</TableCell>
-                    <TableCell>Priority</TableCell>
-                    <TableCell>Vendor</TableCell>
-                    <TableCell>Actions</TableCell>
-                  </TableRow>
-                </TableHead>
+        {/* All Expenses Tab */}
+        <TabPanel value={activeTab} index={0}>
+          <Box sx={{ p: 3 }}>
+            {loading ? (
+              <Box display="flex" justifyContent="center" p={4}>
+                <CircularProgress />
+              </Box>
+            ) : (
+              <>
+                <TableContainer>
+                  <Table>
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>Date</TableCell>
+                        <TableCell>Category</TableCell>
+                        <TableCell>Description</TableCell>
+                        <TableCell>Amount</TableCell>
+                        <TableCell>Status</TableCell>
+                        <TableCell>Priority</TableCell>
+                        <TableCell>Vendor</TableCell>
+                        <TableCell>Actions</TableCell>
+                      </TableRow>
+                    </TableHead>
                 <TableBody>
                   {expenses.length === 0 ? (
                     <TableRow>
@@ -796,21 +786,75 @@ const ExpenseManagement: React.FC = () => {
               </Table>
             </TableContainer>
 
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <Box display="flex" justifyContent="center" mt={3}>
-                <Pagination
-                  count={totalPages}
-                  page={page}
-                  onChange={(_, newPage) => setPage(newPage)}
-                  color={PAGINATION_UI_CONFIG.color}
-                  showFirstButton={PAGINATION_UI_CONFIG.showFirstLastButtons}
-                  showLastButton={PAGINATION_UI_CONFIG.showFirstLastButtons}
-                />
-              </Box>
+                {/* Pagination */}
+                {totalPages > 1 && (
+                  <Box display="flex" justifyContent="center" mt={3}>
+                    <Pagination
+                      count={totalPages}
+                      page={page}
+                      onChange={(_, newPage) => setPage(newPage)}
+                      color={PAGINATION_UI_CONFIG.color}
+                      showFirstButton={PAGINATION_UI_CONFIG.showFirstLastButtons}
+                      showLastButton={PAGINATION_UI_CONFIG.showFirstLastButtons}
+                    />
+                  </Box>
+                )}
+              </>
             )}
-          </>
-        )}
+          </Box>
+        </TabPanel>
+
+        {/* Statistics Tab */}
+        <TabPanel value={activeTab} index={1}>
+          <Box sx={{ p: 3 }}>
+            {loading ? (
+              <Box display="flex" justifyContent="center" p={3}>
+                <CircularProgress />
+              </Box>
+            ) : (
+              <>
+                <Typography variant="h6" gutterBottom>
+                  Expense Statistics
+                </Typography>
+
+                {/* Statistics Cards */}
+                <Grid container spacing={3} sx={{ mb: 4 }}>
+                  {expenseStats.map((stat, index) => (
+                    <Grid key={index} size={{ xs: 12, sm: 6, md: 3 }}>
+                      <Card elevation={3}>
+                        <CardContent>
+                          <Box display="flex" alignItems="center" justifyContent="space-between">
+                            <Box>
+                              <Typography variant="h5" fontWeight="bold" color={`${stat.color}.main`}>
+                                {stat.value}
+                              </Typography>
+                              <Typography variant="body2" color="text.secondary">
+                                {stat.title}
+                              </Typography>
+                              {stat.subtitle && (
+                                <Typography variant="caption" color="text.secondary" display="block">
+                                  {stat.subtitle}
+                                </Typography>
+                              )}
+                              {stat.amount && (
+                                <Typography variant="caption" color="text.secondary">
+                                  {stat.amount}
+                                </Typography>
+                              )}
+                            </Box>
+                            <Box color={`${stat.color}.main`}>
+                              {stat.icon}
+                            </Box>
+                          </Box>
+                        </CardContent>
+                      </Card>
+                    </Grid>
+                  ))}
+                </Grid>
+              </>
+            )}
+          </Box>
+        </TabPanel>
       </Paper>
 
       {/* Snackbar for notifications */}

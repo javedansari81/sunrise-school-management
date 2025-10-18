@@ -52,6 +52,7 @@ import {
   School as SchoolIcon,
   Assessment as AssessmentIcon,
   DirectionsBus,
+  FilterList,
 } from '@mui/icons-material';
 import {
   SessionYearDropdown,
@@ -743,73 +744,84 @@ const FeeManagementComponent: React.FC = () => {
 
   return (
     <Box sx={{ p: { xs: 1, sm: 2, md: 3 } }}>
-      {/* Action Button - Positioned above filters */}
-      <Box
-        display="flex"
-        justifyContent="flex-end"
-        alignItems="center"
-        mb={{ xs: 2, sm: 3 }}
-      >
-        {selectedStudentIds.length > 0 && (
-          <Button
-            variant="outlined"
-            startIcon={<Settings />}
-            onClick={() => {
-              console.log('🔍 Enable Monthly Tracking Button Clicked:', {
-                selectedStudentIds: selectedStudentIds,
-                totalStudents: students.length,
-              });
-              setEnableTrackingDialog(true);
-            }}
-            sx={{
-              fontSize: { xs: '0.875rem', sm: '1rem' },
-              padding: { xs: '6px 12px', sm: '8px 16px' },
-            }}
-          >
-            Enable Monthly Tracking ({selectedStudentIds.length})
-          </Button>
-        )}
-      </Box>
-
       {/* Filters - Mobile Responsive */}
       <Paper sx={{ p: { xs: 1.5, sm: 2 }, mb: { xs: 2, sm: 3 } }}>
-        <Stack
-          direction={{ xs: 'column', sm: 'row' }}
-          spacing={{ xs: 1.5, sm: 2 }}
-          alignItems={{ xs: 'stretch', sm: 'center' }}
+        <Typography variant="h6" fontWeight="bold" mb={2}>
+          <FilterList sx={{ mr: 1 }} />
+          Filters
+        </Typography>
+        <Box
+          sx={{
+            display: 'flex',
+            gap: { xs: 1.5, sm: 2 },
+            alignItems: { xs: 'stretch', sm: 'center' },
+            flexWrap: 'wrap',
+            flexDirection: { xs: 'column', sm: 'row' }
+          }}
         >
-          <SessionYearDropdown
-            value={filters.session_year_id}
-            onChange={(value) => {
-              setFilters(prev => ({ ...prev, session_year_id: value as string }));
-              // Auto-fetch when session year changes
-              setTimeout(() => fetchStudentsSummary(), 100);
-            }}
-            required
-          />
-          <ClassDropdown
-            value={filters.class_id}
-            onChange={(value) => setFilters(prev => ({ ...prev, class_id: value as string }))}
-            includeAll={true}
-            allLabel="ALL"
-          />
-          <TextField
-            placeholder="Search by name or admission number..."
-            value={filters.search}
-            onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
-            slotProps={{
-              input: {
-                startAdornment: <Search sx={{ mr: 1, color: 'action.active' }} />,
-              }
-            }}
-            sx={{
-              minWidth: { xs: '100%', sm: 250 },
-              '& .MuiInputBase-input': {
-                fontSize: { xs: '0.875rem', sm: '1rem' }
-              }
-            }}
-          />
-        </Stack>
+          <Box sx={{ flex: { xs: '1 1 100%', sm: '1 1 auto' }, minWidth: { xs: '100%', sm: 'auto' } }}>
+            <SessionYearDropdown
+              value={filters.session_year_id}
+              onChange={(value) => {
+                setFilters(prev => ({ ...prev, session_year_id: value as string }));
+                // Auto-fetch when session year changes
+                setTimeout(() => fetchStudentsSummary(), 100);
+              }}
+              required
+              fullWidth
+            />
+          </Box>
+          <Box sx={{ flex: { xs: '1 1 100%', sm: '1 1 auto' }, minWidth: { xs: '100%', sm: 'auto' } }}>
+            <ClassDropdown
+              value={filters.class_id}
+              onChange={(value) => setFilters(prev => ({ ...prev, class_id: value as string }))}
+              includeAll={true}
+              allLabel="ALL"
+              fullWidth
+            />
+          </Box>
+          <Box sx={{ flex: { xs: '1 1 100%', sm: '1 1 auto' }, minWidth: { xs: '100%', sm: 'auto' } }}>
+            <TextField
+              fullWidth
+              placeholder="Search by name or admission number..."
+              value={filters.search}
+              onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
+              slotProps={{
+                input: {
+                  startAdornment: <Search sx={{ mr: 1, color: 'action.active' }} />,
+                }
+              }}
+              sx={{
+                '& .MuiInputBase-input': {
+                  fontSize: { xs: '0.875rem', sm: '1rem' }
+                }
+              }}
+            />
+          </Box>
+          {selectedStudentIds.length > 0 && (
+            <Box sx={{ flex: { xs: '1 1 100%', sm: '0 0 auto' }, minWidth: { xs: '100%', sm: 'auto' } }}>
+              <Button
+                variant="contained"
+                startIcon={<Settings />}
+                onClick={() => {
+                  console.log('🔍 Enable Monthly Tracking Button Clicked:', {
+                    selectedStudentIds: selectedStudentIds,
+                    totalStudents: students.length,
+                  });
+                  setEnableTrackingDialog(true);
+                }}
+                fullWidth
+                sx={{
+                  fontSize: { xs: '0.875rem', sm: '1rem' },
+                  padding: { xs: '6px 12px', sm: '8px 16px' },
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                Enable Tracking ({selectedStudentIds.length})
+              </Button>
+            </Box>
+          )}
+        </Box>
       </Paper>
 
       {/* Tabs for filtering */}

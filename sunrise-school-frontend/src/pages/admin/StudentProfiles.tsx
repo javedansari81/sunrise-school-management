@@ -51,6 +51,7 @@ import {
   Email,
   LocationOn,
   Search,
+  FilterList,
 } from '@mui/icons-material';
 import AdminLayout from '../../components/Layout/AdminLayout';
 import { studentsAPI } from '../../services/api';
@@ -516,54 +517,14 @@ const StudentProfilesContent: React.FC = () => {
   return (
     <AdminLayout>
       <Box sx={{ p: { xs: 1, sm: 2, md: 3 } }}>
-        <Box
-          display="flex"
-          justifyContent="flex-end"
-          alignItems="center"
-          mb={{ xs: 3, sm: 4 }}
-        >
-          <Button
-            variant="contained"
-            startIcon={<Add />}
-            onClick={() => handleOpenDialog('create')}
-            sx={{
-              fontSize: { xs: '0.875rem', sm: '1rem' },
-              padding: { xs: '6px 12px', sm: '8px 16px' }
-            }}
-          >
-            Add Student
-          </Button>
-        </Box>
-
-        {/* Statistics Cards */}
-        <Grid container spacing={3} mb={4}>
-          {studentStats.map((stat, index) => (
-            <Grid key={index} size={{ xs: 12, sm: 6, md: 3 }}>
-              <Card elevation={3}>
-                <CardContent>
-                  <Box display="flex" alignItems="center" justifyContent="space-between">
-                    <Box>
-                      <Typography variant="h4" fontWeight="bold" color={`${stat.color}.main`}>
-                        {stat.value}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        {stat.title}
-                      </Typography>
-                    </Box>
-                    <Box color={`${stat.color}.main`}>
-                      {React.cloneElement(stat.icon, { sx: { fontSize: 40 } })}
-                    </Box>
-                  </Box>
-                </CardContent>
-              </Card>
-            </Grid>
-          ))}
-        </Grid>
-
         {/* Filters and Search */}
         <Paper elevation={3} sx={{ p: 3, mb: 3 }}>
+          <Typography variant="h6" fontWeight="bold" mb={2}>
+            <FilterList sx={{ mr: 1 }} />
+            Filters
+          </Typography>
           <Grid container spacing={2} alignItems="center">
-            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+            <Grid size={{ xs: 12, sm: 6, md: 2.4 }}>
               <FilterDropdown
                 metadataType="sessionYears"
                 label="Session Year"
@@ -575,7 +536,7 @@ const StudentProfilesContent: React.FC = () => {
                 allLabel="All Session Years"
               />
             </Grid>
-            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+            <Grid size={{ xs: 12, sm: 6, md: 2.4 }}>
               <FilterDropdown
                 metadataType="classes"
                 label="Class"
@@ -587,7 +548,7 @@ const StudentProfilesContent: React.FC = () => {
                 allLabel="All Classes"
               />
             </Grid>
-            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+            <Grid size={{ xs: 12, sm: 6, md: 2.4 }}>
               <FormControl fullWidth>
                 <InputLabel>Section</InputLabel>
                 <Select
@@ -604,7 +565,7 @@ const StudentProfilesContent: React.FC = () => {
                 </Select>
               </FormControl>
             </Grid>
-            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+            <Grid size={{ xs: 12, sm: 6, md: 2.4 }}>
               <TextField
                 fullWidth
                 label="Search Students"
@@ -615,6 +576,21 @@ const StudentProfilesContent: React.FC = () => {
                 }}
               />
             </Grid>
+            <Grid size={{ xs: 12, sm: 6, md: 2.4 }}>
+              <Button
+                variant="contained"
+                startIcon={<Add />}
+                onClick={() => handleOpenDialog('create')}
+                fullWidth
+                sx={{
+                  fontSize: { xs: '0.875rem', sm: '1rem' },
+                  padding: { xs: '6px 12px', sm: '8px 16px' },
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                New Student
+              </Button>
+            </Grid>
           </Grid>
         </Paper>
 
@@ -624,6 +600,7 @@ const StudentProfilesContent: React.FC = () => {
             <Tab label="All Students" />
             <Tab label="Active Students" />
             <Tab label="Inactive Students" />
+            <Tab label="Statistics" />
           </Tabs>
 
           <TabPanel value={tabValue} index={0}>
@@ -900,6 +877,46 @@ const StudentProfilesContent: React.FC = () => {
                   showFirstButton={PAGINATION_UI_CONFIG.showFirstLastButtons}
                   showLastButton={PAGINATION_UI_CONFIG.showFirstLastButtons}
                 />
+              </Box>
+            )}
+          </TabPanel>
+
+          {/* Statistics Tab */}
+          <TabPanel value={tabValue} index={3}>
+            {loading ? (
+              <Box display="flex" justifyContent="center" p={3}>
+                <CircularProgress />
+              </Box>
+            ) : (
+              <Box sx={{ p: 3 }}>
+                <Typography variant="h6" gutterBottom>
+                  Student Statistics
+                </Typography>
+
+                {/* Statistics Cards */}
+                <Grid container spacing={3}>
+                  {studentStats.map((stat, index) => (
+                    <Grid key={index} size={{ xs: 12, sm: 6, md: 3 }}>
+                      <Card elevation={3}>
+                        <CardContent>
+                          <Box display="flex" alignItems="center" justifyContent="space-between">
+                            <Box>
+                              <Typography variant="h4" fontWeight="bold" color={`${stat.color}.main`}>
+                                {stat.value}
+                              </Typography>
+                              <Typography variant="body2" color="text.secondary">
+                                {stat.title}
+                              </Typography>
+                            </Box>
+                            <Box color={`${stat.color}.main`}>
+                              {React.cloneElement(stat.icon, { sx: { fontSize: 40 } })}
+                            </Box>
+                          </Box>
+                        </CardContent>
+                      </Card>
+                    </Grid>
+                  ))}
+                </Grid>
               </Box>
             )}
           </TabPanel>

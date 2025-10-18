@@ -30,7 +30,8 @@ import {
   History as HistoryIcon,
   Payment as PaymentIcon,
   DirectionsBus as BusIcon,
-  Cancel as CancelIcon
+  Cancel as CancelIcon,
+  FilterList
 } from '@mui/icons-material';
 import { useAuth } from '../../contexts/AuthContext';
 import transportService, {
@@ -306,14 +307,6 @@ const TransportManagementSystem: React.FC = () => {
 
   return (
     <Box sx={{ width: '100%', p: 3 }}>
-      {/* Header */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4" component="h1">
-          <BusIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
-          Transport Management
-        </Typography>
-      </Box>
-
       {/* Alerts */}
       {error && (
         <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 2 }}>
@@ -328,6 +321,10 @@ const TransportManagementSystem: React.FC = () => {
 
       {/* Filters */}
       <Paper sx={{ p: 2, mb: 2 }}>
+        <Typography variant="h6" fontWeight="bold" mb={2}>
+          <FilterList sx={{ mr: 1 }} />
+          Filters
+        </Typography>
         <Grid container spacing={2} alignItems="center">
           <Grid size={{ xs: 12, sm: 3 }}>
             <FormControl fullWidth size="small">

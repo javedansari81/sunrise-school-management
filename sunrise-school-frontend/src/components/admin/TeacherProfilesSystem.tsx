@@ -38,7 +38,8 @@ import {
   Delete as DeleteIcon,
   Search as SearchIcon,
   Phone as PhoneIcon,
-  Email as EmailIcon
+  Email as EmailIcon,
+  FilterList
 } from '@mui/icons-material';
 
 import { useAuth } from '../../contexts/AuthContext';
@@ -720,28 +721,12 @@ const TeacherProfilesSystem: React.FC = () => {
 
   return (
     <Box sx={{ width: '100%' }}>
-      {/* Header Section with New Teacher Button */}
-      <Box
-        display="flex"
-        justifyContent="flex-end"
-        alignItems="center"
-        mb={{ xs: 3, sm: 4 }}
-      >
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={handleOpenDialog}
-          sx={{
-            fontSize: { xs: '0.875rem', sm: '1rem' },
-            padding: { xs: '6px 12px', sm: '8px 16px' }
-          }}
-        >
-          New Teacher
-        </Button>
-      </Box>
-
       {/* Filters Section */}
       <Paper sx={{ p: 3, mb: 3 }}>
+        <Typography variant="h6" fontWeight="bold" mb={2}>
+          <FilterList sx={{ mr: 1 }} />
+          Filters
+        </Typography>
         <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} gap={2} alignItems="center">
           <Box flex={1} minWidth={{ xs: '100%', sm: '300px' }}>
             <TextField
@@ -775,6 +760,21 @@ const TeacherProfilesSystem: React.FC = () => {
                 ))}
               </Select>
             </FormControl>
+          </Box>
+          <Box minWidth={{ xs: '100%', sm: 'auto' }}>
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={handleOpenDialog}
+              fullWidth
+              sx={{
+                fontSize: { xs: '0.875rem', sm: '1rem' },
+                padding: { xs: '6px 12px', sm: '8px 16px' },
+                whiteSpace: 'nowrap'
+              }}
+            >
+              New Teacher
+            </Button>
           </Box>
         </Box>
       </Paper>
