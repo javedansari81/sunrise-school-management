@@ -15,6 +15,7 @@ import AdminDashboard from './pages/admin/AdminDashboard';
 import FeesManagement from './pages/admin/FeesManagement';
 import LeaveManagement from './pages/admin/LeaveManagement';
 import ExpenseManagement from './pages/admin/ExpenseManagement';
+import TransportManagement from './pages/admin/TransportManagement';
 import StudentProfiles from './pages/admin/StudentProfiles';
 import TeacherProfiles from './pages/admin/TeacherProfiles';
 import TeacherDashboard from './pages/teacher/TeacherDashboard';
@@ -280,6 +281,11 @@ function App() {
           <Route path="/admin/expenses" element={
             <ProtectedRoute requiredRole="ADMIN">
               <ExpenseManagement />
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/transport" element={
+            <ProtectedRoute requiredRole="ADMIN">
+              <TransportManagement />
             </ProtectedRoute>
           } />
           <Route path="/admin/students" element={

@@ -57,6 +57,7 @@ try:
     print("   - Teacher Management: /api/v1/teachers/")
     print("   - Leave Management: /api/v1/leaves/")
     print("   - Expense Management: /api/v1/expenses/")
+    print("   - Transport Management: /api/v1/transport/")
 
 except ImportError as e:
     print(f"❌ Warning: Could not import routers: {e}")

@@ -13,6 +13,7 @@ from app.models.metadata import (
     LeaveType, LeaveStatus, ExpenseCategory, ExpenseStatus, EmploymentStatus, Qualification,
     Department, Position
 )
+from app.models.transport import TransportType
 # Note: Schema imports removed to avoid circular dependencies
 # Schemas will be imported in endpoints as needed
 
@@ -102,6 +103,7 @@ employment_status_crud = MetadataCRUD(EmploymentStatus)
 qualification_crud = MetadataCRUD(Qualification)
 department_crud = MetadataCRUD(Department)
 position_crud = MetadataCRUD(Position)
+transport_type_crud = MetadataCRUD(TransportType)
 
 
 def get_all_metadata(db: Session) -> Dict[str, List[Any]]:
@@ -265,6 +267,15 @@ async def get_all_metadata_async(db: AsyncSession) -> Dict[str, List[Any]]:
                NULL::BOOLEAN as requires_reference, is_active, created_at, updated_at
         FROM positions WHERE is_active = true
 
+        UNION ALL
+
+        SELECT 'transport_types' as table_name, id, name, description,
+               NULL::INTEGER as sort_order, NULL::DATE as start_date, NULL::DATE as end_date, NULL::BOOLEAN as is_current,
+               NULL::INTEGER as max_days_per_year, NULL::BOOLEAN as requires_medical_certificate, base_monthly_fee as budget_limit,
+               NULL::BOOLEAN as requires_approval, NULL::VARCHAR as color_code, NULL::BOOLEAN as is_final, capacity as level_order,
+               NULL::BOOLEAN as requires_reference, is_active, created_at, updated_at
+        FROM transport_types WHERE is_active = true
+
         ORDER BY table_name, id
     """)
 
@@ -291,7 +302,8 @@ async def get_all_metadata_async(db: AsyncSession) -> Dict[str, List[Any]]:
         "employment_statuses": [],
         "qualifications": [],
         "departments": [],
-        "positions": []
+        "positions": [],
+        "transport_types": []
     }
 
     # Process results efficiently
@@ -380,6 +392,12 @@ async def get_all_metadata_async(db: AsyncSession) -> Dict[str, List[Any]]:
         elif table_name == 'positions':
             obj = type('Position', (), {
                 'id': row.id, 'name': row.name, 'description': row.description,
+                'is_active': row.is_active
+            })()
+        elif table_name == 'transport_types':
+            obj = type('TransportType', (), {
+                'id': row.id, 'name': row.name, 'description': row.description,
+                'base_monthly_fee': row.budget_limit, 'capacity': row.level_order,
                 'is_active': row.is_active
             })()
         else:

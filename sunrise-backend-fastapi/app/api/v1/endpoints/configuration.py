@@ -54,6 +54,10 @@ SERVICE_METADATA_MAPPINGS = {
         "genders", "user_types", "session_years",
         "departments", "positions", "classes"
     ],
+    "transport-management": [
+        "transport_types", "payment_statuses", "payment_methods",
+        "session_years", "classes"
+    ],
     "common": [
         "session_years", "user_types"
     ]
@@ -114,6 +118,8 @@ async def get_service_metadata_configuration(db: AsyncSession, service_name: str
                 configuration[metadata_type] = [{"id": item.id, "name": item.name, "description": item.description, "is_active": item.is_active} for item in items]
             elif metadata_type == "positions":
                 configuration[metadata_type] = [{"id": item.id, "name": item.name, "description": item.description, "is_active": item.is_active} for item in items]
+            elif metadata_type == "transport_types":
+                configuration[metadata_type] = [{"id": item.id, "name": item.name, "description": item.description, "base_monthly_fee": float(item.base_monthly_fee), "capacity": item.capacity, "is_active": item.is_active} for item in items]
 
     # Add service-specific metadata
     configuration["metadata"] = {
@@ -353,6 +359,23 @@ async def get_teacher_management_configuration(
     """
     return await _get_service_configuration_with_cache(
         db, "teacher-management", request
+    )
+
+
+@router.get("/transport-management/")
+async def get_transport_management_configuration(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Get configuration for Transport Management System
+
+    Returns only metadata required for transport management:
+    - transport_types, payment_statuses, payment_methods, session_years, classes
+    """
+    return await _get_service_configuration_with_cache(
+        db, "transport-management", request
     )
 
 

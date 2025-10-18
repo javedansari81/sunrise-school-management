@@ -30,6 +30,7 @@ import {
   School as SchoolIcon,
   Home as HomeIcon,
   Logout as LogoutIcon,
+  DirectionsBus as DirectionsBusIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -65,6 +66,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
     { label: 'Fees Management', icon: <AttachMoney />, path: '/admin/fees' },
     { label: 'Leave Management', icon: <BeachAccess />, path: '/admin/leaves' },
     { label: 'Expense Management', icon: <Receipt />, path: '/admin/expenses' },
+    { label: 'Transport Management', icon: <DirectionsBusIcon />, path: '/admin/transport' },
     { label: 'Student Profiles', icon: <PersonAdd />, path: '/admin/students' },
     { label: 'Teacher Profiles', icon: <PersonAdd />, path: '/admin/teachers' },
   ];

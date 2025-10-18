@@ -1,0 +1,724 @@
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+  Box,
+  Paper,
+  Tabs,
+  Tab,
+  Button,
+  TextField,
+  MenuItem,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  TablePagination,
+  IconButton,
+  Chip,
+  Typography,
+  FormControl,
+  InputLabel,
+  Select,
+  CircularProgress,
+  Alert,
+  Tooltip,
+  Grid
+} from '@mui/material';
+import {
+  Add as AddIcon,
+  History as HistoryIcon,
+  Payment as PaymentIcon,
+  DirectionsBus as BusIcon,
+  Cancel as CancelIcon
+} from '@mui/icons-material';
+import { useAuth } from '../../contexts/AuthContext';
+import transportService, {
+  EnhancedStudentTransportSummary,
+  TransportType,
+  TransportDistanceSlab
+} from '../../services/transportService';
+import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from '../../config/pagination';
+import EnrollDialog from './transport/EnrollDialog';
+import PaymentDialog from './transport/PaymentDialog';
+import HistoryDialog from './transport/HistoryDialog';
+
+interface TabPanelProps {
+  children?: React.ReactNode;
+  index: number;
+  value: number;
+}
+
+function TabPanel(props: TabPanelProps) {
+  const { children, value, index, ...other } = props;
+  return (
+    <div role="tabpanel" hidden={value !== index} {...other}>
+      {value === index && <Box sx={{ p: 3 }}>{children}</Box>}
+    </div>
+  );
+}
+
+const TransportManagementSystem: React.FC = () => {
+  const { user } = useAuth();
+  const [configuration, setConfiguration] = useState<any>(null);
+  const [configLoading, setConfigLoading] = useState(false);
+
+  // State
+  const [activeTab, setActiveTab] = useState(0);
+  const [students, setStudents] = useState<EnhancedStudentTransportSummary[]>([]);
+  const [filteredStudents, setFilteredStudents] = useState<EnhancedStudentTransportSummary[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+
+  // Filters
+  const [sessionYear, setSessionYear] = useState<string>('2025-26');
+  const [sessionYearId, setSessionYearId] = useState<number | null>(null);
+  const [classFilter, setClassFilter] = useState<string>('');
+  const [nameSearch, setNameSearch] = useState<string>('');
+
+  // Pagination
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(DEFAULT_PAGE_SIZE);
+
+  // Transport Configuration
+  const [transportTypes, setTransportTypes] = useState<TransportType[]>([]);
+
+  // Dialogs
+  const [enrollDialogOpen, setEnrollDialogOpen] = useState(false);
+  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+  const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
+  const [selectedStudent, setSelectedStudent] = useState<EnhancedStudentTransportSummary | null>(null);
+
+  // Load configuration and data
+  useEffect(() => {
+    if (user) {
+      loadTransportConfiguration();
+      loadStudents();
+    }
+  }, [user, sessionYear]);
+
+  // Filter students based on active tab and filters
+  useEffect(() => {
+    filterStudents();
+  }, [students, activeTab, classFilter, nameSearch]);
+
+  const loadTransportConfiguration = async () => {
+    try {
+      setConfigLoading(true);
+      const config = await transportService.getConfiguration();
+      setConfiguration(config);
+      const types = await transportService.getTransportTypes();
+      setTransportTypes(types);
+
+      // Set default session year ID if available
+      if (config?.session_years && config.session_years.length > 0) {
+        const currentYear = config.session_years.find((y: any) => y.name === sessionYear);
+        if (currentYear) {
+          setSessionYearId(currentYear.id);
+        } else {
+          // Default to first session year
+          setSessionYear(config.session_years[0].name);
+          setSessionYearId(config.session_years[0].id);
+        }
+      }
+    } catch (err: any) {
+      console.error('Error loading transport configuration:', err);
+      setError(err.response?.data?.detail || 'Failed to load transport configuration');
+    } finally {
+      setConfigLoading(false);
+    }
+  };
+
+  const loadStudents = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await transportService.getStudents(
+        { session_year: sessionYear }
+      );
+      setStudents(data);
+    } catch (err: any) {
+      console.error('Error loading students:', err);
+      setError(err.response?.data?.detail || 'Failed to load students');
+    } finally {
+      setLoading(false);
+    }
+  }, [sessionYear]);
+
+  const filterStudents = useCallback(() => {
+    let filtered = [...students];
+
+    // Filter by tab
+    if (activeTab === 1) {
+      // Enrolled
+      filtered = filtered.filter(s => s.is_enrolled);
+    } else if (activeTab === 2) {
+      // Not Enrolled
+      filtered = filtered.filter(s => !s.is_enrolled);
+    }
+
+    // Filter by class
+    if (classFilter && classFilter !== 'ALL') {
+      filtered = filtered.filter(s => s.class_name === classFilter);
+    }
+
+    // Filter by name
+    if (nameSearch) {
+      const search = nameSearch.toLowerCase();
+      filtered = filtered.filter(s =>
+        s.student_name.toLowerCase().includes(search) ||
+        s.admission_number.toLowerCase().includes(search)
+      );
+    }
+
+    setFilteredStudents(filtered);
+    setPage(0); // Reset to first page when filters change
+  }, [students, activeTab, classFilter, nameSearch]);
+
+  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
+    setActiveTab(newValue);
+  };
+
+  const handleEnrollClick = (student: EnhancedStudentTransportSummary) => {
+    setSelectedStudent(student);
+    setEnrollDialogOpen(true);
+  };
+
+  const handlePaymentClick = (student: EnhancedStudentTransportSummary) => {
+    setSelectedStudent(student);
+    setPaymentDialogOpen(true);
+  };
+
+  const handleHistoryClick = (student: EnhancedStudentTransportSummary) => {
+    setSelectedStudent(student);
+    setHistoryDialogOpen(true);
+  };
+
+  const handleDiscontinue = async (student: EnhancedStudentTransportSummary) => {
+    if (!window.confirm(`Are you sure you want to discontinue transport service for ${student.student_name}?`)) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const today = new Date().toISOString().split('T')[0];
+      await transportService.discontinueService(student.enrollment_id!, today);
+      setSuccess('Transport service discontinued successfully');
+      loadStudents();
+    } catch (err: any) {
+      console.error('Error discontinuing service:', err);
+      // Handle FastAPI validation errors (422)
+      if (err.response?.status === 422 && Array.isArray(err.response?.data?.detail)) {
+        const errorMessages = err.response.data.detail.map((e: any) => e.msg).join(', ');
+        setError(`Validation error: ${errorMessages}`);
+      } else {
+        setError(err.response?.data?.detail || 'Failed to discontinue service');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleChangePage = (event: unknown, newPage: number) => {
+    setPage(newPage);
+  };
+
+  const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
+  };
+
+  const getStatusChip = (student: EnhancedStudentTransportSummary) => {
+    if (!student.is_enrolled) {
+      return <Chip label="Not Enrolled" size="small" color="default" />;
+    }
+    if (student.discontinue_date) {
+      return <Chip label="Discontinued" size="small" color="warning" />;
+    }
+    return <Chip label="Enrolled" size="small" color="success" />;
+  };
+
+  const paginatedStudents = filteredStudents.slice(
+    page * rowsPerPage,
+    page * rowsPerPage + rowsPerPage
+  );
+
+  if (configLoading) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  return (
+    <Box sx={{ width: '100%', p: 3 }}>
+      {/* Header */}
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+        <Typography variant="h4" component="h1">
+          <BusIcon sx={{ mr: 1, verticalAlign: 'middle' }} />
+          Transport Management
+        </Typography>
+      </Box>
+
+      {/* Alerts */}
+      {error && (
+        <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 2 }}>
+          {error}
+        </Alert>
+      )}
+      {success && (
+        <Alert severity="success" onClose={() => setSuccess(null)} sx={{ mb: 2 }}>
+          {success}
+        </Alert>
+      )}
+
+      {/* Filters */}
+      <Paper sx={{ p: 2, mb: 2 }}>
+        <Grid container spacing={2} alignItems="center">
+          <Grid size={{ xs: 12, sm: 3 }}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Session Year</InputLabel>
+              <Select
+                value={sessionYear}
+                label="Session Year"
+                onChange={(e) => {
+                  const selectedYear = configuration?.session_years?.find((y: any) => y.name === e.target.value);
+                  setSessionYear(e.target.value);
+                  if (selectedYear) {
+                    setSessionYearId(selectedYear.id);
+                  }
+                }}
+              >
+                {configuration?.session_years?.map((year: any) => (
+                  <MenuItem key={year.id} value={year.name}>
+                    {year.description}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid size={{ xs: 12, sm: 3 }}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Class</InputLabel>
+              <Select
+                value={classFilter}
+                label="Class"
+                onChange={(e) => setClassFilter(e.target.value)}
+              >
+                <MenuItem value="">All Classes</MenuItem>
+                <MenuItem value="ALL">ALL</MenuItem>
+                {configuration?.classes?.map((cls: any) => (
+                  <MenuItem key={cls.id} value={cls.name}>
+                    {cls.description}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid size={{ xs: 12, sm: 6 }}>
+            <TextField
+              fullWidth
+              size="small"
+              label="Search by Name or Admission Number"
+              value={nameSearch}
+              onChange={(e) => setNameSearch(e.target.value)}
+              placeholder="Enter student name or admission number"
+            />
+          </Grid>
+        </Grid>
+      </Paper>
+
+      {/* Tabs */}
+      <Paper sx={{ width: '100%' }}>
+        <Tabs value={activeTab} onChange={handleTabChange}>
+          <Tab label="All Students" />
+          <Tab label="Enrolled" />
+          <Tab label="Not Enrolled" />
+          <Tab label="Statistics" />
+        </Tabs>
+
+        {/* All Students / Enrolled / Not Enrolled Tabs */}
+        {[0, 1, 2].includes(activeTab) && (
+          <TabPanel value={activeTab} index={activeTab}>
+            {loading ? (
+              <Box display="flex" justifyContent="center" p={3}>
+                <CircularProgress />
+              </Box>
+            ) : (
+              <>
+                <TableContainer>
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>Admission No</TableCell>
+                        <TableCell>Student Name</TableCell>
+                        <TableCell>Class</TableCell>
+                        <TableCell>Status</TableCell>
+                        <TableCell>Transport Type</TableCell>
+                        <TableCell>Monthly Fee</TableCell>
+                        <TableCell>Distance (KM)</TableCell>
+                        <TableCell align="right">Balance</TableCell>
+                        <TableCell align="center">Actions</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {paginatedStudents.map((student) => (
+                        <TableRow key={student.student_id} hover>
+                          <TableCell>{student.admission_number}</TableCell>
+                          <TableCell>{student.student_name}</TableCell>
+                          <TableCell>{student.class_name}</TableCell>
+                          <TableCell>{getStatusChip(student)}</TableCell>
+                          <TableCell>{student.transport_type_name || '-'}</TableCell>
+                          <TableCell>₹{student.monthly_fee ? Number(student.monthly_fee).toFixed(2) : '-'}</TableCell>
+                          <TableCell>{student.distance_km || '-'}</TableCell>
+                          <TableCell align="right">
+                            {student.is_enrolled ? `₹${Number(student.total_balance || 0).toFixed(2)}` : '-'}
+                          </TableCell>
+                          <TableCell align="center">
+                            {student.is_enrolled ? (
+                              <>
+                                <Tooltip title="Make Payment">
+                                  <IconButton size="small" onClick={() => handlePaymentClick(student)}>
+                                    <PaymentIcon fontSize="small" />
+                                  </IconButton>
+                                </Tooltip>
+                                <Tooltip title="View History">
+                                  <IconButton size="small" onClick={() => handleHistoryClick(student)}>
+                                    <HistoryIcon fontSize="small" />
+                                  </IconButton>
+                                </Tooltip>
+                                <Tooltip title="Discontinue">
+                                  <IconButton size="small" onClick={() => handleDiscontinue(student)} color="error">
+                                    <CancelIcon fontSize="small" />
+                                  </IconButton>
+                                </Tooltip>
+                              </>
+                            ) : (
+                              <Button
+                                size="small"
+                                variant="outlined"
+                                startIcon={<AddIcon />}
+                                onClick={() => handleEnrollClick(student)}
+                              >
+                                Enroll
+                              </Button>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+                <TablePagination
+                  rowsPerPageOptions={PAGE_SIZE_OPTIONS}
+                  component="div"
+                  count={filteredStudents.length}
+                  rowsPerPage={rowsPerPage}
+                  page={page}
+                  onPageChange={handleChangePage}
+                  onRowsPerPageChange={handleChangeRowsPerPage}
+                />
+              </>
+            )}
+          </TabPanel>
+        )}
+
+        {/* Statistics Tab */}
+        <TabPanel value={activeTab} index={3}>
+          {loading ? (
+            <Box display="flex" justifyContent="center" p={3}>
+              <CircularProgress />
+            </Box>
+          ) : (
+            <Box>
+              <Typography variant="h6" gutterBottom>
+                Transport Statistics - {sessionYear}
+              </Typography>
+
+              {/* Summary Cards */}
+              <Grid container spacing={3} sx={{ mb: 4 }}>
+                {/* Total Students */}
+                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                  <Paper sx={{ p: 3, textAlign: 'center', bgcolor: 'primary.light', color: 'white' }}>
+                    <Typography variant="h3" fontWeight="bold">
+                      {students.length}
+                    </Typography>
+                    <Typography variant="body1">Total Students</Typography>
+                  </Paper>
+                </Grid>
+
+                {/* Enrolled Students */}
+                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                  <Paper sx={{ p: 3, textAlign: 'center', bgcolor: 'success.light', color: 'white' }}>
+                    <Typography variant="h3" fontWeight="bold">
+                      {students.filter(s => s.is_enrolled).length}
+                    </Typography>
+                    <Typography variant="body1">Enrolled Students</Typography>
+                  </Paper>
+                </Grid>
+
+                {/* Not Enrolled Students */}
+                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                  <Paper sx={{ p: 3, textAlign: 'center', bgcolor: 'grey.400', color: 'white' }}>
+                    <Typography variant="h3" fontWeight="bold">
+                      {students.filter(s => !s.is_enrolled).length}
+                    </Typography>
+                    <Typography variant="body1">Not Enrolled</Typography>
+                  </Paper>
+                </Grid>
+
+                {/* Enrollment Rate */}
+                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                  <Paper sx={{ p: 3, textAlign: 'center', bgcolor: 'info.light', color: 'white' }}>
+                    <Typography variant="h3" fontWeight="bold">
+                      {students.length > 0
+                        ? ((students.filter(s => s.is_enrolled).length / students.length) * 100).toFixed(1)
+                        : '0.0'}%
+                    </Typography>
+                    <Typography variant="body1">Enrollment Rate</Typography>
+                  </Paper>
+                </Grid>
+              </Grid>
+
+              {/* Financial Summary */}
+              <Typography variant="h6" gutterBottom sx={{ mt: 4 }}>
+                Financial Summary
+              </Typography>
+              <Grid container spacing={3} sx={{ mb: 4 }}>
+                {/* Total Expected Amount */}
+                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                  <Paper sx={{ p: 3, textAlign: 'center' }}>
+                    <Typography variant="h4" fontWeight="bold" color="primary">
+                      ₹{students
+                        .filter(s => s.is_enrolled)
+                        .reduce((sum, s) => sum + Number(s.total_amount || 0), 0)
+                        .toFixed(2)}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Total Expected
+                    </Typography>
+                  </Paper>
+                </Grid>
+
+                {/* Total Collected */}
+                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                  <Paper sx={{ p: 3, textAlign: 'center' }}>
+                    <Typography variant="h4" fontWeight="bold" color="success.main">
+                      ₹{students
+                        .filter(s => s.is_enrolled)
+                        .reduce((sum, s) => sum + Number(s.total_paid || 0), 0)
+                        .toFixed(2)}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Total Collected
+                    </Typography>
+                  </Paper>
+                </Grid>
+
+                {/* Total Pending */}
+                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                  <Paper sx={{ p: 3, textAlign: 'center' }}>
+                    <Typography variant="h4" fontWeight="bold" color="error.main">
+                      ₹{students
+                        .filter(s => s.is_enrolled)
+                        .reduce((sum, s) => sum + Number(s.total_balance || 0), 0)
+                        .toFixed(2)}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Total Pending
+                    </Typography>
+                  </Paper>
+                </Grid>
+
+                {/* Collection Rate */}
+                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                  <Paper sx={{ p: 3, textAlign: 'center' }}>
+                    <Typography variant="h4" fontWeight="bold" color="info.main">
+                      {(() => {
+                        const totalExpected = students
+                          .filter(s => s.is_enrolled)
+                          .reduce((sum, s) => sum + Number(s.total_amount || 0), 0);
+                        const totalCollected = students
+                          .filter(s => s.is_enrolled)
+                          .reduce((sum, s) => sum + Number(s.total_paid || 0), 0);
+                        return totalExpected > 0
+                          ? ((totalCollected / totalExpected) * 100).toFixed(1)
+                          : '0.0';
+                      })()}%
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Collection Rate
+                    </Typography>
+                  </Paper>
+                </Grid>
+              </Grid>
+
+              {/* Transport Type Breakdown */}
+              <Typography variant="h6" gutterBottom sx={{ mt: 4 }}>
+                Transport Type Breakdown
+              </Typography>
+              <TableContainer component={Paper} sx={{ mb: 4 }}>
+                <Table size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Transport Type</TableCell>
+                      <TableCell align="center">Students</TableCell>
+                      <TableCell align="right">Total Expected</TableCell>
+                      <TableCell align="right">Total Collected</TableCell>
+                      <TableCell align="right">Total Pending</TableCell>
+                      <TableCell align="center">Collection %</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {(() => {
+                      const typeBreakdown = students
+                        .filter(s => s.is_enrolled && s.transport_type_name)
+                        .reduce((acc, student) => {
+                          const typeName = student.transport_type_name || 'Unknown';
+                          if (!acc[typeName]) {
+                            acc[typeName] = {
+                              count: 0,
+                              totalExpected: 0,
+                              totalCollected: 0,
+                              totalPending: 0
+                            };
+                          }
+                          acc[typeName].count += 1;
+                          acc[typeName].totalExpected += Number(student.total_amount || 0);
+                          acc[typeName].totalCollected += Number(student.total_paid || 0);
+                          acc[typeName].totalPending += Number(student.total_balance || 0);
+                          return acc;
+                        }, {} as Record<string, { count: number; totalExpected: number; totalCollected: number; totalPending: number }>);
+
+                      return Object.entries(typeBreakdown).map(([typeName, data]) => (
+                        <TableRow key={typeName}>
+                          <TableCell>{typeName}</TableCell>
+                          <TableCell align="center">{data.count}</TableCell>
+                          <TableCell align="right">₹{data.totalExpected.toFixed(2)}</TableCell>
+                          <TableCell align="right">₹{data.totalCollected.toFixed(2)}</TableCell>
+                          <TableCell align="right">₹{data.totalPending.toFixed(2)}</TableCell>
+                          <TableCell align="center">
+                            {data.totalExpected > 0
+                              ? ((data.totalCollected / data.totalExpected) * 100).toFixed(1)
+                              : '0.0'}%
+                          </TableCell>
+                        </TableRow>
+                      ));
+                    })()}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+
+              {/* Payment Status Summary */}
+              <Typography variant="h6" gutterBottom sx={{ mt: 4 }}>
+                Payment Status Summary
+              </Typography>
+              <Grid container spacing={3}>
+                {/* Fully Paid Students */}
+                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                  <Paper sx={{ p: 3, textAlign: 'center', bgcolor: 'success.light', color: 'white' }}>
+                    <Typography variant="h3" fontWeight="bold">
+                      {students.filter(s => s.is_enrolled && Number(s.total_balance || 0) === 0).length}
+                    </Typography>
+                    <Typography variant="body1">Fully Paid</Typography>
+                  </Paper>
+                </Grid>
+
+                {/* Partially Paid Students */}
+                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                  <Paper sx={{ p: 3, textAlign: 'center', bgcolor: 'warning.light', color: 'white' }}>
+                    <Typography variant="h3" fontWeight="bold">
+                      {students.filter(s =>
+                        s.is_enrolled &&
+                        Number(s.total_paid || 0) > 0 &&
+                        Number(s.total_balance || 0) > 0
+                      ).length}
+                    </Typography>
+                    <Typography variant="body1">Partially Paid</Typography>
+                  </Paper>
+                </Grid>
+
+                {/* No Payment Students */}
+                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                  <Paper sx={{ p: 3, textAlign: 'center', bgcolor: 'error.light', color: 'white' }}>
+                    <Typography variant="h3" fontWeight="bold">
+                      {students.filter(s => s.is_enrolled && Number(s.total_paid || 0) === 0).length}
+                    </Typography>
+                    <Typography variant="body1">No Payment</Typography>
+                  </Paper>
+                </Grid>
+
+                {/* Students with Overdue */}
+                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                  <Paper sx={{ p: 3, textAlign: 'center', bgcolor: 'error.dark', color: 'white' }}>
+                    <Typography variant="h3" fontWeight="bold">
+                      {students.filter(s => s.is_enrolled && (s.overdue_months || 0) > 0).length}
+                    </Typography>
+                    <Typography variant="body1">With Overdue</Typography>
+                  </Paper>
+                </Grid>
+              </Grid>
+            </Box>
+          )}
+        </TabPanel>
+      </Paper>
+
+      {/* Enroll Dialog */}
+      <EnrollDialog
+        open={enrollDialogOpen}
+        onClose={() => {
+          setEnrollDialogOpen(false);
+          setSelectedStudent(null);
+        }}
+        student={selectedStudent}
+        transportTypes={transportTypes}
+        sessionYear={sessionYear}
+        configuration={configuration}
+        onSuccess={() => {
+          setSuccess('Student enrolled successfully');
+          loadStudents();
+          setEnrollDialogOpen(false);
+          setSelectedStudent(null);
+        }}
+        onError={(msg) => setError(msg)}
+      />
+
+      {/* Payment Dialog */}
+      <PaymentDialog
+        open={paymentDialogOpen}
+        onClose={() => {
+          setPaymentDialogOpen(false);
+          setSelectedStudent(null);
+        }}
+        student={selectedStudent}
+        sessionYear={sessionYear}
+        sessionYearId={sessionYearId}
+        configuration={configuration}
+        onSuccess={() => {
+          setSuccess('Payment processed successfully');
+          loadStudents();
+          setPaymentDialogOpen(false);
+          setSelectedStudent(null);
+        }}
+        onError={(msg) => setError(msg)}
+      />
+
+      {/* History Dialog */}
+      <HistoryDialog
+        open={historyDialogOpen}
+        onClose={() => {
+          setHistoryDialogOpen(false);
+          setSelectedStudent(null);
+        }}
+        student={selectedStudent}
+        sessionYear={sessionYear}
+        sessionYearId={sessionYearId}
+      />
+    </Box>
+  );
+};
+
+export default TransportManagementSystem;
+
