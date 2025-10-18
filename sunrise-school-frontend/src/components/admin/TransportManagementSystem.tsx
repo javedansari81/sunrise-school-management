@@ -90,6 +90,20 @@ const TransportManagementSystem: React.FC = () => {
   const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<EnhancedStudentTransportSummary | null>(null);
 
+  // Handle URL parameters for direct navigation from Fee Management
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const studentIdParam = urlParams.get('student_id');
+    const sessionYearIdParam = urlParams.get('session_year_id');
+    const autoOpenPayment = urlParams.get('auto_open_payment');
+
+    if (studentIdParam && sessionYearIdParam && autoOpenPayment === 'true') {
+      // Store these for later use after students are loaded
+      sessionStorage.setItem('transport_auto_open_student_id', studentIdParam);
+      sessionStorage.setItem('transport_auto_open_session_year_id', sessionYearIdParam);
+    }
+  }, []);
+
   // Load configuration and data
   useEffect(() => {
     if (user) {
@@ -108,6 +122,36 @@ const TransportManagementSystem: React.FC = () => {
   useEffect(() => {
     filterStudents();
   }, [students, activeTab, nameSearch]);
+
+  // Auto-open payment dialog if coming from Fee Management
+  useEffect(() => {
+    if (students.length > 0 && !loading) {
+      const autoOpenStudentId = sessionStorage.getItem('transport_auto_open_student_id');
+      const autoOpenSessionYearId = sessionStorage.getItem('transport_auto_open_session_year_id');
+
+      if (autoOpenStudentId && autoOpenSessionYearId) {
+        // Clear session storage
+        sessionStorage.removeItem('transport_auto_open_student_id');
+        sessionStorage.removeItem('transport_auto_open_session_year_id');
+
+        // Find the student
+        const student = students.find(s => s.student_id === parseInt(autoOpenStudentId));
+
+        if (student && student.is_enrolled) {
+          // Set name search to filter to this student
+          setNameSearch(student.student_name);
+
+          // Open payment dialog
+          setSelectedStudent(student);
+          setPaymentDialogOpen(true);
+        } else if (student && !student.is_enrolled) {
+          setError(`Student ${student.student_name} is not enrolled in transport service`);
+        } else {
+          setError('Student not found in transport system');
+        }
+      }
+    }
+  }, [students, loading]);
 
   const loadTransportConfiguration = async () => {
     try {

@@ -425,6 +425,10 @@ class EnhancedStudentFeeSummary(BaseModel):
     collection_percentage: float = Field(0, description="Percentage of fees collected")
     has_monthly_tracking: bool = Field(False, description="Whether student has monthly tracking enabled")
 
+    # Transport enrollment status (for quick access button)
+    has_transport_enrollment: bool = Field(False, description="Whether student has active transport enrollment")
+    transport_enrollment_id: Optional[int] = Field(None, description="Transport enrollment ID if enrolled")
+
     class Config:
         from_attributes = True
 

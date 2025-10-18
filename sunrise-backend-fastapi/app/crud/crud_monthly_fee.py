@@ -221,7 +221,12 @@ class CRUDMonthlyFeeTracking(CRUDBase[MonthlyFeeTracking, MonthlyFeeTrackingCrea
                 CASE
                     WHEN monthly_stats.total_months_tracked > 0 THEN true
                     ELSE false
-                END as has_monthly_tracking
+                END as has_monthly_tracking,
+                CASE
+                    WHEN ste.id IS NOT NULL AND ste.is_active = true AND ste.discontinue_date IS NULL THEN true
+                    ELSE false
+                END as has_transport_enrollment,
+                ste.id as transport_enrollment_id
             FROM students s
             LEFT JOIN classes c ON s.class_id = c.id
             LEFT JOIN session_years sy ON s.session_year_id = sy.id
@@ -242,6 +247,11 @@ class CRUDMonthlyFeeTracking(CRUDBase[MonthlyFeeTracking, MonthlyFeeTrackingCrea
                 WHERE ps.is_active = true
                 GROUP BY mft.student_id, mft.session_year_id
             ) monthly_stats ON s.id = monthly_stats.student_id AND s.session_year_id = monthly_stats.session_year_id
+            LEFT JOIN student_transport_enrollment ste
+                ON s.id = ste.student_id
+                AND s.session_year_id = ste.session_year_id
+                AND ste.is_active = true
+                AND ste.discontinue_date IS NULL
             WHERE s.is_active = true
               AND (s.is_deleted = FALSE OR s.is_deleted IS NULL)
               AND c.is_active = true
@@ -277,6 +287,10 @@ class CRUDMonthlyFeeTracking(CRUDBase[MonthlyFeeTracking, MonthlyFeeTrackingCrea
             collection_percentage = float(row.collection_percentage) if row.collection_percentage else 0.0
             has_monthly_tracking = bool(row.has_monthly_tracking) if hasattr(row, 'has_monthly_tracking') else (row.total_months_tracked > 0)
 
+            # Transport enrollment status
+            has_transport_enrollment = bool(row.has_transport_enrollment) if hasattr(row, 'has_transport_enrollment') else False
+            transport_enrollment_id = row.transport_enrollment_id if hasattr(row, 'transport_enrollment_id') else None
+
             summary = EnhancedStudentFeeSummary(
                 student_id=row.student_id,
                 admission_number=row.admission_number,
@@ -295,7 +309,9 @@ class CRUDMonthlyFeeTracking(CRUDBase[MonthlyFeeTracking, MonthlyFeeTrackingCrea
                 monthly_paid=float(row.monthly_paid) if row.monthly_paid else None,
                 monthly_balance=float(row.monthly_balance) if row.monthly_balance else None,
                 collection_percentage=round(collection_percentage, 2),
-                has_monthly_tracking=has_monthly_tracking
+                has_monthly_tracking=has_monthly_tracking,
+                has_transport_enrollment=has_transport_enrollment,
+                transport_enrollment_id=transport_enrollment_id
             )
             summaries.append(summary)
 

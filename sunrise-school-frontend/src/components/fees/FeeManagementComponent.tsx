@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Paper,
@@ -50,6 +51,7 @@ import {
   Add as AddIcon,
   School as SchoolIcon,
   Assessment as AssessmentIcon,
+  DirectionsBus,
 } from '@mui/icons-material';
 import {
   SessionYearDropdown,
@@ -86,6 +88,8 @@ interface EnhancedStudentFeeSummary {
   monthly_balance?: number;
   collection_percentage: number;
   has_monthly_tracking: boolean;
+  has_transport_enrollment: boolean;  // Transport enrollment status
+  transport_enrollment_id?: number;   // Transport enrollment ID
 }
 
 interface MonthlyFeeStatus {
@@ -154,6 +158,7 @@ interface AvailableMonthsData {
 const FeeManagementComponent: React.FC = () => {
   const { isAuthenticated, user } = useAuth();
   const { isLoaded: configLoaded } = useServiceConfiguration('fee-management');
+  const navigate = useNavigate();
 
   // Get payment methods from configuration
   const getPaymentMethods = () => {
@@ -496,6 +501,22 @@ const FeeManagementComponent: React.FC = () => {
         paymentHistory: { ...prev.paymentHistory, [studentId]: false }
       }));
     }
+  };
+
+  // Handle transport payment button click
+  const handleTransportPaymentClick = (studentId: number) => {
+    if (!filters.session_year_id) {
+      setSnackbar({
+        open: true,
+        message: 'Please select a session year first',
+        severity: 'warning'
+      });
+      return;
+    }
+
+    // Navigate to Transport Management in same tab with student context
+    const url = `/admin/transport?student_id=${studentId}&session_year_id=${filters.session_year_id}&auto_open_payment=true`;
+    navigate(url);
   };
 
   // Fetch available months for payment
@@ -1212,6 +1233,24 @@ const FeeManagementComponent: React.FC = () => {
                               ) : (
                                 <History />
                               )}
+                            </IconButton>
+                          </span>
+                        </Tooltip>
+                        <Tooltip title={student.has_transport_enrollment ? "Transport Payment" : "Student not enrolled in transport service"}>
+                          <span>
+                            <IconButton
+                              size="small"
+                              onClick={() => handleTransportPaymentClick(student.student_id)}
+                              disabled={!student.has_transport_enrollment}
+                              color="secondary"
+                              sx={{
+                                opacity: !student.has_transport_enrollment ? 0.4 : 1,
+                                '&.Mui-disabled': {
+                                  opacity: 0.3
+                                }
+                              }}
+                            >
+                              <DirectionsBus />
                             </IconButton>
                           </span>
                         </Tooltip>
