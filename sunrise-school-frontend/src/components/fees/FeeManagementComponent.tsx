@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -69,6 +69,35 @@ import {
   DEFAULT_SESSION_YEAR_ID,
   DEFAULT_SESSION_YEAR
 } from '../../utils/sessionYearUtils';
+
+// White header dialog styles (matching Transport Service design)
+const whiteDialogStyles = {
+  title: {
+    backgroundColor: '#ffffff',
+    color: '#1976d2',
+    padding: { xs: 2, sm: 3 },
+    position: 'relative' as const,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    minHeight: 64,
+    borderBottom: '1px solid #e0e0e0',
+  },
+  titleText: {
+    fontWeight: 600,
+    fontSize: { xs: '1.25rem', sm: '1.5rem' },
+    display: 'flex',
+    alignItems: 'center',
+    gap: 1,
+    color: '#1976d2',
+  },
+  closeButton: {
+    color: '#1976d2',
+    '&:hover': {
+      backgroundColor: 'rgba(25, 118, 210, 0.08)',
+    },
+  },
+};
 
 interface EnhancedStudentFeeSummary {
   student_id: number;
@@ -250,24 +279,10 @@ const FeeManagementComponent: React.FC = () => {
     }
   };
 
-  // Apply filters and tab selection
-  useEffect(() => {
-    const filtered = filterStudentsByTab(allStudents, tabValue);
-    setStudents(filtered);
-  }, [tabValue, allStudents]);
-
-  // Real-time search with debounce (only for search field)
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (filters.session_year_id) {
-        fetchStudentsSummary();
-      }
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [filters.search]); // Removed filters.class_id from here to avoid duplicate calls
-
   // Fetch enhanced student summary
-  const fetchStudentsSummary = async () => {
+  // Wrapped in useCallback to prevent unnecessary re-renders and duplicate API calls
+  // Moved before useEffect hooks to avoid "used before declaration" error
+  const fetchStudentsSummary = useCallback(async () => {
     if (!filters.session_year_id) return;
 
     if (!isAuthenticated) {
@@ -335,7 +350,24 @@ const FeeManagementComponent: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filters.session_year_id, filters.class_id, filters.search, isAuthenticated, user]);
+
+  // Apply filters and tab selection
+  useEffect(() => {
+    const filtered = filterStudentsByTab(allStudents, tabValue);
+    setStudents(filtered);
+  }, [tabValue, allStudents]);
+
+  // Real-time search with debounce (only for search field)
+  // Fixed: Added fetchStudentsSummary to dependencies since it's now memoized with useCallback
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (filters.session_year_id) {
+        fetchStudentsSummary();
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [filters.search, filters.session_year_id, fetchStudentsSummary]);
 
   // Fetch student monthly history
   const fetchStudentMonthlyHistory = async (studentId: number) => {
@@ -721,9 +753,11 @@ const FeeManagementComponent: React.FC = () => {
     }
   }, [configLoaded, filters.session_year_id]);
 
+  // Fetch data when session year or class filter changes
+  // Fixed: Added fetchStudentsSummary to dependencies (now properly memoized)
   useEffect(() => {
     fetchStudentsSummary();
-  }, [filters.session_year_id, filters.class_id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [filters.session_year_id, filters.class_id, fetchStudentsSummary]);
 
   // Show login prompt if not authenticated
   if (!isAuthenticated) {
@@ -1289,14 +1323,14 @@ const FeeManagementComponent: React.FC = () => {
           }
         }}
       >
-        <DialogTitle sx={dialogStyles.title}>
+        <DialogTitle sx={whiteDialogStyles.title}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Settings sx={{ fontSize: 28 }} />
-            <Typography sx={dialogStyles.titleText}>Enable Monthly Tracking</Typography>
+            <Settings sx={{ fontSize: 28, color: '#1976d2' }} />
+            <Typography sx={whiteDialogStyles.titleText}>Enable Monthly Tracking</Typography>
           </Box>
           <IconButton
             onClick={() => setEnableTrackingDialog(false)}
-            sx={dialogStyles.closeButton}
+            sx={whiteDialogStyles.closeButton}
           >
             <CloseIcon />
           </IconButton>
@@ -1339,17 +1373,17 @@ const FeeManagementComponent: React.FC = () => {
           }
         }}
       >
-        <DialogTitle sx={dialogStyles.title}>
+        <DialogTitle sx={whiteDialogStyles.title}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <History sx={{ fontSize: 28 }} />
+            <History sx={{ fontSize: 28, color: '#1976d2' }} />
             <Box>
-              <Typography sx={dialogStyles.titleText}>
+              <Typography sx={whiteDialogStyles.titleText}>
                 Monthly Fee History
               </Typography>
               <Typography
                 variant="subtitle2"
                 sx={{
-                  opacity: 0.9,
+                  color: 'text.secondary',
                   fontSize: { xs: '0.875rem', sm: '1rem' }
                 }}
               >
@@ -1359,7 +1393,7 @@ const FeeManagementComponent: React.FC = () => {
           </Box>
           <IconButton
             onClick={() => setDialogOpen(false)}
-            sx={dialogStyles.closeButton}
+            sx={whiteDialogStyles.closeButton}
           >
             <CloseIcon />
           </IconButton>
@@ -1374,32 +1408,154 @@ const FeeManagementComponent: React.FC = () => {
             </Box>
           ) : selectedStudent && (
             <Box>
+              {/* Summary Cards Section */}
+              <Box sx={{ p: 3, bgcolor: '#f8f9fa', borderBottom: '1px solid #e0e0e0' }}>
+                <Grid container spacing={2}>
+                  <Grid size={{ xs: 6, sm: 3 }}>
+                    <Box sx={{
+                      p: 2,
+                      bgcolor: 'white',
+                      borderRadius: 2,
+                      border: '1px solid #e3f2fd',
+                      textAlign: 'center'
+                    }}>
+                      <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem', display: 'block', mb: 0.5 }}>
+                        Annual Fee
+                      </Typography>
+                      <Typography variant="h6" fontWeight="bold" color="primary.main" sx={{ fontSize: { xs: '1.1rem', sm: '1.25rem' } }}>
+                        ₹{selectedStudent.total_annual_fee?.toLocaleString() || 0}
+                      </Typography>
+                    </Box>
+                  </Grid>
+                  <Grid size={{ xs: 6, sm: 3 }}>
+                    <Box sx={{
+                      p: 2,
+                      bgcolor: 'white',
+                      borderRadius: 2,
+                      border: '1px solid #e8f5e9',
+                      textAlign: 'center'
+                    }}>
+                      <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem', display: 'block', mb: 0.5 }}>
+                        Total Paid
+                      </Typography>
+                      <Typography variant="h6" fontWeight="bold" color="success.main" sx={{ fontSize: { xs: '1.1rem', sm: '1.25rem' } }}>
+                        ₹{selectedStudent.total_paid?.toLocaleString() || 0}
+                      </Typography>
+                    </Box>
+                  </Grid>
+                  <Grid size={{ xs: 6, sm: 3 }}>
+                    <Box sx={{
+                      p: 2,
+                      bgcolor: 'white',
+                      borderRadius: 2,
+                      border: '1px solid #ffebee',
+                      textAlign: 'center'
+                    }}>
+                      <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem', display: 'block', mb: 0.5 }}>
+                        Balance
+                      </Typography>
+                      <Typography variant="h6" fontWeight="bold" color="error.main" sx={{ fontSize: { xs: '1.1rem', sm: '1.25rem' } }}>
+                        ₹{selectedStudent.total_balance?.toLocaleString() || 0}
+                      </Typography>
+                    </Box>
+                  </Grid>
+                  <Grid size={{ xs: 6, sm: 3 }}>
+                    <Box sx={{
+                      p: 2,
+                      bgcolor: 'white',
+                      borderRadius: 2,
+                      border: '1px solid #f3e5f5',
+                      textAlign: 'center'
+                    }}>
+                      <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem', display: 'block', mb: 0.5 }}>
+                        Collection %
+                      </Typography>
+                      <Typography variant="h6" fontWeight="bold" color="secondary.main" sx={{ fontSize: { xs: '1.1rem', sm: '1.25rem' } }}>
+                        {selectedStudent.collection_percentage?.toFixed(1) || 0}%
+                      </Typography>
+                    </Box>
+                  </Grid>
+                </Grid>
+
+                {/* Progress Bar */}
+                <Box sx={{ mt: 2 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                    <Typography variant="caption" color="text.secondary" fontWeight="medium">
+                      Collection Progress
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary" fontWeight="medium">
+                      {selectedStudent.collection_percentage?.toFixed(1) || 0}%
+                    </Typography>
+                  </Box>
+                  <Box sx={{
+                    width: '100%',
+                    height: 8,
+                    bgcolor: '#e0e0e0',
+                    borderRadius: 1,
+                    overflow: 'hidden'
+                  }}>
+                    <Box sx={{
+                      width: `${Math.min(selectedStudent.collection_percentage || 0, 100)}%`,
+                      height: '100%',
+                      bgcolor: selectedStudent.collection_percentage >= 75 ? '#4caf50' : selectedStudent.collection_percentage >= 50 ? '#ff9800' : '#f44336',
+                      transition: 'width 0.3s ease'
+                    }} />
+                  </Box>
+                </Box>
+
+                {/* Quick Stats Badges */}
+                <Box sx={{ display: 'flex', gap: 1, mt: 2, flexWrap: 'wrap' }}>
+                  <Chip
+                    size="small"
+                    label={`${selectedStudent.paid_months || 0} Paid`}
+                    sx={{ bgcolor: '#e8f5e9', color: '#2e7d32', fontWeight: 'medium', fontSize: '0.75rem' }}
+                  />
+                  <Chip
+                    size="small"
+                    label={`${selectedStudent.pending_months || 0} Pending`}
+                    sx={{ bgcolor: '#fff3e0', color: '#e65100', fontWeight: 'medium', fontSize: '0.75rem' }}
+                  />
+                  <Chip
+                    size="small"
+                    label={`${selectedStudent.overdue_months || 0} Overdue`}
+                    sx={{ bgcolor: '#ffebee', color: '#c62828', fontWeight: 'medium', fontSize: '0.75rem' }}
+                  />
+                </Box>
+              </Box>
+
               {/* Monthly History Table */}
               <Box sx={{ p: { xs: 2, sm: 3 } }}>
-                <Typography
-                  variant="h6"
-                  gutterBottom
-                  sx={{
-                    mb: 2,
-                    fontWeight: 'bold',
-                    fontSize: { xs: '1rem', sm: '1.25rem' }
-                  }}
-                >
-                  Monthly Payment History
-                </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                  <Typography
+                    variant="h6"
+                    sx={{
+                      fontWeight: 'bold',
+                      fontSize: { xs: '1rem', sm: '1.1rem' }
+                    }}
+                  >
+                    Monthly Breakdown
+                  </Typography>
+                  <Chip
+                    size="small"
+                    label={`${selectedStudent.monthly_history?.length || 0} Months`}
+                    color="primary"
+                    variant="outlined"
+                    sx={{ fontWeight: 'medium' }}
+                  />
+                </Box>
                 <TableContainer component={Paper} sx={{
                   borderRadius: 2,
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                  boxShadow: 'none',
                   border: '1px solid #e0e0e0'
                 }}>
                   <Table size="small">
                     <TableHead>
-                      <TableRow sx={{ bgcolor: 'grey.100' }}>
-                        <TableCell sx={{ fontWeight: 'bold', fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>Month</TableCell>
-                        <TableCell align="right" sx={{ fontWeight: 'bold', fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>Amount</TableCell>
-                        <TableCell align="right" sx={{ fontWeight: 'bold', fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>Paid</TableCell>
-                        <TableCell align="right" sx={{ fontWeight: 'bold', fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>Balance</TableCell>
-                        <TableCell sx={{ fontWeight: 'bold', fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>Status</TableCell>
+                      <TableRow sx={{ bgcolor: 'white', borderBottom: '2px solid #e0e0e0' }}>
+                        <TableCell sx={{ fontWeight: 'bold', fontSize: { xs: '0.75rem', sm: '0.875rem' }, color: 'text.primary' }}>Month</TableCell>
+                        <TableCell align="right" sx={{ fontWeight: 'bold', fontSize: { xs: '0.75rem', sm: '0.875rem' }, color: 'text.primary' }}>Amount</TableCell>
+                        <TableCell align="right" sx={{ fontWeight: 'bold', fontSize: { xs: '0.75rem', sm: '0.875rem' }, color: 'text.primary' }}>Paid</TableCell>
+                        <TableCell align="right" sx={{ fontWeight: 'bold', fontSize: { xs: '0.75rem', sm: '0.875rem' }, color: 'text.primary' }}>Balance</TableCell>
+                        <TableCell sx={{ fontWeight: 'bold', fontSize: { xs: '0.75rem', sm: '0.875rem' }, color: 'text.primary' }}>Status</TableCell>
                       </TableRow>
                     </TableHead>
                   <TableBody>
@@ -1407,27 +1563,35 @@ const FeeManagementComponent: React.FC = () => {
                       <TableRow
                         key={index}
                         sx={{
-                          '&:nth-of-type(odd)': { bgcolor: 'grey.25' },
-                          '&:hover': { bgcolor: 'grey.100' },
+                          '&:hover': { bgcolor: '#f5f5f5' },
                           transition: 'background-color 0.2s'
                         }}
                       >
-                        <TableCell>
+                        <TableCell sx={{ borderBottom: '1px solid #f0f0f0' }}>
                           <Typography
                             variant="body2"
-                            fontWeight="bold"
-                            color="primary.main"
+                            fontWeight="600"
+                            color="text.primary"
                             sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}
                           >
                             {month.month_name} {month.year}
                           </Typography>
                           {month.is_overdue && month.days_overdue && (
-                            <Typography variant="caption" color="error" sx={{ display: 'block', mt: 0.5 }}>
-                              {month.days_overdue} days overdue
-                            </Typography>
+                            <Chip
+                              size="small"
+                              label={`${month.days_overdue} days overdue`}
+                              sx={{
+                                mt: 0.5,
+                                height: 18,
+                                fontSize: '0.65rem',
+                                bgcolor: '#ffebee',
+                                color: '#c62828',
+                                fontWeight: 'medium'
+                              }}
+                            />
                           )}
                         </TableCell>
-                        <TableCell align="right">
+                        <TableCell align="right" sx={{ borderBottom: '1px solid #f0f0f0' }}>
                           <Typography
                             variant="body2"
                             fontWeight="medium"
@@ -1436,27 +1600,27 @@ const FeeManagementComponent: React.FC = () => {
                             ₹{month.monthly_amount.toLocaleString()}
                           </Typography>
                         </TableCell>
-                        <TableCell align="right">
+                        <TableCell align="right" sx={{ borderBottom: '1px solid #f0f0f0' }}>
                           <Typography
                             variant="body2"
-                            fontWeight="medium"
-                            color={month.paid_amount > 0 ? 'success.main' : 'textSecondary'}
+                            fontWeight="600"
+                            color={month.paid_amount > 0 ? 'success.main' : 'text.secondary'}
                             sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}
                           >
                             ₹{month.paid_amount.toLocaleString()}
                           </Typography>
                         </TableCell>
-                        <TableCell align="right">
+                        <TableCell align="right" sx={{ borderBottom: '1px solid #f0f0f0' }}>
                           <Typography
                             variant="body2"
-                            fontWeight="medium"
+                            fontWeight="600"
                             color={month.balance_amount > 0 ? 'error.main' : 'success.main'}
                             sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}
                           >
                             ₹{month.balance_amount.toLocaleString()}
                           </Typography>
                         </TableCell>
-                        <TableCell>
+                        <TableCell sx={{ borderBottom: '1px solid #f0f0f0' }}>
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                             <Chip
                               size="small"
@@ -1464,23 +1628,15 @@ const FeeManagementComponent: React.FC = () => {
                               sx={{
                                 bgcolor: month.status_color,
                                 color: 'white',
-                                fontWeight: 'bold',
-                                borderRadius: 1.5,
-                                fontSize: { xs: '0.65rem', sm: '0.75rem' },
-                                height: { xs: 20, sm: 24 }
+                                fontWeight: '600',
+                                borderRadius: 1,
+                                fontSize: { xs: '0.65rem', sm: '0.7rem' },
+                                height: { xs: 20, sm: 22 }
                               }}
                             />
                             {month.paid_amount > month.monthly_amount && (
-                              <Tooltip title={`Issue: Paid amount (₹${month.paid_amount}) exceeds monthly amount (₹${month.monthly_amount})`}>
-                                <IconButton
-                                  size="small"
-                                  color="error"
-                                  onClick={() => {
-                                    alert(`⚠️ Payment Issue Detected!\n\nMonth: ${month.month_name} ${month.year}\nMonthly Amount: ₹${month.monthly_amount}\nPaid Amount: ₹${month.paid_amount}\nOverpayment: ₹${month.paid_amount - month.monthly_amount}\n\nThis issue has been automatically fixed in the backend. Please refresh the data.`);
-                                  }}
-                                >
-                                  <Warning fontSize="small" />
-                                </IconButton>
+                              <Tooltip title={`Overpayment: ₹${(month.paid_amount - month.monthly_amount).toLocaleString()}. Paid ₹${month.paid_amount.toLocaleString()} for ₹${month.monthly_amount.toLocaleString()} monthly fee.`}>
+                                <Warning sx={{ fontSize: 18, color: '#ed6c02' }} />
                               </Tooltip>
                             )}
                           </Box>
@@ -1494,15 +1650,6 @@ const FeeManagementComponent: React.FC = () => {
             </Box>
           )}
         </DialogContent>
-        <DialogActions sx={dialogStyles.actions}>
-          <Button
-            onClick={() => setDialogOpen(false)}
-            variant="contained"
-            sx={dialogStyles.primaryButton}
-          >
-            Close
-          </Button>
-        </DialogActions>
       </Dialog>
 
       {/* Payment History Dialog */}
@@ -1517,17 +1664,17 @@ const FeeManagementComponent: React.FC = () => {
           }
         }}
       >
-        <DialogTitle sx={dialogStyles.title}>
+        <DialogTitle sx={whiteDialogStyles.title}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Payment sx={{ fontSize: 28 }} />
+            <Payment sx={{ fontSize: 28, color: '#1976d2' }} />
             <Box>
-              <Typography sx={dialogStyles.titleText}>
+              <Typography sx={whiteDialogStyles.titleText}>
                 Payment History
               </Typography>
               <Typography
                 variant="subtitle2"
                 sx={{
-                  opacity: 0.9,
+                  color: 'text.secondary',
                   fontSize: { xs: '0.875rem', sm: '1rem' }
                 }}
               >
@@ -1537,7 +1684,7 @@ const FeeManagementComponent: React.FC = () => {
           </Box>
           <IconButton
             onClick={() => setPaymentHistoryDialogOpen(false)}
-            sx={dialogStyles.closeButton}
+            sx={whiteDialogStyles.closeButton}
           >
             <CloseIcon />
           </IconButton>
@@ -1553,96 +1700,115 @@ const FeeManagementComponent: React.FC = () => {
           ) : paymentHistory && (
             <Box>
               {/* Payment Summary Cards */}
-              <Box sx={{ p: 3, bgcolor: 'grey.50', borderBottom: '1px solid #e0e0e0' }}>
-                <Grid container spacing={3}>
-                  <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                    <Card sx={{
-                      p: 2.5,
-                      textAlign: 'center',
-                      border: '1px solid #e0e0e0',
+              <Box sx={{ p: 3, bgcolor: '#f8f9fa', borderBottom: '1px solid #e0e0e0' }}>
+                <Grid container spacing={2}>
+                  <Grid size={{ xs: 6, sm: 3 }}>
+                    <Box sx={{
+                      p: 2,
+                      bgcolor: 'white',
                       borderRadius: 2,
-                      boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-                      '&:hover': { boxShadow: '0 4px 16px rgba(0,0,0,0.15)' }
+                      border: '1px solid #e3f2fd',
+                      textAlign: 'center'
                     }}>
-                      <Typography variant="body2" color="textSecondary" gutterBottom>
+                      <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem', display: 'block', mb: 0.5 }}>
                         Total Amount
                       </Typography>
-                      <Typography variant="h5" fontWeight="bold" color="primary.main">
+                      <Typography variant="h6" fontWeight="bold" color="primary.main" sx={{ fontSize: { xs: '1.1rem', sm: '1.25rem' } }}>
                         ₹{paymentHistory.summary?.total_amount?.toLocaleString() || 0}
                       </Typography>
-                    </Card>
+                    </Box>
                   </Grid>
-                  <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                    <Card sx={{
-                      p: 2.5,
-                      textAlign: 'center',
-                      border: '1px solid #e0e0e0',
+                  <Grid size={{ xs: 6, sm: 3 }}>
+                    <Box sx={{
+                      p: 2,
+                      bgcolor: 'white',
                       borderRadius: 2,
-                      boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-                      '&:hover': { boxShadow: '0 4px 16px rgba(0,0,0,0.15)' }
+                      border: '1px solid #e8f5e9',
+                      textAlign: 'center'
                     }}>
-                      <Typography variant="body2" color="textSecondary" gutterBottom>
-                        Total Paid Amount
+                      <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem', display: 'block', mb: 0.5 }}>
+                        Total Paid
                       </Typography>
-                      <Typography variant="h5" fontWeight="bold" color="success.main">
+                      <Typography variant="h6" fontWeight="bold" color="success.main" sx={{ fontSize: { xs: '1.1rem', sm: '1.25rem' } }}>
                         ₹{paymentHistory.summary?.total_paid?.toLocaleString() || 0}
                       </Typography>
-                    </Card>
+                    </Box>
                   </Grid>
-                  <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                    <Card sx={{
-                      p: 2.5,
-                      textAlign: 'center',
-                      border: '1px solid #e0e0e0',
+                  <Grid size={{ xs: 6, sm: 3 }}>
+                    <Box sx={{
+                      p: 2,
+                      bgcolor: 'white',
                       borderRadius: 2,
-                      boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-                      '&:hover': { boxShadow: '0 4px 16px rgba(0,0,0,0.15)' }
+                      border: '1px solid #ffebee',
+                      textAlign: 'center'
                     }}>
-                      <Typography variant="body2" color="textSecondary" gutterBottom>
+                      <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem', display: 'block', mb: 0.5 }}>
                         Balance
                       </Typography>
-                      <Typography variant="h5" fontWeight="bold" color="error.main">
+                      <Typography variant="h6" fontWeight="bold" color="error.main" sx={{ fontSize: { xs: '1.1rem', sm: '1.25rem' } }}>
                         ₹{((paymentHistory.summary?.total_amount || 0) - (paymentHistory.summary?.total_paid || 0)).toLocaleString()}
                       </Typography>
-                    </Card>
+                    </Box>
                   </Grid>
-                  <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                    <Card sx={{
-                      p: 2.5,
-                      textAlign: 'center',
-                      border: '1px solid #e0e0e0',
+                  <Grid size={{ xs: 6, sm: 3 }}>
+                    <Box sx={{
+                      p: 2,
+                      bgcolor: 'white',
                       borderRadius: 2,
-                      boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-                      '&:hover': { boxShadow: '0 4px 16px rgba(0,0,0,0.15)' }
+                      border: '1px solid #f3e5f5',
+                      textAlign: 'center'
                     }}>
-                      <Typography variant="body2" color="textSecondary" gutterBottom>
-                        No of Payments
+                      <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem', display: 'block', mb: 0.5 }}>
+                        Payments
                       </Typography>
-                      <Typography variant="h5" fontWeight="bold" color="info.main">
+                      <Typography variant="h6" fontWeight="bold" color="secondary.main" sx={{ fontSize: { xs: '1.1rem', sm: '1.25rem' } }}>
                         {paymentHistory.summary?.total_payments || 0}
                       </Typography>
-                    </Card>
+                    </Box>
                   </Grid>
                 </Grid>
               </Box>
 
               {/* Payment History Table */}
-              <Box sx={{ p: 3 }}>
-                <Typography variant="h6" gutterBottom sx={{ mb: 2, fontWeight: 'bold' }}>
-                  All Payments
-                </Typography>
+              <Box sx={{ p: { xs: 2, sm: 3 } }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                  <Typography
+                    variant="h6"
+                    sx={{
+                      fontWeight: 'bold',
+                      fontSize: { xs: '1rem', sm: '1.1rem' }
+                    }}
+                  >
+                    Transaction History
+                  </Typography>
+                  <Chip
+                    size="small"
+                    label={`${(() => {
+                      const allPayments: any[] = [];
+                      paymentHistory.payment_history?.forEach((record: any) => {
+                        record.payments?.forEach((payment: any) => {
+                          allPayments.push(payment);
+                        });
+                      });
+                      return allPayments.length;
+                    })()} Transactions`}
+                    color="primary"
+                    variant="outlined"
+                    sx={{ fontWeight: 'medium' }}
+                  />
+                </Box>
                 <TableContainer component={Paper} sx={{
                   borderRadius: 2,
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                  boxShadow: 'none',
                   border: '1px solid #e0e0e0'
                 }}>
                   <Table size="small">
                     <TableHead>
-                      <TableRow sx={{ bgcolor: 'grey.100' }}>
-                        <TableCell sx={{ fontWeight: 'bold', fontSize: '0.875rem' }}>Payment Date</TableCell>
-                        <TableCell align="right" sx={{ fontWeight: 'bold', fontSize: '0.875rem' }}>Paid Amount</TableCell>
-                        <TableCell sx={{ fontWeight: 'bold', fontSize: '0.875rem' }}>Payment Method</TableCell>
-                        <TableCell sx={{ fontWeight: 'bold', fontSize: '0.875rem' }}>Transaction ID</TableCell>
+                      <TableRow sx={{ bgcolor: 'white', borderBottom: '2px solid #e0e0e0' }}>
+                        <TableCell sx={{ fontWeight: 'bold', fontSize: { xs: '0.75rem', sm: '0.875rem' }, color: 'text.primary' }}>Payment Date</TableCell>
+                        <TableCell align="right" sx={{ fontWeight: 'bold', fontSize: { xs: '0.75rem', sm: '0.875rem' }, color: 'text.primary' }}>Amount</TableCell>
+                        <TableCell sx={{ fontWeight: 'bold', fontSize: { xs: '0.75rem', sm: '0.875rem' }, color: 'text.primary' }}>Method</TableCell>
+                        <TableCell sx={{ fontWeight: 'bold', fontSize: { xs: '0.75rem', sm: '0.875rem' }, color: 'text.primary' }}>Transaction ID</TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
@@ -1658,59 +1824,109 @@ const FeeManagementComponent: React.FC = () => {
                         // Sort payments by date (newest first)
                         allPayments.sort((a, b) => new Date(b.payment_date).getTime() - new Date(a.payment_date).getTime());
 
-                        return allPayments.map((payment: any, index: number) => (
-                          <TableRow
-                            key={index}
-                            sx={{
-                              '&:nth-of-type(odd)': { bgcolor: 'grey.25' },
-                              '&:hover': { bgcolor: 'grey.100' },
-                              transition: 'background-color 0.2s'
-                            }}
-                          >
-                            <TableCell>
-                              <Typography variant="body2" fontWeight="medium">
-                                {new Date(payment.payment_date).toLocaleDateString()}
-                              </Typography>
-                            </TableCell>
-                            <TableCell align="right">
-                              <Typography
-                                variant="body2"
-                                fontWeight="bold"
-                                color="success.main"
-                              >
-                                ₹{payment.amount?.toLocaleString() || 0}
-                              </Typography>
-                            </TableCell>
-                            <TableCell>
-                              <Chip
-                                size="small"
-                                label={payment.payment_method || 'Unknown'}
-                                color="primary"
-                                variant="outlined"
-                                sx={{
-                                  borderRadius: 1.5,
-                                  fontSize: '0.75rem',
-                                  fontWeight: 'medium'
-                                }}
-                              />
-                            </TableCell>
-                            <TableCell>
-                              <Typography variant="body2" color="textSecondary">
-                                {payment.transaction_id || 'N/A'}
-                              </Typography>
-                            </TableCell>
-                          </TableRow>
-                        ));
+                        if (allPayments.length === 0) {
+                          return (
+                            <TableRow>
+                              <TableCell colSpan={4} align="center" sx={{ py: 6 }}>
+                                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
+                                  <Payment sx={{ fontSize: 48, color: '#bdbdbd' }} />
+                                  <Typography variant="body2" color="text.secondary" fontWeight="medium">
+                                    No payments recorded yet
+                                  </Typography>
+                                  <Typography variant="caption" color="text.secondary">
+                                    Payment transactions will appear here
+                                  </Typography>
+                                </Box>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        }
+
+                        return allPayments.map((payment: any, index: number) => {
+                          const paymentDate = new Date(payment.payment_date);
+                          const formattedDate = paymentDate.toLocaleDateString('en-IN', {
+                            day: '2-digit',
+                            month: 'short',
+                            year: 'numeric'
+                          });
+
+                          // Payment method color mapping
+                          const methodColors: { [key: string]: { bg: string; color: string } } = {
+                            'Cash Payment': { bg: '#e8f5e9', color: '#2e7d32' },
+                            'UPI Payment': { bg: '#e3f2fd', color: '#1565c0' },
+                            'Bank Transfer': { bg: '#f3e5f5', color: '#6a1b9a' },
+                            'Cheque Payment': { bg: '#fff3e0', color: '#e65100' },
+                            'Card Payment': { bg: '#fce4ec', color: '#c2185b' }
+                          };
+
+                          const methodStyle = methodColors[payment.payment_method] || { bg: '#f5f5f5', color: '#616161' };
+
+                          // Truncate transaction ID if too long
+                          const transactionId = payment.transaction_id || 'N/A';
+                          const displayTransactionId = transactionId.length > 20
+                            ? `${transactionId.substring(0, 17)}...`
+                            : transactionId;
+
+                          return (
+                            <TableRow
+                              key={index}
+                              sx={{
+                                '&:hover': { bgcolor: '#f5f5f5' },
+                                transition: 'background-color 0.2s'
+                              }}
+                            >
+                              <TableCell sx={{ borderBottom: '1px solid #f0f0f0' }}>
+                                <Typography
+                                  variant="body2"
+                                  fontWeight="600"
+                                  sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}
+                                >
+                                  {formattedDate}
+                                </Typography>
+                              </TableCell>
+                              <TableCell align="right" sx={{ borderBottom: '1px solid #f0f0f0' }}>
+                                <Typography
+                                  variant="body2"
+                                  fontWeight="bold"
+                                  color="success.main"
+                                  sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}
+                                >
+                                  ₹{payment.amount?.toLocaleString() || 0}
+                                </Typography>
+                              </TableCell>
+                              <TableCell sx={{ borderBottom: '1px solid #f0f0f0' }}>
+                                <Chip
+                                  size="small"
+                                  label={payment.payment_method || 'Unknown'}
+                                  sx={{
+                                    bgcolor: methodStyle.bg,
+                                    color: methodStyle.color,
+                                    fontWeight: '600',
+                                    borderRadius: 1,
+                                    fontSize: { xs: '0.65rem', sm: '0.7rem' },
+                                    height: { xs: 20, sm: 22 }
+                                  }}
+                                />
+                              </TableCell>
+                              <TableCell sx={{ borderBottom: '1px solid #f0f0f0' }}>
+                                <Tooltip title={transactionId} arrow>
+                                  <Typography
+                                    variant="body2"
+                                    color="text.secondary"
+                                    sx={{
+                                      fontSize: { xs: '0.7rem', sm: '0.8rem' },
+                                      fontFamily: 'monospace',
+                                      cursor: transactionId.length > 20 ? 'help' : 'default'
+                                    }}
+                                  >
+                                    {displayTransactionId}
+                                  </Typography>
+                                </Tooltip>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        });
                       })()}
-                      {(!paymentHistory.payment_history || paymentHistory.payment_history.length === 0) && (
-                        <TableRow>
-                          <TableCell colSpan={4} align="center">
-                            <Typography variant="body2" color="textSecondary" sx={{ py: 3 }}>
-                              No payments found
-                            </Typography>
-                          </TableCell>
-                        </TableRow>
-                      )}
                     </TableBody>
                   </Table>
                 </TableContainer>
@@ -1718,15 +1934,6 @@ const FeeManagementComponent: React.FC = () => {
             </Box>
           )}
         </DialogContent>
-        <DialogActions sx={dialogStyles.actions}>
-          <Button
-            onClick={() => setPaymentHistoryDialogOpen(false)}
-            variant="contained"
-            sx={dialogStyles.primaryButton}
-          >
-            Close
-          </Button>
-        </DialogActions>
       </Dialog>
 
       {/* Enhanced Payment Dialog */}
@@ -1741,17 +1948,17 @@ const FeeManagementComponent: React.FC = () => {
           }
         }}
       >
-        <DialogTitle sx={dialogStyles.title}>
+        <DialogTitle sx={whiteDialogStyles.title}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <AccountBalance sx={{ fontSize: 28 }} />
+            <AccountBalance sx={{ fontSize: 28, color: '#1976d2' }} />
             <Box>
-              <Typography sx={dialogStyles.titleText}>
+              <Typography sx={whiteDialogStyles.titleText}>
                 Make Payment
               </Typography>
               <Typography
                 variant="subtitle2"
                 sx={{
-                  opacity: 0.9,
+                  color: 'text.secondary',
                   fontSize: { xs: '0.875rem', sm: '1rem' }
                 }}
               >
@@ -1761,7 +1968,7 @@ const FeeManagementComponent: React.FC = () => {
           </Box>
           <IconButton
             onClick={() => setPaymentDialogOpen(false)}
-            sx={dialogStyles.closeButton}
+            sx={whiteDialogStyles.closeButton}
           >
             <CloseIcon />
           </IconButton>
@@ -1969,10 +2176,10 @@ const FeeManagementComponent: React.FC = () => {
           }
         }}
       >
-        <DialogTitle sx={dialogStyles.title}>
+        <DialogTitle sx={whiteDialogStyles.title}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Warning color="warning" />
-            <Typography variant="h6">Monthly Tracking Required</Typography>
+            <Warning sx={{ color: '#ed6c02' }} />
+            <Typography sx={{ ...whiteDialogStyles.titleText, color: '#ed6c02' }}>Monthly Tracking Required</Typography>
           </Box>
         </DialogTitle>
         <DialogContent sx={dialogStyles.content}>

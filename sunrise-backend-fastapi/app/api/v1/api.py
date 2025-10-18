@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 
 from app.api.v1.endpoints import (
-    auth, teachers, students, leaves, expenses, fees, configuration, public, database, transport
+    auth, teachers, students, leaves, expenses, fees, configuration, public, database, transport, dashboard
 )
 # users endpoints removed - not used in frontend, user management handled through student/teacher endpoints
 
@@ -16,6 +16,7 @@ api_router.include_router(database.router, prefix="/database", tags=["database"]
 # Authenticated endpoints
 api_router.include_router(auth.router, prefix="/auth", tags=["authentication"])
 api_router.include_router(configuration.router, prefix="/configuration", tags=["configuration"])
+api_router.include_router(dashboard.router, prefix="/dashboard", tags=["dashboard"])
 # users.router removed - endpoints not used in frontend
 api_router.include_router(teachers.router, prefix="/teachers", tags=["teachers"])
 api_router.include_router(students.router, prefix="/students", tags=["students"])

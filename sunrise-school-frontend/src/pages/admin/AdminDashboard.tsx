@@ -8,6 +8,8 @@ import {
   Alert,
   CircularProgress,
   Chip,
+  Collapse,
+  IconButton,
 } from '@mui/material';
 import {
   People,
@@ -15,12 +17,29 @@ import {
   Payment,
   EventNote,
   AccountBalance,
-  TrendingUp,
   Visibility,
+  DirectionsBus,
+  ExpandMore,
+  ExpandLess,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import AdminLayout from '../../components/Layout/AdminLayout';
 import { leaveAPI, enhancedFeesAPI } from '../../services/api';
+import {
+  BarChart,
+  Bar,
+  PieChart,
+  Pie,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  Cell,
+} from 'recharts';
 
 interface DashboardStats {
   students: {
@@ -59,12 +78,96 @@ interface DashboardStats {
   };
 }
 
+interface EnhancedDashboardStats {
+  student_management: {
+    total_students: number;
+    active_students: number;
+    inactive_students: number;
+    recent_enrollments: number;
+    class_breakdown: Array<{
+      class_name: string;
+      total: number;
+      male: number;
+      female: number;
+    }>;
+  };
+  fee_management: {
+    total_collected: number;
+    pending_fees: number;
+    collection_rate: number;
+    total_records: number;
+    paid_records: number;
+    monthly_trends: Array<{
+      month: string;
+      amount: number;
+      count: number;
+    }>;
+  };
+  leave_management: {
+    total_requests: number;
+    pending_approvals: number;
+    approved_count: number;
+    rejected_count: number;
+    leave_type_breakdown: Array<{
+      type: string;
+      total: number;
+      approved: number;
+      rejected: number;
+      pending: number;
+    }>;
+  };
+  expense_management: {
+    total_expenses: number;
+    pending_approvals: number;
+    category_breakdown: Array<{
+      category: string;
+      count: number;
+      amount: number;
+    }>;
+    monthly_trends: Array<{
+      month: string;
+      amount: number;
+      count: number;
+    }>;
+  };
+  staff_management: {
+    total_staff: number;
+    active_staff: number;
+    inactive_staff: number;
+    department_breakdown: Array<{
+      department: string;
+      count: number;
+    }>;
+    qualification_breakdown: Array<{
+      qualification: string;
+      count: number;
+    }>;
+  };
+  transport_service: {
+    total_routes?: number;
+    students_using_transport?: number;
+    pending_fees?: number;
+    collected_fees?: number;
+    transport_type_breakdown?: Array<{
+      type: string;
+      enrollments: number;
+      capacity: number;
+    }>;
+    error?: string;
+  };
+}
+
+// Color palette for charts
+const COLORS = ['#1976d2', '#388e3c', '#f57c00', '#7b1fa2', '#d32f2f', '#0288d1', '#00897b', '#c62828'];
+
 const AdminDashboard: React.FC = () => {
   const navigate = useNavigate();
   const [dashboardStats, setDashboardStats] = useState<DashboardStats | null>(null);
+  const [enhancedStats, setEnhancedStats] = useState<EnhancedDashboardStats | null>(null);
   const [pendingLeaves, setPendingLeaves] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [expandedCards, setExpandedCards] = useState<{ [key: string]: boolean }>({});
 
   useEffect(() => {
     loadDashboardData();
@@ -73,29 +176,43 @@ const AdminDashboard: React.FC = () => {
   const loadDashboardData = async () => {
     try {
       setLoading(true);
-      const [statsResponse, pendingResponse] = await Promise.all([
+      const [statsResponse, enhancedResponse, pendingResponse] = await Promise.all([
         enhancedFeesAPI.getAdminDashboardStats(4), // 2025-26 session year
+        enhancedFeesAPI.getAdminDashboardEnhancedStats(4), // Enhanced stats
         leaveAPI.getPendingLeaves()
       ]);
 
+      console.log('Enhanced Stats Response:', enhancedResponse.data);
+
       setDashboardStats(statsResponse.data);
+      setEnhancedStats(enhancedResponse.data);
       setPendingLeaves(Array.isArray(pendingResponse) ? pendingResponse : []);
       setError(null);
     } catch (err: any) {
       console.error('Error loading dashboard data:', err);
-      setError('Failed to load dashboard data');
+      console.error('Error details:', err.response?.data);
+      setError('Failed to load dashboard data. Please try again.');
       setDashboardStats(null);
+      setEnhancedStats(null);
       setPendingLeaves([]);
     } finally {
       setLoading(false);
     }
   };
 
+  const toggleCardExpansion = (cardKey: string) => {
+    setExpandedCards(prev => ({
+      ...prev,
+      [cardKey]: !prev[cardKey]
+    }));
+  };
+
   const getDashboardCards = () => {
-    if (!dashboardStats) {
+    if (!dashboardStats || !enhancedStats) {
       return [
         {
-          title: 'Total Students',
+          key: 'students',
+          title: 'Student Management',
           value: '0',
           icon: <People fontSize="large" />,
           color: '#1976d2',
@@ -104,7 +221,8 @@ const AdminDashboard: React.FC = () => {
           onClick: undefined,
         },
         {
-          title: 'Total Teachers',
+          key: 'teachers',
+          title: 'Staff Management',
           value: '0',
           icon: <School fontSize="large" />,
           color: '#388e3c',
@@ -113,7 +231,8 @@ const AdminDashboard: React.FC = () => {
           onClick: undefined,
         },
         {
-          title: 'Pending Fees',
+          key: 'fees',
+          title: 'Fee Management',
           value: '₹0',
           icon: <Payment fontSize="large" />,
           color: '#f57c00',
@@ -122,7 +241,8 @@ const AdminDashboard: React.FC = () => {
           onClick: undefined,
         },
         {
-          title: 'Leave Requests',
+          key: 'leaves',
+          title: 'Leave Management',
           value: '0',
           icon: <EventNote fontSize="large" />,
           color: '#7b1fa2',
@@ -131,7 +251,8 @@ const AdminDashboard: React.FC = () => {
           onClick: undefined,
         },
         {
-          title: 'Monthly Expenses',
+          key: 'expenses',
+          title: 'Expense Management',
           value: '₹0',
           icon: <AccountBalance fontSize="large" />,
           color: '#d32f2f',
@@ -140,10 +261,11 @@ const AdminDashboard: React.FC = () => {
           onClick: undefined,
         },
         {
-          title: 'Revenue Growth',
-          value: '0%',
-          icon: <TrendingUp fontSize="large" />,
-          color: '#0288d1',
+          key: 'transport',
+          title: 'Transport Service',
+          value: '0',
+          icon: <DirectionsBus fontSize="large" />,
+          color: '#00897b',
           change: 'Loading...',
           clickable: false,
           onClick: undefined,
@@ -153,63 +275,259 @@ const AdminDashboard: React.FC = () => {
 
     return [
       {
-        title: 'Total Students',
-        value: dashboardStats.students.total.toString(),
+        key: 'students',
+        title: 'Student Management',
+        value: (enhancedStats.student_management?.total_students || 0).toString(),
         icon: <People fontSize="large" />,
         color: '#1976d2',
-        change: dashboardStats.students.change_text,
+        change: `${enhancedStats.student_management?.active_students || 0} Active • ${enhancedStats.student_management?.recent_enrollments || 0} New`,
         clickable: true,
         onClick: () => navigate('/admin/students'),
+        details: enhancedStats.student_management,
       },
       {
-        title: 'Total Teachers',
-        value: dashboardStats.teachers.total.toString(),
+        key: 'teachers',
+        title: 'Staff Management',
+        value: (enhancedStats.staff_management?.total_staff || 0).toString(),
         icon: <School fontSize="large" />,
         color: '#388e3c',
-        change: dashboardStats.teachers.change_text,
+        change: `${enhancedStats.staff_management?.active_staff || 0} Active Staff`,
         clickable: true,
         onClick: () => navigate('/admin/teachers'),
+        details: enhancedStats.staff_management,
       },
       {
-        title: 'Pending Fees',
-        value: `₹${dashboardStats.fees.pending_amount.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`,
+        key: 'fees',
+        title: 'Fee Management',
+        value: `₹${(enhancedStats.fee_management?.total_collected || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`,
         icon: <Payment fontSize="large" />,
         color: '#f57c00',
-        change: dashboardStats.fees.change_text,
+        change: `${(enhancedStats.fee_management?.collection_rate || 0).toFixed(1)}% Collection Rate`,
         clickable: true,
         onClick: () => navigate('/admin/fees'),
+        details: enhancedStats.fee_management,
       },
       {
-        title: 'Leave Requests',
-        value: dashboardStats.leave_requests.total.toString(),
+        key: 'leaves',
+        title: 'Leave Management',
+        value: (enhancedStats.leave_management?.total_requests || 0).toString(),
         icon: <EventNote fontSize="large" />,
         color: '#7b1fa2',
-        change: dashboardStats.leave_requests.change_text,
+        change: `${enhancedStats.leave_management?.pending_approvals || 0} Pending Approval`,
         clickable: true,
         onClick: () => navigate('/admin/leaves'),
+        details: enhancedStats.leave_management,
       },
       {
-        title: 'Monthly Expenses',
-        value: `₹${dashboardStats.expenses.current_month.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`,
+        key: 'expenses',
+        title: 'Expense Management',
+        value: `₹${(enhancedStats.expense_management?.total_expenses || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`,
         icon: <AccountBalance fontSize="large" />,
         color: '#d32f2f',
-        change: dashboardStats.expenses.change_text,
+        change: `${enhancedStats.expense_management?.pending_approvals || 0} Pending Approval`,
         clickable: true,
         onClick: () => navigate('/admin/expenses'),
+        details: enhancedStats.expense_management,
       },
       {
-        title: 'Revenue Growth',
-        value: `${dashboardStats.revenue_growth.percentage}%`,
-        icon: <TrendingUp fontSize="large" />,
-        color: '#0288d1',
-        change: dashboardStats.revenue_growth.change_text,
+        key: 'transport',
+        title: 'Transport Service',
+        value: enhancedStats.transport_service?.error ? 'N/A' : (enhancedStats.transport_service?.students_using_transport || 0).toString(),
+        icon: <DirectionsBus fontSize="large" />,
+        color: '#00897b',
+        change: enhancedStats.transport_service?.error ? 'Data unavailable' : `${enhancedStats.transport_service?.total_routes || 0} Routes Active`,
         clickable: true,
-        onClick: () => navigate('/admin/fees'),
+        onClick: () => navigate('/admin/transport'),
+        details: enhancedStats.transport_service,
       },
     ];
   };
 
 
+
+  // Render detailed statistics for each card
+  const renderCardDetails = (card: any) => {
+    if (!card.details) return null;
+
+    switch (card.key) {
+      case 'students':
+        return (
+          <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid #e0e0e0' }}>
+            <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
+              Class Distribution
+            </Typography>
+            {card.details.class_breakdown && card.details.class_breakdown.length > 0 ? (
+              <ResponsiveContainer width="100%" height={200}>
+                <BarChart data={card.details.class_breakdown}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="class_name" style={{ fontSize: '0.75rem' }} />
+                  <YAxis style={{ fontSize: '0.75rem' }} />
+                  <Tooltip />
+                  <Legend wrapperStyle={{ fontSize: '0.75rem' }} />
+                  <Bar dataKey="total" fill={card.color} name="Total Students" />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <Typography variant="body2" color="text.secondary">No data available</Typography>
+            )}
+            <Box sx={{ mt: 2, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+              <Chip label={`Active: ${card.details.active_students || 0}`} size="small" color="success" />
+              <Chip label={`Inactive: ${card.details.inactive_students || 0}`} size="small" color="default" />
+            </Box>
+          </Box>
+        );
+
+      case 'teachers':
+        return (
+          <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid #e0e0e0' }}>
+            <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
+              Department Distribution
+            </Typography>
+            <ResponsiveContainer width="100%" height={200}>
+              <PieChart>
+                <Pie
+                  data={card.details.department_breakdown}
+                  dataKey="count"
+                  nameKey="department"
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={60}
+                  label={(entry) => `${entry.department}: ${entry.count}`}
+                >
+                  {card.details.department_breakdown.map((_: any, index: number) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
+          </Box>
+        );
+
+      case 'fees':
+        return (
+          <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid #e0e0e0' }}>
+            <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
+              Collection Trends (Last 12 Months)
+            </Typography>
+            <ResponsiveContainer width="100%" height={200}>
+              <LineChart data={card.details.monthly_trends}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="month" style={{ fontSize: '0.7rem' }} />
+                <YAxis style={{ fontSize: '0.75rem' }} />
+                <Tooltip />
+                <Legend wrapperStyle={{ fontSize: '0.75rem' }} />
+                <Line type="monotone" dataKey="amount" stroke={card.color} name="Amount Collected" />
+              </LineChart>
+            </ResponsiveContainer>
+            <Box sx={{ mt: 2, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+              <Chip label={`Pending: ₹${card.details.pending_fees.toLocaleString('en-IN')}`} size="small" color="warning" />
+              <Chip label={`Paid Records: ${card.details.paid_records}/${card.details.total_records}`} size="small" color="success" />
+            </Box>
+          </Box>
+        );
+
+      case 'leaves':
+        return (
+          <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid #e0e0e0' }}>
+            <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
+              Leave Type Breakdown
+            </Typography>
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={card.details.leave_type_breakdown}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="type" style={{ fontSize: '0.7rem' }} />
+                <YAxis style={{ fontSize: '0.75rem' }} />
+                <Tooltip />
+                <Legend wrapperStyle={{ fontSize: '0.75rem' }} />
+                <Bar dataKey="approved" fill="#4caf50" name="Approved" stackId="a" />
+                <Bar dataKey="pending" fill="#ff9800" name="Pending" stackId="a" />
+                <Bar dataKey="rejected" fill="#f44336" name="Rejected" stackId="a" />
+              </BarChart>
+            </ResponsiveContainer>
+            <Box sx={{ mt: 2, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+              <Chip label={`Approved: ${card.details.approved_count}`} size="small" color="success" />
+              <Chip label={`Rejected: ${card.details.rejected_count}`} size="small" color="error" />
+            </Box>
+          </Box>
+        );
+
+      case 'expenses':
+        return (
+          <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid #e0e0e0' }}>
+            <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
+              Category Breakdown
+            </Typography>
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={card.details.category_breakdown.slice(0, 5)}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="category" style={{ fontSize: '0.7rem' }} />
+                <YAxis style={{ fontSize: '0.75rem' }} />
+                <Tooltip />
+                <Bar dataKey="amount" fill={card.color} name="Amount" />
+              </BarChart>
+            </ResponsiveContainer>
+            {card.details.monthly_trends && card.details.monthly_trends.length > 0 && (
+              <>
+                <Typography variant="subtitle2" fontWeight="bold" gutterBottom sx={{ mt: 2 }}>
+                  Monthly Spending Trends
+                </Typography>
+                <ResponsiveContainer width="100%" height={200}>
+                  <LineChart data={card.details.monthly_trends}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="month" style={{ fontSize: '0.7rem' }} />
+                    <YAxis style={{ fontSize: '0.75rem' }} />
+                    <Tooltip />
+                    <Line type="monotone" dataKey="amount" stroke={card.color} name="Amount" />
+                  </LineChart>
+                </ResponsiveContainer>
+              </>
+            )}
+          </Box>
+        );
+
+      case 'transport':
+        // Check if there's an error in transport service data
+        if (card.details.error) {
+          return (
+            <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid #e0e0e0' }}>
+              <Typography variant="body2" color="error">
+                Transport service data unavailable. Please check the database configuration.
+              </Typography>
+            </Box>
+          );
+        }
+        return (
+          <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid #e0e0e0' }}>
+            <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
+              Transport Type Utilization
+            </Typography>
+            {card.details.transport_type_breakdown && card.details.transport_type_breakdown.length > 0 ? (
+              <ResponsiveContainer width="100%" height={200}>
+                <BarChart data={card.details.transport_type_breakdown}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="type" style={{ fontSize: '0.7rem' }} />
+                  <YAxis style={{ fontSize: '0.75rem' }} />
+                  <Tooltip />
+                  <Legend wrapperStyle={{ fontSize: '0.75rem' }} />
+                  <Bar dataKey="enrollments" fill={card.color} name="Enrollments" />
+                  <Bar dataKey="capacity" fill="#90caf9" name="Capacity" />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <Typography variant="body2" color="text.secondary">No transport data available</Typography>
+            )}
+            <Box sx={{ mt: 2, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+              <Chip label={`Collected: ₹${(card.details.collected_fees || 0).toLocaleString('en-IN')}`} size="small" color="success" />
+              <Chip label={`Pending: ₹${(card.details.pending_fees || 0).toLocaleString('en-IN')}`} size="small" color="warning" />
+            </Box>
+          </Box>
+        );
+
+      default:
+        return null;
+    }
+  };
 
   return (
     <AdminLayout>
@@ -236,28 +554,22 @@ const AdminDashboard: React.FC = () => {
               gridTemplateColumns: {
                 xs: '1fr',
                 sm: 'repeat(2, 1fr)',
-                md: 'repeat(3, 1fr)',
                 lg: 'repeat(3, 1fr)',
-                xl: 'repeat(4, 1fr)'
               },
               gap: { xs: 2, sm: 2, md: 3 },
-              mb: { xs: 3, sm: 4 }
+              mb: { xs: 3, sm: 4 },
+              alignItems: 'start', // Prevent cards from stretching to match tallest card
             }}
           >
-          {getDashboardCards().map((card, index) => (
+          {getDashboardCards().map((card) => (
             <Card
-              key={index}
+              key={card.key}
               sx={{
-                height: '100%',
-                transition: 'transform 0.2s ease-in-out',
-                cursor: card.clickable ? 'pointer' : 'default',
+                transition: 'all 0.3s ease-in-out',
                 '&:hover': {
-                  transform: card.clickable ? 'translateY(-4px)' : 'translateY(-2px)',
                   boxShadow: { xs: 2, sm: 4 },
                 },
-                minHeight: { xs: '140px', sm: '160px', md: '180px' }
               }}
-              onClick={card.onClick}
             >
               <CardContent sx={{ p: { xs: 2, sm: 2.5, md: 3 } }}>
                 <Box
@@ -265,6 +577,8 @@ const AdminDashboard: React.FC = () => {
                   alignItems="center"
                   justifyContent="space-between"
                   mb={{ xs: 1.5, sm: 2 }}
+                  sx={{ cursor: card.clickable ? 'pointer' : 'default' }}
+                  onClick={card.onClick}
                 >
                   <Box
                     sx={{
@@ -282,41 +596,57 @@ const AdminDashboard: React.FC = () => {
                   >
                     {card.icon}
                   </Box>
+                  <IconButton
+                    size="small"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleCardExpansion(card.key);
+                    }}
+                  >
+                    {expandedCards[card.key] ? <ExpandLess /> : <ExpandMore />}
+                  </IconButton>
                 </Box>
-                <Typography
-                  variant="h4"
-                  fontWeight="bold"
-                  gutterBottom
-                  sx={{
-                    fontSize: { xs: '1.5rem', sm: '1.75rem', md: '2rem' },
-                    lineHeight: 1.2,
-                    mb: { xs: 0.5, sm: 1 }
-                  }}
-                >
-                  {card.value}
-                </Typography>
-                <Typography
-                  variant="h6"
-                  color="text.secondary"
-                  gutterBottom
-                  sx={{
-                    fontSize: { xs: '0.875rem', sm: '1rem', md: '1.125rem' },
-                    fontWeight: 500,
-                    mb: { xs: 0.5, sm: 1 }
-                  }}
-                >
-                  {card.title}
-                </Typography>
-                <Typography
-                  variant="body2"
-                  color="text.secondary"
-                  sx={{
-                    fontSize: { xs: '0.75rem', sm: '0.875rem' },
-                    lineHeight: 1.3
-                  }}
-                >
-                  {card.change}
-                </Typography>
+                <Box sx={{ cursor: card.clickable ? 'pointer' : 'default' }} onClick={card.onClick}>
+                  <Typography
+                    variant="h4"
+                    fontWeight="bold"
+                    gutterBottom
+                    sx={{
+                      fontSize: { xs: '1.5rem', sm: '1.75rem', md: '2rem' },
+                      lineHeight: 1.2,
+                      mb: { xs: 0.5, sm: 1 }
+                    }}
+                  >
+                    {card.value}
+                  </Typography>
+                  <Typography
+                    variant="h6"
+                    color="text.secondary"
+                    gutterBottom
+                    sx={{
+                      fontSize: { xs: '0.875rem', sm: '1rem', md: '1.125rem' },
+                      fontWeight: 500,
+                      mb: { xs: 0.5, sm: 1 }
+                    }}
+                  >
+                    {card.title}
+                  </Typography>
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{
+                      fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                      lineHeight: 1.3
+                    }}
+                  >
+                    {card.change}
+                  </Typography>
+                </Box>
+
+                {/* Expandable Details Section */}
+                <Collapse in={expandedCards[card.key]} timeout="auto" unmountOnExit>
+                  {renderCardDetails(card)}
+                </Collapse>
               </CardContent>
             </Card>
           ))}

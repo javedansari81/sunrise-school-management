@@ -916,9 +916,6 @@ const TeacherProfilesSystem: React.FC = () => {
           </Box>
         ) : (
           <Paper elevation={3} sx={{ p: 3 }}>
-            <Typography variant="h6" fontWeight="bold" mb={2}>
-              Active Teachers ({filteredTeachers.filter(teacher => teacher.is_active).length})
-            </Typography>
             <TableContainer sx={{ maxHeight: { xs: '60vh', sm: '70vh' }, overflow: 'auto' }}>
               <Table stickyHeader>
                 <TableHead>
@@ -1028,9 +1025,6 @@ const TeacherProfilesSystem: React.FC = () => {
           </Box>
         ) : (
           <Paper elevation={3} sx={{ p: 3 }}>
-            <Typography variant="h6" fontWeight="bold" mb={2}>
-              Inactive Teachers ({filteredTeachers.filter(teacher => !teacher.is_active).length})
-            </Typography>
             <TableContainer sx={{ maxHeight: { xs: '60vh', sm: '70vh' }, overflow: 'auto' }}>
               <Table stickyHeader>
                 <TableHead>

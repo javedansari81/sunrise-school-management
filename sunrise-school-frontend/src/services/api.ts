@@ -127,9 +127,15 @@ export const enhancedFeesAPI = {
   getFeeStructure: () =>
     api.get('/fees/structure'),
 
-  // Admin Dashboard Statistics
+  // Admin Dashboard Statistics (moved to dashboard endpoints)
   getAdminDashboardStats: (sessionYearId?: number) =>
-    api.get('/fees/admin-dashboard-stats', {
+    api.get('/dashboard/admin-dashboard-stats', {
+      params: { session_year_id: sessionYearId || 4 }
+    }),
+
+  // Enhanced Admin Dashboard Statistics (moved to dashboard endpoints)
+  getAdminDashboardEnhancedStats: (sessionYearId?: number) =>
+    api.get('/dashboard/admin-dashboard-enhanced-stats', {
       params: { session_year_id: sessionYearId || 4 }
     }),
 };

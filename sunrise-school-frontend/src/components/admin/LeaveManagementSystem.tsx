@@ -228,6 +228,8 @@ const LeaveManagementSystem: React.FC = () => {
   }, [isAuthenticated]);
 
   // Load leave requests and statistics
+  // Fixed: Removed 'filters', 'loadLeaveRequests', 'loadStatistics' from dependencies
+  // to prevent infinite re-render loop. These functions are stable via useCallback.
   useEffect(() => {
     console.log('🔧 LeaveManagementSystem useEffect triggered:', {
       configLoading,
@@ -249,7 +251,16 @@ const LeaveManagementSystem: React.FC = () => {
         severity: 'error'
       });
     }
-  }, [configLoading, configLoaded, configError, isAuthenticated, filters, loadLeaveRequests, loadStatistics]);
+  }, [configLoading, configLoaded, configError, isAuthenticated]);
+
+  // Separate useEffect to reload data when filters, page, or tabValue change
+  // This ensures data is refreshed when user interacts with filters/pagination
+  useEffect(() => {
+    if (configLoaded && isAuthenticated) {
+      console.log('🔄 Reloading leave requests due to filter/page/tab change');
+      loadLeaveRequests();
+    }
+  }, [filters, page, tabValue, configLoaded, isAuthenticated, loadLeaveRequests]);
 
   // Debounced search effect
   useEffect(() => {
@@ -712,9 +723,6 @@ const LeaveManagementSystem: React.FC = () => {
             </Box>
           ) : (
             <Paper elevation={3} sx={{ p: 3 }}>
-              <Typography variant="h6" fontWeight="bold" mb={2} color="warning.main">
-                Pending Approval ({Array.isArray(leaveRequests) ? leaveRequests.filter(leave => leave.leave_status_name?.toUpperCase() === 'PENDING').length : 0})
-              </Typography>
               <TableContainer
                 sx={{
                   maxHeight: { xs: '60vh', sm: '70vh' },
@@ -872,14 +880,6 @@ const LeaveManagementSystem: React.FC = () => {
             </Box>
           ) : (
             <Paper elevation={3} sx={{ p: 3 }}>
-              <Typography variant="h6" fontWeight="bold" mb={2} color="primary.main">
-                My Leave Requests ({Array.isArray(leaveRequests) ? leaveRequests.filter(leave =>
-                  leave.applicant_id === user?.id &&
-                  ((user?.user_type === 'student' && leave.applicant_type === 'student') ||
-                   (user?.user_type === 'teacher' && leave.applicant_type === 'teacher') ||
-                   (user?.user_type === 'admin'))
-                ).length : 0})
-              </Typography>
               <TableContainer
                 sx={{
                   maxHeight: { xs: '60vh', sm: '70vh' },
