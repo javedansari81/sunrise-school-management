@@ -117,32 +117,82 @@ class CRUDTransportEnrollment:
         class_id: Optional[int] = None,
         is_enrolled: Optional[bool] = None
     ) -> List[EnhancedStudentTransportSummary]:
-        """Get enhanced transport summary using database view"""
-        
+        """Get enhanced transport summary by querying underlying tables with direct class_id filtering"""
+
         query = """
             SELECT
-                student_id, admission_number, student_name, class_name, session_year,
-                enrollment_id, transport_type_id, transport_type_name,
-                enrollment_date, discontinue_date, is_enrolled,
-                distance_km, monthly_fee, pickup_location, drop_location,
-                total_months_tracked, enabled_months, paid_months, pending_months, overdue_months,
-                total_amount, total_paid, total_balance, collection_percentage,
-                has_monthly_tracking
-            FROM enhanced_student_transport_status
-            WHERE session_year = :session_year
+                s.id AS student_id,
+                s.admission_number,
+                CONCAT(s.first_name, ' ', s.last_name) AS student_name,
+                c.description AS class_name,
+                sy.name AS session_year,
+                e.id AS enrollment_id,
+                e.transport_type_id,
+                tt.description AS transport_type_name,
+                e.enrollment_date,
+                e.discontinue_date,
+                e.is_active AS is_enrolled,
+                e.distance_km,
+                e.monthly_fee,
+                e.pickup_location,
+                e.drop_location,
+                COALESCE(mt.total_months_tracked, 0) AS total_months_tracked,
+                COALESCE(mt.enabled_months, 0) AS enabled_months,
+                COALESCE(mt.paid_months, 0) AS paid_months,
+                COALESCE(mt.pending_months, 0) AS pending_months,
+                COALESCE(mt.overdue_months, 0) AS overdue_months,
+                COALESCE(mt.total_amount, 0.00) AS total_amount,
+                COALESCE(mt.total_paid, 0.00) AS total_paid,
+                COALESCE(mt.total_balance, 0.00) AS total_balance,
+                CASE
+                    WHEN COALESCE(mt.total_amount, 0) > 0 THEN
+                        ROUND((COALESCE(mt.total_paid, 0) / mt.total_amount * 100)::NUMERIC, 2)
+                    ELSE 0.00
+                END AS collection_percentage,
+                CASE
+                    WHEN mt.total_months_tracked > 0 THEN TRUE
+                    ELSE FALSE
+                END AS has_monthly_tracking
+            FROM students s
+            LEFT JOIN classes c ON s.class_id = c.id
+            LEFT JOIN session_years sy ON s.session_year_id = sy.id
+            LEFT JOIN student_transport_enrollment e ON s.id = e.student_id
+                AND s.session_year_id = e.session_year_id
+                AND e.is_active = TRUE
+            LEFT JOIN transport_types tt ON e.transport_type_id = tt.id
+            LEFT JOIN (
+                SELECT
+                    tmt.student_id,
+                    tmt.session_year_id,
+                    tmt.enrollment_id,
+                    COUNT(*) AS total_months_tracked,
+                    COUNT(CASE WHEN tmt.is_service_enabled = TRUE THEN 1 END) AS enabled_months,
+                    COUNT(CASE WHEN ps.name = 'PAID' AND tmt.is_service_enabled = TRUE THEN 1 END) AS paid_months,
+                    COUNT(CASE WHEN ps.name = 'PENDING' AND tmt.is_service_enabled = TRUE THEN 1 END) AS pending_months,
+                    COUNT(CASE WHEN ps.name = 'OVERDUE' AND tmt.is_service_enabled = TRUE THEN 1 END) AS overdue_months,
+                    SUM(CASE WHEN tmt.is_service_enabled = TRUE THEN tmt.monthly_amount ELSE 0 END) AS total_amount,
+                    SUM(CASE WHEN tmt.is_service_enabled = TRUE THEN tmt.paid_amount ELSE 0 END) AS total_paid,
+                    SUM(CASE WHEN tmt.is_service_enabled = TRUE THEN tmt.balance_amount ELSE 0 END) AS total_balance
+                FROM transport_monthly_tracking tmt
+                LEFT JOIN payment_statuses ps ON tmt.payment_status_id = ps.id
+                GROUP BY tmt.student_id, tmt.session_year_id, tmt.enrollment_id
+            ) mt ON s.id = mt.student_id AND s.session_year_id = mt.session_year_id
+            WHERE (s.is_deleted = FALSE OR s.is_deleted IS NULL)
+              AND sy.name = :session_year
         """
-        
+
         params = {"session_year": session_year}
-        
+
+        # Add class filter if provided - filter directly by class_id
         if class_id is not None:
-            query += " AND class_id = :class_id"
+            query += " AND s.class_id = :class_id"
             params["class_id"] = class_id
-        
+
         if is_enrolled is not None:
-            query += " AND is_enrolled = :is_enrolled"
+            query += " AND e.is_active = :is_enrolled"
             params["is_enrolled"] = is_enrolled
-        
-        query += " ORDER BY student_name"
+
+        query += " ORDER BY s.first_name, s.last_name"
         
         result = await db.execute(text(query), params)
         rows = result.fetchall()

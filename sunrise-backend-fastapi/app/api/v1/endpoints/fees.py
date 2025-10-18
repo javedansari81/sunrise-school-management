@@ -33,7 +33,7 @@ router = APIRouter()
 @router.get("", response_model=FeeListResponse)  # Handle both with and without trailing slash
 async def get_fees(
     session_year: Optional[SessionYearEnum] = SessionYearEnum.YEAR_2025_26,
-    class_name: Optional[str] = None,
+    class_id: Optional[int] = Query(None, description="Filter by class ID"),
     month: Optional[int] = Query(None, ge=1, le=12),
     status: Optional[PaymentStatusEnum] = None,
     payment_type: Optional[PaymentTypeEnum] = None,
@@ -54,7 +54,7 @@ async def get_fees(
     """
     filters = FeeFilters(
         session_year=session_year,
-        class_name=class_name,
+        class_id=class_id,
         month=month,
         status=status,
         payment_type=payment_type,

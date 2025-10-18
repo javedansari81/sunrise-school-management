@@ -192,51 +192,77 @@ class CRUDMonthlyFeeTracking(CRUDBase[MonthlyFeeTracking, MonthlyFeeTrackingCrea
         limit: int = 20,
         offset: int = 0
     ) -> List[EnhancedStudentFeeSummary]:
-        """Get enhanced student fee summary using the database view"""
+        """Get enhanced student fee summary by querying underlying tables with direct class_id filtering"""
 
-        # First get the session year name from ID
-        from app.models.metadata import SessionYear
-        session_year_result = await db.execute(
-            select(SessionYear.name).where(SessionYear.id == session_year_id)
-        )
-        session_year_name = session_year_result.scalar_one_or_none()
-
-        if not session_year_name:
-            return []  # Return empty list if session year not found
-
-        # Build the base query
+        # Build the query by joining underlying tables directly
         base_query = """
             SELECT
-                student_id, admission_number, student_name, class_name, session_year,
-                fee_record_id, annual_fee, total_paid, total_balance,
-                total_months_tracked, paid_months, pending_months, overdue_months,
-                monthly_total, monthly_paid, monthly_balance, collection_percentage,
-                has_monthly_tracking
-            FROM enhanced_student_fee_status
-            WHERE session_year = :session_year
+                s.id as student_id,
+                s.admission_number,
+                s.first_name || ' ' || s.last_name as student_name,
+                c.name as class_name,
+                sy.name as session_year,
+                fr.id as fee_record_id,
+                fr.total_amount as annual_fee,
+                fr.paid_amount as total_paid,
+                fr.balance_amount as total_balance,
+                COALESCE(monthly_stats.total_months_tracked, 0) as total_months_tracked,
+                COALESCE(monthly_stats.paid_months, 0) as paid_months,
+                COALESCE(monthly_stats.pending_months, 0) as pending_months,
+                COALESCE(monthly_stats.overdue_months, 0) as overdue_months,
+                COALESCE(monthly_stats.monthly_total, 0) as monthly_total,
+                COALESCE(monthly_stats.monthly_paid, 0) as monthly_paid,
+                COALESCE(monthly_stats.monthly_balance, 0) as monthly_balance,
+                CASE
+                    WHEN fr.total_amount > 0 THEN
+                        ROUND((fr.paid_amount * 100.0 / fr.total_amount), 2)
+                    ELSE 0
+                END as collection_percentage,
+                CASE
+                    WHEN monthly_stats.total_months_tracked > 0 THEN true
+                    ELSE false
+                END as has_monthly_tracking
+            FROM students s
+            LEFT JOIN classes c ON s.class_id = c.id
+            LEFT JOIN session_years sy ON s.session_year_id = sy.id
+            LEFT JOIN fee_records fr ON s.id = fr.student_id AND s.session_year_id = fr.session_year_id
+            LEFT JOIN (
+                SELECT
+                    mft.student_id,
+                    mft.session_year_id,
+                    COUNT(*) as total_months_tracked,
+                    COUNT(CASE WHEN ps.name = 'PAID' THEN 1 END) as paid_months,
+                    COUNT(CASE WHEN ps.name = 'PENDING' THEN 1 END) as pending_months,
+                    COUNT(CASE WHEN ps.name = 'OVERDUE' THEN 1 END) as overdue_months,
+                    SUM(mft.monthly_amount) as monthly_total,
+                    SUM(mft.paid_amount) as monthly_paid,
+                    SUM(mft.balance_amount) as monthly_balance
+                FROM monthly_fee_tracking mft
+                LEFT JOIN payment_statuses ps ON mft.payment_status_id = ps.id
+                WHERE ps.is_active = true
+                GROUP BY mft.student_id, mft.session_year_id
+            ) monthly_stats ON s.id = monthly_stats.student_id AND s.session_year_id = monthly_stats.session_year_id
+            WHERE s.is_active = true
+              AND (s.is_deleted = FALSE OR s.is_deleted IS NULL)
+              AND c.is_active = true
+              AND sy.is_active = true
+              AND s.session_year_id = :session_year_id
         """
 
-        params = {"session_year": session_year_name}
+        params = {"session_year_id": session_year_id}
 
-        # Add class filter if provided
+        # Add class filter if provided - filter directly by class_id
         if class_id:
-            # Get class name from class_id
-            from app.models.metadata import Class
-            class_result = await db.execute(
-                select(Class.description).where(Class.id == class_id)
-            )
-            class_name = class_result.scalar_one_or_none()
-            if class_name:
-                base_query += " AND class_name = :class_name"
-                params["class_name"] = class_name
+            base_query += " AND s.class_id = :class_id"
+            params["class_id"] = class_id
 
         # Add search filter if provided
         if search:
-            base_query += " AND (student_name ILIKE :search OR admission_number ILIKE :search)"
+            base_query += " AND (s.first_name || ' ' || s.last_name ILIKE :search OR s.admission_number ILIKE :search)"
             params["search"] = f"%{search}%"
 
         # Add ordering and pagination
-        base_query += " ORDER BY student_name LIMIT :limit OFFSET :offset"
+        base_query += " ORDER BY s.first_name || ' ' || s.last_name LIMIT :limit OFFSET :offset"
         params["limit"] = limit
         params["offset"] = offset
 

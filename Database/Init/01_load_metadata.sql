@@ -60,8 +60,7 @@ ON CONFLICT (id) DO UPDATE SET
 -- Classes Data (Indian Education System: Pre-Nursery to Class 12)
 -- =====================================================
 INSERT INTO classes (id, name, description, sort_order, is_active) VALUES
-(1, 'PRE_NURSERY', 'Pre-Nursery', 1, TRUE),
-(2, 'NURSERY', 'Nursery', 2, TRUE),
+(2, 'PRE_NURSERY', 'PG', 2, TRUE),
 (3, 'LKG', 'Lower Kindergarten', 3, TRUE),
 (4, 'UKG', 'Upper Kindergarten', 4, TRUE),
 (5, 'CLASS_1', 'Class 1', 5, TRUE),
@@ -71,11 +70,7 @@ INSERT INTO classes (id, name, description, sort_order, is_active) VALUES
 (9, 'CLASS_5', 'Class 5', 9, TRUE),
 (10, 'CLASS_6', 'Class 6', 10, TRUE),
 (11, 'CLASS_7', 'Class 7', 11, TRUE),
-(12, 'CLASS_8', 'Class 8', 12, TRUE),
-(13, 'CLASS_9', 'Class 9', 13, TRUE),
-(14, 'CLASS_10', 'Class 10', 14, TRUE),
-(15, 'CLASS_11', 'Class 11', 15, TRUE),
-(16, 'CLASS_12', 'Class 12', 16, TRUE)
+(12, 'CLASS_8', 'Class 8', 12, TRUE)
 ON CONFLICT (id) DO UPDATE SET
     name = EXCLUDED.name,
     description = EXCLUDED.description,

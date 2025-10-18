@@ -137,9 +137,9 @@ class CRUDLeaveRequest(CRUDBase[LeaveRequest, LeaveRequestCreate, LeaveRequestUp
             where_conditions.append("lr.end_date <= :to_date")
             params["to_date"] = filters.to_date
 
-        if filters.class_name:
-            where_conditions.append("c.name = :class_name")
-            params["class_name"] = filters.class_name
+        if filters.class_id:
+            where_conditions.append("c.id = :class_id")
+            params["class_id"] = filters.class_id
 
         if filters.department:
             where_conditions.append("d.description = :department")

@@ -154,7 +154,7 @@ class LeaveFilters(BaseModel):
     leave_status_id: Optional[int] = None
     from_date: Optional[date] = None
     to_date: Optional[date] = None
-    class_name: Optional[str] = None
+    class_id: Optional[int] = None
     department: Optional[str] = None
 
 

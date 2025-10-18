@@ -74,7 +74,7 @@ const TransportManagementSystem: React.FC = () => {
   // Filters
   const [sessionYear, setSessionYear] = useState<string>('2025-26');
   const [sessionYearId, setSessionYearId] = useState<number | null>(null);
-  const [classFilter, setClassFilter] = useState<string>('');
+  const [classFilter, setClassFilter] = useState<string | number>('all');
   const [nameSearch, setNameSearch] = useState<string>('');
 
   // Pagination
@@ -94,14 +94,20 @@ const TransportManagementSystem: React.FC = () => {
   useEffect(() => {
     if (user) {
       loadTransportConfiguration();
+    }
+  }, [user]);
+
+  // Load students when filters change
+  useEffect(() => {
+    if (user && sessionYear) {
       loadStudents();
     }
-  }, [user, sessionYear]);
+  }, [user, sessionYear, classFilter]);
 
-  // Filter students based on active tab and filters
+  // Filter students based on active tab and name search (client-side)
   useEffect(() => {
     filterStudents();
-  }, [students, activeTab, classFilter, nameSearch]);
+  }, [students, activeTab, nameSearch]);
 
   const loadTransportConfiguration = async () => {
     try {
@@ -134,9 +140,14 @@ const TransportManagementSystem: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await transportService.getStudents(
-        { session_year: sessionYear }
-      );
+      const params: any = { session_year: sessionYear };
+
+      // Add class_id filter if not 'all'
+      if (classFilter && classFilter !== 'all') {
+        params.class_id = classFilter;
+      }
+
+      const data = await transportService.getStudents(params);
       setStudents(data);
     } catch (err: any) {
       console.error('Error loading students:', err);
@@ -144,7 +155,7 @@ const TransportManagementSystem: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [sessionYear]);
+  }, [sessionYear, classFilter]);
 
   const filterStudents = useCallback(() => {
     let filtered = [...students];
@@ -158,12 +169,9 @@ const TransportManagementSystem: React.FC = () => {
       filtered = filtered.filter(s => !s.is_enrolled);
     }
 
-    // Filter by class
-    if (classFilter && classFilter !== 'ALL') {
-      filtered = filtered.filter(s => s.class_name === classFilter);
-    }
+    // Class filtering is now done server-side in loadStudents()
 
-    // Filter by name
+    // Filter by name (client-side for better UX)
     if (nameSearch) {
       const search = nameSearch.toLowerCase();
       filtered = filtered.filter(s =>
@@ -174,7 +182,7 @@ const TransportManagementSystem: React.FC = () => {
 
     setFilteredStudents(filtered);
     setPage(0); // Reset to first page when filters change
-  }, [students, activeTab, classFilter, nameSearch]);
+  }, [students, activeTab, nameSearch]);
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setActiveTab(newValue);
@@ -307,10 +315,9 @@ const TransportManagementSystem: React.FC = () => {
                 label="Class"
                 onChange={(e) => setClassFilter(e.target.value)}
               >
-                <MenuItem value="">All Classes</MenuItem>
-                <MenuItem value="ALL">ALL</MenuItem>
+                <MenuItem value="all">All Classes</MenuItem>
                 {configuration?.classes?.map((cls: any) => (
-                  <MenuItem key={cls.id} value={cls.name}>
+                  <MenuItem key={cls.id} value={cls.id}>
                     {cls.description}
                   </MenuItem>
                 ))}

@@ -25,23 +25,12 @@ BEGIN;
 -- Fee Structures for Session Year 2025-26
 -- =====================================================
 
--- PRE_NURSERY (Monthly: 600, Annual: 7200)
+-- PRE_NURSERY (Monthly: 640, Annual: 7680)
 INSERT INTO fee_structures (
     class_id, session_year_id, tuition_fee, admission_fee, development_fee, 
     activity_fee, transport_fee, library_fee, lab_fee, exam_fee, other_fee, total_annual_fee
 ) VALUES (
     (SELECT id FROM classes WHERE name = 'PRE_NURSERY' LIMIT 1),
-    (SELECT id FROM session_years WHERE name = '2025-26' LIMIT 1),
-    600.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 7200.00
-) ON CONFLICT (class_id, session_year_id) DO UPDATE SET
-    tuition_fee = EXCLUDED.tuition_fee, total_annual_fee = EXCLUDED.total_annual_fee, updated_at = NOW();
-
--- NURSERY (Monthly: 640, Annual: 7680)
-INSERT INTO fee_structures (
-    class_id, session_year_id, tuition_fee, admission_fee, development_fee, 
-    activity_fee, transport_fee, library_fee, lab_fee, exam_fee, other_fee, total_annual_fee
-) VALUES (
-    (SELECT id FROM classes WHERE name = 'NURSERY' LIMIT 1),
     (SELECT id FROM session_years WHERE name = '2025-26' LIMIT 1),
     640.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 7680.00
 ) ON CONFLICT (class_id, session_year_id) DO UPDATE SET
@@ -154,74 +143,18 @@ INSERT INTO fee_structures (
     (SELECT id FROM classes WHERE name = 'CLASS_8' LIMIT 1),
     (SELECT id FROM session_years WHERE name = '2025-26' LIMIT 1),
     1080.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 12960.00
-) ON CONFLICT (class_id, session_year_id) DO UPDATE SET
-    tuition_fee = EXCLUDED.tuition_fee, total_annual_fee = EXCLUDED.total_annual_fee, updated_at = NOW();
-
--- CLASS_9 (Monthly: 1120, Annual: 13440)
-INSERT INTO fee_structures (
-    class_id, session_year_id, tuition_fee, admission_fee, development_fee,
-    activity_fee, transport_fee, library_fee, lab_fee, exam_fee, other_fee, total_annual_fee
-) VALUES (
-    (SELECT id FROM classes WHERE name = 'CLASS_9' LIMIT 1),
-    (SELECT id FROM session_years WHERE name = '2025-26' LIMIT 1),
-    1120.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 13440.00
-) ON CONFLICT (class_id, session_year_id) DO UPDATE SET
-    tuition_fee = EXCLUDED.tuition_fee, total_annual_fee = EXCLUDED.total_annual_fee, updated_at = NOW();
-
--- CLASS_10 (Monthly: 1160, Annual: 13920)
-INSERT INTO fee_structures (
-    class_id, session_year_id, tuition_fee, admission_fee, development_fee,
-    activity_fee, transport_fee, library_fee, lab_fee, exam_fee, other_fee, total_annual_fee
-) VALUES (
-    (SELECT id FROM classes WHERE name = 'CLASS_10' LIMIT 1),
-    (SELECT id FROM session_years WHERE name = '2025-26' LIMIT 1),
-    1160.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 13920.00
-) ON CONFLICT (class_id, session_year_id) DO UPDATE SET
-    tuition_fee = EXCLUDED.tuition_fee, total_annual_fee = EXCLUDED.total_annual_fee, updated_at = NOW();
-
--- CLASS_11 (Monthly: 1200, Annual: 14400)
-INSERT INTO fee_structures (
-    class_id, session_year_id, tuition_fee, admission_fee, development_fee,
-    activity_fee, transport_fee, library_fee, lab_fee, exam_fee, other_fee, total_annual_fee
-) VALUES (
-    (SELECT id FROM classes WHERE name = 'CLASS_11' LIMIT 1),
-    (SELECT id FROM session_years WHERE name = '2025-26' LIMIT 1),
-    1200.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 14400.00
-) ON CONFLICT (class_id, session_year_id) DO UPDATE SET
-    tuition_fee = EXCLUDED.tuition_fee, total_annual_fee = EXCLUDED.total_annual_fee, updated_at = NOW();
-
--- CLASS_12 (Monthly: 1240, Annual: 14880)
-INSERT INTO fee_structures (
-    class_id, session_year_id, tuition_fee, admission_fee, development_fee,
-    activity_fee, transport_fee, library_fee, lab_fee, exam_fee, other_fee, total_annual_fee
-) VALUES (
-    (SELECT id FROM classes WHERE name = 'CLASS_12' LIMIT 1),
-    (SELECT id FROM session_years WHERE name = '2025-26' LIMIT 1),
-    1240.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 14880.00
 ) ON CONFLICT (class_id, session_year_id) DO UPDATE SET
     tuition_fee = EXCLUDED.tuition_fee, total_annual_fee = EXCLUDED.total_annual_fee, updated_at = NOW();
 
 -- =====================================================
 -- Fee Structures for Session Year 2026-27
 -- =====================================================
-
--- PRE_NURSERY (Monthly: 600, Annual: 7200)
-INSERT INTO fee_structures (
-    class_id, session_year_id, tuition_fee, admission_fee, development_fee,
-    activity_fee, transport_fee, library_fee, lab_fee, exam_fee, other_fee, total_annual_fee
-) VALUES (
-    (SELECT id FROM classes WHERE name = 'PRE_NURSERY' LIMIT 1),
-    (SELECT id FROM session_years WHERE name = '2026-27' LIMIT 1),
-    600.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 7200.00
-) ON CONFLICT (class_id, session_year_id) DO UPDATE SET
-    tuition_fee = EXCLUDED.tuition_fee, total_annual_fee = EXCLUDED.total_annual_fee, updated_at = NOW();
-
 -- NURSERY (Monthly: 640, Annual: 7680)
 INSERT INTO fee_structures (
     class_id, session_year_id, tuition_fee, admission_fee, development_fee,
     activity_fee, transport_fee, library_fee, lab_fee, exam_fee, other_fee, total_annual_fee
 ) VALUES (
-    (SELECT id FROM classes WHERE name = 'NURSERY' LIMIT 1),
+    (SELECT id FROM classes WHERE name = 'PRE_NURSERY' LIMIT 1),
     (SELECT id FROM session_years WHERE name = '2026-27' LIMIT 1),
     640.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 7680.00
 ) ON CONFLICT (class_id, session_year_id) DO UPDATE SET
@@ -336,51 +269,6 @@ INSERT INTO fee_structures (
     1080.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 12960.00
 ) ON CONFLICT (class_id, session_year_id) DO UPDATE SET
     tuition_fee = EXCLUDED.tuition_fee, total_annual_fee = EXCLUDED.total_annual_fee, updated_at = NOW();
-
--- CLASS_9 (Monthly: 1120, Annual: 13440)
-INSERT INTO fee_structures (
-    class_id, session_year_id, tuition_fee, admission_fee, development_fee,
-    activity_fee, transport_fee, library_fee, lab_fee, exam_fee, other_fee, total_annual_fee
-) VALUES (
-    (SELECT id FROM classes WHERE name = 'CLASS_9' LIMIT 1),
-    (SELECT id FROM session_years WHERE name = '2026-27' LIMIT 1),
-    1120.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 13440.00
-) ON CONFLICT (class_id, session_year_id) DO UPDATE SET
-    tuition_fee = EXCLUDED.tuition_fee, total_annual_fee = EXCLUDED.total_annual_fee, updated_at = NOW();
-
--- CLASS_10 (Monthly: 1160, Annual: 13920)
-INSERT INTO fee_structures (
-    class_id, session_year_id, tuition_fee, admission_fee, development_fee,
-    activity_fee, transport_fee, library_fee, lab_fee, exam_fee, other_fee, total_annual_fee
-) VALUES (
-    (SELECT id FROM classes WHERE name = 'CLASS_10' LIMIT 1),
-    (SELECT id FROM session_years WHERE name = '2026-27' LIMIT 1),
-    1160.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 13920.00
-) ON CONFLICT (class_id, session_year_id) DO UPDATE SET
-    tuition_fee = EXCLUDED.tuition_fee, total_annual_fee = EXCLUDED.total_annual_fee, updated_at = NOW();
-
--- CLASS_11 (Monthly: 1200, Annual: 14400)
-INSERT INTO fee_structures (
-    class_id, session_year_id, tuition_fee, admission_fee, development_fee,
-    activity_fee, transport_fee, library_fee, lab_fee, exam_fee, other_fee, total_annual_fee
-) VALUES (
-    (SELECT id FROM classes WHERE name = 'CLASS_11' LIMIT 1),
-    (SELECT id FROM session_years WHERE name = '2026-27' LIMIT 1),
-    1200.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 14400.00
-) ON CONFLICT (class_id, session_year_id) DO UPDATE SET
-    tuition_fee = EXCLUDED.tuition_fee, total_annual_fee = EXCLUDED.total_annual_fee, updated_at = NOW();
-
--- CLASS_12 (Monthly: 1240, Annual: 14880)
-INSERT INTO fee_structures (
-    class_id, session_year_id, tuition_fee, admission_fee, development_fee,
-    activity_fee, transport_fee, library_fee, lab_fee, exam_fee, other_fee, total_annual_fee
-) VALUES (
-    (SELECT id FROM classes WHERE name = 'CLASS_12' LIMIT 1),
-    (SELECT id FROM session_years WHERE name = '2026-27' LIMIT 1),
-    1240.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 14880.00
-) ON CONFLICT (class_id, session_year_id) DO UPDATE SET
-    tuition_fee = EXCLUDED.tuition_fee, total_annual_fee = EXCLUDED.total_annual_fee, updated_at = NOW();
-
 -- =====================================================
 -- Commit transaction and display summary
 -- =====================================================

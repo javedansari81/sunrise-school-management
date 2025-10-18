@@ -68,7 +68,7 @@ async def get_leave_requests(
     leave_status_id: Optional[int] = None,
     from_date: Optional[date] = None,
     to_date: Optional[date] = None,
-    class_name: Optional[str] = None,
+    class_id: Optional[int] = Query(None, description="Filter by class ID"),
     department: Optional[str] = None,
     page: int = Query(1, ge=1),
     per_page: int = Query(25, ge=1, le=100),
@@ -85,7 +85,7 @@ async def get_leave_requests(
         leave_status_id=leave_status_id,
         from_date=from_date,
         to_date=to_date,
-        class_name=class_name,
+        class_id=class_id,
         department=department
     )
 

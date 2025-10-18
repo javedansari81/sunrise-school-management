@@ -26,9 +26,9 @@ router = APIRouter()
 @router.get("/", response_model=StudentListResponse)
 @router.get("", response_model=StudentListResponse)  # Handle both with and without trailing slash
 async def get_students(
-    class_filter: Optional[str] = Query(None, description="Filter by class"),
+    class_filter: Optional[int] = Query(None, description="Filter by class ID"),
     section_filter: Optional[str] = Query(None, description="Filter by section"),
-    gender_filter: Optional[str] = Query(None, description="Filter by gender"),
+    gender_filter: Optional[int] = Query(None, description="Filter by gender ID"),
     search: Optional[str] = Query(None, description="Search by name, admission number, or parent name"),
     is_active: Optional[bool] = Query(None, description="Filter by active status (None = all, True = active only, False = inactive only)"),
     page: int = Query(1, ge=1),

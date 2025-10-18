@@ -266,9 +266,9 @@ class CRUDStudent(CRUDBase[Student, StudentCreate, StudentUpdate]):
         *,
         skip: int = 0,
         limit: int = 100,
-        class_filter: Optional[str] = None,
+        class_filter: Optional[int] = None,
         section_filter: Optional[str] = None,
-        gender_filter: Optional[str] = None,
+        gender_filter: Optional[int] = None,
         search: Optional[str] = None,
         is_active: Optional[bool] = None
     ) -> tuple[List[Student], int]:
@@ -286,20 +286,18 @@ class CRUDStudent(CRUDBase[Student, StudentCreate, StudentUpdate]):
             conditions.append(
                 (Student.is_deleted == False) | (Student.is_deleted.is_(None))
             )
-        
+
         if class_filter:
-            # Filter by class name through the class relationship
-            from app.models.metadata import Class
-            conditions.append(Student.class_ref.has(Class.name == class_filter))
+            # Filter by class ID
+            conditions.append(Student.class_id == class_filter)
 
         if section_filter:
             conditions.append(Student.section == section_filter)
 
         if gender_filter:
-            # Filter by gender name through the gender relationship
-            from app.models.metadata import Gender
-            conditions.append(Student.gender.has(Gender.name == gender_filter))
-        
+            # Filter by gender ID
+            conditions.append(Student.gender_id == gender_filter)
+
         if search:
             search_conditions = [
                 Student.first_name.ilike(f"%{search}%"),
@@ -309,18 +307,18 @@ class CRUDStudent(CRUDBase[Student, StudentCreate, StudentUpdate]):
                 Student.mother_name.ilike(f"%{search}%")
             ]
             conditions.append(or_(*search_conditions))
-        
+
         query = query.where(and_(*conditions))
-        
+
         # Get total count
         count_query = select(func.count(Student.id)).where(and_(*conditions))
         total_result = await db.execute(count_query)
         total = total_result.scalar()
-        
+
         # Get paginated results
         query = query.order_by(Student.first_name, Student.last_name).offset(skip).limit(limit)
         result = await db.execute(query)
-        
+
         return result.scalars().all(), total
 
     async def get_by_class(

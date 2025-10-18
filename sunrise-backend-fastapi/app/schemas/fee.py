@@ -320,7 +320,7 @@ class FeePayment(FeePaymentInDBBase):
 # Filter and Response Schemas
 class FeeFilters(BaseModel):
     session_year: Optional[SessionYearEnum] = None
-    class_name: Optional[str] = None
+    class_id: Optional[int] = None
     month: Optional[int] = None
     status: Optional[PaymentStatusEnum] = None
     payment_type: Optional[PaymentTypeEnum] = None

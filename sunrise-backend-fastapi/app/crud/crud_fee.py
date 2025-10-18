@@ -119,11 +119,11 @@ class CRUDFeeRecord(CRUDBase[FeeRecord, FeeRecordCreate, FeeRecordUpdate]):
         
         if filters.student_id:
             conditions.append(FeeRecord.student_id == filters.student_id)
-        
-        if filters.class_name:
-            conditions.append(Student.class_ref.has(name=filters.class_name))
-            query = query.join(Student)
-        
+
+        if filters.class_id:
+            # Filter directly by class_id in fee_records table
+            conditions.append(FeeRecord.class_id == filters.class_id)
+
         if filters.from_date:
             conditions.append(FeeRecord.due_date >= filters.from_date)
         
@@ -140,7 +140,8 @@ class CRUDFeeRecord(CRUDBase[FeeRecord, FeeRecordCreate, FeeRecordUpdate]):
                 Student.admission_number.ilike(f"%{search}%")
             )
             conditions.append(search_conditions)
-            # Join is already handled by joinedload, so we don't need to add it again
+            # Need explicit join for WHERE clause filtering
+            query = query.join(Student)
 
         if conditions:
             query = query.where(and_(*conditions))
@@ -149,7 +150,9 @@ class CRUDFeeRecord(CRUDBase[FeeRecord, FeeRecordCreate, FeeRecordUpdate]):
         sort_column = FeeRecord.due_date  # default
         if sort_by == "student_name":
             sort_column = func.concat(Student.first_name, ' ', Student.last_name)
-            # Join is already handled by joinedload
+            # Need explicit join for ORDER BY clause
+            if not search:  # Only join if not already joined for search
+                query = query.join(Student)
         elif sort_by == "amount":
             sort_column = FeeRecord.total_amount
         elif sort_by == "status":
@@ -162,6 +165,9 @@ class CRUDFeeRecord(CRUDBase[FeeRecord, FeeRecordCreate, FeeRecordUpdate]):
 
         # Get total count
         count_query = select(func.count(FeeRecord.id))
+        # Add join if search is used (needed for WHERE clause with Student fields)
+        if search:
+            count_query = count_query.join(Student)
         if conditions:
             count_query = count_query.where(and_(*conditions))
 
