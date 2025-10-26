@@ -53,8 +53,14 @@ interface TabPanelProps {
 function TabPanel(props: TabPanelProps) {
   const { children, value, index, ...other } = props;
   return (
-    <div role="tabpanel" hidden={value !== index} {...other}>
-      {value === index && <Box sx={{ p: 3 }}>{children}</Box>}
+    <div
+      role="tabpanel"
+      hidden={value !== index}
+      id={`transport-tabpanel-${index}`}
+      aria-labelledby={`transport-tab-${index}`}
+      {...other}
+    >
+      {value === index && <>{children}</>}
     </div>
   );
 }
@@ -306,81 +312,116 @@ const TransportManagementSystem: React.FC = () => {
   }
 
   return (
-    <Box sx={{ width: '100%', p: 3 }}>
+    <Box sx={{ width: '100%' }}>
       {/* Alerts */}
       {error && (
-        <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 2 }}>
+        <Alert severity="error" onClose={() => setError(null)} sx={{ mb: { xs: 2, sm: 3 } }}>
           {error}
         </Alert>
       )}
       {success && (
-        <Alert severity="success" onClose={() => setSuccess(null)} sx={{ mb: 2 }}>
+        <Alert severity="success" onClose={() => setSuccess(null)} sx={{ mb: { xs: 2, sm: 3 } }}>
           {success}
         </Alert>
       )}
 
-      {/* Filters */}
-      <Paper sx={{ p: 2, mb: 2 }}>
+      {/* Filters Section - Above Tabs */}
+      <Paper elevation={3} sx={{ p: 3, mb: 3 }}>
         <Typography variant="h6" fontWeight="bold" mb={2}>
           <FilterList sx={{ mr: 1 }} />
           Filters
         </Typography>
-        <Grid container spacing={2} alignItems="center">
-          <Grid size={{ xs: 12, sm: 3 }}>
-            <FormControl fullWidth size="small">
-              <InputLabel>Session Year</InputLabel>
-              <Select
-                value={sessionYear}
-                label="Session Year"
-                onChange={(e) => {
-                  const selectedYear = configuration?.session_years?.find((y: any) => y.name === e.target.value);
-                  setSessionYear(e.target.value);
-                  if (selectedYear) {
-                    setSessionYearId(selectedYear.id);
-                  }
-                }}
-              >
-                {configuration?.session_years?.map((year: any) => (
-                  <MenuItem key={year.id} value={year.name}>
-                    {year.description}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </Grid>
-          <Grid size={{ xs: 12, sm: 3 }}>
-            <FormControl fullWidth size="small">
-              <InputLabel>Class</InputLabel>
-              <Select
-                value={classFilter}
-                label="Class"
-                onChange={(e) => setClassFilter(e.target.value)}
-              >
-                <MenuItem value="all">All Classes</MenuItem>
-                {configuration?.classes?.map((cls: any) => (
-                  <MenuItem key={cls.id} value={cls.id}>
-                    {cls.description}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </Grid>
-          <Grid size={{ xs: 12, sm: 6 }}>
-            <TextField
-              fullWidth
-              size="small"
-              label="Search by Name or Admission Number"
-              value={nameSearch}
-              onChange={(e) => setNameSearch(e.target.value)}
-              placeholder="Enter student name or admission number"
-            />
-          </Grid>
-        </Grid>
+        <Box sx={{
+          display: 'flex',
+          gap: { xs: 1.5, sm: 2 },
+          alignItems: { xs: 'stretch', sm: 'center' },
+          flexWrap: 'wrap',
+          flexDirection: { xs: 'column', sm: 'row' }
+        }}>
+          <FormControl
+            size="small"
+            sx={{
+              flex: { xs: '1 1 100%', sm: '1 1 auto' },
+              minWidth: { xs: '100%', sm: 'auto' }
+            }}
+          >
+            <InputLabel>Session Year</InputLabel>
+            <Select
+              value={sessionYear}
+              label="Session Year"
+              onChange={(e) => {
+                const selectedYear = configuration?.session_years?.find((y: any) => y.name === e.target.value);
+                setSessionYear(e.target.value);
+                if (selectedYear) {
+                  setSessionYearId(selectedYear.id);
+                }
+              }}
+            >
+              {configuration?.session_years?.map((year: any) => (
+                <MenuItem key={year.id} value={year.name}>
+                  {year.description}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+
+          <FormControl
+            size="small"
+            sx={{
+              flex: { xs: '1 1 100%', sm: '1 1 auto' },
+              minWidth: { xs: '100%', sm: 'auto' }
+            }}
+          >
+            <InputLabel>Class</InputLabel>
+            <Select
+              value={classFilter}
+              label="Class"
+              onChange={(e) => setClassFilter(e.target.value)}
+            >
+              <MenuItem value="all">All Classes</MenuItem>
+              {configuration?.classes?.map((cls: any) => (
+                <MenuItem key={cls.id} value={cls.id}>
+                  {cls.description}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+
+          <TextField
+            size="small"
+            label="Search by Name or Admission Number"
+            placeholder="Enter student name or admission number..."
+            value={nameSearch}
+            onChange={(e) => setNameSearch(e.target.value)}
+            sx={{
+              flex: { xs: '1 1 100%', sm: '1 1 auto' },
+              minWidth: { xs: '100%', sm: 'auto' }
+            }}
+          />
+        </Box>
       </Paper>
 
-      {/* Tabs */}
-      <Paper sx={{ width: '100%' }}>
-        <Tabs value={activeTab} onChange={handleTabChange}>
+      {/* Tabs Section */}
+      <Paper sx={{ width: '100%', mb: { xs: 2, sm: 3 } }}>
+        <Tabs
+          value={activeTab}
+          onChange={handleTabChange}
+          variant="scrollable"
+          scrollButtons="auto"
+          allowScrollButtonsMobile
+          sx={{
+            '& .MuiTab-root': {
+              fontSize: { xs: '0.75rem', sm: '0.875rem' },
+              minHeight: { xs: 40, sm: 48 },
+              minWidth: { xs: 80, sm: 120 },
+              textTransform: 'none',
+              fontWeight: 500,
+            },
+            '& .Mui-selected': {
+              fontWeight: 600,
+            }
+          }}
+        >
           <Tab label="All Students" />
           <Tab label="Enrolled" />
           <Tab label="Not Enrolled" />
@@ -391,22 +432,41 @@ const TransportManagementSystem: React.FC = () => {
         {[0, 1, 2].includes(activeTab) && (
           <TabPanel value={activeTab} index={activeTab}>
             {loading ? (
-              <Box display="flex" justifyContent="center" p={3}>
+              <Box display="flex" justifyContent="center" p={{ xs: 2, sm: 4 }}>
                 <CircularProgress />
               </Box>
             ) : (
-              <>
-                <TableContainer>
-                  <Table size="small">
+              <Paper elevation={3} sx={{ p: 3 }}>
+                <TableContainer
+                  sx={{
+                    maxHeight: { xs: '60vh', sm: '70vh' },
+                    overflow: 'auto'
+                  }}
+                >
+                  <Table
+                    stickyHeader
+                    sx={{
+                      '& .MuiTableCell-root': {
+                        fontSize: '0.875rem',
+                        padding: '12px 16px',
+                        borderBottom: '1px solid rgba(224, 224, 224, 1)'
+                      },
+                      '& .MuiTableHead-root .MuiTableCell-root': {
+                        backgroundColor: 'grey.50',
+                        fontWeight: 600,
+                        fontSize: '0.875rem'
+                      }
+                    }}
+                  >
                     <TableHead>
                       <TableRow>
                         <TableCell>Admission No</TableCell>
                         <TableCell>Student Name</TableCell>
-                        <TableCell>Class</TableCell>
+                        <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>Class</TableCell>
                         <TableCell>Status</TableCell>
-                        <TableCell>Transport Type</TableCell>
-                        <TableCell>Monthly Fee</TableCell>
-                        <TableCell>Distance (KM)</TableCell>
+                        <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>Transport Type</TableCell>
+                        <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>Monthly Fee</TableCell>
+                        <TableCell sx={{ display: { xs: 'none', lg: 'table-cell' } }}>Distance (KM)</TableCell>
                         <TableCell align="right">Balance</TableCell>
                         <TableCell align="center">Actions</TableCell>
                       </TableRow>
@@ -416,11 +476,11 @@ const TransportManagementSystem: React.FC = () => {
                         <TableRow key={student.student_id} hover>
                           <TableCell>{student.admission_number}</TableCell>
                           <TableCell>{student.student_name}</TableCell>
-                          <TableCell>{student.class_name}</TableCell>
+                          <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>{student.class_name}</TableCell>
                           <TableCell>{getStatusChip(student)}</TableCell>
-                          <TableCell>{student.transport_type_name || '-'}</TableCell>
-                          <TableCell>₹{student.monthly_fee ? Number(student.monthly_fee).toFixed(2) : '-'}</TableCell>
-                          <TableCell>{student.distance_km || '-'}</TableCell>
+                          <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>{student.transport_type_name || '-'}</TableCell>
+                          <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>₹{student.monthly_fee ? Number(student.monthly_fee).toFixed(2) : '-'}</TableCell>
+                          <TableCell sx={{ display: { xs: 'none', lg: 'table-cell' } }}>{student.distance_km || '-'}</TableCell>
                           <TableCell align="right">
                             {student.is_enrolled ? `₹${Number(student.total_balance || 0).toFixed(2)}` : '-'}
                           </TableCell>
@@ -468,7 +528,7 @@ const TransportManagementSystem: React.FC = () => {
                   onPageChange={handleChangePage}
                   onRowsPerPageChange={handleChangeRowsPerPage}
                 />
-              </>
+              </Paper>
             )}
           </TabPanel>
         )}
@@ -476,11 +536,12 @@ const TransportManagementSystem: React.FC = () => {
         {/* Statistics Tab */}
         <TabPanel value={activeTab} index={3}>
           {loading ? (
-            <Box display="flex" justifyContent="center" p={3}>
+            <Box display="flex" justifyContent="center" p={{ xs: 2, sm: 4 }}>
               <CircularProgress />
             </Box>
           ) : (
-            <Box>
+            <Paper elevation={3} sx={{ p: 3 }}>
+              <Box>
               <Typography variant="h6" gutterBottom>
                 Transport Statistics - {sessionYear}
               </Typography>
@@ -708,7 +769,8 @@ const TransportManagementSystem: React.FC = () => {
                   </Paper>
                 </Grid>
               </Grid>
-            </Box>
+              </Box>
+            </Paper>
           )}
         </TabPanel>
       </Paper>

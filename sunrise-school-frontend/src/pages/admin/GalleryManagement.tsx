@@ -39,7 +39,6 @@ import {
 import { DEFAULT_PAGE_SIZE } from '../../config/pagination';
 import AdminLayout from '../../components/Layout/AdminLayout';
 import {
-  Add,
   Edit,
   Delete,
   Visibility,
@@ -413,41 +412,17 @@ const GalleryManagement: React.FC = () => {
 
   return (
     <AdminLayout>
-      <Box sx={{ p: 3 }}>
+      <Box sx={{ p: { xs: 1, sm: 2, md: 3 } }}>
         <ServiceConfigurationLoader service="gallery-management">
           {/* Filters Section - Above Tabs */}
           <Paper elevation={3} sx={{ p: 3, mb: 3 }}>
-            {/* Header with Filters Label and Upload Button */}
-            <Box sx={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              mb: 2,
-              flexWrap: 'wrap',
-              gap: 2
-            }}>
-              {/* Filters Label */}
-              <Typography variant="h6" fontWeight="bold" sx={{ display: 'flex', alignItems: 'center' }}>
-                <FilterList sx={{ mr: 1 }} />
-                Filters
-              </Typography>
+            {/* Filters Label */}
+            <Typography variant="h6" fontWeight="bold" sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+              <FilterList sx={{ mr: 1 }} />
+              Filters
+            </Typography>
 
-              {/* Upload Image Button - Right Side */}
-              <Button
-                variant="contained"
-                startIcon={<CloudUpload />}
-                onClick={() => handleOpenDialog()}
-                sx={{
-                  fontSize: { xs: '0.875rem', sm: '1rem' },
-                  padding: { xs: '6px 12px', sm: '8px 16px' },
-                  whiteSpace: 'nowrap'
-                }}
-              >
-                Upload New Image
-              </Button>
-            </Box>
-
-            {/* Filter Controls */}
+            {/* Filter Controls and Upload Button */}
             <Box sx={{
               display: 'flex',
               gap: { xs: 1.5, sm: 2 },
@@ -513,24 +488,43 @@ const GalleryManagement: React.FC = () => {
                   startAdornment: <Search sx={{ mr: 1, color: 'text.secondary' }} />,
                 }}
               />
+
+              {/* Upload Image Button */}
+              <Button
+                variant="contained"
+                startIcon={<CloudUpload />}
+                onClick={() => handleOpenDialog()}
+                sx={{
+                  fontSize: { xs: '0.875rem', sm: '1rem' },
+                  padding: { xs: '6px 12px', sm: '8px 16px' },
+                  whiteSpace: 'nowrap',
+                  flex: { xs: '1 1 100%', sm: '0 0 auto' }
+                }}
+              >
+                Upload New Image
+              </Button>
             </Box>
           </Paper>
 
-          {/* Tabs */}
-          <Paper sx={{ width: '100%' }}>
+          {/* Tabs Section */}
+          <Paper sx={{ width: '100%', mb: { xs: 2, sm: 3 } }}>
             <Tabs
               value={activeTab}
               onChange={handleTabChange}
+              aria-label="gallery management tabs"
               variant="scrollable"
               scrollButtons="auto"
+              allowScrollButtonsMobile
               sx={{
-                borderBottom: 1,
-                borderColor: 'divider',
                 '& .MuiTab-root': {
+                  fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                  minHeight: { xs: 40, sm: 48 },
+                  minWidth: { xs: 80, sm: 120 },
                   textTransform: 'none',
                   fontWeight: 500,
-                  fontSize: { xs: '0.875rem', sm: '1rem' },
-                  minHeight: { xs: 48, sm: 56 },
+                },
+                '& .Mui-selected': {
+                  fontWeight: 600,
                 }
               }}
             >
@@ -550,15 +544,17 @@ const GalleryManagement: React.FC = () => {
                 iconPosition="start"
               />
             </Tabs>
+          </Paper>
 
-            {/* All Images Tab */}
-            <TabPanel value={activeTab} index={0}>
-              <Box sx={{ p: 3 }}>
-                {loading ? (
-                  <Box display="flex" justifyContent="center" p={4}>
-                    <CircularProgress />
-                  </Box>
-                ) : (
+          {/* All Images Tab */}
+          <TabPanel value={activeTab} index={0}>
+            {loading ? (
+              <Box display="flex" justifyContent="center" p={{ xs: 2, sm: 4 }}>
+                <CircularProgress />
+              </Box>
+            ) : (
+              <Paper elevation={3} sx={{ p: 3 }}>
+                <Box>
                   <>
                     <TableContainer>
                       <Table>
@@ -680,20 +676,20 @@ const GalleryManagement: React.FC = () => {
                       </Box>
                     )}
                   </>
-                )}
-              </Box>
-            </TabPanel>
+                </Box>
+              </Paper>
+            )}
+          </TabPanel>
 
-            {/* Home Page Featured Tab */}
-            <TabPanel value={activeTab} index={1}>
-              <Box sx={{ p: 3 }}>
-                {loading ? (
-                  <Box display="flex" justifyContent="center" p={4}>
-                    <CircularProgress />
-                  </Box>
-                ) : (
-                  <>
-                    <TableContainer>
+          {/* Home Page Featured Tab */}
+          <TabPanel value={activeTab} index={1}>
+            {loading ? (
+              <Box display="flex" justifyContent="center" p={{ xs: 2, sm: 4 }}>
+                <CircularProgress />
+              </Box>
+            ) : (
+              <Paper elevation={3} sx={{ p: 3 }}>
+                <TableContainer>
                       <Table>
                         <TableHead>
                           <TableRow>
@@ -775,52 +771,50 @@ const GalleryManagement: React.FC = () => {
                         </TableBody>
                       </Table>
                     </TableContainer>
-                  </>
-                )}
-              </Box>
-            </TabPanel>
+              </Paper>
+            )}
+          </TabPanel>
 
-            {/* Statistics Tab */}
-            <TabPanel value={activeTab} index={2}>
-              <Box sx={{ p: 3 }}>
-                {/* Statistics Cards */}
-                <Grid container spacing={3}>
-                  {imageStats.map((stat, index) => (
-                    <Grid key={index} size={{ xs: 12, sm: 6, md: 3 }}>
-                      <Card elevation={3}>
-                        <CardContent>
-                          <Box display="flex" alignItems="center" justifyContent="space-between">
-                            <Box>
-                              <Typography variant="h5" fontWeight="bold" color={`${stat.color}.main`}>
-                                {stat.value}
-                              </Typography>
-                              <Typography variant="body2" color="text.secondary">
-                                {stat.title}
-                              </Typography>
-                            </Box>
-                            <Box
-                              sx={{
-                                backgroundColor: `${stat.color}.light`,
-                                borderRadius: '50%',
-                                p: 1.5,
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                              }}
-                            >
-                              {React.cloneElement(stat.icon, {
-                                sx: { fontSize: 32, color: `${stat.color}.main` }
-                              })}
-                            </Box>
+          {/* Statistics Tab */}
+          <TabPanel value={activeTab} index={2}>
+            <Paper elevation={3} sx={{ p: 3 }}>
+              {/* Statistics Cards */}
+              <Grid container spacing={3}>
+                {imageStats.map((stat, index) => (
+                  <Grid key={index} size={{ xs: 12, sm: 6, md: 3 }}>
+                    <Card elevation={3}>
+                      <CardContent>
+                        <Box display="flex" alignItems="center" justifyContent="space-between">
+                          <Box>
+                            <Typography variant="h5" fontWeight="bold" color={`${stat.color}.main`}>
+                              {stat.value}
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary">
+                              {stat.title}
+                            </Typography>
                           </Box>
-                        </CardContent>
-                      </Card>
-                    </Grid>
-                  ))}
-                </Grid>
-              </Box>
-            </TabPanel>
-          </Paper>
+                          <Box
+                            sx={{
+                              backgroundColor: `${stat.color}.light`,
+                              borderRadius: '50%',
+                              p: 1.5,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                            }}
+                          >
+                            {React.cloneElement(stat.icon, {
+                              sx: { fontSize: 32, color: `${stat.color}.main` }
+                            })}
+                          </Box>
+                        </Box>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                ))}
+              </Grid>
+            </Paper>
+          </TabPanel>
 
           {/* Upload/Edit Image Dialog */}
           <Dialog
