@@ -115,6 +115,11 @@ ACCESS_TOKEN_EXPIRE_MINUTES=11520
 ENVIRONMENT=production
 BACKEND_CORS_ORIGINS=https://your-frontend-url.onrender.com
 
+# Cloudinary Configuration (Required for Gallery Management)
+CLOUDINARY_CLOUD_NAME=your-cloud-name
+CLOUDINARY_API_KEY=your-api-key
+CLOUDINARY_API_SECRET=your-api-secret
+
 # Optional: Logging Configuration
 LOG_LEVEL=INFO
 ```
@@ -269,6 +274,22 @@ GET    /api/v1/expenses/categories   # Get expense categories
 ### **Public Endpoints (No Authentication)**
 ```bash
 GET /api/v1/public/faculty           # Get active teachers for public display
+GET /api/v1/public/gallery           # Get gallery images grouped by category
+GET /api/v1/public/gallery/home-page # Get featured images for home page carousel
+```
+
+### **Gallery Management (Admin Only)**
+```bash
+GET    /api/v1/gallery/categories    # List gallery categories
+POST   /api/v1/gallery/categories    # Create new category
+PUT    /api/v1/gallery/categories/{id} # Update category
+DELETE /api/v1/gallery/categories/{id} # Delete category
+
+GET    /api/v1/gallery/images        # List gallery images
+POST   /api/v1/gallery/images/upload # Upload image to Cloudinary
+GET    /api/v1/gallery/images/{id}   # Get image details
+PUT    /api/v1/gallery/images/{id}   # Update image metadata
+DELETE /api/v1/gallery/images/{id}   # Delete image (from DB and Cloudinary)
 ```
 
 ---
@@ -511,11 +532,12 @@ GET /api/v1/students/    # Database connectivity
 - [ ] CORS origins set correctly
 - [ ] SSL certificates configured
 - [ ] Monitoring setup planned
+- [ ] Cloudinary account created (for Gallery)
 
 ### **Deployment**
 - [ ] Repository connected to Render
 - [ ] Build and start commands configured
-- [ ] Environment variables set
+- [ ] Environment variables set (including Cloudinary)
 - [ ] Service deployed successfully
 - [ ] Health checks passing
 
@@ -525,6 +547,16 @@ GET /api/v1/students/    # Database connectivity
 - [ ] Database connectivity verified
 - [ ] All endpoints responding
 - [ ] Frontend integration tested
+
+### **Gallery Management System**
+- [ ] Gallery database tables created (gallery_categories, gallery_images)
+- [ ] Initial 10 categories loaded
+- [ ] Cloudinary environment variables configured
+- [ ] Gallery endpoints tested (public and admin)
+- [ ] Image upload functionality verified
+- [ ] Home page carousel endpoint tested
+- [ ] Initial images uploaded (5-10 per category)
+- [ ] Home page carousel configured (3-5 featured images)
 
 ---
 
@@ -1009,6 +1041,407 @@ HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
 
 # Start application
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+```
+
+---
+
+## 📸 **Gallery Management System Deployment**
+
+### **Overview**
+The Gallery Management System allows uploading and managing ~200 school photos across different categories (Independence Day, School Premises, Sports Day, etc.) with Cloudinary integration for cloud storage.
+
+---
+
+### **Step 1: Database Migration**
+
+**Tables to Create:**
+1. `gallery_categories` - Stores gallery categories (10 initial categories)
+2. `gallery_images` - Stores image metadata (actual images in Cloudinary)
+
+**Migration Scripts Location:**
+```bash
+Database/Tables/T700_gallery_categories.sql
+Database/Tables/T710_gallery_images.sql
+Database/DataLoads/DL701_gallery_categories.sql
+```
+
+**Execute Migration (Production Database):**
+
+**Option A: Automated Script (Windows)**
+```powershell
+# Create a PowerShell script: deploy_gallery_production.ps1
+$DB_URL = "postgresql://sunrise_admin:password@host/database"
+
+# Run migrations
+& psql $DB_URL -f Database/Tables/T700_gallery_categories.sql
+& psql $DB_URL -f Database/Tables/T710_gallery_images.sql
+& psql $DB_URL -f Database/DataLoads/DL701_gallery_categories.sql
+```
+
+**Option B: Manual Commands**
+```bash
+# Set your production database connection string
+DB_URL="postgresql://sunrise_admin:password@dpg-xxx.singapore-postgres.render.com/sunrise_school_db"
+
+# Create gallery_categories table
+psql "$DB_URL" -f Database/Tables/T700_gallery_categories.sql
+
+# Create gallery_images table
+psql "$DB_URL" -f Database/Tables/T710_gallery_images.sql
+
+# Load initial 10 categories
+psql "$DB_URL" -f Database/DataLoads/DL701_gallery_categories.sql
+```
+
+**Verify Migration:**
+```sql
+-- Connect to database
+psql "$DB_URL"
+
+-- Check tables exist
+\dt gallery*
+
+-- Check categories loaded
+SELECT COUNT(*) FROM gallery_categories;
+-- Expected: 10
+
+-- View categories
+SELECT id, name, display_order FROM gallery_categories ORDER BY display_order;
+```
+
+---
+
+### **Step 2: Cloudinary Configuration**
+
+**Sign up for Cloudinary:**
+1. Visit: https://cloudinary.com/
+2. Create free account (25 GB storage, 25 GB bandwidth/month)
+3. Note your credentials from dashboard
+
+**Add Environment Variables to Render.com:**
+
+Navigate to: Render Dashboard → Your Backend Service → Environment
+
+Add these 3 variables:
+```bash
+CLOUDINARY_CLOUD_NAME=your-cloud-name
+CLOUDINARY_API_KEY=your-api-key
+CLOUDINARY_API_SECRET=your-api-secret
+```
+
+**Example (Production Values):**
+```bash
+CLOUDINARY_CLOUD_NAME=dqfxyrvti
+CLOUDINARY_API_KEY=923627892216717
+CLOUDINARY_API_SECRET=WLjFTK1ARsx3idcJGSU7DxuimII
+```
+
+**⚠️ Important:** Keep these credentials secure! Do not commit to Git.
+
+---
+
+### **Step 3: Backend Code Verification**
+
+**Verify Dependencies:**
+```bash
+# Check requirements.txt includes:
+cloudinary==1.41.0
+```
+
+**Verify Cloudinary Configuration:**
+```python
+# app/core/cloudinary_config.py should exist
+# Initializes Cloudinary SDK with credentials from environment variables
+```
+
+**Verify Gallery Endpoints:**
+```python
+# app/api/v1/endpoints/gallery.py should include:
+# - GET /categories
+# - POST /images/upload
+# - PUT /images/{id}
+# - DELETE /images/{id}
+```
+
+**Verify Public Endpoints:**
+```python
+# app/api/v1/endpoints/public.py should include:
+# - GET /public/gallery
+# - GET /public/gallery/home-page
+```
+
+---
+
+### **Step 4: Deploy Backend**
+
+**Trigger Deployment:**
+1. Push code to Git repository
+2. Render.com auto-deploys (or click "Manual Deploy")
+3. Monitor deployment logs
+4. Wait for completion (~3-5 minutes)
+
+**Verify Deployment:**
+```bash
+# Test health endpoint
+curl https://your-backend-url.onrender.com/
+
+# Test gallery categories endpoint
+curl https://your-backend-url.onrender.com/api/v1/gallery/categories
+
+# Expected: Array of 10 categories
+```
+
+---
+
+### **Step 5: Test Gallery Functionality**
+
+**Test Public Endpoints (No Authentication):**
+```bash
+# Get public gallery (grouped by category)
+curl https://your-backend-url.onrender.com/api/v1/public/gallery
+
+# Get home page carousel images
+curl https://your-backend-url.onrender.com/api/v1/public/gallery/home-page
+# Expected: Empty array [] (no images marked for home page yet)
+```
+
+**Test Admin Endpoints (With Authentication):**
+```bash
+# 1. Login as admin
+curl -X POST "https://your-backend-url.onrender.com/api/v1/auth/login" \
+  -H "Content-Type: application/json" \
+  -d '{"email":"admin@sunrise.com","password":"admin123"}'
+
+# Save the access_token from response
+
+# 2. Upload test image (use Swagger UI for easier testing)
+# Visit: https://your-backend-url.onrender.com/docs
+# Navigate to: POST /api/v1/gallery/images/upload
+# Click "Authorize" and enter token
+# Upload a test image with metadata
+
+# 3. Verify image uploaded
+curl -H "Authorization: Bearer YOUR_TOKEN" \
+  https://your-backend-url.onrender.com/api/v1/gallery/images
+```
+
+---
+
+### **Step 6: Gallery Database Schema**
+
+**gallery_categories Table:**
+```sql
+CREATE TABLE gallery_categories (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL UNIQUE,
+    description TEXT,
+    icon VARCHAR(50),                    -- Material-UI icon name
+    display_order INTEGER DEFAULT 0,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE
+);
+```
+
+**Initial Categories (10):**
+1. Independence Day
+2. School Premises
+3. First Day of School
+4. Sports Day
+5. Annual Function
+6. Republic Day
+7. Science Exhibition
+8. Cultural Events
+9. Classroom Activities
+10. Teachers Day
+
+**gallery_images Table:**
+```sql
+CREATE TABLE gallery_images (
+    id SERIAL PRIMARY KEY,
+    category_id INTEGER NOT NULL REFERENCES gallery_categories(id) ON DELETE CASCADE,
+    title VARCHAR(200) NOT NULL,
+    description TEXT,
+    cloudinary_public_id VARCHAR(255) NOT NULL UNIQUE,
+    cloudinary_url TEXT NOT NULL,
+    cloudinary_thumbnail_url TEXT,
+    upload_date TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    uploaded_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    display_order INTEGER DEFAULT 0,
+    is_active BOOLEAN DEFAULT TRUE,
+    is_visible_on_home_page BOOLEAN DEFAULT FALSE,  -- For home page carousel
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE
+);
+```
+
+**Indexes Created:**
+- `idx_gallery_categories_active` - Fast filtering by active status
+- `idx_gallery_categories_display_order` - Ordered category display
+- `idx_gallery_images_category` - Fast category-based queries
+- `idx_gallery_images_active` - Fast filtering by active status
+- `idx_gallery_images_home_page` - Fast home page queries
+- `idx_gallery_images_display_order` - Ordered image display
+- `idx_gallery_images_upload_date` - Chronological sorting
+- `idx_gallery_images_home_page_active` - Composite index for home carousel
+
+---
+
+### **Step 7: Cloudinary Integration Details**
+
+**Upload Configuration:**
+```python
+# Backend automatically configures:
+# - Folder: gallery/
+# - Quality: auto (optimized for web)
+# - Format: auto (WebP/AVIF for modern browsers)
+# - Thumbnail: 400x300px, crop-fill, auto-quality
+```
+
+**Image Transformations:**
+```python
+# Original image URL:
+https://res.cloudinary.com/dqfxyrvti/image/upload/v1234567890/gallery/image.jpg
+
+# Thumbnail URL (auto-generated):
+https://res.cloudinary.com/dqfxyrvti/image/upload/w_400,h_300,c_fill,q_auto,f_auto/v1234567890/gallery/image.jpg
+```
+
+**Storage Limits (Free Tier):**
+- Storage: 25 GB
+- Bandwidth: 25 GB/month
+- Transformations: 25,000/month
+- Estimated capacity: ~200-300 high-quality images
+
+---
+
+### **Step 8: Gallery API Endpoints Reference**
+
+**Public Endpoints (No Auth Required):**
+
+**GET /api/v1/public/gallery**
+- Returns: Gallery images grouped by category
+- Use case: Public gallery page
+- Response: Array of categories with images
+
+**GET /api/v1/public/gallery/home-page**
+- Returns: Featured images for home page carousel
+- Filter: `is_visible_on_home_page = true`
+- Limit: Default 10 images
+- Order: `display_order ASC`, `upload_date DESC`
+
+**Admin Endpoints (Auth Required):**
+
+**GET /api/v1/gallery/categories**
+- Returns: All gallery categories
+- Filters: `is_active` (optional)
+
+**POST /api/v1/gallery/images/upload**
+- Uploads image to Cloudinary
+- Saves metadata to database
+- Required fields:
+  - `file`: Image file (multipart/form-data)
+  - `category_id`: Category ID
+  - `title`: Image title
+- Optional fields:
+  - `description`: Image description
+  - `display_order`: Display order (default: 0)
+  - `is_visible_on_home_page`: Show on home page (default: false)
+
+**PUT /api/v1/gallery/images/{id}**
+- Updates image metadata
+- Validates duplicate display_order within same category
+- Cannot update: `cloudinary_public_id`, `cloudinary_url`
+
+**DELETE /api/v1/gallery/images/{id}**
+- Deletes image from Cloudinary
+- Deletes metadata from database
+- Cascade: Removes from home page carousel if marked
+
+---
+
+### **Step 9: Troubleshooting Gallery Issues**
+
+**Issue: Upload Fails**
+```bash
+# Check Cloudinary credentials
+echo $CLOUDINARY_CLOUD_NAME
+echo $CLOUDINARY_API_KEY
+echo $CLOUDINARY_API_SECRET
+
+# Verify credentials in Render dashboard
+# Ensure no trailing spaces in values
+```
+
+**Issue: Images Not Displaying**
+```sql
+-- Check if images are active
+SELECT id, title, is_active FROM gallery_images WHERE is_active = FALSE;
+
+-- Activate images if needed
+UPDATE gallery_images SET is_active = TRUE WHERE id = <image_id>;
+```
+
+**Issue: Home Page Carousel Empty**
+```sql
+-- Check if any images marked for home page
+SELECT id, title, is_visible_on_home_page
+FROM gallery_images
+WHERE is_visible_on_home_page = TRUE;
+
+-- Mark images for home page if needed
+UPDATE gallery_images
+SET is_visible_on_home_page = TRUE
+WHERE id IN (1, 2, 3, 4, 5);
+```
+
+**Issue: Duplicate Display Order Error**
+```sql
+-- Check for duplicate display orders in same category
+SELECT category_id, display_order, COUNT(*)
+FROM gallery_images
+GROUP BY category_id, display_order
+HAVING COUNT(*) > 1;
+
+-- Fix duplicates by updating display orders
+UPDATE gallery_images SET display_order = <new_order> WHERE id = <image_id>;
+```
+
+---
+
+### **Step 10: Post-Deployment Gallery Tasks**
+
+**1. Upload Initial Images:**
+- Login as admin
+- Navigate to Gallery Management
+- Upload 5-10 images per category
+- Set appropriate display orders
+- Mark 3-5 best images for home page
+
+**2. Configure Home Page Carousel:**
+- Select high-quality images
+- Mix different categories for variety
+- Use landscape orientation (16:9 or 4:3)
+- Set display orders: 1, 2, 3, 4, 5...
+- Test carousel on mobile and desktop
+
+**3. Monitor Cloudinary Usage:**
+- Check storage usage monthly
+- Monitor bandwidth consumption
+- Optimize images if approaching limits
+- Consider upgrading plan if needed
+
+**4. Backup Strategy:**
+```bash
+# Backup gallery tables
+pg_dump -U sunrise_admin \
+  -h dpg-xxx.singapore-postgres.render.com \
+  -d sunrise_school_db \
+  -t gallery_categories -t gallery_images \
+  > gallery_backup_$(date +%Y%m%d).sql
+
+# Download important images from Cloudinary as backup
+# Use Cloudinary dashboard or API
 ```
 
 ---

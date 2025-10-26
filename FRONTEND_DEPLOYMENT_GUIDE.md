@@ -215,6 +215,7 @@ Routes:
   /admin/expenses    - Expense tracking and approval
   /admin/students    - Student profile management
   /admin/teachers    - Teacher profile management
+  /admin/gallery     - Gallery management (upload, edit, delete images)
 
 Features:
   - Top-level navigation tabs
@@ -222,6 +223,8 @@ Features:
   - Bulk operations support
   - Comprehensive reporting
   - System configuration access
+  - Image upload to Cloudinary
+  - Gallery category management
 ```
 
 #### **Teacher Dashboard (TEACHER role)**
@@ -636,6 +639,374 @@ class ErrorBoundary extends Component {
 
 ---
 
+## 📸 **Gallery Management System (Frontend)**
+
+### **Overview**
+The Gallery Management System provides a public gallery page and admin interface for managing ~200 school photos across 10 categories with Cloudinary integration.
+
+---
+
+### **Public Gallery Features**
+
+#### **1. Public Gallery Page (`/gallery`)**
+- **Location**: `sunrise-school-frontend/src/pages/Gallery.tsx`
+- **Features**:
+  - Scrollable category tabs with "More" menu
+  - Responsive image grid (masonry layout)
+  - Lightbox for full-size image viewing
+  - Mobile-optimized touch interactions
+  - No authentication required
+
+**Key Components:**
+```typescript
+// Category tabs with scrollable interface
+<Tabs variant="scrollable" scrollButtons="auto">
+  {categories.map(category => (
+    <Tab label={category.name} icon={<Icon />} />
+  ))}
+  <Tab label="More" onClick={handleMoreMenu} />
+</Tabs>
+
+// Responsive image grid
+<ImageList variant="masonry" cols={columns} gap={8}>
+  {images.map(image => (
+    <ImageListItem onClick={() => openLightbox(image)}>
+      <img src={image.cloudinary_thumbnail_url} alt={image.title} />
+    </ImageListItem>
+  ))}
+</ImageList>
+```
+
+#### **2. Home Page Carousel (`/`)**
+- **Location**: `sunrise-school-frontend/src/components/Home/ImageSlider.tsx`
+- **Features**:
+  - Dynamic image carousel from gallery
+  - Fetches images marked as `is_visible_on_home_page = true`
+  - Auto-play with navigation controls
+  - Responsive design (mobile/tablet/desktop)
+  - Fallback welcome message if no images
+
+**Key Implementation:**
+```typescript
+// Fetch home page images
+useEffect(() => {
+  const fetchImages = async () => {
+    try {
+      const response = await galleryAPI.getHomePageImages(10);
+      setImages(response.data);
+    } catch (error) {
+      console.error('Error fetching home page images:', error);
+    }
+  };
+  fetchImages();
+}, []);
+
+// Carousel settings
+const settings = {
+  dots: true,
+  infinite: true,
+  speed: 500,
+  slidesToShow: 1,
+  slidesToScroll: 1,
+  autoplay: true,
+  autoplaySpeed: 5000,
+  arrows: true
+};
+```
+
+---
+
+### **Admin Gallery Management**
+
+#### **Admin Gallery Interface (`/admin/gallery`)**
+- **Location**: `sunrise-school-frontend/src/pages/admin/GalleryManagement.tsx`
+- **Authentication**: Admin role required
+- **Features**:
+  - Upload images to Cloudinary
+  - Edit image metadata (title, description, display order)
+  - Mark images for home page carousel
+  - Delete images (removes from Cloudinary and database)
+  - Category filtering
+  - Drag-and-drop upload support
+
+**Key Features:**
+
+**1. Image Upload Dialog**
+```typescript
+// Upload form with Cloudinary integration
+<Dialog open={uploadDialogOpen}>
+  <DialogTitle>Upload Image</DialogTitle>
+  <DialogContent>
+    <input
+      type="file"
+      accept="image/*"
+      onChange={handleFileSelect}
+    />
+    <TextField label="Title" required />
+    <TextField label="Description" multiline />
+    <Select label="Category" required>
+      {categories.map(cat => (
+        <MenuItem value={cat.id}>{cat.name}</MenuItem>
+      ))}
+    </Select>
+    <TextField label="Display Order" type="number" />
+    <FormControlLabel
+      control={<Checkbox />}
+      label="Show on Home Page"
+    />
+  </DialogContent>
+  <DialogActions>
+    <Button onClick={handleUpload}>Upload</Button>
+  </DialogActions>
+</Dialog>
+```
+
+**2. Image Grid with Actions**
+```typescript
+// Admin image grid with edit/delete actions
+<ImageList cols={4} gap={16}>
+  {images.map(image => (
+    <ImageListItem key={image.id}>
+      <img src={image.cloudinary_thumbnail_url} alt={image.title} />
+      <ImageListItemBar
+        title={image.title}
+        subtitle={`Order: ${image.display_order}`}
+        actionIcon={
+          <>
+            <IconButton onClick={() => handleEdit(image)}>
+              <EditIcon />
+            </IconButton>
+            <IconButton onClick={() => handleDelete(image)}>
+              <DeleteIcon />
+            </IconButton>
+          </>
+        }
+      />
+      {image.is_visible_on_home_page && (
+        <Chip label="Home Page" color="primary" size="small" />
+      )}
+    </ImageListItem>
+  ))}
+</ImageList>
+```
+
+**3. Edit Image Metadata**
+```typescript
+// Edit dialog for updating image metadata
+<Dialog open={editDialogOpen}>
+  <DialogTitle>Edit Image</DialogTitle>
+  <DialogContent>
+    <TextField
+      label="Title"
+      value={editImage.title}
+      onChange={(e) => setEditImage({...editImage, title: e.target.value})}
+    />
+    <TextField
+      label="Description"
+      value={editImage.description}
+      multiline
+      rows={3}
+    />
+    <TextField
+      label="Display Order"
+      type="number"
+      value={editImage.display_order}
+    />
+    <FormControlLabel
+      control={
+        <Checkbox
+          checked={editImage.is_visible_on_home_page}
+          onChange={(e) => setEditImage({
+            ...editImage,
+            is_visible_on_home_page: e.target.checked
+          })}
+        />
+      }
+      label="Show on Home Page"
+    />
+  </DialogContent>
+  <DialogActions>
+    <Button onClick={handleSaveEdit}>Save Changes</Button>
+  </DialogActions>
+</Dialog>
+```
+
+---
+
+### **Gallery Service Configuration**
+
+**Service File**: `sunrise-school-frontend/src/services/galleryService.ts`
+
+**Public API Endpoints (No Auth):**
+```typescript
+export const galleryAPI = {
+  // Get gallery images grouped by category
+  getPublicGalleryGrouped: (limitCategories?: number) =>
+    publicApi.get<PublicGalleryCategory[]>('/public/gallery', {
+      params: limitCategories ? { limit_categories: limitCategories } : undefined
+    }),
+
+  // Get home page featured images
+  getHomePageImages: (limit: number = 10) =>
+    publicApi.get<PublicGalleryImage[]>('/public/gallery/home-page', {
+      params: { limit }
+    }),
+};
+```
+
+**Admin API Endpoints (Auth Required):**
+```typescript
+export const adminGalleryAPI = {
+  // Upload image to Cloudinary
+  uploadImage: (formData: FormData) =>
+    adminApi.post('/gallery/images/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    }),
+
+  // Update image metadata
+  updateImage: (id: number, data: Partial<GalleryImage>) =>
+    adminApi.put(`/gallery/images/${id}`, data),
+
+  // Delete image
+  deleteImage: (id: number) =>
+    adminApi.delete(`/gallery/images/${id}`),
+};
+```
+
+---
+
+### **Frontend Deployment Steps for Gallery**
+
+#### **Step 1: Verify Gallery Components**
+```bash
+# Check gallery files exist
+ls sunrise-school-frontend/src/pages/Gallery.tsx
+ls sunrise-school-frontend/src/pages/admin/GalleryManagement.tsx
+ls sunrise-school-frontend/src/components/Home/ImageSlider.tsx
+ls sunrise-school-frontend/src/services/galleryService.ts
+```
+
+#### **Step 2: Environment Variables**
+```bash
+# Ensure API URL is set correctly
+REACT_APP_API_URL=https://your-backend-url.onrender.com/api/v1
+```
+
+**Note**: No Cloudinary credentials needed in frontend! Backend handles all Cloudinary operations.
+
+#### **Step 3: Build and Deploy**
+```bash
+# Build frontend with gallery components
+cd sunrise-school-frontend
+npm ci
+npm run build
+
+# Deploy to Render (auto-deploy on push)
+git add .
+git commit -m "Deploy gallery management system"
+git push origin main
+```
+
+#### **Step 4: Verify Gallery Deployment**
+
+**Test Public Gallery:**
+1. Visit: `https://your-frontend.onrender.com/gallery`
+2. Should see 10 category tabs
+3. Should load images from backend
+4. Test category switching
+5. Test image lightbox
+
+**Test Home Page Carousel:**
+1. Visit: `https://your-frontend.onrender.com/`
+2. Should see welcome message (if no images marked for home page)
+3. After marking images for home page, should see carousel
+4. Test auto-play and navigation
+
+**Test Admin Gallery Management:**
+1. Login as admin: `admin@sunrise.com` / `admin123`
+2. Navigate to Gallery Management
+3. Test image upload
+4. Test image editing
+5. Test marking images for home page
+6. Test image deletion
+
+---
+
+### **Gallery UI/UX Features**
+
+#### **Responsive Design**
+```typescript
+// Mobile (xs): 1 column
+// Tablet (sm): 2 columns
+// Desktop (md): 3 columns
+// Large (lg): 4 columns
+
+const columns = {
+  xs: 1,
+  sm: 2,
+  md: 3,
+  lg: 4
+};
+```
+
+#### **Performance Optimizations**
+- **Lazy Loading**: Images load as user scrolls
+- **Thumbnail URLs**: Use Cloudinary thumbnails (400x300px)
+- **Image Compression**: Cloudinary auto-quality and auto-format
+- **Caching**: Browser caches Cloudinary images
+- **Pagination**: Load 20-30 images per page
+
+#### **Accessibility**
+- **Alt Text**: All images have descriptive alt text
+- **Keyboard Navigation**: Tab through images, Enter to open lightbox
+- **Screen Reader Support**: ARIA labels on all interactive elements
+- **Focus Indicators**: Visible focus states for keyboard users
+
+---
+
+### **Gallery Troubleshooting (Frontend)**
+
+**Issue: Images Not Loading**
+```typescript
+// Check API URL configuration
+console.log('API URL:', process.env.REACT_APP_API_URL);
+
+// Check network requests in browser DevTools
+// Look for failed requests to /public/gallery endpoints
+
+// Verify CORS configuration in backend
+// Ensure frontend URL is in BACKEND_CORS_ORIGINS
+```
+
+**Issue: Upload Fails**
+```typescript
+// Check file size (max 10MB recommended)
+// Check file type (jpg, png, gif, webp supported)
+// Check authentication token is valid
+// Check Cloudinary credentials in backend
+```
+
+**Issue: Home Page Carousel Empty**
+```typescript
+// Check if any images marked for home page
+// Verify endpoint: /public/gallery/home-page returns data
+// Check console for API errors
+// Verify is_visible_on_home_page flag in database
+```
+
+**Issue: Category Tabs Not Scrolling**
+```typescript
+// Verify Material-UI Tabs configuration
+<Tabs variant="scrollable" scrollButtons="auto">
+  {/* tabs */}
+</Tabs>
+
+// Check CSS for overflow issues
+// Test on different screen sizes
+```
+
+---
+
 ## 🎯 **Production Deployment Checklist**
 
 ### **Pre-Deployment**
@@ -644,11 +1015,12 @@ class ErrorBoundary extends Component {
 - [ ] Build process tested locally
 - [ ] All routes and features tested
 - [ ] Performance optimization completed
+- [ ] Gallery components verified
 
 ### **Deployment**
 - [ ] Repository connected to Render
 - [ ] Build command configured correctly
-- [ ] Environment variables set
+- [ ] Environment variables set (REACT_APP_API_URL)
 - [ ] Static site deployed successfully
 - [ ] Custom domain configured (if applicable)
 
@@ -659,6 +1031,18 @@ class ErrorBoundary extends Component {
 - [ ] API integration verified
 - [ ] Mobile responsiveness tested
 - [ ] Performance metrics acceptable
+
+### **Gallery System**
+- [ ] Public gallery page accessible (`/gallery`)
+- [ ] Home page carousel displaying images
+- [ ] Admin gallery management accessible (`/admin/gallery`)
+- [ ] Image upload functionality working
+- [ ] Image editing functionality working
+- [ ] Image deletion functionality working
+- [ ] Category tabs scrolling correctly
+- [ ] Lightbox working on image click
+- [ ] Mobile responsiveness tested for gallery
+- [ ] Home page carousel auto-play working
 
 ---
 
