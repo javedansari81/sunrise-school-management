@@ -1,23 +1,12 @@
 import axios from 'axios';
 import { sessionService } from './sessionService';
+import { apiConfig } from '../config/apiConfig';
 
 // Create axios instance with base configuration
-const api = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || 'http://localhost:8000/api/v1',
-  timeout: 10000,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
+const api = axios.create(apiConfig);
 
 // Create a separate axios instance for public endpoints (no auth required)
-const publicApi = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || 'http://localhost:8000/api/v1',
-  timeout: 10000,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
+const publicApi = axios.create(apiConfig);
 
 // Request interceptor to add auth token
 api.interceptors.request.use(

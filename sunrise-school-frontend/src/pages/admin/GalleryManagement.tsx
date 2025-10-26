@@ -50,6 +50,7 @@ import {
   Home as HomeIcon,
   Search,
   CloudUpload,
+  FilterList,
 } from '@mui/icons-material';
 import { useServiceConfiguration, useConfiguration } from '../../contexts/ConfigurationContext';
 import ServiceConfigurationLoader from '../../components/common/ServiceConfigurationLoader';
@@ -414,81 +415,105 @@ const GalleryManagement: React.FC = () => {
     <AdminLayout>
       <Box sx={{ p: 3 }}>
         <ServiceConfigurationLoader service="gallery-management">
-          {/* Header with Filters */}
-          <Paper sx={{ p: 3, mb: 3 }}>
-            <Grid container spacing={2} alignItems="center">
-              <Grid size={{ xs: 12 }}>
-                <Typography variant="h5" fontWeight="bold" gutterBottom>
-                  Gallery Management
-                </Typography>
-              </Grid>
+          {/* Filters Section - Above Tabs */}
+          <Paper elevation={3} sx={{ p: 3, mb: 3 }}>
+            {/* Header with Filters Label and Upload Button */}
+            <Box sx={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              mb: 2,
+              flexWrap: 'wrap',
+              gap: 2
+            }}>
+              {/* Filters Label */}
+              <Typography variant="h6" fontWeight="bold" sx={{ display: 'flex', alignItems: 'center' }}>
+                <FilterList sx={{ mr: 1 }} />
+                Filters
+              </Typography>
 
-              {/* Upload Image Button */}
-              <Grid size={{ xs: 12, sm: 6, md: 2.4 }}>
-                <Button
-                  variant="contained"
-                  startIcon={<CloudUpload />}
-                  onClick={() => handleOpenDialog()}
-                  fullWidth
-                  sx={{
-                    fontSize: { xs: '0.875rem', sm: '1rem' },
-                    padding: { xs: '6px 12px', sm: '8px 16px' },
-                    whiteSpace: 'nowrap'
-                  }}
-                >
-                  Upload Image
-                </Button>
-              </Grid>
+              {/* Upload Image Button - Right Side */}
+              <Button
+                variant="contained"
+                startIcon={<CloudUpload />}
+                onClick={() => handleOpenDialog()}
+                sx={{
+                  fontSize: { xs: '0.875rem', sm: '1rem' },
+                  padding: { xs: '6px 12px', sm: '8px 16px' },
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                Upload New Image
+              </Button>
+            </Box>
 
+            {/* Filter Controls */}
+            <Box sx={{
+              display: 'flex',
+              gap: { xs: 1.5, sm: 2 },
+              alignItems: { xs: 'stretch', sm: 'center' },
+              flexWrap: 'wrap',
+              flexDirection: { xs: 'column', sm: 'row' }
+            }}>
               {/* Category Filter */}
-              <Grid size={{ xs: 12, sm: 6, md: 2.4 }}>
-                <FormControl fullWidth size="small">
-                  <InputLabel>Category</InputLabel>
-                  <Select
-                    value={filters.category_id}
-                    label="Category"
-                    onChange={(e) => handleFilterChange('category_id', e.target.value)}
-                  >
-                    <MenuItem value="">All Categories</MenuItem>
-                    {galleryCategories.filter((cat: any) => cat.is_active).map((category: any) => (
-                      <MenuItem key={category.id} value={category.id}>
-                        {category.description || category.name}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Grid>
+              <FormControl
+                size="small"
+                sx={{
+                  flex: { xs: '1 1 100%', sm: '1 1 auto' },
+                  minWidth: { xs: '100%', sm: 'auto' }
+                }}
+              >
+                <InputLabel>Category</InputLabel>
+                <Select
+                  value={filters.category_id}
+                  label="Category"
+                  onChange={(e) => handleFilterChange('category_id', e.target.value)}
+                >
+                  <MenuItem value="">All Categories</MenuItem>
+                  {galleryCategories.filter((cat: any) => cat.is_active).map((category: any) => (
+                    <MenuItem key={category.id} value={category.id}>
+                      {category.description || category.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
 
               {/* Status Filter */}
-              <Grid size={{ xs: 12, sm: 6, md: 2.4 }}>
-                <FormControl fullWidth size="small">
-                  <InputLabel>Status</InputLabel>
-                  <Select
-                    value={filters.is_active}
-                    label="Status"
-                    onChange={(e) => handleFilterChange('is_active', e.target.value)}
-                  >
-                    <MenuItem value="">All</MenuItem>
-                    <MenuItem value="true">Active</MenuItem>
-                    <MenuItem value="false">Inactive</MenuItem>
-                  </Select>
-                </FormControl>
-              </Grid>
+              <FormControl
+                size="small"
+                sx={{
+                  flex: { xs: '1 1 100%', sm: '1 1 auto' },
+                  minWidth: { xs: '100%', sm: 'auto' }
+                }}
+              >
+                <InputLabel>Status</InputLabel>
+                <Select
+                  value={filters.is_active}
+                  label="Status"
+                  onChange={(e) => handleFilterChange('is_active', e.target.value)}
+                >
+                  <MenuItem value="">All</MenuItem>
+                  <MenuItem value="true">Active</MenuItem>
+                  <MenuItem value="false">Inactive</MenuItem>
+                </Select>
+              </FormControl>
 
               {/* Search by Title */}
-              <Grid size={{ xs: 12, sm: 6, md: 4.8 }}>
-                <TextField
-                  fullWidth
-                  size="small"
-                  label="Search by Title"
-                  value={filters.search_title}
-                  onChange={(e) => handleFilterChange('search_title', e.target.value)}
-                  InputProps={{
-                    startAdornment: <Search sx={{ mr: 1, color: 'text.secondary' }} />,
-                  }}
-                />
-              </Grid>
-            </Grid>
+              <TextField
+                size="small"
+                label="Search by Title"
+                placeholder="Enter image title..."
+                value={filters.search_title}
+                onChange={(e) => handleFilterChange('search_title', e.target.value)}
+                sx={{
+                  flex: { xs: '1 1 100%', sm: '1 1 auto' },
+                  minWidth: { xs: '100%', sm: 'auto' }
+                }}
+                InputProps={{
+                  startAdornment: <Search sx={{ mr: 1, color: 'text.secondary' }} />,
+                }}
+              />
+            </Box>
           </Paper>
 
           {/* Tabs */}

@@ -1,13 +1,8 @@
 import axios from 'axios';
+import { apiConfig } from '../config/apiConfig';
 
 // Create axios instance for public gallery endpoints (no auth required)
-const publicApi = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || 'http://localhost:8000/api/v1',
-  timeout: 10000,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
+const publicApi = axios.create(apiConfig);
 
 // Gallery Types
 export interface PublicGalleryImage {
