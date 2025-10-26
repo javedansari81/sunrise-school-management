@@ -604,17 +604,17 @@ const StudentProfilesContent: React.FC = () => {
           </Tabs>
 
           <TabPanel value={tabValue} index={0}>
-            <TableContainer>
-              <Table>
+            <TableContainer sx={{ maxHeight: { xs: '60vh', sm: '70vh' }, overflow: 'auto' }}>
+              <Table stickyHeader>
                 <TableHead>
                   <TableRow>
-                    <TableCell>Student</TableCell>
-                    <TableCell>Roll Number</TableCell>
-                    <TableCell>Class</TableCell>
-                    <TableCell>Parent Contact</TableCell>
-                    <TableCell>Login Info</TableCell>
-                    <TableCell>Status</TableCell>
-                    <TableCell>Actions</TableCell>
+                    <TableCell sx={{ backgroundColor: 'white', fontWeight: 600 }}>Student</TableCell>
+                    <TableCell sx={{ backgroundColor: 'white', fontWeight: 600 }}>Roll Number</TableCell>
+                    <TableCell sx={{ backgroundColor: 'white', fontWeight: 600 }}>Class</TableCell>
+                    <TableCell sx={{ backgroundColor: 'white', fontWeight: 600 }}>Parent Contact</TableCell>
+                    <TableCell sx={{ backgroundColor: 'white', fontWeight: 600 }}>Login Info</TableCell>
+                    <TableCell sx={{ backgroundColor: 'white', fontWeight: 600 }}>Status</TableCell>
+                    <TableCell sx={{ backgroundColor: 'white', fontWeight: 600 }}>Actions</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -722,16 +722,16 @@ const StudentProfilesContent: React.FC = () => {
           </TabPanel>
 
           <TabPanel value={tabValue} index={1}>
-            <TableContainer>
-              <Table>
+            <TableContainer sx={{ maxHeight: { xs: '60vh', sm: '70vh' }, overflow: 'auto' }}>
+              <Table stickyHeader>
                 <TableHead>
                   <TableRow>
-                    <TableCell>Student</TableCell>
-                    <TableCell>Roll Number</TableCell>
-                    <TableCell>Class</TableCell>
-                    <TableCell>Parent Contact</TableCell>
-                    <TableCell>Status</TableCell>
-                    <TableCell>Actions</TableCell>
+                    <TableCell sx={{ backgroundColor: 'white', fontWeight: 600 }}>Student</TableCell>
+                    <TableCell sx={{ backgroundColor: 'white', fontWeight: 600 }}>Roll Number</TableCell>
+                    <TableCell sx={{ backgroundColor: 'white', fontWeight: 600 }}>Class</TableCell>
+                    <TableCell sx={{ backgroundColor: 'white', fontWeight: 600 }}>Parent Contact</TableCell>
+                    <TableCell sx={{ backgroundColor: 'white', fontWeight: 600 }}>Status</TableCell>
+                    <TableCell sx={{ backgroundColor: 'white', fontWeight: 600 }}>Actions</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -802,16 +802,16 @@ const StudentProfilesContent: React.FC = () => {
           </TabPanel>
 
           <TabPanel value={tabValue} index={2}>
-            <TableContainer>
-              <Table>
+            <TableContainer sx={{ maxHeight: { xs: '60vh', sm: '70vh' }, overflow: 'auto' }}>
+              <Table stickyHeader>
                 <TableHead>
                   <TableRow>
-                    <TableCell>Student</TableCell>
-                    <TableCell>Roll Number</TableCell>
-                    <TableCell>Class</TableCell>
-                    <TableCell>Parent Contact</TableCell>
-                    <TableCell>Status</TableCell>
-                    <TableCell>Actions</TableCell>
+                    <TableCell sx={{ backgroundColor: 'white', fontWeight: 600 }}>Student</TableCell>
+                    <TableCell sx={{ backgroundColor: 'white', fontWeight: 600 }}>Roll Number</TableCell>
+                    <TableCell sx={{ backgroundColor: 'white', fontWeight: 600 }}>Class</TableCell>
+                    <TableCell sx={{ backgroundColor: 'white', fontWeight: 600 }}>Parent Contact</TableCell>
+                    <TableCell sx={{ backgroundColor: 'white', fontWeight: 600 }}>Status</TableCell>
+                    <TableCell sx={{ backgroundColor: 'white', fontWeight: 600 }}>Actions</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>

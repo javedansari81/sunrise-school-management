@@ -452,7 +452,7 @@ const TransportManagementSystem: React.FC = () => {
                         borderBottom: '1px solid rgba(224, 224, 224, 1)'
                       },
                       '& .MuiTableHead-root .MuiTableCell-root': {
-                        backgroundColor: 'grey.50',
+                        backgroundColor: 'white',
                         fontWeight: 600,
                         fontSize: '0.875rem'
                       }
