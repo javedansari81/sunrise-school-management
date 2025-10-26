@@ -54,6 +54,7 @@ interface ConfigurationContextType {
   getExpenseStatuses: () => DropdownOption[];
   getEmploymentStatuses: () => DropdownOption[];
   getQualifications: () => DropdownOption[];
+  getGalleryCategories: () => DropdownOption[];
 }
 
 const ConfigurationContext = createContext<ConfigurationContextType | undefined>(undefined);
@@ -78,6 +79,7 @@ export const ConfigurationProvider: React.FC<ConfigurationProviderProps> = ({
     'leave-management': false,
     'expense-management': false,
     'teacher-management': false,
+    'gallery-management': false,
     'common': false,
   });
   const [serviceErrors, setServiceErrors] = useState<Record<ServiceType, string | null>>({
@@ -86,6 +88,7 @@ export const ConfigurationProvider: React.FC<ConfigurationProviderProps> = ({
     'leave-management': null,
     'expense-management': null,
     'teacher-management': null,
+    'gallery-management': null,
     'common': null,
   });
 
@@ -213,6 +216,7 @@ export const ConfigurationProvider: React.FC<ConfigurationProviderProps> = ({
   const getExpenseStatuses = useCallback(() => configurationService.getExpenseStatuses(), []);
   const getEmploymentStatuses = useCallback(() => configurationService.getEmploymentStatuses(), []);
   const getQualifications = useCallback(() => configurationService.getQualifications(), []);
+  const getGalleryCategories = useCallback(() => configurationService.getGalleryCategories(), []);
 
   // Auto-load configuration on mount (DISABLED - Use service-specific loading instead)
   useEffect(() => {
@@ -265,6 +269,7 @@ export const ConfigurationProvider: React.FC<ConfigurationProviderProps> = ({
     getExpenseStatuses,
     getEmploymentStatuses,
     getQualifications,
+    getGalleryCategories,
   }), [
     configuration,
     isLoading,
@@ -295,6 +300,7 @@ export const ConfigurationProvider: React.FC<ConfigurationProviderProps> = ({
     getExpenseStatuses,
     getEmploymentStatuses,
     getQualifications,
+    getGalleryCategories,
   ]);
 
   return (

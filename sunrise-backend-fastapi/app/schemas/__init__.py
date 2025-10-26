@@ -10,6 +10,12 @@ from .fee import (
 )
 from .leave import LeaveRequest, LeaveRequestCreate, LeaveRequestUpdate
 from .expense import Expense, ExpenseCreate, ExpenseUpdate
+from .gallery import (
+    GalleryCategoryResponse, GalleryCategoryCreate, GalleryCategoryUpdate,
+    GalleryImageResponse, GalleryImageCreate, GalleryImageUpdate,
+    GalleryImageWithCategory, GalleryImageUploadRequest,
+    GalleryImageToggleHomePageRequest, GalleryConfigurationResponse
+)
 
 __all__ = [
     "User",
@@ -39,5 +45,15 @@ __all__ = [
     "ExpenseUpdate",
     "LoginRequest",
     "LoginResponse",
-    "Token"
+    "Token",
+    "GalleryCategoryResponse",
+    "GalleryCategoryCreate",
+    "GalleryCategoryUpdate",
+    "GalleryImageResponse",
+    "GalleryImageCreate",
+    "GalleryImageUpdate",
+    "GalleryImageWithCategory",
+    "GalleryImageUploadRequest",
+    "GalleryImageToggleHomePageRequest",
+    "GalleryConfigurationResponse"
 ]

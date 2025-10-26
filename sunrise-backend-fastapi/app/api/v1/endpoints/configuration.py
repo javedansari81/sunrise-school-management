@@ -58,6 +58,9 @@ SERVICE_METADATA_MAPPINGS = {
         "transport_types", "payment_statuses", "payment_methods",
         "session_years", "classes"
     ],
+    "gallery-management": [
+        "gallery_categories"
+    ],
     "common": [
         "session_years", "user_types"
     ]
@@ -120,6 +123,8 @@ async def get_service_metadata_configuration(db: AsyncSession, service_name: str
                 configuration[metadata_type] = [{"id": item.id, "name": item.name, "description": item.description, "is_active": item.is_active} for item in items]
             elif metadata_type == "transport_types":
                 configuration[metadata_type] = [{"id": item.id, "name": item.name, "description": item.description, "base_monthly_fee": float(item.base_monthly_fee), "capacity": item.capacity, "is_active": item.is_active} for item in items]
+            elif metadata_type == "gallery_categories":
+                configuration[metadata_type] = [{"id": item.id, "name": item.name, "description": item.description, "icon": item.icon, "display_order": item.display_order, "is_active": item.is_active} for item in items]
 
     # Add service-specific metadata
     configuration["metadata"] = {
@@ -379,6 +384,26 @@ async def get_transport_management_configuration(
     )
 
 
+@router.get("/gallery-management/")
+async def get_gallery_management_configuration(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Get configuration for Gallery Management System
+
+    Returns only metadata required for gallery management:
+    - gallery_categories
+
+    This endpoint provides gallery category definitions for the admin gallery management interface.
+    Categories include: Independence Day, School Premises, Sports Day, Annual Function, etc.
+    """
+    return await _get_service_configuration_with_cache(
+        db, "gallery-management", request
+    )
+
+
 @router.get("/common/")
 async def get_common_configuration(
     request: Request,
@@ -412,7 +437,8 @@ async def refresh_configuration(
         service: Optional service name to refresh specific cache.
                 If not provided, refreshes all caches.
                 Valid values: fee-management, student-management, leave-management,
-                             expense-management, teacher-management, common
+                             expense-management, teacher-management, transport-management,
+                             gallery-management, common
 
     Requires admin privileges.
     """

@@ -453,4 +453,52 @@ export const configurationAPI = {
 // If events functionality is needed, implement backend endpoints first
 // Current frontend defines these methods but backend has no /events routes
 
+// Gallery Management API
+export const galleryAPI = {
+  // Get all gallery images (with optional filters)
+  getImages: (params?: URLSearchParams) =>
+    api.get('/gallery/images', { params }).then(response => response.data),
+
+  // Get single image
+  getImage: (id: number) =>
+    api.get(`/gallery/images/${id}`).then(response => response.data),
+
+  // Upload image to Cloudinary
+  uploadImage: (formData: FormData) =>
+    api.post('/gallery/images/upload', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+      timeout: 60000, // 60 seconds for file upload
+    }).then(response => response.data),
+
+  // Update image metadata
+  updateImage: (id: number, imageData: any) =>
+    api.put(`/gallery/images/${id}`, imageData).then(response => response.data),
+
+  // Delete image (also deletes from Cloudinary)
+  deleteImage: (id: number) =>
+    api.delete(`/gallery/images/${id}`).then(response => response.data),
+
+  // Toggle home page visibility
+  toggleHomePage: (id: number, isVisible: boolean) =>
+    api.patch(`/gallery/images/${id}/toggle-home-page`, { is_visible_on_home_page: isVisible }).then(response => response.data),
+
+  // Get gallery statistics
+  getStatistics: () =>
+    api.get('/gallery/statistics').then(response => response.data),
+
+  // Get home page featured images
+  getHomePageImages: () =>
+    publicApi.get('/gallery/images/home-page').then(response => response.data),
+
+  // Get gallery categories (public endpoint)
+  getCategories: () =>
+    publicApi.get('/gallery/categories').then(response => response.data),
+
+  // Create gallery category (admin only)
+  createCategory: (categoryData: any) =>
+    api.post('/gallery/categories', categoryData).then(response => response.data),
+};
+
 export default api;

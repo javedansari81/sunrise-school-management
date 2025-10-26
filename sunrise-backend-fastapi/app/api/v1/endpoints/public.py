@@ -1,10 +1,13 @@
-from typing import Dict, Any
+from typing import Dict, Any, List, Optional
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, and_
 import json
 
 from app.core.database import get_db
 from app.crud import teacher_crud
+from app.models.gallery import GalleryCategory, GalleryImage
+from app.schemas.gallery import PublicGalleryCategory, PublicGalleryImage
 
 router = APIRouter()
 
@@ -98,3 +101,112 @@ async def public_health_check():
     Simple health check endpoint for public API
     """
     return {"status": "ok", "message": "Public API is working"}
+
+
+@router.get("/gallery", response_model=List[PublicGalleryCategory])
+async def get_public_gallery(
+    limit_categories: Optional[int] = None,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Get gallery images grouped by category for public display
+    Returns only active categories and active images
+    Public endpoint - no authentication required
+
+    Args:
+        limit_categories: Optional limit on number of categories to return (for lazy loading)
+    """
+    # Get active categories ordered by display_order
+    category_query = select(GalleryCategory).where(
+        GalleryCategory.is_active == True
+    ).order_by(GalleryCategory.display_order.asc())
+
+    if limit_categories:
+        category_query = category_query.limit(limit_categories)
+
+    category_result = await db.execute(category_query)
+    categories = category_result.scalars().all()
+
+    # For each category, get active images
+    result = []
+    for category in categories:
+        image_query = select(GalleryImage).where(
+            and_(
+                GalleryImage.category_id == category.id,
+                GalleryImage.is_active == True
+            )
+        ).order_by(
+            GalleryImage.display_order.asc(),
+            GalleryImage.upload_date.desc()
+        )
+
+        image_result = await db.execute(image_query)
+        images = image_result.scalars().all()
+
+        # Convert to response format
+        category_dict = {
+            'id': category.id,
+            'name': category.name,
+            'description': category.description,
+            'icon': category.icon,
+            'display_order': category.display_order,
+            'images': [
+                {
+                    'id': img.id,
+                    'title': img.title,
+                    'description': img.description,
+                    'cloudinary_url': img.cloudinary_url,
+                    'cloudinary_thumbnail_url': img.cloudinary_thumbnail_url,
+                    'display_order': img.display_order,
+                    'upload_date': img.upload_date
+                }
+                for img in images
+            ]
+        }
+        result.append(category_dict)
+
+    return result
+
+
+@router.get("/gallery/home-page", response_model=List[PublicGalleryImage])
+async def get_public_home_page_images(
+    limit: int = 10,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Get featured images for home page carousel
+    Returns images where is_visible_on_home_page = TRUE
+    Public endpoint - no authentication required
+
+    Args:
+        limit: Maximum number of images to return (default: 10)
+    """
+    query = select(GalleryImage).join(GalleryCategory).where(
+        and_(
+            GalleryImage.is_visible_on_home_page == True,
+            GalleryImage.is_active == True,
+            GalleryCategory.is_active == True
+        )
+    ).order_by(
+        GalleryImage.display_order.asc(),
+        GalleryImage.upload_date.desc()
+    ).limit(limit)
+
+    result = await db.execute(query)
+    images = result.scalars().all()
+
+    # Convert to response format
+    response_images = [
+        {
+            'id': img.id,
+            'title': img.title,
+            'description': img.description,
+            'cloudinary_url': img.cloudinary_url,
+            'cloudinary_thumbnail_url': img.cloudinary_thumbnail_url,
+            'display_order': img.display_order,
+            'upload_date': img.upload_date
+        }
+        for img in images
+    ]
+
+    return response_images

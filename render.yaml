@@ -31,6 +31,12 @@ services:
         value: production
       - key: BACKEND_CORS_ORIGINS
         value: https://sunrise-frontend.onrender.com
+      - key: CLOUDINARY_CLOUD_NAME
+        value: dqfxyrvti
+      - key: CLOUDINARY_API_KEY
+        value: 923627892216717
+      - key: CLOUDINARY_API_SECRET
+        sync: false
 
   # React Frontend
   - type: web

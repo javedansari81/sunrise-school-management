@@ -69,6 +69,11 @@ export interface Department extends MetadataItem {}
 
 export interface Position extends MetadataItem {}
 
+export interface GalleryCategory extends MetadataItem {
+  icon?: string;
+  display_order?: number;
+}
+
 export interface Configuration {
   user_types?: UserType[];
   session_years?: SessionYear[];
@@ -85,6 +90,7 @@ export interface Configuration {
   qualifications?: Qualification[];
   departments?: Department[];
   positions?: Position[];
+  gallery_categories?: GalleryCategory[];
   metadata: {
     service?: string;
     last_updated?: string;
@@ -106,6 +112,7 @@ export type ServiceType =
   | 'leave-management'
   | 'expense-management'
   | 'teacher-management'
+  | 'gallery-management'
   | 'common';
 
 // Dropdown option interface for UI components
@@ -513,6 +520,22 @@ class ConfigurationService {
   }
 
   /**
+   * Get gallery categories as dropdown options (service-aware)
+   */
+  public getGalleryCategories(): DropdownOption[] {
+    const categories = this.getMetadataFromServices<GalleryCategory>('gallery_categories');
+    return categories
+      .sort((a, b) => (a.display_order || 0) - (b.display_order || 0))
+      .map(cat => ({
+        id: cat.id,
+        name: cat.name,
+        description: cat.description,
+        display_name: cat.description || cat.name,
+        is_active: cat.is_active
+      }));
+  }
+
+  /**
    * Convert metadata items to dropdown options
    */
   private getDropdownOptions(items: MetadataItem[]): DropdownOption[] {
@@ -557,6 +580,7 @@ export const configurationAPI = {
   getLeaveManagementConfiguration: () => api.get('/configuration/leave-management/'),
   getExpenseManagementConfiguration: () => api.get('/configuration/expense-management/'),
   getTeacherManagementConfiguration: () => api.get('/configuration/teacher-management/'),
+  getGalleryManagementConfiguration: () => api.get('/configuration/gallery-management/'),
   getCommonConfiguration: () => api.get('/configuration/common/'),
 
   // Service-specific refresh

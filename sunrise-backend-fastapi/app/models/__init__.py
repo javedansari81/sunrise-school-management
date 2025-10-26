@@ -9,6 +9,7 @@ from .student import Student
 from .fee import FeeStructure, FeeRecord, FeePayment, MonthlyFeeTracking, MonthlyPaymentAllocation
 from .leave import LeaveRequest, LeaveBalance, LeavePolicy, LeaveApprover
 from .expense import Expense, Vendor, Budget, ExpenseReport
+from .gallery import GalleryCategory, GalleryImage
 
 __all__ = [
     # Metadata models
@@ -30,5 +31,7 @@ __all__ = [
     "Expense",
     "Vendor",
     "Budget",
-    "ExpenseReport"
+    "ExpenseReport",
+    "GalleryCategory",
+    "GalleryImage"
 ]

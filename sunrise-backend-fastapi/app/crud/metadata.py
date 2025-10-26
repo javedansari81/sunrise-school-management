@@ -14,6 +14,7 @@ from app.models.metadata import (
     Department, Position
 )
 from app.models.transport import TransportType
+from app.models.gallery import GalleryCategory
 # Note: Schema imports removed to avoid circular dependencies
 # Schemas will be imported in endpoints as needed
 
@@ -104,6 +105,7 @@ qualification_crud = MetadataCRUD(Qualification)
 department_crud = MetadataCRUD(Department)
 position_crud = MetadataCRUD(Position)
 transport_type_crud = MetadataCRUD(TransportType)
+gallery_category_crud = MetadataCRUD(GalleryCategory)
 
 
 def get_all_metadata(db: Session) -> Dict[str, List[Any]]:
@@ -123,7 +125,8 @@ def get_all_metadata(db: Session) -> Dict[str, List[Any]]:
         "employment_statuses": employment_status_crud.get_all(db),
         "qualifications": qualification_crud.get_all(db),
         "departments": department_crud.get_all(db),
-        "positions": position_crud.get_all(db)
+        "positions": position_crud.get_all(db),
+        "gallery_categories": gallery_category_crud.get_all(db)
     }
 
 
@@ -276,6 +279,15 @@ async def get_all_metadata_async(db: AsyncSession) -> Dict[str, List[Any]]:
                NULL::BOOLEAN as requires_reference, is_active, created_at, updated_at
         FROM transport_types WHERE is_active = true
 
+        UNION ALL
+
+        SELECT 'gallery_categories' as table_name, id, name, description,
+               display_order as sort_order, NULL::DATE as start_date, NULL::DATE as end_date, NULL::BOOLEAN as is_current,
+               NULL::INTEGER as max_days_per_year, NULL::BOOLEAN as requires_medical_certificate, NULL::DECIMAL as budget_limit,
+               NULL::BOOLEAN as requires_approval, icon as color_code, NULL::BOOLEAN as is_final, NULL::INTEGER as level_order,
+               NULL::BOOLEAN as requires_reference, is_active, created_at, updated_at
+        FROM gallery_categories WHERE is_active = true
+
         ORDER BY table_name, id
     """)
 
@@ -303,7 +315,8 @@ async def get_all_metadata_async(db: AsyncSession) -> Dict[str, List[Any]]:
         "qualifications": [],
         "departments": [],
         "positions": [],
-        "transport_types": []
+        "transport_types": [],
+        "gallery_categories": []
     }
 
     # Process results efficiently
@@ -398,6 +411,12 @@ async def get_all_metadata_async(db: AsyncSession) -> Dict[str, List[Any]]:
             obj = type('TransportType', (), {
                 'id': row.id, 'name': row.name, 'description': row.description,
                 'base_monthly_fee': row.budget_limit, 'capacity': row.level_order,
+                'is_active': row.is_active
+            })()
+        elif table_name == 'gallery_categories':
+            obj = type('GalleryCategory', (), {
+                'id': row.id, 'name': row.name, 'description': row.description,
+                'icon': row.color_code, 'display_order': row.sort_order,
                 'is_active': row.is_active
             })()
         else:

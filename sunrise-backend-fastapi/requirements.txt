@@ -78,6 +78,11 @@ python-dotenv==1.0.0                # Load environment variables from .env file
 pillow==11.0.0                      # Python Imaging Library (PIL Fork)
 
 # =====================================================
+# Cloud Storage and Media Management
+# =====================================================
+cloudinary==1.41.0                  # Cloudinary SDK for image/video management
+
+# =====================================================
 # Development and Code Quality
 # =====================================================
 black==23.11.0                      # Code formatter
