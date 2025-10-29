@@ -42,6 +42,8 @@ CREATE TABLE students (
     guardian_phone VARCHAR(20),
     guardian_email VARCHAR(255),
     guardian_relation VARCHAR(50),
+    profile_picture_url TEXT,
+    profile_picture_cloudinary_id TEXT,
     is_active BOOLEAN DEFAULT TRUE,
     is_deleted BOOLEAN DEFAULT FALSE,
     deleted_date TIMESTAMP WITH TIME ZONE,
@@ -65,6 +67,8 @@ CREATE INDEX IF NOT EXISTS idx_students_active_not_deleted ON students(is_active
 COMMENT ON TABLE students IS 'Student profile information';
 COMMENT ON COLUMN students.user_id IS 'Foreign key to users table (nullable - students may not have login accounts)';
 COMMENT ON COLUMN students.admission_number IS 'Unique admission number';
+COMMENT ON COLUMN students.profile_picture_url IS 'Cloudinary URL for student profile picture';
+COMMENT ON COLUMN students.profile_picture_cloudinary_id IS 'Cloudinary public ID for profile picture management (deletion/replacement)';
 COMMENT ON COLUMN students.is_deleted IS 'Soft delete flag';
 COMMENT ON COLUMN students.deleted_date IS 'Timestamp when record was soft deleted';
 

@@ -15,26 +15,14 @@ api.interceptors.request.use(
     if (token) {
       // Check if token is expired before making request
       if (sessionService.isTokenExpired(token)) {
-        console.error('❌ API Request: Token expired, clearing session', {
-          url: config.url,
-          method: config.method,
-          timestamp: new Date().toISOString()
-        });
         sessionService.handleSessionInvalid();
         return Promise.reject(new Error('Session expired'));
       }
       config.headers.Authorization = `Bearer ${token}`;
-    } else if (!config.url?.includes('/auth/login')) {
-      // Only log missing token for non-login requests
-      console.warn('⚠️ API Request: No auth token found', {
-        url: config.url,
-        method: config.method
-      });
     }
     return config;
   },
   (error) => {
-    console.error('❌ API Request interceptor error:', error);
     return Promise.reject(error);
   }
 );
@@ -43,21 +31,8 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    console.error('❌ API Error intercepted:', {
-      url: error.config?.url,
-      method: error.config?.method,
-      status: error.response?.status,
-      statusText: error.response?.statusText,
-      data: error.response?.data,
-      message: error.message,
-      hasResponse: !!error.response,
-      isAxiosError: error.isAxiosError,
-      code: error.code
-    });
-
     if (error.response?.status === 401) {
       // Handle unauthorized access - session expired or invalid
-      console.error('❌ 401 Unauthorized - handling session invalidation');
       sessionService.handleSessionInvalid();
 
       // Don't redirect here - let the session service callbacks handle it
@@ -145,6 +120,23 @@ export const studentsAPI = {
   // Student profile management
   getMyProfile: () => api.get('/students/my-profile'),
   updateMyProfile: (profileData: any) => api.put('/students/my-profile', profileData),
+  // Profile picture management
+  uploadMyProfilePicture: (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post('/students/my-profile/upload-picture', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  },
+  deleteMyProfilePicture: () => api.delete('/students/my-profile/delete-picture'),
+  uploadProfilePictureById: (studentId: number, file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post(`/students/${studentId}/upload-picture`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  },
+  deleteProfilePictureById: (studentId: number) => api.delete(`/students/${studentId}/delete-picture`),
 };
 
 // Teachers API
@@ -157,6 +149,23 @@ export const teachersAPI = {
   // Teacher profile management
   getMyProfile: () => api.get('/teachers/my-profile'),
   updateMyProfile: (profileData: any) => api.put('/teachers/my-profile', profileData),
+  // Profile picture management
+  uploadMyProfilePicture: (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post('/teachers/my-profile/upload-picture', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  },
+  deleteMyProfilePicture: () => api.delete('/teachers/my-profile/delete-picture'),
+  uploadProfilePictureById: (teacherId: number, file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post(`/teachers/${teacherId}/upload-picture`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  },
+  deleteProfilePictureById: (teacherId: number) => api.delete(`/teachers/${teacherId}/delete-picture`),
   // Dashboard and statistics
   getDashboardStats: () => api.get('/teachers/dashboard/stats'),
   // Search and filters
@@ -253,7 +262,6 @@ export const leaveAPI = {
       // Then get leave requests for this teacher
       return await leaveAPI.getLeavesByApplicant('teacher', teacherId);
     } catch (error) {
-      console.error('Error getting teacher leave requests:', error);
       throw error;
     }
   },
@@ -273,7 +281,6 @@ export const leaveAPI = {
 
       return await leaveAPI.createLeave(requestData);
     } catch (error) {
-      console.error('Error creating teacher leave request:', error);
       throw error;
     }
   },
@@ -291,7 +298,6 @@ export const studentLeaveAPI = {
       // Then get leave requests for this student
       return await leaveAPI.getLeavesByApplicant('student', studentId);
     } catch (error) {
-      console.error('Error getting student leave requests:', error);
       throw error;
     }
   },
@@ -311,7 +317,6 @@ export const studentLeaveAPI = {
 
       return await leaveAPI.createLeave(requestData);
     } catch (error) {
-      console.error('Error creating student leave request:', error);
       throw error;
     }
   },
@@ -330,7 +335,6 @@ export const studentFeeAPI = {
       });
       return response.data;
     } catch (error) {
-      console.error('Error getting student fee information:', error);
       throw error;
     }
   },
@@ -346,7 +350,6 @@ export const studentFeeAPI = {
       });
       return response.data;
     } catch (error) {
-      console.error('Error getting student monthly fee history:', error);
       throw error;
     }
   },
@@ -432,7 +435,6 @@ export const vendorAPI = {
 export const configurationAPI = {
   // DEPRECATED: Use service-specific endpoints instead
   getConfiguration: () => {
-    console.warn('⚠️ DEPRECATED: getConfiguration() is deprecated. Use service-specific configuration endpoints instead.');
     return Promise.reject(new Error('This endpoint has been deprecated. Use service-specific configuration endpoints.'));
   },
   refreshConfiguration: () => api.post('/configuration/refresh'),

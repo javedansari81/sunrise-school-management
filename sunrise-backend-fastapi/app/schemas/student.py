@@ -128,6 +128,8 @@ class StudentBase(BaseModel):
     guardian_email: Optional[EmailStr] = None
     guardian_relation: Optional[str] = None
     admission_date: date
+    profile_picture_url: Optional[str] = None
+    profile_picture_cloudinary_id: Optional[str] = None
 
     @field_validator('aadhar_no', mode='before')
     @classmethod
@@ -182,6 +184,8 @@ class StudentUpdate(BaseModel):
     guardian_relation: Optional[str] = None
     admission_date: Optional[date] = None
     is_active: Optional[bool] = None
+    profile_picture_url: Optional[str] = None
+    profile_picture_cloudinary_id: Optional[str] = None
 
 
 class StudentProfileUpdate(BaseModel):
@@ -257,6 +261,8 @@ class Student(StudentInDBBase):
             "guardian_phone": db_student.guardian_phone,
             "guardian_email": db_student.guardian_email,
             "guardian_relation": db_student.guardian_relation,
+            "profile_picture_url": db_student.profile_picture_url,
+            "profile_picture_cloudinary_id": db_student.profile_picture_cloudinary_id,
             "is_active": db_student.is_active,
             "is_deleted": db_student.is_deleted if hasattr(db_student, 'is_deleted') else False,
             "deleted_date": db_student.deleted_date if hasattr(db_student, 'deleted_date') else None,

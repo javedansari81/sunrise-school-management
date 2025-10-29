@@ -54,7 +54,9 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
         try:
             result = await db.execute(
                 select(User)
-                .options(selectinload(User.user_type))
+                .options(
+                    selectinload(User.user_type)
+                )
                 .where(User.id == id)
             )
             return result.scalar_one_or_none()
@@ -86,9 +88,6 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
                 select(User)
                 .options(
                     selectinload(User.user_type)
-                    # Temporarily disabled due to schema issues:
-                    # selectinload(User.student_profile),
-                    # selectinload(User.teacher_profile)
                 )
                 .where(User.email == email)
             )

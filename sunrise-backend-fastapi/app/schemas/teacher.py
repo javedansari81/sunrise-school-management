@@ -115,8 +115,10 @@ class TeacherBase(BaseModel):
     class_teacher_of_id: Optional[int] = Field(None, description="Foreign key to classes table")
     classes_assigned: Optional[str] = None  # JSON string of class IDs
     salary: Optional[float] = Field(None, ge=0)
+    profile_picture_url: Optional[str] = None
+    profile_picture_cloudinary_id: Optional[str] = None
     is_active: bool = Field(default=True, description="Whether the teacher is active")
-    # Note: bio, specializations, certifications, img fields are commented out in database model
+    # Note: bio, specializations, certifications fields are commented out in database model
 
     @field_validator('date_of_birth', mode='before')
     @classmethod
@@ -184,8 +186,10 @@ class TeacherUpdate(BaseModel):
     class_teacher_of_id: Optional[int] = None
     classes_assigned: Optional[str] = None
     salary: Optional[float] = Field(None, ge=0)
+    profile_picture_url: Optional[str] = None
+    profile_picture_cloudinary_id: Optional[str] = None
     is_active: Optional[bool] = None
-    # Note: bio, specializations, certifications, img fields are commented out in database model
+    # Note: bio, specializations, certifications fields are commented out in database model
 
     @field_validator('date_of_birth', mode='before')
     @classmethod
@@ -284,6 +288,8 @@ class Teacher(TeacherInDBBase):
             "class_teacher_of_id": db_teacher.class_teacher_of_id,
             "classes_assigned": db_teacher.classes_assigned,
             "salary": float(db_teacher.salary) if db_teacher.salary else None,
+            "profile_picture_url": db_teacher.profile_picture_url,
+            "profile_picture_cloudinary_id": db_teacher.profile_picture_cloudinary_id,
             "is_active": db_teacher.is_active,
             "created_at": db_teacher.created_at,
             "updated_at": db_teacher.updated_at,

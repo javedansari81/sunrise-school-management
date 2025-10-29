@@ -121,6 +121,9 @@ interface Student {
   gender_name?: string;
   class_name?: string;
   session_year_name?: string;
+  // Profile Picture
+  profile_picture_url?: string;
+  profile_picture_cloudinary_id?: string;
 }
 
 const StudentProfilesContent: React.FC = () => {
@@ -637,8 +640,11 @@ const StudentProfilesContent: React.FC = () => {
                       <TableRow key={student.id}>
                         <TableCell>
                           <Box display="flex" alignItems="center" gap={2}>
-                            <Avatar sx={{ bgcolor: 'primary.main' }}>
-                              {student.first_name[0]}{student.last_name[0]}
+                            <Avatar
+                              src={student.profile_picture_url || undefined}
+                              sx={{ bgcolor: 'primary.main' }}
+                            >
+                              {!student.profile_picture_url && `${student.first_name[0]}${student.last_name[0]}`}
                             </Avatar>
                             <Box>
                               <Typography variant="body2" fontWeight="bold">
@@ -739,8 +745,11 @@ const StudentProfilesContent: React.FC = () => {
                     <TableRow key={student.id}>
                       <TableCell>
                         <Box display="flex" alignItems="center" gap={2}>
-                          <Avatar sx={{ bgcolor: 'primary.main' }}>
-                            {student.first_name[0]}{student.last_name[0]}
+                          <Avatar
+                            src={student.profile_picture_url || undefined}
+                            sx={{ bgcolor: 'primary.main' }}
+                          >
+                            {!student.profile_picture_url && `${student.first_name[0]}${student.last_name[0]}`}
                           </Avatar>
                           <Box>
                             <Typography variant="body2" fontWeight="bold">
@@ -819,8 +828,11 @@ const StudentProfilesContent: React.FC = () => {
                     <TableRow key={student.id}>
                       <TableCell>
                         <Box display="flex" alignItems="center" gap={2}>
-                          <Avatar sx={{ bgcolor: 'grey.500' }}>
-                            {student.first_name[0]}{student.last_name[0]}
+                          <Avatar
+                            src={student.profile_picture_url || undefined}
+                            sx={{ bgcolor: 'grey.500' }}
+                          >
+                            {!student.profile_picture_url && `${student.first_name[0]}${student.last_name[0]}`}
                           </Avatar>
                           <Box>
                             <Typography variant="body2" fontWeight="bold">

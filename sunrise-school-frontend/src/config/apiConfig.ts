@@ -21,22 +21,12 @@ export const getApiBaseUrl = (): string => {
   
   // In production, API URL must be set
   if (process.env.NODE_ENV === 'production' && !apiUrl) {
-    console.error('❌ REACT_APP_API_URL is not set in production environment!');
     throw new Error('API URL must be configured for production deployment');
   }
   
   // Use environment variable or fallback to localhost for development
   const baseUrl = apiUrl || 'http://localhost:8000/api/v1';
-  
-  // Log configuration in development
-  if (process.env.NODE_ENV === 'development') {
-    console.log('🔧 API Configuration:', {
-      baseUrl,
-      source: apiUrl ? 'environment variable' : 'default fallback',
-      environment: process.env.NODE_ENV
-    });
-  }
-  
+
   return baseUrl;
 };
 

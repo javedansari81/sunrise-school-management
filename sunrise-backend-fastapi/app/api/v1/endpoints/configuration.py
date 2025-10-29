@@ -319,14 +319,11 @@ async def get_leave_management_configuration(
     - leave_types, leave_statuses, session_years, classes
     """
     try:
-        print(f"🔄 Loading leave-management configuration for user: {current_user.email}")
         result = await _get_service_configuration_with_cache(
             db, "leave-management", request
         )
-        print(f"✅ Leave-management configuration loaded successfully")
         return result
     except Exception as e:
-        print(f"❌ Error loading leave-management configuration: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to load leave management configuration: {str(e)}"

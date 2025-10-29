@@ -1992,7 +1992,6 @@ async def pay_monthly_enhanced(
 
         if not existing_fee_record:
             # Create new fee record
-            print(f"DEBUG: Creating fee record with payment_method_id={payment_method_id}, fee_structure.id={fee_structure.id}")
             fee_record_data = FeeRecordCreate(
                 student_id=student_id,
                 session_year_id=session_year_id,
@@ -2007,7 +2006,6 @@ async def pay_monthly_enhanced(
                 due_date=date(2025, 4, 30),
                 remarks="Enhanced monthly payment system"
             )
-            print(f"DEBUG: FeeRecordCreate object: payment_method_id={fee_record_data.payment_method_id}, fee_structure_id={fee_record_data.fee_structure_id}, is_monthly_tracked={fee_record_data.is_monthly_tracked}")
             fee_record = await fee_record_crud.create(db, obj_in=fee_record_data)
         else:
             fee_record = existing_fee_record
@@ -2246,8 +2244,7 @@ async def get_available_months_for_payment(
                 monthly_fee = class_defaults.get(class_name, 1000.0)
 
     except Exception as e:
-        print(f"Error getting fee structure: {e}")
-        # Use default monthly fee
+        # Use default monthly fee if fee structure lookup fails
         monthly_fee = 1000.0
 
     # Get existing monthly tracking records
@@ -2623,13 +2620,11 @@ async def get_my_fees(
 
                 # If monthly_history is None, it means tracking is not properly set up
                 if monthly_history is None:
-                    print(f"Monthly tracking returned None for student {student_id} in session {session_year_id}")
                     # Update the flag to reflect actual state
                     has_monthly_tracking = False
 
             except Exception as e:
                 # If monthly history fails for unexpected reasons, continue without it
-                print(f"Error fetching monthly history: {e}")
                 monthly_history = None
                 has_monthly_tracking = False
 
@@ -2646,9 +2641,6 @@ async def get_my_fees(
 
     except ValueError as e:
         # Handle specific business logic errors gracefully
-        error_message = str(e)
-        print(f"Business logic error in get_my_fees: {error_message}")
-
         # Return a user-friendly response instead of raising an exception
         return {
             "student_id": student_id,
@@ -2661,7 +2653,6 @@ async def get_my_fees(
         }
     except Exception as e:
         # Only raise HTTP exception for unexpected errors
-        print(f"Unexpected error in get_my_fees: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error fetching fee information: {str(e)}"
@@ -2721,7 +2712,6 @@ async def get_my_monthly_history(
 
     except Exception as e:
         # Handle unexpected errors
-        print(f"Error fetching monthly history: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error fetching monthly history: {str(e)}"
@@ -2756,7 +2746,6 @@ async def get_enhanced_student_monthly_history(
 
     except Exception as e:
         # Handle unexpected errors
-        print(f"Error fetching monthly history: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"An unexpected error occurred while fetching monthly history: {str(e)}"
@@ -2780,10 +2769,6 @@ async def enable_monthly_tracking(
         # Convert fee_record_ids to student_ids (they're actually student_ids from frontend)
         student_ids = request.fee_record_ids
 
-        # Debug logging
-        print(f"DEBUG: Enabling monthly tracking for student_ids: {student_ids}")
-        print(f"DEBUG: Request data: start_month={request.start_month}, start_year={request.start_year}")
-
         # Use a simpler approach - call the function for each student individually
         # This avoids the array parameter complexity
         results = []
@@ -2793,8 +2778,6 @@ async def enable_monthly_tracking(
 
         for student_id in student_ids:
             try:
-                print(f"DEBUG: Processing student {student_id}")
-
                 # Call function for single student
                 result = await db.execute(
                     text("""
@@ -2816,8 +2799,6 @@ async def enable_monthly_tracking(
                 # Process single result
                 row = result.fetchone()
                 if row:
-                    print(f"DEBUG: Student {row.student_id} result: success={row.success}, message={row.message}")
-
                     if row.success:
                         successful_count += 1
                         total_records_created += row.monthly_records_created
@@ -2835,7 +2816,6 @@ async def enable_monthly_tracking(
                     })
 
             except Exception as student_error:
-                print(f"ERROR: Failed for student {student_id}: {str(student_error)}")
                 results.append({
                     "student_id": student_id,
                     "student_name": f"Student {student_id}",
@@ -2848,8 +2828,6 @@ async def enable_monthly_tracking(
 
         await db.commit()
 
-        print(f"DEBUG: Final results - successful: {successful_count}, total_records: {total_records_created}, fee_records: {fee_records_created}")
-
         return {
             "message": f"Monthly tracking enabled for {successful_count}/{len(student_ids)} students",
             "total_records_created": total_records_created,
@@ -2859,11 +2837,6 @@ async def enable_monthly_tracking(
 
     except Exception as e:
         await db.rollback()
-        print(f"ERROR: Failed to enable monthly tracking: {str(e)}")
-        print(f"ERROR: Exception type: {type(e).__name__}")
-        import traceback
-        print(f"ERROR: Full traceback: {traceback.format_exc()}")
-
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to enable monthly tracking: {str(e)}"

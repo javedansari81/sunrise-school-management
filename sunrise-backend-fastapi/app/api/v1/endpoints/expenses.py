@@ -67,10 +67,7 @@ async def get_expenses(
     )
 
     # Get summary statistics
-    print(f"🔍 Getting summary statistics for expenses endpoint...")
     summary_data = await expense_crud.get_expense_statistics(db)
-    print(f"📊 Summary statistics for expenses endpoint: {summary_data}")
-    print(f"📊 Rejected amount in summary: {summary_data.get('rejected_amount', 'MISSING')}")
 
     # Create proper ExpenseSummary object
     summary = ExpenseSummary(
@@ -85,8 +82,6 @@ async def get_expenses(
         category_breakdown=summary_data.get('category_breakdown', []),
         payment_method_breakdown=summary_data.get('payment_method_breakdown', [])
     )
-
-    print(f"📊 ExpenseSummary object created with rejected_amount: {summary.rejected_amount}")
 
     total_pages = math.ceil(total / per_page)
 
@@ -111,10 +106,6 @@ async def create_expense(
     Create a new expense record
     """
     try:
-        # Log the incoming data for debugging
-        print(f"🔍 Creating expense with data: {expense_data.dict()}")
-        print(f"👤 User: {current_user.id} ({current_user.email})")
-
         # Validate total amount (allow for small rounding differences)
         expected_total = expense_data.amount + expense_data.tax_amount
         if abs(expense_data.total_amount - expected_total) > 0.01:
@@ -126,17 +117,12 @@ async def create_expense(
         expense = await expense_crud.create(
             db, obj_in=expense_data, requested_by=current_user.id
         )
-        print(f"✅ Expense created successfully with ID: {expense.id}")
         return expense
 
     except HTTPException:
         # Re-raise HTTP exceptions
         raise
     except Exception as e:
-        print(f"❌ Error creating expense: {str(e)}")
-        print(f"❌ Error type: {type(e).__name__}")
-        import traceback
-        traceback.print_exc()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to create expense: {str(e)}"
@@ -249,15 +235,12 @@ async def delete_expense(
     Soft delete expense record (sets is_deleted = TRUE and deleted_date = NOW())
     """
     try:
-        print(f"🗑️ Attempting to soft delete expense {expense_id} by user {current_user.id} ({current_user.email})")
-
         # Get expense without soft delete filtering to allow deletion of any existing record
         from sqlalchemy import select
         result = await db.execute(select(Expense).where(Expense.id == expense_id))
         expense = result.scalar_one_or_none()
 
         if not expense:
-            print(f"❌ Expense {expense_id} not found in database")
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Expense not found"
@@ -265,47 +248,31 @@ async def delete_expense(
 
         # Check if already deleted
         if expense.is_deleted:
-            print(f"⚠️ Expense {expense_id} is already deleted (deleted_date: {expense.deleted_date})")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Expense is already deleted"
             )
-
-        print(f"📋 Found active expense: ID={expense.id}, Status={expense.expense_status_id}, Requester={expense.requested_by}, Amount=₹{expense.total_amount}")
 
         # Authorization check: Admin users or the original requester can delete
         is_admin = current_user.user_type_id == 1  # Assuming 1 is admin user type
         is_requester = expense.requested_by == current_user.id
 
         if not (is_admin or is_requester):
-            print(f"❌ User {current_user.id} not authorized to delete expense {expense_id} (not admin and not requester)")
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="You can only delete your own expenses unless you are an admin"
             )
 
-        print(f"✅ User authorized to delete expense {expense_id} (admin: {is_admin}, requester: {is_requester})")
-
-        # Debug: Check expense state before deletion
-        print(f"🔍 Before deletion - is_deleted: {expense.is_deleted}, deleted_date: {expense.deleted_date}")
-
         # Perform soft delete using dedicated method
-        print(f"🔧 Calling expense_crud.soft_delete_expense() for expense {expense_id}")
         deleted_expense = await expense_crud.soft_delete_expense(db, expense_id=expense_id)
-        print(f"🔍 After soft_delete_expense() - returned object: {deleted_expense}")
-
-        if deleted_expense:
-            print(f"🔍 After deletion - is_deleted: {deleted_expense.is_deleted}, deleted_date: {deleted_expense.deleted_date}")
 
         if deleted_expense and deleted_expense.is_deleted:
-            print(f"🗑️ Expense {expense_id} soft deleted successfully at {deleted_expense.deleted_date}")
             return {
                 "message": "Expense deleted successfully",
                 "expense_id": expense_id,
                 "deleted_date": deleted_expense.deleted_date.isoformat() if deleted_expense.deleted_date else None
             }
         else:
-            print(f"❌ Failed to soft delete expense {expense_id}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Failed to delete expense"
@@ -314,9 +281,6 @@ async def delete_expense(
     except HTTPException:
         raise
     except Exception as e:
-        print(f"❌ Unexpected error deleting expense {expense_id}: {str(e)}")
-        import traceback
-        traceback.print_exc()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to delete expense: {str(e)}"

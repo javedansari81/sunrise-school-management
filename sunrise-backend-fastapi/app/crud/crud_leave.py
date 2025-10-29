@@ -94,9 +94,6 @@ class CRUDLeaveRequest(CRUDBase[LeaveRequest, LeaveRequestCreate, LeaveRequestUp
 
             return LeaveRequestWithDetails(**row_dict)
         except Exception as e:
-            print(f"Error converting row to LeaveRequestWithDetails: {e}")
-            print(f"Row data: {row}")
-            print(f"Row type: {type(row)}")
             return None
 
     async def get_multi_with_filters(

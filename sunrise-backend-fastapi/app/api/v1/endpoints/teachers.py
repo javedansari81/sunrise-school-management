@@ -1,5 +1,5 @@
 from typing import Optional, List, Dict, Any
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
 import math
 import json
@@ -427,3 +427,229 @@ async def get_teacher_dashboard_stats(
         experience_breakdown=stats['experience_breakdown'],
         recent_joinings=recent_joinings
     )
+
+
+# =====================================================
+# Profile Picture Upload Endpoints
+# =====================================================
+
+@router.post("/my-profile/upload-picture", response_model=Dict[str, Any])
+async def upload_my_profile_picture(
+    file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Upload profile picture for current teacher
+    """
+    from app.utils.profile_picture_helpers import (
+        validate_profile_picture,
+        upload_profile_picture_to_cloudinary,
+        delete_profile_picture_from_cloudinary,
+        update_teacher_profile_picture
+    )
+
+    # Verify user is a teacher
+    if current_user.user_type_enum != UserTypeEnum.TEACHER:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only teachers can access this endpoint"
+        )
+
+    # Find teacher record
+    teacher = await teacher_crud.get_by_user_id(db, user_id=current_user.id)
+    if not teacher:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Teacher profile not found for this user"
+        )
+
+    # Validate file
+    await validate_profile_picture(file)
+
+    # Delete old profile picture if exists
+    if teacher.profile_picture_cloudinary_id:
+        await delete_profile_picture_from_cloudinary(teacher.profile_picture_cloudinary_id)
+
+    # Upload new picture
+    cloudinary_url, cloudinary_public_id = await upload_profile_picture_to_cloudinary(
+        file=file,
+        folder="profiles/teachers",
+        identifier=str(teacher.id)
+    )
+
+    # Update database
+    await update_teacher_profile_picture(
+        db=db,
+        teacher_id=teacher.id,
+        profile_picture_url=cloudinary_url,
+        profile_picture_cloudinary_id=cloudinary_public_id
+    )
+
+    # Return updated profile
+    teacher_with_metadata = await teacher_crud.get_with_metadata(db, id=teacher.id)
+    return {
+        "message": "Profile picture uploaded successfully",
+        "profile_picture_url": cloudinary_url,
+        "teacher": teacher_with_metadata
+    }
+
+
+@router.delete("/my-profile/delete-picture", response_model=Dict[str, Any])
+async def delete_my_profile_picture(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Delete profile picture for current teacher
+    """
+    from app.utils.profile_picture_helpers import (
+        delete_profile_picture_from_cloudinary,
+        update_teacher_profile_picture
+    )
+
+    # Verify user is a teacher
+    if current_user.user_type_enum != UserTypeEnum.TEACHER:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only teachers can access this endpoint"
+        )
+
+    # Find teacher record
+    teacher = await teacher_crud.get_by_user_id(db, user_id=current_user.id)
+    if not teacher:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Teacher profile not found for this user"
+        )
+
+    # Delete from Cloudinary if exists
+    if teacher.profile_picture_cloudinary_id:
+        await delete_profile_picture_from_cloudinary(teacher.profile_picture_cloudinary_id)
+
+    # Update database
+    await update_teacher_profile_picture(
+        db=db,
+        teacher_id=teacher.id,
+        profile_picture_url=None,
+        profile_picture_cloudinary_id=None
+    )
+
+    # Return updated profile
+    teacher_with_metadata = await teacher_crud.get_with_metadata(db, id=teacher.id)
+    return {
+        "message": "Profile picture deleted successfully",
+        "teacher": teacher_with_metadata
+    }
+
+
+@router.post("/{teacher_id}/upload-picture", response_model=Dict[str, Any])
+async def upload_teacher_profile_picture(
+    teacher_id: int,
+    file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Upload profile picture for a specific teacher (Admin only)
+    """
+    from app.utils.profile_picture_helpers import (
+        validate_profile_picture,
+        upload_profile_picture_to_cloudinary,
+        delete_profile_picture_from_cloudinary,
+        update_teacher_profile_picture
+    )
+
+    # Verify user is admin
+    if current_user.user_type_enum != UserTypeEnum.ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only admins can upload profile pictures for other teachers"
+        )
+
+    # Find teacher record
+    teacher = await teacher_crud.get(db, id=teacher_id)
+    if not teacher:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Teacher not found"
+        )
+
+    # Validate file
+    await validate_profile_picture(file)
+
+    # Delete old profile picture if exists
+    if teacher.profile_picture_cloudinary_id:
+        await delete_profile_picture_from_cloudinary(teacher.profile_picture_cloudinary_id)
+
+    # Upload new picture
+    cloudinary_url, cloudinary_public_id = await upload_profile_picture_to_cloudinary(
+        file=file,
+        folder="profiles/teachers",
+        identifier=str(teacher.id)
+    )
+
+    # Update database
+    await update_teacher_profile_picture(
+        db=db,
+        teacher_id=teacher.id,
+        profile_picture_url=cloudinary_url,
+        profile_picture_cloudinary_id=cloudinary_public_id
+    )
+
+    # Return updated profile
+    teacher_with_metadata = await teacher_crud.get_with_metadata(db, id=teacher.id)
+    return {
+        "message": "Profile picture uploaded successfully",
+        "profile_picture_url": cloudinary_url,
+        "teacher": teacher_with_metadata
+    }
+
+
+@router.delete("/{teacher_id}/delete-picture", response_model=Dict[str, Any])
+async def delete_teacher_profile_picture(
+    teacher_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Delete profile picture for a specific teacher (Admin only)
+    """
+    from app.utils.profile_picture_helpers import (
+        delete_profile_picture_from_cloudinary,
+        update_teacher_profile_picture
+    )
+
+    # Verify user is admin
+    if current_user.user_type_enum != UserTypeEnum.ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only admins can delete profile pictures for other teachers"
+        )
+
+    # Find teacher record
+    teacher = await teacher_crud.get(db, id=teacher_id)
+    if not teacher:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Teacher not found"
+        )
+
+    # Delete from Cloudinary if exists
+    if teacher.profile_picture_cloudinary_id:
+        await delete_profile_picture_from_cloudinary(teacher.profile_picture_cloudinary_id)
+
+    # Update database
+    await update_teacher_profile_picture(
+        db=db,
+        teacher_id=teacher.id,
+        profile_picture_url=None,
+        profile_picture_cloudinary_id=None
+    )
+
+    # Return updated profile
+    teacher_with_metadata = await teacher_crud.get_with_metadata(db, id=teacher.id)
+    return {
+        "message": "Profile picture deleted successfully",
+        "teacher": teacher_with_metadata
+    }

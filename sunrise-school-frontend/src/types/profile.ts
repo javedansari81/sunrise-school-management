@@ -62,7 +62,11 @@ export interface StudentProfile {
   guardian_phone?: string;
   guardian_email?: string;
   guardian_relation?: string;
-  
+
+  // Profile Picture
+  profile_picture_url?: string;
+  profile_picture_cloudinary_id?: string;
+
   // Status
   is_active: boolean;
 }
@@ -116,7 +120,11 @@ export interface TeacherProfile {
   gender_id?: number;
   gender_name?: string;
   gender_description?: string;
-  
+
+  // Profile Picture
+  profile_picture_url?: string;
+  profile_picture_cloudinary_id?: string;
+
   // Status
   is_active: boolean;
 }

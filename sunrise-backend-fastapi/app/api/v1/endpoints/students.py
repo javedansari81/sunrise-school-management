@@ -1,5 +1,5 @@
 from typing import Optional, List, Dict, Any
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
 import math
 
@@ -452,6 +452,232 @@ class StudentProfileUpdate(BaseModel):
     # Note: Read-only fields are excluded:
     # - admission_number, roll_number, class_id, session_year_id
     # - admission_date, gender_id (system/admin managed)
+
+
+# =====================================================
+# Profile Picture Upload Endpoints
+# =====================================================
+
+@router.post("/my-profile/upload-picture", response_model=Dict[str, Any])
+async def upload_my_profile_picture(
+    file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Upload profile picture for current student
+    """
+    from app.utils.profile_picture_helpers import (
+        validate_profile_picture,
+        upload_profile_picture_to_cloudinary,
+        delete_profile_picture_from_cloudinary,
+        update_student_profile_picture
+    )
+
+    # Verify user is a student
+    if current_user.user_type_enum != UserTypeEnum.STUDENT:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only students can access this endpoint"
+        )
+
+    # Find student record
+    student = await student_crud.get_by_user_id(db, user_id=current_user.id)
+    if not student:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Student profile not found for this user"
+        )
+
+    # Validate file
+    await validate_profile_picture(file)
+
+    # Delete old profile picture if exists
+    if student.profile_picture_cloudinary_id:
+        await delete_profile_picture_from_cloudinary(student.profile_picture_cloudinary_id)
+
+    # Upload new picture
+    cloudinary_url, cloudinary_public_id = await upload_profile_picture_to_cloudinary(
+        file=file,
+        folder="profiles/students",
+        identifier=str(student.id)
+    )
+
+    # Update database
+    await update_student_profile_picture(
+        db=db,
+        student_id=student.id,
+        profile_picture_url=cloudinary_url,
+        profile_picture_cloudinary_id=cloudinary_public_id
+    )
+
+    # Return updated profile
+    student_with_metadata = await student_crud.get_with_metadata(db, id=student.id)
+    return {
+        "message": "Profile picture uploaded successfully",
+        "profile_picture_url": cloudinary_url,
+        "student": Student.from_orm_with_metadata(student_with_metadata)
+    }
+
+
+@router.delete("/my-profile/delete-picture", response_model=Dict[str, Any])
+async def delete_my_profile_picture(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Delete profile picture for current student
+    """
+    from app.utils.profile_picture_helpers import (
+        delete_profile_picture_from_cloudinary,
+        update_student_profile_picture
+    )
+
+    # Verify user is a student
+    if current_user.user_type_enum != UserTypeEnum.STUDENT:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only students can access this endpoint"
+        )
+
+    # Find student record
+    student = await student_crud.get_by_user_id(db, user_id=current_user.id)
+    if not student:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Student profile not found for this user"
+        )
+
+    # Delete from Cloudinary if exists
+    if student.profile_picture_cloudinary_id:
+        await delete_profile_picture_from_cloudinary(student.profile_picture_cloudinary_id)
+
+    # Update database
+    await update_student_profile_picture(
+        db=db,
+        student_id=student.id,
+        profile_picture_url=None,
+        profile_picture_cloudinary_id=None
+    )
+
+    # Return updated profile
+    student_with_metadata = await student_crud.get_with_metadata(db, id=student.id)
+    return {
+        "message": "Profile picture deleted successfully",
+        "student": Student.from_orm_with_metadata(student_with_metadata)
+    }
+
+
+@router.post("/{student_id}/upload-picture", response_model=Dict[str, Any])
+async def upload_student_profile_picture(
+    student_id: int,
+    file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Upload profile picture for a specific student (Admin only)
+    """
+    from app.utils.profile_picture_helpers import (
+        validate_profile_picture,
+        upload_profile_picture_to_cloudinary,
+        delete_profile_picture_from_cloudinary,
+        update_student_profile_picture
+    )
+
+    # Verify user is admin
+    if current_user.user_type_enum != UserTypeEnum.ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only admins can upload profile pictures for other students"
+        )
+
+    # Find student record
+    student = await student_crud.get(db, id=student_id)
+    if not student:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Student not found"
+        )
+
+    # Validate file
+    await validate_profile_picture(file)
+
+    # Delete old profile picture if exists
+    if student.profile_picture_cloudinary_id:
+        await delete_profile_picture_from_cloudinary(student.profile_picture_cloudinary_id)
+
+    # Upload new picture
+    cloudinary_url, cloudinary_public_id = await upload_profile_picture_to_cloudinary(
+        file=file,
+        folder="profiles/students",
+        identifier=str(student.id)
+    )
+
+    # Update database
+    await update_student_profile_picture(
+        db=db,
+        student_id=student.id,
+        profile_picture_url=cloudinary_url,
+        profile_picture_cloudinary_id=cloudinary_public_id
+    )
+
+    # Return updated profile
+    student_with_metadata = await student_crud.get_with_metadata(db, id=student.id)
+    return {
+        "message": "Profile picture uploaded successfully",
+        "profile_picture_url": cloudinary_url,
+        "student": Student.from_orm_with_metadata(student_with_metadata)
+    }
+
+
+@router.delete("/{student_id}/delete-picture", response_model=Dict[str, Any])
+async def delete_student_profile_picture(
+    student_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Delete profile picture for a specific student (Admin only)
+    """
+    from app.utils.profile_picture_helpers import (
+        delete_profile_picture_from_cloudinary,
+        update_student_profile_picture
+    )
+
+    # Verify user is admin
+    if current_user.user_type_enum != UserTypeEnum.ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only admins can delete profile pictures for other students"
+        )
+
+    # Find student record
+    student = await student_crud.get(db, id=student_id)
+    if not student:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Student not found"
+        )
+
+    # Delete from Cloudinary if exists
+    if student.profile_picture_cloudinary_id:
+        await delete_profile_picture_from_cloudinary(student.profile_picture_cloudinary_id)
+
+    # Update database
+    await update_student_profile_picture(
+        db=db,
+        student_id=student.id,
+        profile_picture_url=None,
+        profile_picture_cloudinary_id=None
+    )
+
+    # Return updated profile
+    student_with_metadata = await student_crud.get_with_metadata(db, id=student.id)
+    return {
+        "message": "Profile picture deleted successfully",
+        "student": Student.from_orm_with_metadata(student_with_metadata)
+    }
 
 
 

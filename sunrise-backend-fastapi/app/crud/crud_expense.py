@@ -45,8 +45,6 @@ class CRUDExpense(CRUDBase[Expense, ExpenseCreate, ExpenseUpdate]):
         """Override to perform soft delete instead of hard delete"""
         from datetime import datetime
 
-        print(f"🔧 CRUDExpense.remove() called for expense ID: {id}")
-
         try:
             # Get the record without soft delete filtering for deletion
             result = await db.execute(
@@ -54,50 +52,25 @@ class CRUDExpense(CRUDBase[Expense, ExpenseCreate, ExpenseUpdate]):
             )
             obj = result.scalar_one_or_none()
 
-            print(f"🔍 Found expense object: {obj}")
             if obj:
-                print(f"🔍 Before soft delete - is_deleted: {obj.is_deleted}, deleted_date: {obj.deleted_date}")
-
                 # Check if already deleted
                 if obj.is_deleted:
-                    print(f"⚠️ Expense {id} is already soft deleted")
                     return obj
 
                 # Soft delete: set flags and timestamp
                 obj.is_deleted = True
                 obj.deleted_date = datetime.utcnow()
 
-                print(f"🔍 After setting flags - is_deleted: {obj.is_deleted}, deleted_date: {obj.deleted_date}")
-
                 # Use merge instead of add to handle potential session conflicts
                 db.add(obj)
-                print(f"🔧 Added object to session, committing...")
 
                 await db.commit()
-                print(f"🔧 Commit completed, refreshing object...")
 
                 await db.refresh(obj)
-                print(f"🗑️ Soft deleted expense {id}: is_deleted={obj.is_deleted}, deleted_date={obj.deleted_date}")
-
-                # Verify the change was persisted
-                verify_result = await db.execute(
-                    select(Expense).where(Expense.id == id)
-                )
-                verify_obj = verify_result.scalar_one_or_none()
-                if verify_obj:
-                    print(f"✅ Verification - DB shows is_deleted: {verify_obj.is_deleted}, deleted_date: {verify_obj.deleted_date}")
-                else:
-                    print(f"❌ Verification failed - could not find expense {id} in DB")
-
-            else:
-                print(f"❌ No expense found with ID {id}")
 
             return obj
 
         except Exception as e:
-            print(f"❌ Error in CRUDExpense.remove(): {str(e)}")
-            import traceback
-            traceback.print_exc()
             await db.rollback()
             raise
 
@@ -105,8 +78,6 @@ class CRUDExpense(CRUDBase[Expense, ExpenseCreate, ExpenseUpdate]):
         """Dedicated method for soft deleting expenses (bypasses base class)"""
         from datetime import datetime
         from sqlalchemy import update
-
-        print(f"🔧 soft_delete_expense() called for expense ID: {expense_id}")
 
         try:
             # First, get the current expense to verify it exists and is not already deleted
@@ -116,14 +87,10 @@ class CRUDExpense(CRUDBase[Expense, ExpenseCreate, ExpenseUpdate]):
             expense = result.scalar_one_or_none()
 
             if not expense:
-                print(f"❌ Expense {expense_id} not found")
                 return None
 
             if expense.is_deleted:
-                print(f"⚠️ Expense {expense_id} is already deleted")
                 return expense
-
-            print(f"🔍 Found expense: {expense.id}, current is_deleted: {expense.is_deleted}")
 
             # Use UPDATE statement for more reliable transaction handling
             delete_time = datetime.utcnow()
@@ -137,10 +104,8 @@ class CRUDExpense(CRUDBase[Expense, ExpenseCreate, ExpenseUpdate]):
                 )
             )
 
-            print(f"🔧 Executing UPDATE statement...")
             await db.execute(update_stmt)
 
-            print(f"🔧 Committing transaction...")
             await db.commit()
 
             # Fetch the updated record to verify
@@ -149,17 +114,9 @@ class CRUDExpense(CRUDBase[Expense, ExpenseCreate, ExpenseUpdate]):
             )
             updated_expense = verify_result.scalar_one_or_none()
 
-            if updated_expense:
-                print(f"✅ Soft delete successful: is_deleted={updated_expense.is_deleted}, deleted_date={updated_expense.deleted_date}")
-                return updated_expense
-            else:
-                print(f"❌ Could not verify soft delete")
-                return None
+            return updated_expense
 
         except Exception as e:
-            print(f"❌ Error in soft_delete_expense(): {str(e)}")
-            import traceback
-            traceback.print_exc()
             await db.rollback()
             raise
 
@@ -218,7 +175,6 @@ class CRUDExpense(CRUDBase[Expense, ExpenseCreate, ExpenseUpdate]):
 
             return ExpenseWithDetails(**row_dict)
         except Exception as e:
-            print(f"Error converting row to ExpenseWithDetails: {e}")
             return None
 
     async def get_multi_with_filters(
@@ -345,7 +301,6 @@ class CRUDExpense(CRUDBase[Expense, ExpenseCreate, ExpenseUpdate]):
                     row_dict = dict(zip(result.keys(), row))
                 expenses.append(ExpenseWithDetails(**row_dict))
             except Exception as e:
-                print(f"Error converting row: {e}")
                 continue
 
         return expenses, total
@@ -388,7 +343,6 @@ class CRUDExpense(CRUDBase[Expense, ExpenseCreate, ExpenseUpdate]):
                     row_dict = dict(zip(result.keys(), row))
                 expenses.append(ExpenseWithDetails(**row_dict))
             except Exception as e:
-                print(f"Error converting row: {e}")
                 continue
         return expenses
 
@@ -440,7 +394,6 @@ class CRUDExpense(CRUDBase[Expense, ExpenseCreate, ExpenseUpdate]):
                     row_dict = dict(zip(result.keys(), row))
                 expenses.append(ExpenseWithDetails(**row_dict))
             except Exception as e:
-                print(f"Error converting row: {e}")
                 continue
         return expenses
 
@@ -494,13 +447,10 @@ class CRUDExpense(CRUDBase[Expense, ExpenseCreate, ExpenseUpdate]):
         {where_clause}
         """
 
-        print(f"🔍 Executing statistics query: {query}")
         result = await db.execute(text(query))
         stats = result.fetchone()
-        print(f"📊 Raw query result: {stats}")
 
         if not stats:
-            print("⚠️ No statistics data returned from query")
             return {
                 'total_expenses': 0,
                 'approved_expenses': 0,
@@ -579,7 +529,6 @@ class CRUDExpense(CRUDBase[Expense, ExpenseCreate, ExpenseUpdate]):
             'payment_method_breakdown': payment_breakdown
         }
 
-        print(f"📈 Final statistics result: {final_stats}")
         return final_stats
 
     async def get_monthly_expense_trend(

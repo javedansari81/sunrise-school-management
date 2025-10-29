@@ -67,7 +67,6 @@ const LoginPopup: React.FC<LoginPopupProps> = ({ open, onClose }) => {
 
       // Redirect based on user role
       const userType = response.user.user_type;
-      console.log('User logged in with role:', userType);
 
       // Redirect users based on their role
       if (userType?.toUpperCase() === 'ADMIN') {
@@ -78,7 +77,6 @@ const LoginPopup: React.FC<LoginPopupProps> = ({ open, onClose }) => {
         navigate('/'); // Students and other users go to home
       }
     } catch (err: any) {
-      console.error('Login error:', err);
       setError(err.response?.data?.detail || err.message || 'Login failed. Please check your credentials.');
     } finally {
       setLoading(false);

@@ -37,6 +37,8 @@ CREATE TABLE teachers (
     class_teacher_of_id INTEGER,
     classes_assigned TEXT,
     salary DECIMAL(10,2),
+    profile_picture_url TEXT,
+    profile_picture_cloudinary_id TEXT,
     is_active BOOLEAN DEFAULT TRUE,
     is_deleted BOOLEAN DEFAULT FALSE,
     deleted_date TIMESTAMP WITH TIME ZONE,
@@ -65,6 +67,8 @@ CREATE INDEX IF NOT EXISTS idx_teachers_not_deleted ON teachers(is_deleted) WHER
 COMMENT ON TABLE teachers IS 'Teacher profile information';
 COMMENT ON COLUMN teachers.user_id IS 'Foreign key to users table';
 COMMENT ON COLUMN teachers.employee_id IS 'Unique employee ID';
+COMMENT ON COLUMN teachers.profile_picture_url IS 'Cloudinary URL for teacher profile picture';
+COMMENT ON COLUMN teachers.profile_picture_cloudinary_id IS 'Cloudinary public ID for profile picture management (deletion/replacement)';
 COMMENT ON COLUMN teachers.is_deleted IS 'Soft delete flag';
 COMMENT ON COLUMN teachers.deleted_date IS 'Timestamp when record was soft deleted';
 

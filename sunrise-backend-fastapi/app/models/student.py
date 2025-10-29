@@ -94,10 +94,14 @@ class Student(Base):
     guardian_phone = Column(String(20), nullable=True)
     guardian_email = Column(String(255), nullable=True)
     guardian_relation = Column(String(50), nullable=True)
-    
+
     # Academic Information
     admission_date = Column(Date, nullable=False)
-    
+
+    # Profile Picture
+    profile_picture_url = Column(Text, nullable=True)
+    profile_picture_cloudinary_id = Column(Text, nullable=True)
+
     # Status
     is_active = Column(Boolean, default=True)
 

@@ -51,7 +51,6 @@ class CRUDMonthlyFeeTracking(CRUDBase[MonthlyFeeTracking, MonthlyFeeTrackingCrea
 
         if not student:
             # Return None instead of raising exception for better error handling
-            print(f"Student with ID {student_id} not found")
             return None
 
         # Get session year info
@@ -75,7 +74,6 @@ class CRUDMonthlyFeeTracking(CRUDBase[MonthlyFeeTracking, MonthlyFeeTrackingCrea
 
         if not fee_record:
             # Return None instead of raising exception for better error handling
-            print(f"No monthly tracking enabled for student {student_id} in session {session_year_id}")
             return None
             
         # Get monthly tracking records

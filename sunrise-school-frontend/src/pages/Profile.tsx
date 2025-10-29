@@ -26,10 +26,12 @@ import {
   School as SchoolIcon,
   Work as WorkIcon,
   CalendarToday as CalendarIcon,
-  Badge as BadgeIcon
+  Badge as BadgeIcon,
+  CameraAlt as CameraIcon,
+  Delete as DeleteIcon
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
-import { authAPI } from '../services/api';
+import { authAPI, studentsAPI, teachersAPI } from '../services/api';
 import { ProfileData } from '../types/profile';
 import ProfileEditDialog from '../components/profile/ProfileEditDialog';
 
@@ -39,6 +41,8 @@ const Profile: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [uploadingPicture, setUploadingPicture] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   useEffect(() => {
     fetchProfileData();
@@ -49,6 +53,10 @@ const Profile: React.FC = () => {
       setLoading(true);
       setError(null);
       const response = await authAPI.getProfile();
+      console.log('Profile data received:', response.data);
+      console.log('Student profile:', response.data.student_profile);
+      console.log('Teacher profile:', response.data.teacher_profile);
+      console.log('Profile picture URL:', response.data.student_profile?.profile_picture_url || response.data.teacher_profile?.profile_picture_url);
       setProfileData(response.data);
     } catch (err: any) {
       console.error('Failed to fetch profile data:', err);
@@ -98,6 +106,107 @@ const Profile: React.FC = () => {
     setProfileData(updatedProfile);
   };
 
+  const handleProfilePictureUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      setError('Invalid file type. Please upload an image file (JPEG, PNG, GIF, or WebP).');
+      return;
+    }
+
+    // Validate file size (5MB max)
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    if (file.size > maxSize) {
+      setError('File size exceeds 5MB. Please upload a smaller image.');
+      return;
+    }
+
+    try {
+      setUploadingPicture(true);
+      setError(null);
+      setSuccessMessage(null);
+
+      if (user?.user_type?.toLowerCase() === 'student') {
+        await studentsAPI.uploadMyProfilePicture(file);
+      } else if (user?.user_type?.toLowerCase() === 'teacher') {
+        await teachersAPI.uploadMyProfilePicture(file);
+      } else {
+        setError('Profile picture upload is only available for students and teachers.');
+        return;
+      }
+
+      setSuccessMessage('Profile picture uploaded successfully!');
+
+      // Refresh profile data
+      await fetchProfileData();
+
+      // Clear success message after 3 seconds
+      setTimeout(() => setSuccessMessage(null), 3000);
+    } catch (err: any) {
+      console.error('Error uploading profile picture:', err);
+      setError(err.response?.data?.detail || 'Failed to upload profile picture. Please try again.');
+    } finally {
+      setUploadingPicture(false);
+      // Reset file input
+      event.target.value = '';
+    }
+  };
+
+  const handleProfilePictureDelete = async () => {
+    if (!window.confirm('Are you sure you want to delete your profile picture?')) {
+      return;
+    }
+
+    try {
+      setUploadingPicture(true);
+      setError(null);
+      setSuccessMessage(null);
+
+      if (user?.user_type?.toLowerCase() === 'student') {
+        await studentsAPI.deleteMyProfilePicture();
+      } else if (user?.user_type?.toLowerCase() === 'teacher') {
+        await teachersAPI.deleteMyProfilePicture();
+      } else {
+        setError('Profile picture deletion is only available for students and teachers.');
+        return;
+      }
+
+      setSuccessMessage('Profile picture deleted successfully!');
+
+      // Refresh profile data
+      await fetchProfileData();
+
+      // Clear success message after 3 seconds
+      setTimeout(() => setSuccessMessage(null), 3000);
+    } catch (err: any) {
+      console.error('Error deleting profile picture:', err);
+      setError(err.response?.data?.detail || 'Failed to delete profile picture. Please try again.');
+    } finally {
+      setUploadingPicture(false);
+    }
+  };
+
+  const getProfilePictureUrl = () => {
+    console.log('Getting profile picture URL...');
+    console.log('User type:', user?.user_type);
+    console.log('Profile data:', profileData);
+
+    if (user?.user_type?.toLowerCase() === 'student') {
+      const url = profileData?.student_profile?.profile_picture_url;
+      console.log('Student profile picture URL:', url);
+      return url;
+    } else if (user?.user_type?.toLowerCase() === 'teacher') {
+      const url = profileData?.teacher_profile?.profile_picture_url;
+      console.log('Teacher profile picture URL:', url);
+      return url;
+    }
+    console.log('No profile picture URL found');
+    return null;
+  };
+
   if (loading) {
     return (
       <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
@@ -132,20 +241,89 @@ const Profile: React.FC = () => {
         </Typography>
       </Box>
 
+      {/* Success Message */}
+      {successMessage && (
+        <Alert severity="success" sx={{ mb: 3 }} onClose={() => setSuccessMessage(null)}>
+          {successMessage}
+        </Alert>
+      )}
+
       {/* Profile Header Card */}
       <Card sx={{ mb: 3 }}>
         <CardContent>
           <Box display="flex" alignItems="center" gap={3}>
-            <Avatar
-              sx={{
-                width: 80,
-                height: 80,
-                bgcolor: 'primary.main',
-                fontSize: '2rem'
-              }}
-            >
-              {getInitials()}
-            </Avatar>
+            {/* Profile Picture with Upload/Delete Buttons */}
+            <Box position="relative">
+              <Avatar
+                src={getProfilePictureUrl() || undefined}
+                sx={{
+                  width: 100,
+                  height: 100,
+                  bgcolor: 'primary.main',
+                  fontSize: '2rem'
+                }}
+              >
+                {!getProfilePictureUrl() && getInitials()}
+              </Avatar>
+
+              {/* Upload/Delete Buttons */}
+              <Box
+                sx={{
+                  position: 'absolute',
+                  bottom: -8,
+                  right: -8,
+                  display: 'flex',
+                  gap: 0.5
+                }}
+              >
+                {/* Upload Button */}
+                <Tooltip title="Upload Picture">
+                  <IconButton
+                    component="label"
+                    size="small"
+                    disabled={uploadingPicture}
+                    sx={{
+                      bgcolor: 'primary.main',
+                      color: 'white',
+                      '&:hover': { bgcolor: 'primary.dark' },
+                      boxShadow: 2
+                    }}
+                  >
+                    {uploadingPicture ? (
+                      <CircularProgress size={16} color="inherit" />
+                    ) : (
+                      <CameraIcon fontSize="small" />
+                    )}
+                    <input
+                      type="file"
+                      hidden
+                      accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+                      onChange={handleProfilePictureUpload}
+                    />
+                  </IconButton>
+                </Tooltip>
+
+                {/* Delete Button (only show if picture exists) */}
+                {getProfilePictureUrl() && (
+                  <Tooltip title="Delete Picture">
+                    <IconButton
+                      size="small"
+                      disabled={uploadingPicture}
+                      onClick={handleProfilePictureDelete}
+                      sx={{
+                        bgcolor: 'error.main',
+                        color: 'white',
+                        '&:hover': { bgcolor: 'error.dark' },
+                        boxShadow: 2
+                      }}
+                    >
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                )}
+              </Box>
+            </Box>
+
             <Box flex={1}>
               <Typography variant="h5" gutterBottom>
                 {getFullName()}

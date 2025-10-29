@@ -52,15 +52,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const isAuthenticated = !!user && !!localStorage.getItem('authToken') && sessionService.isSessionValid();
 
-  // Debug logging
-  React.useEffect(() => {
-    console.log('Auth state changed:', {
-      hasUser: !!user,
-      hasToken: !!localStorage.getItem('authToken'),
-      isAuthenticated,
-      userType: user?.user_type
-    });
-  }, [user, isAuthenticated]);
+
 
   // Helper function to map user_type_id to user_type string (matching backend enum values)
   const mapUserTypeIdToString = (user_type_id: number): string => {
@@ -74,21 +66,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const login = async (email: string, password: string): Promise<LoginResponse> => {
     try {
-      console.log('Login attempt for:', email);
       const response = await authAPI.login(email, password);
       const { access_token, user, permissions } = response.data;
-      console.log('Login successful, token received:', !!access_token);
-      console.log('Raw user data from backend:', user);
 
       localStorage.setItem('authToken', access_token);
-      console.log('Token stored in localStorage');
 
       // Map user_type_id to user_type string for frontend compatibility
       const mappedUser = {
         ...user,
         user_type: user.user_type || mapUserTypeIdToString(user.user_type_id)
       };
-      console.log('Mapped user data:', mappedUser);
 
       // Set user immediately from login response
       setUser(mappedUser);
@@ -108,13 +95,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         permissions: permissions || []
       };
     } catch (error: any) {
-      console.error('Login failed:', error);
       throw error;
     }
   };
 
   const logout = () => {
-    console.log('AuthContext: Logging out user');
     sessionService.clearSession();
     setUser(null);
     setShowLoginPopup(false);
@@ -125,7 +110,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const handleSessionExpired = () => {
-    console.log('AuthContext: Handling session expiration');
     setUser(null);
     setShowLoginPopup(true);
     // Clear configuration cache
@@ -134,7 +118,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     // Navigate to home page if not already there
     const currentPath = window.location.pathname;
     if (currentPath !== '/') {
-      console.log('AuthContext: Redirecting to home due to session expiration');
       window.location.href = '/';
     }
   };
@@ -142,55 +125,48 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const refreshUser = async () => {
     try {
       const token = localStorage.getItem('authToken');
-      console.log('RefreshUser called, token exists:', !!token);
 
       if (!token) {
-        console.log('No token found, setting user to null');
         setUser(null);
         return;
       }
 
       // Check if token is expired before making API call
       if (sessionService.isTokenExpired(token)) {
-        console.log('Token expired during refresh, handling session expiration');
         handleSessionExpired();
         return;
       }
 
-      console.log('Calling getCurrentUser API...');
       const response = await authAPI.getCurrentUser();
-      console.log('getCurrentUser response:', response.data);
 
       // Map user_type_id to user_type string for frontend compatibility
       const mappedUser = {
         ...response.data,
         user_type: response.data.user_type || mapUserTypeIdToString(response.data.user_type_id)
       };
-      console.log('Mapped user data from refresh:', mappedUser);
 
       setUser(mappedUser);
 
       // Update user role in localStorage
       localStorage.setItem('userRole', mappedUser.user_type);
     } catch (error: any) {
-      console.error('Failed to refresh user:', error);
-      console.log('Error details:', error.response?.status, error.response?.data);
-
       // If it's a 401 error, handle as session expiration
       if (error.response?.status === 401) {
         handleSessionExpired();
-      } else {
-        logout();
       }
+      // For other errors, don't immediately logout - keep the token and user state
+      // This prevents losing session on temporary network issues
     }
   };
 
   useEffect(() => {
     const initAuth = async () => {
       const token = localStorage.getItem('authToken');
+
       if (token) {
         await refreshUser();
       }
+
       setIsLoading(false);
     };
 
@@ -198,9 +174,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     sessionService.setCallbacks({
       onSessionExpired: handleSessionExpired,
       onSessionInvalid: handleSessionExpired,
-      onSessionCleared: () => {
-        console.log('AuthContext: Session cleared by session service');
-      }
+      onSessionCleared: () => {}
     });
 
     initAuth();

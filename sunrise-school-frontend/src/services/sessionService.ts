@@ -52,10 +52,10 @@ class SessionService {
       // Decode JWT token without verification (just to check expiration)
       const payload = JSON.parse(atob(token.split('.')[1]));
       const currentTime = Math.floor(Date.now() / 1000);
-      
-      return payload.exp < currentTime;
+      const isExpired = payload.exp < currentTime;
+
+      return isExpired;
     } catch (error) {
-      console.error('Error parsing token:', error);
       return true; // Consider invalid tokens as expired
     }
   }
@@ -68,7 +68,6 @@ class SessionService {
       const payload = JSON.parse(atob(token.split('.')[1]));
       return new Date(payload.exp * 1000);
     } catch (error) {
-      console.error('Error parsing token expiration:', error);
       return null;
     }
   }
@@ -91,14 +90,12 @@ class SessionService {
    */
   validateCurrentSession(): boolean {
     const token = localStorage.getItem('authToken');
-    
+
     if (!token) {
-      console.log('SessionService: No token found');
       return false;
     }
 
     if (this.isTokenExpired(token)) {
-      console.log('SessionService: Token expired, triggering session expired callback');
       this.handleSessionExpired();
       return false;
     }
@@ -120,7 +117,6 @@ class SessionService {
    * Handle invalid session
    */
   handleSessionInvalid() {
-    console.log('SessionService: Invalid session detected');
     this.clearSession();
     if (this.callbacks.onSessionInvalid) {
       this.callbacks.onSessionInvalid();
@@ -131,10 +127,9 @@ class SessionService {
    * Clear session data
    */
   clearSession() {
-    console.log('SessionService: Clearing session data');
     localStorage.removeItem('authToken');
     localStorage.removeItem('userRole');
-    
+
     if (this.callbacks.onSessionCleared) {
       this.callbacks.onSessionCleared();
     }

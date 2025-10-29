@@ -296,8 +296,6 @@ async def get_all_metadata_async(db: AsyncSession) -> Dict[str, List[Any]]:
     rows = result.fetchall()
     query_time_ms = (time.time() - query_start) * 1000
 
-    print(f"🗄️  Single UNION query executed in {query_time_ms:.2f}ms, fetched {len(rows)} rows")
-
     # Group results by table name
     metadata = {
         "user_types": [],
@@ -425,7 +423,6 @@ async def get_all_metadata_async(db: AsyncSession) -> Dict[str, List[Any]]:
         metadata[table_name].append(obj)
 
     end_time = time.time()
-    print(f"⚡ Optimized metadata query completed in {(end_time - start_time) * 1000:.2f}ms")
 
     return metadata
 

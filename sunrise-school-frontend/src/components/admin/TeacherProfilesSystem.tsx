@@ -114,6 +114,9 @@ interface Teacher {
   class_teacher_of_name?: string;
   class_teacher_of_description?: string;
   user_id?: number;
+  // Profile Picture
+  profile_picture_url?: string;
+  profile_picture_cloudinary_id?: string;
 }
 
 // Form data interface for teacher forms
@@ -830,8 +833,11 @@ const TeacherProfilesSystem: React.FC = () => {
                     <TableRow key={teacher.id}>
                       <TableCell>
                         <Box display="flex" alignItems="center" gap={2}>
-                          <Avatar sx={{ bgcolor: 'primary.main' }}>
-                            {teacher.first_name[0]}{teacher.last_name[0]}
+                          <Avatar
+                            src={teacher.profile_picture_url || undefined}
+                            sx={{ bgcolor: 'primary.main' }}
+                          >
+                            {!teacher.profile_picture_url && `${teacher.first_name[0]}${teacher.last_name[0]}`}
                           </Avatar>
                           <Box>
                             <Typography variant="body2" fontWeight="bold">
@@ -943,8 +949,11 @@ const TeacherProfilesSystem: React.FC = () => {
                       <TableRow key={teacher.id}>
                         <TableCell>
                           <Box display="flex" alignItems="center" gap={2}>
-                            <Avatar sx={{ bgcolor: 'primary.main' }}>
-                              {teacher.first_name[0]}{teacher.last_name[0]}
+                            <Avatar
+                              src={teacher.profile_picture_url || undefined}
+                              sx={{ bgcolor: 'primary.main' }}
+                            >
+                              {!teacher.profile_picture_url && `${teacher.first_name[0]}${teacher.last_name[0]}`}
                             </Avatar>
                             <Box>
                               <Typography variant="body2" fontWeight="bold">
