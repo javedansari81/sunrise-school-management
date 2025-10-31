@@ -37,7 +37,6 @@ async def get_students(
     """
     Get all students with comprehensive filters and metadata
     """
-    student_crud = CRUDStudent()
     skip = (page - 1) * per_page
     students, total = await student_crud.get_multi_with_filters(
         db,
@@ -302,7 +301,6 @@ async def get_student(
     """
     Get student details by ID with metadata
     """
-    student_crud = CRUDStudent()
     student = await student_crud.get_with_metadata(db, id=student_id)
     if not student:
         raise HTTPException(
