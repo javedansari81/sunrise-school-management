@@ -20,7 +20,6 @@ import {
   Visibility,
   DirectionsBus,
   ExpandMore,
-  ExpandLess,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import AdminLayout from '../../components/Layout/AdminLayout';
@@ -167,7 +166,15 @@ const AdminDashboard: React.FC = () => {
   const [pendingLeaves, setPendingLeaves] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [expandedCards, setExpandedCards] = useState<{ [key: string]: boolean }>({});
+  // Initialize all cards as expanded by default
+  const [expandedCards, setExpandedCards] = useState<{ [key: string]: boolean }>({
+    students: true,
+    teachers: true,
+    fees: true,
+    leaves: true,
+    expenses: true,
+    transport: true,
+  });
 
   useEffect(() => {
     loadDashboardData();
@@ -352,38 +359,38 @@ const AdminDashboard: React.FC = () => {
     switch (card.key) {
       case 'students':
         return (
-          <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid #e0e0e0' }}>
-            <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
+          <Box sx={{ mt: 1.5, pt: 1.5, borderTop: '1px solid #e0e0e0' }}>
+            <Typography variant="subtitle2" fontWeight="bold" gutterBottom sx={{ mb: 1, fontSize: '0.875rem' }}>
               Class Distribution
             </Typography>
             {card.details.class_breakdown && card.details.class_breakdown.length > 0 ? (
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={card.details.class_breakdown}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="class_name" style={{ fontSize: '0.75rem' }} />
-                  <YAxis style={{ fontSize: '0.75rem' }} />
-                  <Tooltip />
-                  <Legend wrapperStyle={{ fontSize: '0.75rem' }} />
-                  <Bar dataKey="total" fill={card.color} name="Total Students" />
+              <ResponsiveContainer width="100%" height={140}>
+                <BarChart data={card.details.class_breakdown} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                  <XAxis dataKey="class_name" style={{ fontSize: '0.7rem' }} />
+                  <YAxis style={{ fontSize: '0.7rem' }} />
+                  <Tooltip contentStyle={{ fontSize: '0.75rem' }} />
+                  <Legend wrapperStyle={{ fontSize: '0.7rem' }} iconSize={10} />
+                  <Bar dataKey="total" fill={card.color} name="Total Students" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <Typography variant="body2" color="text.secondary">No data available</Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8rem' }}>No data available</Typography>
             )}
-            <Box sx={{ mt: 2, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-              <Chip label={`Active: ${card.details.active_students || 0}`} size="small" color="success" />
-              <Chip label={`Inactive: ${card.details.inactive_students || 0}`} size="small" color="default" />
+            <Box sx={{ mt: 1.5, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+              <Chip label={`Active: ${card.details.active_students || 0}`} size="small" color="success" sx={{ height: 24, fontSize: '0.7rem' }} />
+              <Chip label={`Inactive: ${card.details.inactive_students || 0}`} size="small" color="default" sx={{ height: 24, fontSize: '0.7rem' }} />
             </Box>
           </Box>
         );
 
       case 'teachers':
         return (
-          <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid #e0e0e0' }}>
-            <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
+          <Box sx={{ mt: 1.5, pt: 1.5, borderTop: '1px solid #e0e0e0' }}>
+            <Typography variant="subtitle2" fontWeight="bold" gutterBottom sx={{ mb: 1, fontSize: '0.875rem' }}>
               Department Distribution
             </Typography>
-            <ResponsiveContainer width="100%" height={200}>
+            <ResponsiveContainer width="100%" height={140}>
               <PieChart>
                 <Pie
                   data={card.details.department_breakdown}
@@ -391,14 +398,16 @@ const AdminDashboard: React.FC = () => {
                   nameKey="department"
                   cx="50%"
                   cy="50%"
-                  outerRadius={60}
+                  outerRadius={50}
                   label={(entry) => `${entry.department}: ${entry.count}`}
+                  labelLine={{ stroke: '#666', strokeWidth: 1 }}
+                  style={{ fontSize: '0.7rem' }}
                 >
                   {card.details.department_breakdown.map((_: any, index: number) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip />
+                <Tooltip contentStyle={{ fontSize: '0.75rem' }} />
               </PieChart>
             </ResponsiveContainer>
           </Box>
@@ -406,79 +415,79 @@ const AdminDashboard: React.FC = () => {
 
       case 'fees':
         return (
-          <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid #e0e0e0' }}>
-            <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
+          <Box sx={{ mt: 1.5, pt: 1.5, borderTop: '1px solid #e0e0e0' }}>
+            <Typography variant="subtitle2" fontWeight="bold" gutterBottom sx={{ mb: 1, fontSize: '0.875rem' }}>
               Collection Trends (Last 12 Months)
             </Typography>
-            <ResponsiveContainer width="100%" height={200}>
-              <LineChart data={card.details.monthly_trends}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" style={{ fontSize: '0.7rem' }} />
-                <YAxis style={{ fontSize: '0.75rem' }} />
-                <Tooltip />
-                <Legend wrapperStyle={{ fontSize: '0.75rem' }} />
-                <Line type="monotone" dataKey="amount" stroke={card.color} name="Amount Collected" />
+            <ResponsiveContainer width="100%" height={140}>
+              <LineChart data={card.details.monthly_trends} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis dataKey="month" style={{ fontSize: '0.65rem' }} />
+                <YAxis style={{ fontSize: '0.7rem' }} />
+                <Tooltip contentStyle={{ fontSize: '0.75rem' }} />
+                <Legend wrapperStyle={{ fontSize: '0.7rem' }} iconSize={10} />
+                <Line type="monotone" dataKey="amount" stroke={card.color} name="Amount Collected" strokeWidth={2} dot={{ r: 3 }} />
               </LineChart>
             </ResponsiveContainer>
-            <Box sx={{ mt: 2, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-              <Chip label={`Pending: ₹${card.details.pending_fees.toLocaleString('en-IN')}`} size="small" color="warning" />
-              <Chip label={`Paid Records: ${card.details.paid_records}/${card.details.total_records}`} size="small" color="success" />
+            <Box sx={{ mt: 1.5, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+              <Chip label={`Pending: ₹${card.details.pending_fees.toLocaleString('en-IN')}`} size="small" color="warning" sx={{ height: 24, fontSize: '0.7rem' }} />
+              <Chip label={`Paid Records: ${card.details.paid_records}/${card.details.total_records}`} size="small" color="success" sx={{ height: 24, fontSize: '0.7rem' }} />
             </Box>
           </Box>
         );
 
       case 'leaves':
         return (
-          <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid #e0e0e0' }}>
-            <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
+          <Box sx={{ mt: 1.5, pt: 1.5, borderTop: '1px solid #e0e0e0' }}>
+            <Typography variant="subtitle2" fontWeight="bold" gutterBottom sx={{ mb: 1, fontSize: '0.875rem' }}>
               Leave Type Breakdown
             </Typography>
-            <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={card.details.leave_type_breakdown}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="type" style={{ fontSize: '0.7rem' }} />
-                <YAxis style={{ fontSize: '0.75rem' }} />
-                <Tooltip />
-                <Legend wrapperStyle={{ fontSize: '0.75rem' }} />
-                <Bar dataKey="approved" fill="#4caf50" name="Approved" stackId="a" />
+            <ResponsiveContainer width="100%" height={140}>
+              <BarChart data={card.details.leave_type_breakdown} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis dataKey="type" style={{ fontSize: '0.65rem' }} />
+                <YAxis style={{ fontSize: '0.7rem' }} />
+                <Tooltip contentStyle={{ fontSize: '0.75rem' }} />
+                <Legend wrapperStyle={{ fontSize: '0.7rem' }} iconSize={10} />
+                <Bar dataKey="approved" fill="#4caf50" name="Approved" stackId="a" radius={[4, 4, 0, 0]} />
                 <Bar dataKey="pending" fill="#ff9800" name="Pending" stackId="a" />
                 <Bar dataKey="rejected" fill="#f44336" name="Rejected" stackId="a" />
               </BarChart>
             </ResponsiveContainer>
-            <Box sx={{ mt: 2, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-              <Chip label={`Approved: ${card.details.approved_count}`} size="small" color="success" />
-              <Chip label={`Rejected: ${card.details.rejected_count}`} size="small" color="error" />
+            <Box sx={{ mt: 1.5, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+              <Chip label={`Approved: ${card.details.approved_count}`} size="small" color="success" sx={{ height: 24, fontSize: '0.7rem' }} />
+              <Chip label={`Rejected: ${card.details.rejected_count}`} size="small" color="error" sx={{ height: 24, fontSize: '0.7rem' }} />
             </Box>
           </Box>
         );
 
       case 'expenses':
         return (
-          <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid #e0e0e0' }}>
-            <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
-              Category Breakdown
+          <Box sx={{ mt: 1.5, pt: 1.5, borderTop: '1px solid #e0e0e0' }}>
+            <Typography variant="subtitle2" fontWeight="bold" gutterBottom sx={{ mb: 1, fontSize: '0.875rem' }}>
+              Category Breakdown (Top 5)
             </Typography>
-            <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={card.details.category_breakdown.slice(0, 5)}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="category" style={{ fontSize: '0.7rem' }} />
-                <YAxis style={{ fontSize: '0.75rem' }} />
-                <Tooltip />
-                <Bar dataKey="amount" fill={card.color} name="Amount" />
+            <ResponsiveContainer width="100%" height={140}>
+              <BarChart data={card.details.category_breakdown.slice(0, 5)} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis dataKey="category" style={{ fontSize: '0.65rem' }} />
+                <YAxis style={{ fontSize: '0.7rem' }} />
+                <Tooltip contentStyle={{ fontSize: '0.75rem' }} />
+                <Bar dataKey="amount" fill={card.color} name="Amount" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
             {card.details.monthly_trends && card.details.monthly_trends.length > 0 && (
               <>
-                <Typography variant="subtitle2" fontWeight="bold" gutterBottom sx={{ mt: 2 }}>
+                <Typography variant="subtitle2" fontWeight="bold" gutterBottom sx={{ mt: 1.5, mb: 1, fontSize: '0.875rem' }}>
                   Monthly Spending Trends
                 </Typography>
-                <ResponsiveContainer width="100%" height={200}>
-                  <LineChart data={card.details.monthly_trends}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="month" style={{ fontSize: '0.7rem' }} />
-                    <YAxis style={{ fontSize: '0.75rem' }} />
-                    <Tooltip />
-                    <Line type="monotone" dataKey="amount" stroke={card.color} name="Amount" />
+                <ResponsiveContainer width="100%" height={140}>
+                  <LineChart data={card.details.monthly_trends} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                    <XAxis dataKey="month" style={{ fontSize: '0.65rem' }} />
+                    <YAxis style={{ fontSize: '0.7rem' }} />
+                    <Tooltip contentStyle={{ fontSize: '0.75rem' }} />
+                    <Line type="monotone" dataKey="amount" stroke={card.color} name="Amount" strokeWidth={2} dot={{ r: 3 }} />
                   </LineChart>
                 </ResponsiveContainer>
               </>
@@ -490,36 +499,36 @@ const AdminDashboard: React.FC = () => {
         // Check if there's an error in transport service data
         if (card.details.error) {
           return (
-            <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid #e0e0e0' }}>
-              <Typography variant="body2" color="error">
+            <Box sx={{ mt: 1.5, pt: 1.5, borderTop: '1px solid #e0e0e0' }}>
+              <Typography variant="body2" color="error" sx={{ fontSize: '0.8rem' }}>
                 Transport service data unavailable. Please check the database configuration.
               </Typography>
             </Box>
           );
         }
         return (
-          <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid #e0e0e0' }}>
-            <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
+          <Box sx={{ mt: 1.5, pt: 1.5, borderTop: '1px solid #e0e0e0' }}>
+            <Typography variant="subtitle2" fontWeight="bold" gutterBottom sx={{ mb: 1, fontSize: '0.875rem' }}>
               Transport Type Utilization
             </Typography>
             {card.details.transport_type_breakdown && card.details.transport_type_breakdown.length > 0 ? (
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={card.details.transport_type_breakdown}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="type" style={{ fontSize: '0.7rem' }} />
-                  <YAxis style={{ fontSize: '0.75rem' }} />
-                  <Tooltip />
-                  <Legend wrapperStyle={{ fontSize: '0.75rem' }} />
-                  <Bar dataKey="enrollments" fill={card.color} name="Enrollments" />
-                  <Bar dataKey="capacity" fill="#90caf9" name="Capacity" />
+              <ResponsiveContainer width="100%" height={140}>
+                <BarChart data={card.details.transport_type_breakdown} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                  <XAxis dataKey="type" style={{ fontSize: '0.65rem' }} />
+                  <YAxis style={{ fontSize: '0.7rem' }} />
+                  <Tooltip contentStyle={{ fontSize: '0.75rem' }} />
+                  <Legend wrapperStyle={{ fontSize: '0.7rem' }} iconSize={10} />
+                  <Bar dataKey="enrollments" fill={card.color} name="Enrollments" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="capacity" fill="#90caf9" name="Capacity" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <Typography variant="body2" color="text.secondary">No transport data available</Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8rem' }}>No transport data available</Typography>
             )}
-            <Box sx={{ mt: 2, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-              <Chip label={`Collected: ₹${(card.details.collected_fees || 0).toLocaleString('en-IN')}`} size="small" color="success" />
-              <Chip label={`Pending: ₹${(card.details.pending_fees || 0).toLocaleString('en-IN')}`} size="small" color="warning" />
+            <Box sx={{ mt: 1.5, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+              <Chip label={`Collected: ₹${(card.details.collected_fees || 0).toLocaleString('en-IN')}`} size="small" color="success" sx={{ height: 24, fontSize: '0.7rem' }} />
+              <Chip label={`Pending: ₹${(card.details.pending_fees || 0).toLocaleString('en-IN')}`} size="small" color="warning" sx={{ height: 24, fontSize: '0.7rem' }} />
             </Box>
           </Box>
         );
@@ -556,8 +565,8 @@ const AdminDashboard: React.FC = () => {
                 sm: 'repeat(2, 1fr)',
                 lg: 'repeat(3, 1fr)',
               },
-              gap: { xs: 2, sm: 2, md: 3 },
-              mb: { xs: 3, sm: 4 },
+              gap: { xs: 1.5, sm: 2, md: 2.5 },
+              mb: { xs: 2.5, sm: 3 },
               alignItems: 'start', // Prevent cards from stretching to match tallest card
             }}
           >
@@ -568,79 +577,94 @@ const AdminDashboard: React.FC = () => {
                 transition: 'all 0.3s ease-in-out',
                 '&:hover': {
                   boxShadow: { xs: 2, sm: 4 },
+                  transform: 'translateY(-2px)',
                 },
               }}
             >
-              <CardContent sx={{ p: { xs: 2, sm: 2.5, md: 3 } }}>
+              <CardContent sx={{ p: { xs: 1.5, sm: 2, md: 2.5 }, '&:last-child': { pb: { xs: 1.5, sm: 2, md: 2.5 } } }}>
+                {/* Card Header with Icon and Info Side by Side */}
                 <Box
                   display="flex"
-                  alignItems="center"
+                  alignItems="flex-start"
                   justifyContent="space-between"
-                  mb={{ xs: 1.5, sm: 2 }}
+                  mb={{ xs: 1, sm: 1.5 }}
                   sx={{ cursor: card.clickable ? 'pointer' : 'default' }}
                   onClick={card.onClick}
                 >
-                  <Box
-                    sx={{
-                      backgroundColor: card.color,
-                      color: 'white',
-                      borderRadius: '50%',
-                      p: { xs: 1, sm: 1.5 },
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      '& .MuiSvgIcon-root': {
-                        fontSize: { xs: '1.5rem', sm: '2rem', md: '2.5rem' }
-                      }
-                    }}
-                  >
-                    {card.icon}
+                  {/* Left Side: Icon + Info */}
+                  <Box display="flex" alignItems="flex-start" gap={{ xs: 1.5, sm: 2 }} flex={1}>
+                    {/* Icon */}
+                    <Box
+                      sx={{
+                        backgroundColor: card.color,
+                        color: 'white',
+                        borderRadius: '50%',
+                        p: { xs: 1, sm: 1.25 },
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0,
+                        '& .MuiSvgIcon-root': {
+                          fontSize: { xs: '1.5rem', sm: '1.75rem', md: '2rem' }
+                        }
+                      }}
+                    >
+                      {card.icon}
+                    </Box>
+
+                    {/* Info: Value, Title, Change */}
+                    <Box flex={1} minWidth={0}>
+                      <Typography
+                        variant="h4"
+                        fontWeight="bold"
+                        sx={{
+                          fontSize: { xs: '1.5rem', sm: '1.75rem', md: '2rem' },
+                          lineHeight: 1.2,
+                          mb: { xs: 0.25, sm: 0.5 }
+                        }}
+                      >
+                        {card.value}
+                      </Typography>
+                      <Typography
+                        variant="h6"
+                        color="text.secondary"
+                        sx={{
+                          fontSize: { xs: '0.875rem', sm: '0.95rem', md: '1rem' },
+                          fontWeight: 500,
+                          mb: { xs: 0.25, sm: 0.5 }
+                        }}
+                      >
+                        {card.title}
+                      </Typography>
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{
+                          fontSize: { xs: '0.7rem', sm: '0.8rem' },
+                          lineHeight: 1.3
+                        }}
+                      >
+                        {card.change}
+                      </Typography>
+                    </Box>
                   </Box>
+
+                  {/* Right Side: Expand/Collapse Button */}
                   <IconButton
                     size="small"
                     onClick={(e) => {
                       e.stopPropagation();
                       toggleCardExpansion(card.key);
                     }}
+                    sx={{
+                      transition: 'transform 0.3s ease',
+                      transform: expandedCards[card.key] ? 'rotate(180deg)' : 'rotate(0deg)',
+                      flexShrink: 0,
+                      ml: 1
+                    }}
                   >
-                    {expandedCards[card.key] ? <ExpandLess /> : <ExpandMore />}
+                    <ExpandMore />
                   </IconButton>
-                </Box>
-                <Box sx={{ cursor: card.clickable ? 'pointer' : 'default' }} onClick={card.onClick}>
-                  <Typography
-                    variant="h4"
-                    fontWeight="bold"
-                    gutterBottom
-                    sx={{
-                      fontSize: { xs: '1.5rem', sm: '1.75rem', md: '2rem' },
-                      lineHeight: 1.2,
-                      mb: { xs: 0.5, sm: 1 }
-                    }}
-                  >
-                    {card.value}
-                  </Typography>
-                  <Typography
-                    variant="h6"
-                    color="text.secondary"
-                    gutterBottom
-                    sx={{
-                      fontSize: { xs: '0.875rem', sm: '1rem', md: '1.125rem' },
-                      fontWeight: 500,
-                      mb: { xs: 0.5, sm: 1 }
-                    }}
-                  >
-                    {card.title}
-                  </Typography>
-                  <Typography
-                    variant="body2"
-                    color="text.secondary"
-                    sx={{
-                      fontSize: { xs: '0.75rem', sm: '0.875rem' },
-                      lineHeight: 1.3
-                    }}
-                  >
-                    {card.change}
-                  </Typography>
                 </Box>
 
                 {/* Expandable Details Section */}
