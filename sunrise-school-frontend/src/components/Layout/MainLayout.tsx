@@ -339,8 +339,11 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                 onClick={handleUserMenuOpen}
                 sx={{ ml: 1 }}
               >
-                <Avatar sx={{ width: 36, height: 36, bgcolor: 'white', color: '#1976d2' }}>
-                  {user.first_name?.[0] || user.email?.[0] || 'U'}
+                <Avatar
+                  src={user.profile_picture_url || undefined}
+                  sx={{ width: 36, height: 36, bgcolor: 'white', color: '#1976d2' }}
+                >
+                  {!user.profile_picture_url && (user.first_name?.[0] || user.email?.[0] || 'U')}
                 </Avatar>
               </IconButton>
             ) : (
@@ -380,8 +383,11 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
             {/* User Profile Menu */}
             {isAuthenticated && user ? (
               <IconButton onClick={handleUserMenuOpen} sx={{ color: 'primary.main' }}>
-                <Avatar sx={{ width: 36, height: 36, bgcolor: 'primary.main' }}>
-                  {user.first_name?.[0] || user.email?.[0] || 'U'}
+                <Avatar
+                  src={user.profile_picture_url || undefined}
+                  sx={{ width: 36, height: 36, bgcolor: 'primary.main' }}
+                >
+                  {!user.profile_picture_url && (user.first_name?.[0] || user.email?.[0] || 'U')}
                 </Avatar>
               </IconButton>
             ) : (

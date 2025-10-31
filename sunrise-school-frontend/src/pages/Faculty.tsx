@@ -38,15 +38,23 @@ interface Teacher {
   full_name: string;
   first_name: string;
   last_name: string;
-  employee_id: string;
   position: string;
   department?: string;
+  department_id?: number;
   subjects: string[];
   experience_years: number;
   qualification_name?: string;
   joining_date?: string;
   email?: string;
-  phone?: string;
+  profile_picture_url?: string;
+}
+
+interface DepartmentStat {
+  id: number | null;
+  name: string;
+  faculty_count: number;
+  subjects: string[];
+  description: string;
 }
 
 interface Department {
@@ -61,6 +69,7 @@ const Faculty: React.FC = () => {
   // State management
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [departments, setDepartments] = useState<{ [key: string]: Teacher[] }>({});
+  const [departmentStats, setDepartmentStats] = useState<DepartmentStat[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -80,12 +89,14 @@ const Faculty: React.FC = () => {
           const response = await teachersAPI.getPublicFaculty();
           console.log('API Response:', response);
 
-          const { teachers: teacherData, departments: departmentData } = response.data;
+          const { teachers: teacherData, departments: departmentData, department_stats: departmentStatsData } = response.data;
           console.log('Teachers data:', teacherData);
           console.log('Departments data:', departmentData);
+          console.log('Department stats:', departmentStatsData);
 
           setTeachers(teacherData);
           setDepartments(departmentData);
+          setDepartmentStats(departmentStatsData || []);
           setFilteredTeachers(teacherData);
         } catch (apiError: any) {
           console.warn('API failed, using mock data:', apiError.message);
@@ -97,30 +108,30 @@ const Faculty: React.FC = () => {
               full_name: "Amit Kumar",
               first_name: "Amit",
               last_name: "Kumar",
-              employee_id: "EMP001",
               position: "Principal",
               department: "Math",
+              department_id: 1,
               subjects: ["Mathematics", "Statistics", "Algebra"],
               experience_years: 10,
               qualification_name: "M.Sc. Mathematics, B.Ed.",
               joining_date: "2014-01-15",
               email: "amit.kumar@gmail.com",
-              phone: "9876543211"
+              profile_picture_url: undefined
             },
             {
               id: 2,
               full_name: "Subham Kumar",
               first_name: "Subham",
               last_name: "Kumar",
-              employee_id: "EMP002",
               position: "Vice Principal",
               department: "Administration",
+              department_id: 2,
               subjects: ["Management", "Administration"],
               experience_years: 0,
               qualification_name: "MBA, B.Ed.",
               joining_date: "2024-01-01",
               email: "subham.kumar@gmail.com",
-              phone: "9876543212"
+              profile_picture_url: undefined
             }
           ];
 
@@ -156,7 +167,7 @@ const Faculty: React.FC = () => {
         teacher.subjects.some(subject =>
           subject.toLowerCase().includes(searchTerm.toLowerCase())
         ) ||
-        teacher.employee_id.toLowerCase().includes(searchTerm.toLowerCase())
+        teacher.email?.toLowerCase().includes(searchTerm.toLowerCase())
       );
       setFilteredTeachers(filtered);
     }
@@ -167,44 +178,25 @@ const Faculty: React.FC = () => {
     return fullName.split(' ').map(name => name[0]).join('').toUpperCase();
   };
 
-  // Static department information (can be made dynamic later)
-  const departmentInfo: Department[] = [
-    {
-      name: 'Science Department',
-      icon: <Science />,
-      subjects: ['Physics', 'Chemistry', 'Biology', 'Mathematics'],
-      faculty: departments['Science']?.length || 0,
-      description: 'Dedicated to fostering scientific thinking and research aptitude'
-    },
-    {
-      name: 'Languages Department',
-      icon: <Language />,
-      subjects: ['English', 'Hindi', 'Sanskrit'],
-      faculty: departments['Languages']?.length || 0,
-      description: 'Developing communication skills and literary appreciation'
-    },
-    {
-      name: 'Social Sciences',
-      icon: <Psychology />,
-      subjects: ['History', 'Geography', 'Political Science', 'Economics'],
-      faculty: departments['Social Sciences']?.length || 0,
-      description: 'Understanding society, culture, and human behavior'
-    },
-    {
-      name: 'Arts & Sports',
-      icon: <Palette />,
-      subjects: ['Fine Arts', 'Music', 'Dance', 'Physical Education'],
-      faculty: departments['Arts']?.length || departments['Sports']?.length || 0,
-      description: 'Nurturing creativity and physical fitness'
-    },
-    {
-      name: 'Technology',
-      icon: <Computer />,
-      subjects: ['Computer Science', 'Information Technology'],
-      faculty: departments['Technology']?.length || departments['Computer Science']?.length || 0,
-      description: 'Preparing students for the digital age'
-    }
-  ];
+  // Function to get department icon based on department name
+  const getDepartmentIcon = (deptName: string) => {
+    const name = deptName.toLowerCase();
+    if (name.includes('science') || name.includes('mathematics')) return <Science />;
+    if (name.includes('language') || name.includes('english') || name.includes('hindi')) return <Language />;
+    if (name.includes('social') || name.includes('history') || name.includes('geography')) return <Psychology />;
+    if (name.includes('art') || name.includes('music') || name.includes('sport') || name.includes('physical')) return <Palette />;
+    if (name.includes('computer') || name.includes('technology') || name.includes('it')) return <Computer />;
+    return <Star />; // Default icon
+  };
+
+  // Dynamic department information from API
+  const departmentInfo: Department[] = departmentStats.map(stat => ({
+    name: stat.name,
+    icon: getDepartmentIcon(stat.name),
+    subjects: stat.subjects,
+    faculty: stat.faculty_count,
+    description: stat.description
+  }));
 
   const qualityFeatures = [
     'Highly qualified and experienced faculty',
@@ -307,6 +299,7 @@ const Faculty: React.FC = () => {
                 <Card elevation={3} sx={{ height: '100%', textAlign: 'center' }}>
                   <CardContent sx={{ p: 3 }}>
                     <Avatar
+                      src={teacher.profile_picture_url || undefined}
                       sx={{
                         width: 100,
                         height: 100,
@@ -316,7 +309,7 @@ const Faculty: React.FC = () => {
                         fontSize: '2rem'
                       }}
                     >
-                      {getInitials(teacher.full_name)}
+                      {!teacher.profile_picture_url && getInitials(teacher.full_name)}
                     </Avatar>
                     <Typography variant="h6" gutterBottom fontWeight="bold">
                       {teacher.full_name}
@@ -340,9 +333,6 @@ const Faculty: React.FC = () => {
                         Department: {teacher.department}
                       </Typography>
                     )}
-                    <Typography variant="body2" fontWeight="medium" gutterBottom>
-                      Employee ID: {teacher.employee_id}
-                    </Typography>
 
                     {/* Contact Information */}
                     <Box mb={2}>
@@ -351,14 +341,6 @@ const Faculty: React.FC = () => {
                           <Email sx={{ fontSize: 16, mr: 1, color: 'text.secondary' }} />
                           <Link href={`mailto:${teacher.email}`} variant="body2" color="inherit">
                             {teacher.email}
-                          </Link>
-                        </Box>
-                      )}
-                      {teacher.phone && (
-                        <Box display="flex" alignItems="center" justifyContent="center">
-                          <Phone sx={{ fontSize: 16, mr: 1, color: 'text.secondary' }} />
-                          <Link href={`tel:${teacher.phone}`} variant="body2" color="inherit">
-                            {teacher.phone}
                           </Link>
                         </Box>
                       )}

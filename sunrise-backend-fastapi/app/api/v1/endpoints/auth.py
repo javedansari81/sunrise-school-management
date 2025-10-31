@@ -586,6 +586,10 @@ async def get_user_profile(
                 "guardian_email": student.guardian_email,
                 "guardian_relation": student.guardian_relation,
 
+                # Profile Picture
+                "profile_picture_url": student.profile_picture_url,
+                "profile_picture_cloudinary_id": student.profile_picture_cloudinary_id,
+
                 # Status
                 "is_active": student.is_active
             }
@@ -653,6 +657,10 @@ async def get_user_profile(
                 "gender_name": gender.name if gender else None,
                 "gender_description": gender.description if gender else None,
 
+                # Profile Picture
+                "profile_picture_url": teacher.profile_picture_url,
+                "profile_picture_cloudinary_id": teacher.profile_picture_cloudinary_id,
+
                 # Status
                 "is_active": teacher.is_active
             }
@@ -708,6 +716,10 @@ async def get_user_profile(
                 "gender_id": teacher.gender_id,
                 "gender_name": gender.name if gender else None,
                 "gender_description": gender.description if gender else None,
+
+                # Profile Picture
+                "profile_picture_url": teacher.profile_picture_url,
+                "profile_picture_cloudinary_id": teacher.profile_picture_cloudinary_id,
 
                 # Status
                 "is_active": teacher.is_active

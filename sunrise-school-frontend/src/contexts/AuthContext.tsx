@@ -10,6 +10,8 @@ interface User {
   email: string;
   user_type: string;
   is_active: boolean;
+  profile_picture_url?: string | null;
+  phone?: string;
 }
 
 interface LoginResponse {
@@ -87,6 +89,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       // Start session monitoring
       sessionService.startSessionMonitoring();
 
+      // Fetch full profile data (including profile picture) in the background
+      // This will update the user state with profile picture
+      refreshUser().catch(err => {
+        console.error('Failed to fetch profile picture after login:', err);
+      });
+
       // Return the full response for the caller
       return {
         access_token,
@@ -137,12 +145,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         return;
       }
 
-      const response = await authAPI.getCurrentUser();
+      const response = await authAPI.getProfile();
+      const profileData = response.data;
+
+      // Extract profile picture URL from student_profile or teacher_profile
+      let profilePictureUrl = null;
+      if (profileData.student_profile?.profile_picture_url) {
+        profilePictureUrl = profileData.student_profile.profile_picture_url;
+      } else if (profileData.teacher_profile?.profile_picture_url) {
+        profilePictureUrl = profileData.teacher_profile.profile_picture_url;
+      } else if (profileData.admin_profile?.profile_picture_url) {
+        profilePictureUrl = profileData.admin_profile.profile_picture_url;
+      }
 
       // Map user_type_id to user_type string for frontend compatibility
       const mappedUser = {
-        ...response.data,
-        user_type: response.data.user_type || mapUserTypeIdToString(response.data.user_type_id)
+        ...profileData.user_info,
+        user_type: profileData.user_info.user_type || mapUserTypeIdToString(profileData.user_info.user_type_id),
+        profile_picture_url: profilePictureUrl
       };
 
       setUser(mappedUser);

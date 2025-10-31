@@ -280,8 +280,11 @@ const StudentLayout: React.FC<StudentLayoutProps> = ({ children }) => {
                 color="inherit"
                 onClick={handleUserMenuOpen}
               >
-                <Avatar sx={{ width: 36, height: 36, bgcolor: 'secondary.main' }}>
-                  {user.first_name?.[0] || user.email?.[0] || 'S'}
+                <Avatar
+                  src={user.profile_picture_url || undefined}
+                  sx={{ width: 36, height: 36, bgcolor: 'secondary.main' }}
+                >
+                  {!user.profile_picture_url && (user.first_name?.[0] || user.email?.[0] || 'S')}
                 </Avatar>
               </IconButton>
             )}
@@ -374,8 +377,11 @@ const StudentLayout: React.FC<StudentLayoutProps> = ({ children }) => {
                   color="primary"
                   onClick={handleUserMenuOpen}
                 >
-                  <Avatar sx={{ width: 36, height: 36, bgcolor: 'primary.main' }}>
-                    {user.first_name?.[0] || user.email?.[0] || 'S'}
+                  <Avatar
+                    src={user.profile_picture_url || undefined}
+                    sx={{ width: 36, height: 36, bgcolor: 'primary.main' }}
+                  >
+                    {!user.profile_picture_url && (user.first_name?.[0] || user.email?.[0] || 'S')}
                   </Avatar>
                 </IconButton>
               )}

@@ -35,7 +35,7 @@ import { ProfileData } from '../types/profile';
 import ProfileEditDialog from '../components/profile/ProfileEditDialog';
 
 const Profile: React.FC = () => {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -132,6 +132,9 @@ const Profile: React.FC = () => {
       // Refresh profile data
       await fetchProfileData();
 
+      // Refresh user context to update header avatar
+      await refreshUser();
+
       // Clear success message after 3 seconds
       setTimeout(() => setSuccessMessage(null), 3000);
     } catch (err: any) {
@@ -168,6 +171,9 @@ const Profile: React.FC = () => {
       // Refresh profile data
       await fetchProfileData();
 
+      // Refresh user context to update header avatar
+      await refreshUser();
+
       // Clear success message after 3 seconds
       setTimeout(() => setSuccessMessage(null), 3000);
     } catch (err: any) {
@@ -179,20 +185,26 @@ const Profile: React.FC = () => {
   };
 
   const getProfilePictureUrl = () => {
-    console.log('Getting profile picture URL...');
+    console.log('=== Getting profile picture URL ===');
     console.log('User type:', user?.user_type);
-    console.log('Profile data:', profileData);
+    console.log('Profile data exists:', !!profileData);
+    console.log('Student profile exists:', !!profileData?.student_profile);
+    console.log('Teacher profile exists:', !!profileData?.teacher_profile);
 
     if (user?.user_type?.toLowerCase() === 'student') {
       const url = profileData?.student_profile?.profile_picture_url;
       console.log('Student profile picture URL:', url);
+      console.log('URL type:', typeof url);
+      console.log('URL is truthy:', !!url);
       return url;
     } else if (user?.user_type?.toLowerCase() === 'teacher') {
       const url = profileData?.teacher_profile?.profile_picture_url;
       console.log('Teacher profile picture URL:', url);
+      console.log('URL type:', typeof url);
+      console.log('URL is truthy:', !!url);
       return url;
     }
-    console.log('No profile picture URL found');
+    console.log('No profile picture URL found - user type does not match');
     return null;
   };
 
@@ -239,6 +251,15 @@ const Profile: React.FC = () => {
                   height: 100,
                   bgcolor: 'primary.main',
                   fontSize: '2rem'
+                }}
+                imgProps={{
+                  onError: (e) => {
+                    console.error('Failed to load profile picture:', getProfilePictureUrl());
+                    console.error('Image error event:', e);
+                  },
+                  onLoad: () => {
+                    console.log('Profile picture loaded successfully:', getProfilePictureUrl());
+                  }
                 }}
               >
                 {!getProfilePictureUrl() && getInitials()}

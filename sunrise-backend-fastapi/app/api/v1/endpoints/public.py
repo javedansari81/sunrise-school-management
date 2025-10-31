@@ -53,29 +53,53 @@ async def get_public_faculty(
                 "full_name": f"{teacher['first_name']} {teacher['last_name']}",
                 "first_name": teacher["first_name"],
                 "last_name": teacher["last_name"],
-                "employee_id": teacher["employee_id"],
                 "position": teacher.get("position_description"),  # Use description for human-readable text
                 "department": teacher.get("department_description"),  # Use description for human-readable text
+                "department_id": teacher.get("department_id"),  # Include department ID
                 "subjects": subjects_list,
                 "experience_years": teacher.get("experience_years", 0),
                 "qualification_name": teacher.get("qualification_description"),  # Use description for consistency
                 "joining_date": teacher.get("joining_date"),
                 "email": teacher.get("email"),  # Include email for contact
-                "phone": teacher.get("phone"),  # Include phone for contact
+                "profile_picture_url": teacher.get("profile_picture_url"),  # Include profile picture
             }
             public_teachers.append(public_teacher)
         
         # Group teachers by department for better organization
         departments = {}
+        department_stats = []
+
         for teacher in public_teachers:
             dept = teacher.get("department") or "General"
+            dept_id = teacher.get("department_id")
+
             if dept not in departments:
                 departments[dept] = []
             departments[dept].append(teacher)
-        
+
+        # Create department statistics with unique subjects
+        for dept_name, dept_teachers in departments.items():
+            # Get unique subjects across all teachers in this department
+            all_subjects = []
+            for t in dept_teachers:
+                all_subjects.extend(t.get("subjects", []))
+            unique_subjects = list(set(all_subjects))
+
+            # Get department ID from first teacher
+            dept_id = dept_teachers[0].get("department_id") if dept_teachers else None
+
+            department_stats.append({
+                "id": dept_id,
+                "name": dept_name,
+                "faculty_count": len(dept_teachers),
+                "subjects": unique_subjects,
+                "description": f"Our {dept_name} comprises {len(dept_teachers)} dedicated faculty members teaching {len(unique_subjects)} subjects."
+            })
+
         return {
             "teachers": public_teachers,
             "departments": departments,
+            "department_stats": department_stats,
             "total": len(public_teachers),
             "message": "Faculty information retrieved successfully"
         }
