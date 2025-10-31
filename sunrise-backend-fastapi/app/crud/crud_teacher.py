@@ -20,6 +20,9 @@ from app.core.error_handler import (
 
 
 class CRUDTeacher(CRUDBase[Teacher, TeacherCreate, TeacherUpdate]):
+    def __init__(self):
+        super().__init__(Teacher)
+
     async def get_by_employee_id(
         self, db: AsyncSession, *, employee_id: str
     ) -> Optional[Teacher]:
@@ -441,4 +444,4 @@ class CRUDTeacher(CRUDBase[Teacher, TeacherCreate, TeacherUpdate]):
 
 
 # Create instance
-teacher_crud = CRUDTeacher(Teacher)
+teacher_crud = CRUDTeacher()

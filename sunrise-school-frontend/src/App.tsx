@@ -23,6 +23,7 @@ import StudentUDISEReport from './pages/admin/StudentUDISEReport';
 import FeeTrackingReport from './pages/admin/FeeTrackingReport';
 import TeacherDashboard from './pages/teacher/TeacherDashboard';
 import TeacherLeaveManagementPage from './pages/teacher/TeacherLeaveManagementPage';
+import TeacherStudentProfilesPage from './pages/teacher/TeacherStudentProfilesPage';
 import StudentDashboard from './pages/student/StudentDashboard';
 import StudentLeaveManagementPage from './pages/student/StudentLeaveManagementPage';
 import StudentFeeManagementPage from './pages/student/StudentFeeManagementPage';
@@ -255,6 +256,11 @@ function App() {
           <Route path="/teacher/leaves" element={
             <ProtectedRoute requiredRole="TEACHER">
               <TeacherLeaveManagementPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/teacher/students" element={
+            <ProtectedRoute requiredRole="TEACHER">
+              <TeacherStudentProfilesPage />
             </ProtectedRoute>
           } />
 

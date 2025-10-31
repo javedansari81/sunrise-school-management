@@ -34,6 +34,7 @@ import {
   BeachAccess as BeachAccessIcon,
   ChevronLeft as ChevronLeftIcon,
   ChevronRight as ChevronRightIcon,
+  PersonAdd as PersonAddIcon,
 } from '@mui/icons-material';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -106,6 +107,11 @@ const TeacherLayout: React.FC<TeacherLayoutProps> = ({ children }) => {
     handleUserMenuClose();
   };
 
+  const handleStudentProfiles = () => {
+    navigate('/teacher/students');
+    handleUserMenuClose();
+  };
+
   const handleProfile = () => {
     navigate('/profile');
     handleUserMenuClose();
@@ -126,6 +132,8 @@ const TeacherLayout: React.FC<TeacherLayoutProps> = ({ children }) => {
       return 'Teacher Dashboard';
     } else if (location.pathname === '/teacher/leaves') {
       return 'Leave Management';
+    } else if (location.pathname === '/teacher/students') {
+      return 'Student Profiles';
     } else if (location.pathname === '/profile') {
       return 'Profile';
     }
@@ -416,6 +424,10 @@ const TeacherLayout: React.FC<TeacherLayoutProps> = ({ children }) => {
         <MenuItem onClick={handleLeaveManagement}>
           <BeachAccessIcon sx={{ mr: 1 }} />
           Leave Management
+        </MenuItem>
+        <MenuItem onClick={handleStudentProfiles}>
+          <PersonAddIcon sx={{ mr: 1 }} />
+          Student Profiles
         </MenuItem>
         <MenuItem onClick={handleProfile}>
           <PersonIcon sx={{ mr: 1 }} />

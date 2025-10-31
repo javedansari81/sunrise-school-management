@@ -4,11 +4,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import math
 
 from app.core.database import get_db
-from app.crud.crud_student import CRUDStudent
+from app.crud.crud_student import student_crud
 from app.crud import fee_record_crud
-
-# Initialize CRUD instance
-student_crud = CRUDStudent()
+from app.crud.crud_teacher import teacher_crud
 from app.schemas.student import (
     Student, StudentCreate, StudentUpdate, StudentProfileUpdate, StudentWithFees, StudentListResponse,
     ClassEnum, GenderEnum
@@ -226,6 +224,73 @@ async def update_my_profile(
     # Return updated student with metadata
     student_with_metadata = await student_crud.get_with_metadata(db, id=updated_student.id)
     return Student.from_orm_with_metadata(student_with_metadata)
+
+
+@router.get("/my-class-students", response_model=StudentListResponse)
+async def get_my_class_students(
+    section_filter: Optional[str] = Query(None, description="Filter by section"),
+    gender_filter: Optional[int] = Query(None, description="Filter by gender ID"),
+    search: Optional[str] = Query(None, description="Search by name, admission number, or parent name"),
+    is_active: Optional[bool] = Query(None, description="Filter by active status (None = all, True = active only, False = inactive only)"),
+    page: int = Query(1, ge=1),
+    per_page: int = Query(25, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Get students for the current teacher's assigned class
+    Only accessible by teachers who are assigned as class teachers
+    """
+    # Verify user is a teacher
+    if current_user.user_type_enum != UserTypeEnum.TEACHER:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only teachers can access this endpoint"
+        )
+
+    # Get teacher profile
+    teacher = await teacher_crud.get_by_user_id(db, user_id=current_user.id)
+    if not teacher:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Teacher profile not found"
+        )
+
+    # Check if teacher is a class teacher
+    if not teacher.class_teacher_of_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only class teachers can access student profiles"
+        )
+
+    # Get students for this class teacher's assigned class
+    skip = (page - 1) * per_page
+    students, total = await student_crud.get_multi_with_filters(
+        db,
+        skip=skip,
+        limit=per_page,
+        class_filter=teacher.class_teacher_of_id,  # Filter by teacher's assigned class
+        section_filter=section_filter,
+        gender_filter=gender_filter,
+        search=search,
+        is_active=is_active
+    )
+
+    # Convert to response schema with metadata
+    result_students = []
+    for student in students:
+        student_with_metadata = await student_crud.get_with_metadata(db, id=student.id)
+        result_students.append(Student.from_orm_with_metadata(student_with_metadata))
+
+    total_pages = math.ceil(total / per_page)
+
+    return StudentListResponse(
+        students=result_students,
+        total=total,
+        page=page,
+        per_page=per_page,
+        total_pages=total_pages
+    )
 
 
 @router.get("/{student_id}", response_model=Student)

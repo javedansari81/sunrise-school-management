@@ -120,6 +120,18 @@ export const studentsAPI = {
   // Student profile management
   getMyProfile: () => api.get('/students/my-profile'),
   updateMyProfile: (profileData: any) => api.put('/students/my-profile', profileData),
+  // Teacher access to class students
+  getMyClassStudents: (params?: any) => {
+    const queryParams = new URLSearchParams();
+    if (params) {
+      Object.keys(params).forEach(key => {
+        if (params[key] !== undefined && params[key] !== null && params[key] !== '') {
+          queryParams.append(key, params[key].toString());
+        }
+      });
+    }
+    return api.get(`/students/my-class-students${queryParams.toString() ? `?${queryParams.toString()}` : ''}`);
+  },
   // Profile picture management
   uploadMyProfilePicture: (file: File) => {
     const formData = new FormData();
