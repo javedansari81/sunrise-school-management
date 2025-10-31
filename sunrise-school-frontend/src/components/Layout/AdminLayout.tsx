@@ -38,6 +38,8 @@ import {
   ChevronRight as ChevronRightIcon,
   ExpandMore as ExpandMoreIcon,
   ExpandLess as ExpandLessIcon,
+  AccountBalance as AccountBalanceIcon,
+  Settings as SettingsIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -79,15 +81,44 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
 
   const menuItems: MenuItem[] = [
     { label: 'Dashboard', shortLabel: 'Dashboard', icon: <DashboardIcon />, path: '/admin/dashboard' },
-    { label: 'Fees Management', shortLabel: 'Fee Mgmt', icon: <AttachMoney />, path: '/admin/fees' },
-    { label: 'Leave Management', shortLabel: 'Leave Mgmt', icon: <BeachAccess />, path: '/admin/leaves' },
-    { label: 'Expense Management', shortLabel: 'Expense', icon: <Receipt />, path: '/admin/expenses' },
-    { label: 'Transport Management', shortLabel: 'Transport', icon: <DirectionsBusIcon />, path: '/admin/transport' },
-    { label: 'Gallery Management', shortLabel: 'Gallery', icon: <PhotoLibraryIcon />, path: '/admin/gallery-management' },
-    { label: 'Student Profiles', shortLabel: 'Students', icon: <PersonAdd />, path: '/admin/students' },
-    { label: 'Teacher Profiles', shortLabel: 'Teachers', icon: <PersonAdd />, path: '/admin/teachers' },
+
+    // User Management Group
     {
-      label: 'Reports',
+      label: 'User Management',
+      shortLabel: 'Users',
+      icon: <PeopleIcon />,
+      children: [
+        { label: 'Student Profiles', icon: <PersonAdd />, path: '/admin/students' },
+        { label: 'Teacher Profiles', icon: <SchoolIcon />, path: '/admin/teachers' },
+      ],
+    },
+
+    // Financial Management Group (includes Transport)
+    {
+      label: 'Financial Management',
+      shortLabel: 'Finance',
+      icon: <AccountBalanceIcon />,
+      children: [
+        { label: 'Fees Management', icon: <AttachMoney />, path: '/admin/fees' },
+        { label: 'Expense Management', icon: <Receipt />, path: '/admin/expenses' },
+        { label: 'Transport Service', icon: <DirectionsBusIcon />, path: '/admin/transport' },
+      ],
+    },
+
+    // Operations Management Group
+    {
+      label: 'Operations',
+      shortLabel: 'Operations',
+      icon: <SettingsIcon />,
+      children: [
+        { label: 'Leave Management', icon: <BeachAccess />, path: '/admin/leaves' },
+        { label: 'Gallery Management', icon: <PhotoLibraryIcon />, path: '/admin/gallery-management' },
+      ],
+    },
+
+    // Reports & Analytics
+    {
+      label: 'Reports & Analytics',
       shortLabel: 'Reports',
       icon: <AssessmentIcon />,
       children: [
