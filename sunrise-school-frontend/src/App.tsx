@@ -19,6 +19,8 @@ import TransportManagement from './pages/admin/TransportManagement';
 import GalleryManagement from './pages/admin/GalleryManagement';
 import StudentProfiles from './pages/admin/StudentProfiles';
 import TeacherProfiles from './pages/admin/TeacherProfiles';
+import StudentUDISEReport from './pages/admin/StudentUDISEReport';
+import FeeTrackingReport from './pages/admin/FeeTrackingReport';
 import TeacherDashboard from './pages/teacher/TeacherDashboard';
 import TeacherLeaveManagementPage from './pages/teacher/TeacherLeaveManagementPage';
 import StudentDashboard from './pages/student/StudentDashboard';
@@ -32,9 +34,9 @@ import { AuthProvider } from './contexts/AuthContext';
 import { ConfigurationProvider } from './contexts/ConfigurationContext';
 
 // Test utilities (only in development)
-if (process.env.NODE_ENV === 'development') {
-  import('./utils/testSessionInvalidation');
-}
+// if (process.env.NODE_ENV === 'development') {
+//   import('./utils/testSessionInvalidation');
+// }
 
 // Create a custom theme with mobile responsiveness
 const theme = createTheme({
@@ -302,6 +304,16 @@ function App() {
           <Route path="/admin/teachers" element={
             <ProtectedRoute requiredRole="ADMIN">
               <TeacherProfiles />
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/reports/student-udise" element={
+            <ProtectedRoute requiredRole="ADMIN">
+              <StudentUDISEReport />
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/reports/fee-tracking" element={
+            <ProtectedRoute requiredRole="ADMIN">
+              <FeeTrackingReport />
             </ProtectedRoute>
           } />
           </Routes>

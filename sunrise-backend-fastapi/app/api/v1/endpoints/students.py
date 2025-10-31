@@ -446,9 +446,6 @@ class StudentProfileUpdate(BaseModel):
     guardian_email: Optional[str] = None
     guardian_relation: Optional[str] = Field(None, max_length=50)
 
-    # Academic Information (editable)
-    previous_school: Optional[str] = Field(None, max_length=200)
-
     # Note: Read-only fields are excluded:
     # - admission_number, roll_number, class_id, session_year_id
     # - admission_date, gender_id (system/admin managed)

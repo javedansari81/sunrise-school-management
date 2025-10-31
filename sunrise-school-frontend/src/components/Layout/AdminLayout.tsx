@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   Box,
   Drawer,
@@ -18,10 +18,10 @@ import {
   Menu,
   MenuItem,
   Avatar,
+  Popover,
 } from '@mui/material';
 import {
   Menu as MenuIcon,
-  ChevronLeft as ChevronLeftIcon,
   Dashboard as DashboardIcon,
   AttachMoney,
   BeachAccess,
@@ -32,16 +32,30 @@ import {
   Logout as LogoutIcon,
   DirectionsBus as DirectionsBusIcon,
   PhotoLibrary as PhotoLibraryIcon,
+  Assessment as AssessmentIcon,
+  People as PeopleIcon,
+  ReceiptLong as ReceiptLongIcon,
+  ChevronRight as ChevronRightIcon,
+  ExpandMore as ExpandMoreIcon,
+  ExpandLess as ExpandLessIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+
+interface MenuItem {
+  label: string;
+  shortLabel?: string;  // Short label for collapsed mode
+  icon: React.ReactNode;
+  path?: string;  // Optional for parent items with children
+  children?: MenuItem[];  // For submenu items
+}
 
 interface AdminLayoutProps {
   children: React.ReactNode;
 }
 
-const DRAWER_WIDTH = 260;
-const COLLAPSED_DRAWER_WIDTH = 70;
+const DRAWER_WIDTH = 260; // For mobile only
+const SIDEBAR_WIDTH = 110; // Fixed compact width for desktop
 
 const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   const navigate = useNavigate();
@@ -53,32 +67,48 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [userMenuAnchor, setUserMenuAnchor] = useState<null | HTMLElement>(null);
 
-  // Start collapsed by default (true = collapsed, false = expanded)
-  // Force collapsed state on initial load, ignore localStorage
-  const [desktopCollapsed, setDesktopCollapsed] = useState(true);
+  // Flyout menu state for submenu items (desktop)
+  const [flyoutMenuAnchor, setFlyoutMenuAnchor] = useState<null | HTMLElement>(null);
+  const [flyoutMenuItems, setFlyoutMenuItems] = useState<MenuItem[]>([]);
 
-  // Clear any stale localStorage on mount to ensure collapsed state
-  React.useEffect(() => {
-    localStorage.removeItem('adminDrawerCollapsed');
-  }, []);
+  // Mobile submenu expansion state
+  const [expandedMobileMenu, setExpandedMobileMenu] = useState<string | null>(null);
 
-  const menuItems = [
-    { label: 'Dashboard', icon: <DashboardIcon />, path: '/admin/dashboard' },
-    { label: 'Fees Management', icon: <AttachMoney />, path: '/admin/fees' },
-    { label: 'Leave Management', icon: <BeachAccess />, path: '/admin/leaves' },
-    { label: 'Expense Management', icon: <Receipt />, path: '/admin/expenses' },
-    { label: 'Transport Management', icon: <DirectionsBusIcon />, path: '/admin/transport' },
-    { label: 'Gallery Management', icon: <PhotoLibraryIcon />, path: '/admin/gallery-management' },
-    { label: 'Student Profiles', icon: <PersonAdd />, path: '/admin/students' },
-    { label: 'Teacher Profiles', icon: <PersonAdd />, path: '/admin/teachers' },
+  // Refs for auto-scrolling to expanded submenu on mobile
+  const submenuRefs = useRef<{ [key: string]: HTMLElement | null }>({});
+
+  const menuItems: MenuItem[] = [
+    { label: 'Dashboard', shortLabel: 'Dashboard', icon: <DashboardIcon />, path: '/admin/dashboard' },
+    { label: 'Fees Management', shortLabel: 'Fee Mgmt', icon: <AttachMoney />, path: '/admin/fees' },
+    { label: 'Leave Management', shortLabel: 'Leave Mgmt', icon: <BeachAccess />, path: '/admin/leaves' },
+    { label: 'Expense Management', shortLabel: 'Expense', icon: <Receipt />, path: '/admin/expenses' },
+    { label: 'Transport Management', shortLabel: 'Transport', icon: <DirectionsBusIcon />, path: '/admin/transport' },
+    { label: 'Gallery Management', shortLabel: 'Gallery', icon: <PhotoLibraryIcon />, path: '/admin/gallery-management' },
+    { label: 'Student Profiles', shortLabel: 'Students', icon: <PersonAdd />, path: '/admin/students' },
+    { label: 'Teacher Profiles', shortLabel: 'Teachers', icon: <PersonAdd />, path: '/admin/teachers' },
+    {
+      label: 'Reports',
+      shortLabel: 'Reports',
+      icon: <AssessmentIcon />,
+      children: [
+        { label: 'Student UDISE Report', icon: <PeopleIcon />, path: '/admin/reports/student-udise' },
+        { label: 'Fee Tracking Report', icon: <ReceiptLongIcon />, path: '/admin/reports/fee-tracking' },
+      ],
+    },
   ];
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
   };
 
-  const handleDesktopToggle = () => {
-    setDesktopCollapsed(!desktopCollapsed);
+  const handleFlyoutOpen = (event: React.MouseEvent<HTMLElement>, children: MenuItem[]) => {
+    setFlyoutMenuAnchor(event.currentTarget);
+    setFlyoutMenuItems(children);
+  };
+
+  const handleFlyoutClose = () => {
+    setFlyoutMenuAnchor(null);
+    setFlyoutMenuItems([]);
   };
 
   const handleNavigation = (path: string) => {
@@ -86,6 +116,8 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
     if (isMobile) {
       setMobileOpen(false);
     }
+    // Close flyout menu if open
+    handleFlyoutClose();
   };
 
   const handleUserMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
@@ -105,6 +137,31 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
 
   const isActive = (path: string) => location.pathname === path;
 
+  // Helper function to check if any child is active
+  const isAnyChildActive = (children?: MenuItem[]) => {
+    if (!children) return false;
+    return children.some(child => child.path && isActive(child.path));
+  };
+
+  // Auto-scroll to expanded submenu on mobile
+  useEffect(() => {
+    if (isMobile && expandedMobileMenu && submenuRefs.current[expandedMobileMenu]) {
+      // Small delay to allow submenu to render
+      const timer = setTimeout(() => {
+        const submenuElement = submenuRefs.current[expandedMobileMenu];
+        if (submenuElement) {
+          submenuElement.scrollIntoView({
+            behavior: 'smooth',
+            block: 'nearest',
+            inline: 'nearest'
+          });
+        }
+      }, 100);
+
+      return () => clearTimeout(timer);
+    }
+  }, [expandedMobileMenu, isMobile]);
+
   const drawerContent = (
     <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
       {/* Sidebar Header - Fixed at top */}
@@ -120,7 +177,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
           flexShrink: 0,
         }}
       >
-        {(!desktopCollapsed || isMobile) ? (
+        {isMobile ? (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <Box
               component="img"
@@ -160,17 +217,17 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
       <Box sx={{ flexGrow: 1, overflowY: 'auto', overflowX: 'hidden' }}>
         {/* Open Main Website Link */}
         <Box sx={{ px: 1, py: 2 }}>
-          <Tooltip
-            title={desktopCollapsed && !isMobile ? "Open Main Website" : ""}
-            placement="right"
-          >
+          <Tooltip title={!isMobile ? "Open Main Website" : ""} placement="right">
             <ListItemButton
               onClick={() => window.open('/', '_blank', 'noopener,noreferrer')}
               sx={{
                 borderRadius: 2,
-                minHeight: 48,
-                justifyContent: desktopCollapsed && !isMobile ? 'center' : 'flex-start',
-                px: 2.5,
+                minHeight: isMobile ? 48 : 56,
+                flexDirection: isMobile ? 'row' : 'column',
+                justifyContent: 'center',
+                alignItems: 'center',
+                px: isMobile ? 2.5 : 1,
+                py: isMobile ? 0 : 1,
                 backgroundColor: 'rgba(76, 175, 80, 0.08)',
                 color: '#2e7d32',
                 '&:hover': {
@@ -182,14 +239,15 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
             >
               <ListItemIcon
                 sx={{
-                  minWidth: desktopCollapsed && !isMobile ? 0 : 40,
+                  minWidth: isMobile ? 40 : 0,
                   color: '#2e7d32',
                   justifyContent: 'center',
+                  mb: isMobile ? 0 : 0.5,
                 }}
               >
                 <HomeIcon />
               </ListItemIcon>
-              {(!desktopCollapsed || isMobile) && (
+              {isMobile ? (
                 <ListItemText
                   primary="Open Main Website"
                   slotProps={{
@@ -201,6 +259,18 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
                     }
                   }}
                 />
+              ) : (
+                <Typography
+                  variant="caption"
+                  sx={{
+                    fontSize: '0.7rem',
+                    fontWeight: 600,
+                    textAlign: 'center',
+                    lineHeight: 1.2,
+                  }}
+                >
+                  Website
+                </Typography>
               )}
             </ListItemButton>
           </Tooltip>
@@ -210,65 +280,208 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
 
         {/* Navigation Menu */}
         <List sx={{ py: 2 }}>
-          {menuItems.map((item) => {
-            const active = isActive(item.path);
-            const menuButton = (
-              <ListItemButton
-                onClick={() => handleNavigation(item.path)}
-                sx={{
-                  borderRadius: 2,
-                  minHeight: 48,
-                  justifyContent: desktopCollapsed && !isMobile ? 'center' : 'flex-start',
-                  px: 2.5,
-                  backgroundColor: active ? 'rgba(25, 118, 210, 0.12)' : 'transparent',
-                  color: active ? 'primary.main' : 'text.primary',
-                  '&:hover': {
-                    backgroundColor: active
-                      ? 'rgba(25, 118, 210, 0.2)'
-                      : 'rgba(0, 0, 0, 0.04)',
-                  },
-                  transition: 'all 0.2s',
-                  ...(active && {
-                    borderLeft: '4px solid',
-                    borderColor: 'primary.main',
-                    fontWeight: 600,
-                  }),
-                }}
-              >
-                <ListItemIcon
-                  sx={{
-                    minWidth: desktopCollapsed && !isMobile ? 0 : 40,
-                    color: active ? 'primary.main' : 'text.secondary',
-                    justifyContent: 'center',
-                  }}
-                >
-                  {item.icon}
-                </ListItemIcon>
-                {(!desktopCollapsed || isMobile) && (
-                  <ListItemText
-                    primary={item.label}
-                    slotProps={{
-                      primary: {
-                        sx: {
-                          fontSize: '0.95rem',
-                          fontWeight: active ? 600 : 500,
-                        }
-                      }
-                    }}
-                  />
-                )}
-              </ListItemButton>
-            );
+          {menuItems.map((item, index) => {
+            // Check if item has children (submenu)
+            if (item.children) {
+              const hasActiveChild = isAnyChildActive(item.children);
+              const isExpanded = expandedMobileMenu === item.label;
+
+              return (
+                <React.Fragment key={item.label}>
+                  <ListItem disablePadding sx={{ px: 1, mb: 0.5 }}>
+                    <Tooltip title={!isMobile ? item.label : ""} placement="right">
+                      <ListItemButton
+                        onClick={(e) => {
+                          if (isMobile) {
+                            // Mobile: toggle submenu expansion
+                            setExpandedMobileMenu(isExpanded ? null : item.label);
+                          } else {
+                            // Desktop: open flyout
+                            handleFlyoutOpen(e, item.children!);
+                          }
+                        }}
+                        sx={{
+                          borderRadius: 2,
+                          minHeight: isMobile ? 48 : 56,
+                          flexDirection: isMobile ? 'row' : 'column',
+                          justifyContent: 'center',
+                          alignItems: 'center',
+                          px: isMobile ? 2.5 : 1,
+                          py: isMobile ? 0 : 1,
+                          backgroundColor: hasActiveChild ? 'rgba(25, 118, 210, 0.12)' : 'transparent',
+                          color: hasActiveChild ? 'primary.main' : 'text.primary',
+                          '&:hover': {
+                            backgroundColor: hasActiveChild
+                              ? 'rgba(25, 118, 210, 0.2)'
+                              : 'rgba(0, 0, 0, 0.04)',
+                          },
+                          transition: 'all 0.2s',
+                        }}
+                      >
+                        <ListItemIcon
+                          sx={{
+                            minWidth: isMobile ? 40 : 0,
+                            color: hasActiveChild ? 'primary.main' : 'text.secondary',
+                            justifyContent: 'center',
+                            mb: isMobile ? 0 : 0.5,
+                          }}
+                        >
+                          {item.icon}
+                        </ListItemIcon>
+                        {isMobile ? (
+                          <>
+                            <ListItemText
+                              primary={item.label}
+                              slotProps={{
+                                primary: {
+                                  sx: {
+                                    fontSize: '0.95rem',
+                                    fontWeight: hasActiveChild ? 600 : 500,
+                                  }
+                                }
+                              }}
+                            />
+                            {isExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                          </>
+                        ) : (
+                          <Typography
+                            variant="caption"
+                            sx={{
+                              fontSize: '0.7rem',
+                              fontWeight: hasActiveChild ? 600 : 500,
+                              textAlign: 'center',
+                              lineHeight: 1.2,
+                              color: hasActiveChild ? 'primary.main' : 'text.secondary',
+                            }}
+                          >
+                            {item.shortLabel || item.label}
+                          </Typography>
+                        )}
+                      </ListItemButton>
+                    </Tooltip>
+                  </ListItem>
+
+                  {/* Mobile submenu items - shown inline when expanded */}
+                  {isMobile && isExpanded && (
+                    <List
+                      ref={(el) => {
+                        submenuRefs.current[item.label] = el;
+                      }}
+                      sx={{ pl: 2, pr: 1 }}
+                    >
+                      {item.children.map((child) => {
+                        const childActive = child.path ? isActive(child.path) : false;
+                        return (
+                          <ListItem key={child.path} disablePadding sx={{ mb: 0.5 }}>
+                            <ListItemButton
+                              onClick={() => child.path && handleNavigation(child.path)}
+                              sx={{
+                                borderRadius: 1.5,
+                                minHeight: 40,
+                                px: 2,
+                                backgroundColor: childActive ? 'rgba(25, 118, 210, 0.12)' : 'transparent',
+                                color: childActive ? 'primary.main' : 'text.primary',
+                                '&:hover': {
+                                  backgroundColor: childActive
+                                    ? 'rgba(25, 118, 210, 0.2)'
+                                    : 'rgba(0, 0, 0, 0.04)',
+                                },
+                                transition: 'all 0.2s',
+                              }}
+                            >
+                              <ListItemIcon
+                                sx={{
+                                  minWidth: 36,
+                                  color: childActive ? 'primary.main' : 'text.secondary',
+                                }}
+                              >
+                                {child.icon}
+                              </ListItemIcon>
+                              <ListItemText
+                                primary={child.label}
+                                slotProps={{
+                                  primary: {
+                                    sx: {
+                                      fontSize: '0.875rem',
+                                      fontWeight: childActive ? 600 : 500,
+                                    }
+                                  }
+                                }}
+                              />
+                            </ListItemButton>
+                          </ListItem>
+                        );
+                      })}
+                    </List>
+                  )}
+                </React.Fragment>
+              );
+            }
+
+            // Regular menu item (no children)
+            const active = item.path ? isActive(item.path) : false;
 
             return (
-              <ListItem key={item.path} disablePadding sx={{ px: 1, mb: 0.5 }}>
-                {desktopCollapsed && !isMobile ? (
-                  <Tooltip title={item.label} placement="right">
-                    {menuButton}
-                  </Tooltip>
-                ) : (
-                  menuButton
-                )}
+              <ListItem key={item.path || `menu-${index}`} disablePadding sx={{ px: 1, mb: 0.5 }}>
+                <Tooltip title={!isMobile ? item.label : ""} placement="right">
+                  <ListItemButton
+                    onClick={() => item.path && handleNavigation(item.path)}
+                    sx={{
+                      borderRadius: 2,
+                      minHeight: isMobile ? 48 : 56,
+                      flexDirection: isMobile ? 'row' : 'column',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      px: isMobile ? 2.5 : 1,
+                      py: isMobile ? 0 : 1,
+                      backgroundColor: active ? 'rgba(25, 118, 210, 0.12)' : 'transparent',
+                      color: active ? 'primary.main' : 'text.primary',
+                      '&:hover': {
+                        backgroundColor: active
+                          ? 'rgba(25, 118, 210, 0.2)'
+                          : 'rgba(0, 0, 0, 0.04)',
+                      },
+                      transition: 'all 0.2s',
+                    }}
+                  >
+                    <ListItemIcon
+                      sx={{
+                        minWidth: isMobile ? 40 : 0,
+                        color: active ? 'primary.main' : 'text.secondary',
+                        justifyContent: 'center',
+                        mb: isMobile ? 0 : 0.5,
+                      }}
+                    >
+                      {item.icon}
+                    </ListItemIcon>
+                    {isMobile ? (
+                      <ListItemText
+                        primary={item.label}
+                        slotProps={{
+                          primary: {
+                            sx: {
+                              fontSize: '0.95rem',
+                              fontWeight: active ? 600 : 500,
+                            }
+                          }
+                        }}
+                      />
+                    ) : (
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          fontSize: '0.7rem',
+                          fontWeight: active ? 600 : 500,
+                          textAlign: 'center',
+                          lineHeight: 1.2,
+                          color: active ? 'primary.main' : 'text.secondary',
+                        }}
+                      >
+                        {item.shortLabel || item.label}
+                      </Typography>
+                    )}
+                  </ListItemButton>
+                </Tooltip>
               </ListItem>
             );
           })}
@@ -276,43 +489,6 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
       </Box>
 
       <Divider />
-
-      {/* Collapse Button - Fixed at bottom */}
-      {!isMobile && (
-        <Box sx={{ p: desktopCollapsed ? 0.5 : 1, flexShrink: 0 }}>
-          <Tooltip title={desktopCollapsed ? "Expand Sidebar" : "Collapse Sidebar"} placement="right">
-            <IconButton
-              onClick={handleDesktopToggle}
-              sx={{
-                width: '100%',
-                borderRadius: 2,
-                py: 1.5,
-                backgroundColor: desktopCollapsed ? 'warning.main' : 'primary.main',
-                color: 'white',
-                '&:hover': {
-                  backgroundColor: desktopCollapsed ? 'warning.dark' : 'primary.dark',
-                  transform: 'scale(1.05)',
-                },
-                transition: 'all 0.3s ease',
-                boxShadow: desktopCollapsed
-                  ? '0 4px 8px rgba(255, 152, 0, 0.4)'
-                  : '0 2px 4px rgba(0,0,0,0.1)',
-                animation: desktopCollapsed ? 'pulse 2s infinite' : 'none',
-                '@keyframes pulse': {
-                  '0%, 100%': {
-                    boxShadow: '0 4px 8px rgba(255, 152, 0, 0.4)',
-                  },
-                  '50%': {
-                    boxShadow: '0 4px 12px rgba(255, 152, 0, 0.6)',
-                  },
-                },
-              }}
-            >
-              {desktopCollapsed ? <ChevronLeftIcon sx={{ transform: 'rotate(180deg)', fontSize: 32 }} /> : <ChevronLeftIcon />}
-            </IconButton>
-          </Tooltip>
-        </Box>
-      )}
 
       {/* Footer - Fixed at bottom */}
       <Box
@@ -324,7 +500,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
           flexShrink: 0,
         }}
       >
-        {(!desktopCollapsed || isMobile) && (
+        {isMobile && (
           <Typography variant="caption">
             © 2025 Sunrise School
           </Typography>
@@ -382,23 +558,11 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
           keepMounted: true, // Better mobile performance
         }}
         sx={{
-          width: isMobile
-            ? DRAWER_WIDTH
-            : desktopCollapsed
-            ? COLLAPSED_DRAWER_WIDTH
-            : DRAWER_WIDTH,
+          width: isMobile ? DRAWER_WIDTH : SIDEBAR_WIDTH,
           flexShrink: 0,
           '& .MuiDrawer-paper': {
-            width: isMobile
-              ? DRAWER_WIDTH
-              : desktopCollapsed
-              ? COLLAPSED_DRAWER_WIDTH
-              : DRAWER_WIDTH,
+            width: isMobile ? DRAWER_WIDTH : SIDEBAR_WIDTH,
             boxSizing: 'border-box',
-            transition: theme.transitions.create('width', {
-              easing: theme.transitions.easing.sharp,
-              duration: theme.transitions.duration.enteringScreen,
-            }),
             overflowX: 'hidden',
             overflowY: 'hidden',
             borderRight: '1px solid rgba(0, 0, 0, 0.12)',
@@ -420,14 +584,8 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
           minHeight: '100vh',
           width: {
             xs: '100%',
-            md: `calc(100% - ${
-              desktopCollapsed ? COLLAPSED_DRAWER_WIDTH : DRAWER_WIDTH
-            }px)`,
+            md: `calc(100% - ${SIDEBAR_WIDTH}px)`,
           },
-          transition: theme.transitions.create(['width', 'margin'], {
-            easing: theme.transitions.easing.sharp,
-            duration: theme.transitions.duration.enteringScreen,
-          }),
         }}
       >
         {/* Mobile Toolbar Spacer */}
@@ -447,8 +605,21 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
             }}
           >
             <Typography variant="h5" fontWeight="bold" color="primary">
-              {menuItems.find((item) => item.path === location.pathname)?.label ||
-                'Admin Dashboard'}
+              {(() => {
+                // Check top-level items
+                const topLevelItem = menuItems.find((item) => item.path === location.pathname);
+                if (topLevelItem) return topLevelItem.label;
+
+                // Check submenu items
+                for (const item of menuItems) {
+                  if (item.children) {
+                    const childItem = item.children.find((child) => child.path === location.pathname);
+                    if (childItem) return childItem.label;
+                  }
+                }
+
+                return 'Admin Dashboard';
+              })()}
             </Typography>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               {isAuthenticated && user && (
@@ -498,6 +669,78 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
           Logout
         </MenuItem>
       </Menu>
+
+      {/* Flyout Menu for Collapsed Sidebar */}
+      <Popover
+        open={Boolean(flyoutMenuAnchor)}
+        anchorEl={flyoutMenuAnchor}
+        onClose={handleFlyoutClose}
+        anchorOrigin={{
+          vertical: 'top',
+          horizontal: 'right',
+        }}
+        transformOrigin={{
+          vertical: 'top',
+          horizontal: 'left',
+        }}
+        sx={{
+          '& .MuiPopover-paper': {
+            ml: 0.5,
+            minWidth: 220,
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)',
+            borderRadius: 2,
+          },
+        }}
+      >
+        <List sx={{ py: 1 }}>
+          {flyoutMenuItems.map((child) => {
+            const childActive = child.path ? isActive(child.path) : false;
+            return (
+              <ListItem key={child.path} disablePadding sx={{ px: 1 }}>
+                <ListItemButton
+                  onClick={() => child.path && handleNavigation(child.path)}
+                  sx={{
+                    borderRadius: 1.5,
+                    minHeight: 44,
+                    px: 2,
+                    backgroundColor: childActive ? 'rgba(25, 118, 210, 0.12)' : 'transparent',
+                    color: childActive ? 'primary.main' : 'text.primary',
+                    '&:hover': {
+                      backgroundColor: childActive
+                        ? 'rgba(25, 118, 210, 0.2)'
+                        : 'rgba(0, 0, 0, 0.04)',
+                    },
+                    transition: 'all 0.2s',
+                  }}
+                >
+                  <ListItemIcon
+                    sx={{
+                      minWidth: 36,
+                      color: childActive ? 'primary.main' : 'text.secondary',
+                    }}
+                  >
+                    {child.icon}
+                  </ListItemIcon>
+                  <ListItemText
+                    primary={child.label}
+                    slotProps={{
+                      primary: {
+                        sx: {
+                          fontSize: '0.9rem',
+                          fontWeight: childActive ? 600 : 500,
+                        }
+                      }
+                    }}
+                  />
+                  {childActive && (
+                    <ChevronRightIcon sx={{ fontSize: 18, color: 'primary.main' }} />
+                  )}
+                </ListItemButton>
+              </ListItem>
+            );
+          })}
+        </List>
+      </Popover>
     </Box>
   );
 };

@@ -492,4 +492,15 @@ export const galleryAPI = {
     api.post('/gallery/categories', categoryData).then(response => response.data),
 };
 
+// Reports API
+export const reportsAPI = {
+  // Get Student UDISE Report
+  getStudentUDISEReport: (params: URLSearchParams) =>
+    api.get(`/reports/student-udise?${params.toString()}`).then(response => response.data),
+
+  // Get Fee Tracking Report
+  getFeeTrackingReport: (params: URLSearchParams) =>
+    api.get(`/reports/fee-tracking?${params.toString()}`).then(response => response.data),
+};
+
 export default api;

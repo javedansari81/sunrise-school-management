@@ -16,6 +16,10 @@ from .gallery import (
     GalleryImageWithCategory, GalleryImageUploadRequest,
     GalleryImageToggleHomePageRequest, GalleryConfigurationResponse
 )
+from .report import (
+    StudentUDISEData, UDISEReportResponse, UDISEReportFilters,
+    FeeTrackingData, FeeTrackingReportResponse, FeeTrackingReportFilters
+)
 
 __all__ = [
     "User",
@@ -55,5 +59,11 @@ __all__ = [
     "GalleryImageWithCategory",
     "GalleryImageUploadRequest",
     "GalleryImageToggleHomePageRequest",
-    "GalleryConfigurationResponse"
+    "GalleryConfigurationResponse",
+    "StudentUDISEData",
+    "UDISEReportResponse",
+    "UDISEReportFilters",
+    "FeeTrackingData",
+    "FeeTrackingReportResponse",
+    "FeeTrackingReportFilters"
 ]

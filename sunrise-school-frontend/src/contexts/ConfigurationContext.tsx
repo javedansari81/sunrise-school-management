@@ -113,7 +113,17 @@ export const ConfigurationProvider: React.FC<ConfigurationProviderProps> = ({
   }, [isLoading]);
 
   const loadServiceConfiguration = useCallback(async (service: ServiceType) => {
-    if (serviceLoadingStates[service]) return; // Prevent multiple simultaneous loads
+    // Check if already loading using the service directly (not from state)
+    if (configurationService.isServiceConfigurationLoading(service)) {
+      console.log(`⏭️ ${service} configuration is already loading, skipping duplicate request`);
+      return;
+    }
+
+    // Check if already loaded
+    if (configurationService.isServiceConfigurationLoaded(service)) {
+      console.log(`✅ ${service} configuration is already loaded, skipping duplicate request`);
+      return;
+    }
 
     console.log(`🔄 Starting ${service} configuration load in context`);
     setServiceLoadingStates(prev => ({ ...prev, [service]: true }));
@@ -140,7 +150,7 @@ export const ConfigurationProvider: React.FC<ConfigurationProviderProps> = ({
     } finally {
       setServiceLoadingStates(prev => ({ ...prev, [service]: false }));
     }
-  }, [serviceLoadingStates]);
+  }, []); // Remove serviceLoadingStates from dependencies to prevent infinite loop
 
   const refreshConfiguration = useCallback(async () => {
     setIsLoading(true);
@@ -376,17 +386,20 @@ export const useServiceConfiguration = (service: ServiceType) => {
   } = context;
 
   useEffect(() => {
+    const loaded = isServiceLoaded(service);
+    const loading = isServiceLoading(service);
+
     console.log(`🔧 useServiceConfiguration [${service}] effect running:`, {
-      isLoaded: isServiceLoaded(service),
-      isLoading: isServiceLoading(service),
+      isLoaded: loaded,
+      isLoading: loading,
       timestamp: new Date().toISOString()
     });
 
-    if (!isServiceLoaded(service) && !isServiceLoading(service)) {
+    if (!loaded && !loading) {
       console.log(`🚀 Triggering load for ${service}`);
       loadServiceConfiguration(service);
     }
-  }, [service, isServiceLoaded, isServiceLoading, loadServiceConfiguration]);
+  }, [service]); // Only depend on service to prevent infinite loop
 
   return {
     isLoaded: isServiceLoaded(service),
