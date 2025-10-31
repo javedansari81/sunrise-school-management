@@ -40,6 +40,7 @@ import {
   FilterDropdown
 } from '../../components/common/MetadataDropdown';
 import ServiceConfigurationLoader from '../../components/common/ServiceConfigurationLoader';
+import CollapsibleFilterSection from '../../components/common/CollapsibleFilterSection';
 import {
   Add,
   Edit,
@@ -521,13 +522,28 @@ const StudentProfilesContent: React.FC = () => {
     <AdminLayout>
       <Box sx={{ p: { xs: 1, sm: 2, md: 3 } }}>
         {/* Filters and Search */}
-        <Paper elevation={3} sx={{ p: 3, mb: 3 }}>
-          <Typography variant="h6" fontWeight="bold" mb={2}>
-            <FilterList sx={{ mr: 1 }} />
-            Filters
-          </Typography>
+        <CollapsibleFilterSection
+          title="Filters"
+          defaultExpanded={true}
+          persistKey="student-profiles-filters"
+          actionButtons={
+            <Button
+              variant="contained"
+              size="small"
+              startIcon={<Add />}
+              onClick={() => handleOpenDialog('create')}
+              sx={{
+                fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                padding: { xs: '4px 8px', sm: '6px 12px' },
+                whiteSpace: 'nowrap'
+              }}
+            >
+              New Student
+            </Button>
+          }
+        >
           <Grid container spacing={2} alignItems="center">
-            <Grid size={{ xs: 12, sm: 6, md: 2.4 }}>
+            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
               <FilterDropdown
                 metadataType="sessionYears"
                 label="Session Year"
@@ -539,7 +555,7 @@ const StudentProfilesContent: React.FC = () => {
                 allLabel="All Session Years"
               />
             </Grid>
-            <Grid size={{ xs: 12, sm: 6, md: 2.4 }}>
+            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
               <FilterDropdown
                 metadataType="classes"
                 label="Class"
@@ -551,7 +567,7 @@ const StudentProfilesContent: React.FC = () => {
                 allLabel="All Classes"
               />
             </Grid>
-            <Grid size={{ xs: 12, sm: 6, md: 2.4 }}>
+            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
               <FormControl fullWidth>
                 <InputLabel>Section</InputLabel>
                 <Select
@@ -568,7 +584,7 @@ const StudentProfilesContent: React.FC = () => {
                 </Select>
               </FormControl>
             </Grid>
-            <Grid size={{ xs: 12, sm: 6, md: 2.4 }}>
+            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
               <TextField
                 fullWidth
                 label="Search Students"
@@ -579,23 +595,8 @@ const StudentProfilesContent: React.FC = () => {
                 }}
               />
             </Grid>
-            <Grid size={{ xs: 12, sm: 6, md: 2.4 }}>
-              <Button
-                variant="contained"
-                startIcon={<Add />}
-                onClick={() => handleOpenDialog('create')}
-                fullWidth
-                sx={{
-                  fontSize: { xs: '0.875rem', sm: '1rem' },
-                  padding: { xs: '6px 12px', sm: '8px 16px' },
-                  whiteSpace: 'nowrap'
-                }}
-              >
-                New Student
-              </Button>
-            </Grid>
           </Grid>
-        </Paper>
+        </CollapsibleFilterSection>
 
         {/* Student Table */}
         <Paper elevation={3}>

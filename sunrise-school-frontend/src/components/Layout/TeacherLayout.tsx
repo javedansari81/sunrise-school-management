@@ -85,6 +85,10 @@ const TeacherLayout: React.FC<TeacherLayoutProps> = ({ children }) => {
 
   const handleUserMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
     setUserMenuAnchor(event.currentTarget);
+    // Close mobile drawer when opening user menu
+    if (isMobile && mobileOpen) {
+      setMobileOpen(false);
+    }
   };
 
   const handleUserMenuClose = () => {
@@ -94,27 +98,42 @@ const TeacherLayout: React.FC<TeacherLayoutProps> = ({ children }) => {
   const handleLogout = () => {
     logout();
     handleUserMenuClose();
+    if (isMobile) {
+      setMobileOpen(false);
+    }
     navigate('/');
   };
 
   const handleDashboard = () => {
-    navigate('/teacher/dashboard');
     handleUserMenuClose();
+    if (isMobile) {
+      setMobileOpen(false);
+    }
+    navigate('/teacher/dashboard');
   };
 
   const handleLeaveManagement = () => {
-    navigate('/teacher/leaves');
     handleUserMenuClose();
+    if (isMobile) {
+      setMobileOpen(false);
+    }
+    navigate('/teacher/leaves');
   };
 
   const handleStudentProfiles = () => {
-    navigate('/teacher/students');
     handleUserMenuClose();
+    if (isMobile) {
+      setMobileOpen(false);
+    }
+    navigate('/teacher/students');
   };
 
   const handleProfile = () => {
-    navigate('/profile');
     handleUserMenuClose();
+    if (isMobile) {
+      setMobileOpen(false);
+    }
+    navigate('/profile');
   };
 
   const isActive = (path: string) => location.pathname === path;
@@ -203,6 +222,13 @@ const TeacherLayout: React.FC<TeacherLayoutProps> = ({ children }) => {
                   minHeight: 48,
                   justifyContent: drawerCollapsed ? 'center' : 'initial',
                   px: 2.5,
+                  backgroundColor: isActive(item.path) ? 'rgba(25, 118, 210, 0.12)' : 'transparent',
+                  color: isActive(item.path) ? 'primary.main' : 'text.primary',
+                  '&:hover': {
+                    backgroundColor: isActive(item.path)
+                      ? 'rgba(25, 118, 210, 0.2)'
+                      : 'rgba(0, 0, 0, 0.04)',
+                  },
                   '&.Mui-selected': {
                     backgroundColor: 'rgba(25, 118, 210, 0.12)',
                     '&:hover': {
@@ -214,21 +240,21 @@ const TeacherLayout: React.FC<TeacherLayoutProps> = ({ children }) => {
                 <ListItemIcon
                   sx={{
                     minWidth: 0,
-                    mr: drawerCollapsed ? 'auto' : 3,
+                    mr: (drawerCollapsed && !isMobile) ? 'auto' : 3,
                     justifyContent: 'center',
-                    color: isActive(item.path) ? 'primary.main' : 'inherit',
+                    color: isActive(item.path) ? 'primary.main' : 'text.secondary',
                   }}
                 >
                   {item.icon}
                 </ListItemIcon>
-                {!drawerCollapsed && (
+                {(!drawerCollapsed || isMobile) && (
                   <ListItemText
                     primary={item.label}
                     sx={{
                       opacity: 1,
                       '& .MuiTypography-root': {
                         fontWeight: isActive(item.path) ? 600 : 400,
-                        color: isActive(item.path) ? 'primary.main' : 'inherit',
+                        color: isActive(item.path) ? 'primary.main' : 'text.primary',
                       },
                     }}
                   />
@@ -259,12 +285,16 @@ const TeacherLayout: React.FC<TeacherLayoutProps> = ({ children }) => {
       {isMobile && (
         <AppBar
           position="fixed"
+          elevation={0}
           sx={{
             zIndex: theme.zIndex.drawer + 1,
             backgroundColor: '#1976d2',
+            borderBottom: 'none',
+            boxShadow: 'none',
+            height: 72,
           }}
         >
-          <Toolbar>
+          <Toolbar sx={{ minHeight: 72, height: 72 }}>
             <IconButton
               color="inherit"
               edge="start"
@@ -273,7 +303,18 @@ const TeacherLayout: React.FC<TeacherLayoutProps> = ({ children }) => {
             >
               <MenuIcon />
             </IconButton>
-            <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
+            <Box
+              component="img"
+              src="/images/logo/school_logo.jpeg"
+              alt="Sunrise School Logo"
+              sx={{
+                width: 40,
+                height: 40,
+                objectFit: 'contain',
+                mr: 1,
+              }}
+            />
+            <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1, color: 'white', fontWeight: 'bold' }}>
               Sunrise School
             </Typography>
             {isAuthenticated && user && (
@@ -306,12 +347,19 @@ const TeacherLayout: React.FC<TeacherLayoutProps> = ({ children }) => {
           variant="temporary"
           open={mobileOpen}
           onClose={handleDrawerToggle}
-          ModalProps={{ keepMounted: true }}
+          ModalProps={{
+            keepMounted: true,
+            sx: {
+              zIndex: theme.zIndex.drawer,
+            }
+          }}
           sx={{
             display: { xs: 'block', md: 'none' },
+            zIndex: theme.zIndex.drawer,
             '& .MuiDrawer-paper': {
               boxSizing: 'border-box',
               width: DRAWER_WIDTH,
+              zIndex: theme.zIndex.drawer,
             },
           }}
         >
@@ -412,6 +460,18 @@ const TeacherLayout: React.FC<TeacherLayoutProps> = ({ children }) => {
           vertical: 'top',
           horizontal: 'right',
         }}
+        slotProps={{
+          paper: {
+            sx: {
+              zIndex: theme.zIndex.drawer + 2,
+            }
+          }
+        }}
+        sx={{
+          zIndex: theme.zIndex.drawer + 2,
+        }}
+        disableScrollLock={true}
+        disablePortal={false}
       >
         {user && (
           <Box sx={{ px: 2, py: 1, borderBottom: '1px solid rgba(0, 0, 0, 0.12)' }}>

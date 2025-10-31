@@ -54,6 +54,7 @@ import {
 } from '@mui/icons-material';
 import { useServiceConfiguration } from '../../contexts/ConfigurationContext';
 import ServiceConfigurationLoader from '../../components/common/ServiceConfigurationLoader';
+import CollapsibleFilterSection from '../../components/common/CollapsibleFilterSection';
 import { configurationService } from '../../services/configurationService';
 import { expenseAPI } from '../../services/api';
 
@@ -587,13 +588,28 @@ const ExpenseManagement: React.FC = () => {
       <Box sx={{ p: { xs: 1, sm: 2, md: 3 } }}>
         <ServiceConfigurationLoader service="expense-management">
       {/* Filters */}
-      <Paper elevation={3} sx={{ p: 3, mb: 3 }}>
-        <Typography variant="h6" fontWeight="bold" mb={2}>
-          <FilterList sx={{ mr: 1 }} />
-          Filters
-        </Typography>
+      <CollapsibleFilterSection
+        title="Filters"
+        defaultExpanded={true}
+        persistKey="expense-management-filters"
+        actionButtons={
+          <Button
+            variant="contained"
+            size="small"
+            startIcon={<Add />}
+            onClick={() => handleOpenDialog()}
+            sx={{
+              fontSize: { xs: '0.75rem', sm: '0.875rem' },
+              padding: { xs: '4px 8px', sm: '6px 12px' },
+              whiteSpace: 'nowrap'
+            }}
+          >
+            New Expense
+          </Button>
+        }
+      >
         <Grid container spacing={2} alignItems="center">
-          <Grid size={{ xs: 12, sm: 6, md: 2.4 }}>
+          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
             <FormControl fullWidth size="small">
               <InputLabel>Category</InputLabel>
               <Select
@@ -610,7 +626,7 @@ const ExpenseManagement: React.FC = () => {
               </Select>
             </FormControl>
           </Grid>
-          <Grid size={{ xs: 12, sm: 6, md: 2.4 }}>
+          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
             <FormControl fullWidth size="small">
               <InputLabel>Status</InputLabel>
               <Select
@@ -627,7 +643,7 @@ const ExpenseManagement: React.FC = () => {
               </Select>
             </FormControl>
           </Grid>
-          <Grid size={{ xs: 12, sm: 6, md: 2.4 }}>
+          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
             <TextField
               fullWidth
               size="small"
@@ -638,7 +654,7 @@ const ExpenseManagement: React.FC = () => {
               InputLabelProps={{ shrink: true }}
             />
           </Grid>
-          <Grid size={{ xs: 12, sm: 6, md: 2.4 }}>
+          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
             <TextField
               fullWidth
               size="small"
@@ -649,23 +665,8 @@ const ExpenseManagement: React.FC = () => {
               InputLabelProps={{ shrink: true }}
             />
           </Grid>
-          <Grid size={{ xs: 12, sm: 6, md: 2.4 }}>
-            <Button
-              variant="contained"
-              startIcon={<Add />}
-              onClick={() => handleOpenDialog()}
-              fullWidth
-              sx={{
-                fontSize: { xs: '0.875rem', sm: '1rem' },
-                padding: { xs: '6px 12px', sm: '8px 16px' },
-                whiteSpace: 'nowrap'
-              }}
-            >
-              New Expense
-            </Button>
-          </Grid>
         </Grid>
-      </Paper>
+      </CollapsibleFilterSection>
 
       {/* Tabs */}
       <Paper sx={{ width: '100%' }}>

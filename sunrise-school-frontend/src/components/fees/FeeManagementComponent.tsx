@@ -58,6 +58,7 @@ import {
   SessionYearDropdown,
   ClassDropdown
 } from '../common/MetadataDropdown';
+import CollapsibleFilterSection from '../common/CollapsibleFilterSection';
 import { useAuth } from '../../contexts/AuthContext';
 import { dialogStyles } from '../../styles/dialogTheme';
 import { useServiceConfiguration } from '../../contexts/ConfigurationContext';
@@ -779,11 +780,34 @@ const FeeManagementComponent: React.FC = () => {
   return (
     <Box sx={{ p: { xs: 1, sm: 2, md: 3 } }}>
       {/* Filters - Mobile Responsive */}
-      <Paper sx={{ p: { xs: 1.5, sm: 2 }, mb: { xs: 2, sm: 3 } }}>
-        <Typography variant="h6" fontWeight="bold" mb={2}>
-          <FilterList sx={{ mr: 1 }} />
-          Filters
-        </Typography>
+      <CollapsibleFilterSection
+        title="Filters"
+        defaultExpanded={true}
+        persistKey="fee-management-filters"
+        actionButtons={
+          selectedStudentIds.length > 0 ? (
+            <Button
+              variant="contained"
+              size="small"
+              startIcon={<Settings />}
+              onClick={() => {
+                console.log('🔍 Enable Monthly Tracking Button Clicked:', {
+                  selectedStudentIds: selectedStudentIds,
+                  totalStudents: students.length,
+                });
+                setEnableTrackingDialog(true);
+              }}
+              sx={{
+                fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                padding: { xs: '4px 8px', sm: '6px 12px' },
+                whiteSpace: 'nowrap'
+              }}
+            >
+              Enable Tracking ({selectedStudentIds.length})
+            </Button>
+          ) : undefined
+        }
+      >
         <Box
           sx={{
             display: 'flex',
@@ -832,31 +856,8 @@ const FeeManagementComponent: React.FC = () => {
               }}
             />
           </Box>
-          {selectedStudentIds.length > 0 && (
-            <Box sx={{ flex: { xs: '1 1 100%', sm: '0 0 auto' }, minWidth: { xs: '100%', sm: 'auto' } }}>
-              <Button
-                variant="contained"
-                startIcon={<Settings />}
-                onClick={() => {
-                  console.log('🔍 Enable Monthly Tracking Button Clicked:', {
-                    selectedStudentIds: selectedStudentIds,
-                    totalStudents: students.length,
-                  });
-                  setEnableTrackingDialog(true);
-                }}
-                fullWidth
-                sx={{
-                  fontSize: { xs: '0.875rem', sm: '1rem' },
-                  padding: { xs: '6px 12px', sm: '8px 16px' },
-                  whiteSpace: 'nowrap'
-                }}
-              >
-                Enable Tracking ({selectedStudentIds.length})
-              </Button>
-            </Box>
-          )}
         </Box>
-      </Paper>
+      </CollapsibleFilterSection>
 
       {/* Tabs for filtering */}
       <Paper sx={{ mb: { xs: 2, sm: 3 } }}>

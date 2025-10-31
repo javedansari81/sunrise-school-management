@@ -40,6 +40,7 @@ import transportService, {
   TransportDistanceSlab
 } from '../../services/transportService';
 import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from '../../config/pagination';
+import CollapsibleFilterSection from '../common/CollapsibleFilterSection';
 import EnrollDialog from './transport/EnrollDialog';
 import PaymentDialog from './transport/PaymentDialog';
 import HistoryDialog from './transport/HistoryDialog';
@@ -326,11 +327,11 @@ const TransportManagementSystem: React.FC = () => {
       )}
 
       {/* Filters Section - Above Tabs */}
-      <Paper elevation={3} sx={{ p: 3, mb: 3 }}>
-        <Typography variant="h6" fontWeight="bold" mb={2}>
-          <FilterList sx={{ mr: 1 }} />
-          Filters
-        </Typography>
+      <CollapsibleFilterSection
+        title="Filters"
+        defaultExpanded={true}
+        persistKey="transport-management-filters"
+      >
         <Box sx={{
           display: 'flex',
           gap: { xs: 1.5, sm: 2 },
@@ -399,7 +400,7 @@ const TransportManagementSystem: React.FC = () => {
             }}
           />
         </Box>
-      </Paper>
+      </CollapsibleFilterSection>
 
       {/* Tabs Section */}
       <Paper sx={{ width: '100%', mb: { xs: 2, sm: 3 } }}>

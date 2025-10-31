@@ -54,6 +54,7 @@ import { useServiceConfiguration, useConfiguration } from '../../contexts/Config
 import { useAuth } from '../../contexts/AuthContext';
 import { leaveAPI } from '../../services/api';
 import { ClassDropdown } from '../../components/common/MetadataDropdown';
+import CollapsibleFilterSection from '../common/CollapsibleFilterSection';
 
 // Types
 interface LeaveRequest {
@@ -432,11 +433,11 @@ const LeaveManagementSystem: React.FC = () => {
     <LocalizationProvider dateAdapter={AdapterDateFns}>
       <Box sx={{ width: '100%' }}>
         {/* Filters Section - Above Tabs */}
-        <Paper elevation={3} sx={{ p: 3, mb: 3 }}>
-          <Typography variant="h6" fontWeight="bold" mb={2}>
-            <FilterList sx={{ mr: 1 }} />
-            Filters
-          </Typography>
+        <CollapsibleFilterSection
+          title="Filters"
+          defaultExpanded={true}
+          persistKey="leave-management-filters"
+        >
           <Box sx={{
             display: 'flex',
             gap: { xs: 1.5, sm: 2 },
@@ -537,7 +538,7 @@ const LeaveManagementSystem: React.FC = () => {
 
 
           </Box>
-        </Paper>
+        </CollapsibleFilterSection>
 
         {/* Tabs Section */}
         <Paper sx={{ width: '100%', mb: { xs: 2, sm: 3 } }}>

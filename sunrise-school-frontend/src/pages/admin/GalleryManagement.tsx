@@ -53,6 +53,7 @@ import {
 } from '@mui/icons-material';
 import { useServiceConfiguration, useConfiguration } from '../../contexts/ConfigurationContext';
 import ServiceConfigurationLoader from '../../components/common/ServiceConfigurationLoader';
+import CollapsibleFilterSection from '../../components/common/CollapsibleFilterSection';
 import { galleryAPI } from '../../services/api';
 
 interface TabPanelProps {
@@ -415,14 +416,27 @@ const GalleryManagement: React.FC = () => {
       <Box sx={{ p: { xs: 1, sm: 2, md: 3 } }}>
         <ServiceConfigurationLoader service="gallery-management">
           {/* Filters Section - Above Tabs */}
-          <Paper elevation={3} sx={{ p: 3, mb: 3 }}>
-            {/* Filters Label */}
-            <Typography variant="h6" fontWeight="bold" sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-              <FilterList sx={{ mr: 1 }} />
-              Filters
-            </Typography>
-
-            {/* Filter Controls and Upload Button */}
+          <CollapsibleFilterSection
+            title="Filters"
+            defaultExpanded={true}
+            persistKey="gallery-management-filters"
+            actionButtons={
+              <Button
+                variant="contained"
+                size="small"
+                startIcon={<CloudUpload />}
+                onClick={() => handleOpenDialog()}
+                sx={{
+                  fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                  padding: { xs: '4px 8px', sm: '6px 12px' },
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                Upload New Image
+              </Button>
+            }
+          >
+            {/* Filter Controls */}
             <Box sx={{
               display: 'flex',
               gap: { xs: 1.5, sm: 2 },
@@ -488,23 +502,8 @@ const GalleryManagement: React.FC = () => {
                   startAdornment: <Search sx={{ mr: 1, color: 'text.secondary' }} />,
                 }}
               />
-
-              {/* Upload Image Button */}
-              <Button
-                variant="contained"
-                startIcon={<CloudUpload />}
-                onClick={() => handleOpenDialog()}
-                sx={{
-                  fontSize: { xs: '0.875rem', sm: '1rem' },
-                  padding: { xs: '6px 12px', sm: '8px 16px' },
-                  whiteSpace: 'nowrap',
-                  flex: { xs: '1 1 100%', sm: '0 0 auto' }
-                }}
-              >
-                Upload New Image
-              </Button>
             </Box>
-          </Paper>
+          </CollapsibleFilterSection>
 
           {/* Tabs Section */}
           <Paper sx={{ width: '100%', mb: { xs: 2, sm: 3 } }}>

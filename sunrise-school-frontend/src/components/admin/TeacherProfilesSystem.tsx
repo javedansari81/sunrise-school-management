@@ -47,6 +47,7 @@ import { useServiceConfiguration, useConfiguration } from '../../contexts/Config
 import { teachersAPI } from '../../services/api';
 import { useErrorDialog } from '../../hooks/useErrorDialog';
 import ErrorDialog from '../common/ErrorDialog';
+import CollapsibleFilterSection from '../common/CollapsibleFilterSection';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -725,11 +726,26 @@ const TeacherProfilesSystem: React.FC = () => {
   return (
     <Box sx={{ width: '100%' }}>
       {/* Filters Section */}
-      <Paper sx={{ p: 3, mb: 3 }}>
-        <Typography variant="h6" fontWeight="bold" mb={2}>
-          <FilterList sx={{ mr: 1 }} />
-          Filters
-        </Typography>
+      <CollapsibleFilterSection
+        title="Filters"
+        defaultExpanded={true}
+        persistKey="teacher-profiles-filters"
+        actionButtons={
+          <Button
+            variant="contained"
+            size="small"
+            startIcon={<AddIcon />}
+            onClick={handleOpenDialog}
+            sx={{
+              fontSize: { xs: '0.75rem', sm: '0.875rem' },
+              padding: { xs: '4px 8px', sm: '6px 12px' },
+              whiteSpace: 'nowrap'
+            }}
+          >
+            New Teacher
+          </Button>
+        }
+      >
         <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} gap={2} alignItems="center">
           <Box flex={1} minWidth={{ xs: '100%', sm: '300px' }}>
             <TextField
@@ -764,23 +780,8 @@ const TeacherProfilesSystem: React.FC = () => {
               </Select>
             </FormControl>
           </Box>
-          <Box minWidth={{ xs: '100%', sm: 'auto' }}>
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              onClick={handleOpenDialog}
-              fullWidth
-              sx={{
-                fontSize: { xs: '0.875rem', sm: '1rem' },
-                padding: { xs: '6px 12px', sm: '8px 16px' },
-                whiteSpace: 'nowrap'
-              }}
-            >
-              New Teacher
-            </Button>
-          </Box>
         </Box>
-      </Paper>
+      </CollapsibleFilterSection>
 
       {/* Tabs Section */}
       <Paper sx={{ width: '100%', mb: { xs: 2, sm: 3 } }}>
