@@ -16,16 +16,20 @@ import {
   CircularProgress,
   Alert,
   Snackbar,
-  Stack
+  Stack,
+  TextField,
+  InputAdornment,
+  Grid
 } from '@mui/material';
 import {
   Add as AddIcon,
   Visibility as ViewIcon,
-  School as SchoolIcon
+  Search as SearchIcon
 } from '@mui/icons-material';
 import { useServiceConfiguration } from '../../contexts/ConfigurationContext';
 import { studentLeaveAPI, studentsAPI } from '../../services/api';
 import StudentLeaveRequestDialog from './StudentLeaveRequestDialog';
+import { FilterDropdown } from '../common/MetadataDropdown';
 
 // Types
 interface LeaveRequest {
@@ -70,10 +74,20 @@ const StudentLeaveManagement: React.FC = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedLeave, setSelectedLeave] = useState<LeaveRequest | null>(null);
   const [isViewMode, setIsViewMode] = useState(false);
-  const [snackbar, setSnackbar] = useState({ 
-    open: false, 
-    message: '', 
-    severity: 'success' as 'success' | 'error' 
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: '',
+    severity: 'success' as 'success' | 'error'
+  });
+
+  // Filter state
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filters, setFilters] = useState<{
+    leave_status_id: string | number;
+    leave_type_id: string | number;
+  }>({
+    leave_status_id: 'all',
+    leave_type_id: 'all'
   });
 
   // Load student profile and leave requests
@@ -114,6 +128,44 @@ const StudentLeaveManagement: React.FC = () => {
     }
   };
 
+  // Filter leave requests based on search and filters
+  const filteredLeaveRequests = leaveRequests.filter(leave => {
+    // Search filter
+    if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase();
+      const matchesSearch =
+        leave.leave_type_name.toLowerCase().includes(searchLower) ||
+        leave.reason.toLowerCase().includes(searchLower) ||
+        leave.leave_status_name.toLowerCase().includes(searchLower);
+
+      if (!matchesSearch) return false;
+    }
+
+    // Status filter - only apply if a specific status is selected (not 'all')
+    if (filters.leave_status_id !== 'all' && filters.leave_status_id !== '') {
+      const filterStatusId = typeof filters.leave_status_id === 'number'
+        ? filters.leave_status_id
+        : parseInt(filters.leave_status_id, 10);
+
+      if (leave.leave_status_id !== filterStatusId) {
+        return false;
+      }
+    }
+
+    // Type filter - only apply if a specific type is selected (not 'all')
+    if (filters.leave_type_id !== 'all' && filters.leave_type_id !== '') {
+      const filterTypeId = typeof filters.leave_type_id === 'number'
+        ? filters.leave_type_id
+        : parseInt(filters.leave_type_id, 10);
+
+      if (leave.leave_type_id !== filterTypeId) {
+        return false;
+      }
+    }
+
+    return true;
+  });
+
   const handleOpenDialog = (leave?: LeaveRequest, viewMode = false) => {
     setSelectedLeave(leave || null);
     setIsViewMode(viewMode);
@@ -141,67 +193,77 @@ const StudentLeaveManagement: React.FC = () => {
     setSnackbar(prev => ({ ...prev, open: false }));
   };
 
+  // Handle filter change
+  const handleFilterChange = (field: string, value: string | number) => {
+    setFilters(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
   return (
     <Box sx={{ width: '100%' }}>
-      {/* Header Section */}
-      <Box
-        display="flex"
-        justifyContent="space-between"
-        alignItems={{ xs: 'flex-start', sm: 'center' }}
-        flexDirection={{ xs: 'column', sm: 'row' }}
-        gap={{ xs: 2, sm: 0 }}
-        mb={{ xs: 3, sm: 4 }}
-      >
-        <Typography
-          variant="h4"
-          fontWeight="bold"
-          sx={{
-            fontSize: { xs: '1.5rem', sm: '2rem', md: '2.125rem' }
-          }}
-        >
-          My Leave Requests
-        </Typography>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={() => handleOpenDialog()}
-          sx={{
-            fontSize: { xs: '0.875rem', sm: '1rem' },
-            padding: { xs: '6px 12px', sm: '8px 16px' },
-            alignSelf: { xs: 'flex-end', sm: 'auto' }
-          }}
-        >
-          New Leave Request
-        </Button>
-      </Box>
+      {/* Filters Section */}
+      <Paper sx={{ p: 2, mb: 3 }}>
+        <Grid container spacing={2} alignItems="center">
+          {/* Search Field */}
+          <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+            <TextField
+              fullWidth
+              placeholder="Search by type, reason, or status..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon />
+                  </InputAdornment>
+                ),
+              }}
+              size="small"
+            />
+          </Grid>
 
-      {/* Student Info Card */}
-      {studentProfile && (
-        <Paper elevation={2} sx={{ p: 3, mb: 3 }}>
-          <Box display="flex" alignItems="center" gap={2} mb={2}>
-            <SchoolIcon color="primary" fontSize="large" />
-            <Box>
-              <Typography variant="h6" fontWeight="bold">
-                {studentProfile.first_name} {studentProfile.last_name}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Roll No: {studentProfile.roll_number} | Class: {studentProfile.class_name}
-                {studentProfile.section && ` - ${studentProfile.section}`}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Admission No: {studentProfile.admission_number}
-              </Typography>
-            </Box>
-          </Box>
-        </Paper>
-      )}
+          {/* Status Filter */}
+          <Grid size={{ xs: 12, sm: 3, md: 2 }}>
+            <FilterDropdown
+              metadataType="leaveStatuses"
+              label="Status"
+              value={filters.leave_status_id}
+              onChange={(value) => handleFilterChange('leave_status_id', value)}
+              size="small"
+              fullWidth
+            />
+          </Grid>
+
+          {/* Leave Type Filter */}
+          <Grid size={{ xs: 12, sm: 3, md: 2 }}>
+            <FilterDropdown
+              metadataType="leaveTypes"
+              label="Leave Type"
+              value={filters.leave_type_id}
+              onChange={(value) => handleFilterChange('leave_type_id', value)}
+              size="small"
+              fullWidth
+            />
+          </Grid>
+
+          {/* New Leave Request Button */}
+          <Grid size={{ xs: 12, sm: 12, md: 4 }} sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={() => handleOpenDialog()}
+              sx={{ width: { xs: '100%', md: 'auto' } }}
+            >
+              New Leave Request
+            </Button>
+          </Grid>
+        </Grid>
+      </Paper>
 
       {/* Leave Requests Table */}
       <Paper elevation={3} sx={{ p: 3 }}>
-        <Typography variant="h6" fontWeight="bold" mb={2} color="primary.main">
-          Leave Request History ({leaveRequests.length})
-        </Typography>
-        
         {loading ? (
           <Box display="flex" justifyContent="center" p={4}>
             <CircularProgress />
@@ -211,18 +273,18 @@ const StudentLeaveManagement: React.FC = () => {
             <Table stickyHeader>
               <TableHead>
                 <TableRow>
-                  <TableCell>Leave Type</TableCell>
-                  <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>Duration</TableCell>
-                  <TableCell>Days</TableCell>
-                  <TableCell>Status</TableCell>
-                  <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>Submitted</TableCell>
-                  <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>Reviewed By</TableCell>
-                  <TableCell align="center">Actions</TableCell>
+                  <TableCell sx={{ backgroundColor: 'white' }}>Leave Type</TableCell>
+                  <TableCell sx={{ display: { xs: 'none', md: 'table-cell' }, backgroundColor: 'white' }}>Duration</TableCell>
+                  <TableCell sx={{ backgroundColor: 'white' }}>Days</TableCell>
+                  <TableCell sx={{ backgroundColor: 'white' }}>Status</TableCell>
+                  <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' }, backgroundColor: 'white' }}>Submitted</TableCell>
+                  <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' }, backgroundColor: 'white' }}>Reviewed By</TableCell>
+                  <TableCell align="center" sx={{ backgroundColor: 'white' }}>Actions</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {leaveRequests.length > 0 ? (
-                  leaveRequests.map((leave) => (
+                {filteredLeaveRequests.length > 0 ? (
+                  filteredLeaveRequests.map((leave) => (
                     <TableRow key={leave.id}>
                       <TableCell>
                         <Stack spacing={0.5}>
@@ -283,7 +345,9 @@ const StudentLeaveManagement: React.FC = () => {
                   <TableRow>
                     <TableCell colSpan={7} align="center">
                       <Typography variant="body2" color="textSecondary" sx={{ py: 4 }}>
-                        You have not submitted any leave requests yet
+                        {searchTerm || filters.leave_status_id !== 'all' || filters.leave_type_id !== 'all'
+                          ? 'No leave requests found matching the selected filters'
+                          : 'You have not submitted any leave requests yet'}
                       </Typography>
                     </TableCell>
                   </TableRow>

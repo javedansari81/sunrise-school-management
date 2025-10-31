@@ -8,9 +8,7 @@ import TeacherDashboardOverview from '../../components/teacher/TeacherDashboardO
 const TeacherDashboard: React.FC = () => {
   return (
     <TeacherLayout>
-      <Box sx={{ p: { xs: 1, sm: 2, md: 3 } }}>
-        <TeacherDashboardOverview />
-      </Box>
+      <TeacherDashboardOverview />
     </TeacherLayout>
   );
 };

@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Container,
   Typography,
   Box,
   Paper,
@@ -64,16 +63,6 @@ const Profile: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const getProfileDescription = () => {
-    if (user?.user_type?.toLowerCase() === 'student') {
-      return 'View and update your student profile information.';
-    }
-    if (user?.user_type?.toLowerCase() === 'teacher') {
-      return 'View and update your teacher profile information.';
-    }
-    return 'Manage your personal information and account settings.';
   };
 
   const getUserTypeDisplay = () => {
@@ -209,38 +198,27 @@ const Profile: React.FC = () => {
 
   if (loading) {
     return (
-      <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-        <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
-          <CircularProgress />
-        </Box>
-      </Container>
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
+        <CircularProgress />
+      </Box>
     );
   }
 
   if (error) {
     return (
-      <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+      <Box>
         <Alert severity="error" sx={{ mb: 2 }}>
           {error}
         </Alert>
         <Button variant="outlined" onClick={fetchProfileData}>
           Retry
         </Button>
-      </Container>
+      </Box>
     );
   }
 
   return (
-    <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-      <Box sx={{ mb: 4 }}>
-        <Typography variant="h4" component="h1" gutterBottom>
-          My Profile
-        </Typography>
-        <Typography variant="body1" color="text.secondary">
-          {getProfileDescription()}
-        </Typography>
-      </Box>
-
+    <Box sx={{ width: '100%' }}>
       {/* Success Message */}
       {successMessage && (
         <Alert severity="success" sx={{ mb: 3 }} onClose={() => setSuccessMessage(null)}>
@@ -1129,7 +1107,7 @@ const Profile: React.FC = () => {
           onProfileUpdated={handleProfileUpdated}
         />
       )}
-    </Container>
+    </Box>
   );
 };
 

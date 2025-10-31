@@ -120,39 +120,6 @@ const TeacherDashboardOverview: React.FC = () => {
     }
   };
 
-  const getDashboardCards = () => [
-    {
-      title: 'Total Leave Requests',
-      value: leaveStats.total.toString(),
-      icon: <EventNote fontSize="large" />,
-      color: '#1976d2',
-      subtitle: 'All time requests',
-    },
-    {
-      title: 'Pending Approval',
-      value: leaveStats.pending.toString(),
-      icon: <Pending fontSize="large" />,
-      color: '#f57c00',
-      subtitle: 'Awaiting review',
-    },
-    {
-      title: 'Approved Leaves',
-      value: leaveStats.approved.toString(),
-      icon: <CheckCircle fontSize="large" />,
-      color: '#388e3c',
-      subtitle: 'Successfully approved',
-    },
-    {
-      title: 'My Profile',
-      value: teacherProfile ? `${teacherProfile.first_name} ${teacherProfile.last_name}` : 'N/A',
-      icon: <Person fontSize="large" />,
-      color: '#7b1fa2',
-      subtitle: `ID: ${teacherProfile?.employee_id || 'N/A'}`,
-      clickable: true,
-      onClick: () => navigate('/profile'),
-    },
-  ];
-
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
@@ -163,83 +130,20 @@ const TeacherDashboardOverview: React.FC = () => {
 
   return (
     <Box sx={{ width: '100%' }}>
-      {/* Header */}
-      <Box mb={4}>
-        <Typography variant="h4" fontWeight="bold" gutterBottom>
-          Teacher Dashboard
-        </Typography>
-        <Typography variant="subtitle1" color="text.secondary">
-          Welcome back, {teacherProfile?.first_name} {teacherProfile?.last_name}!
-        </Typography>
-      </Box>
-
       {error && (
         <Alert severity="error" sx={{ mb: 3 }}>
           {error}
         </Alert>
       )}
 
-      {/* Dashboard Cards */}
-      <Box
-        sx={{
-          display: 'grid',
-          gridTemplateColumns: {
-            xs: '1fr',
-            sm: 'repeat(2, 1fr)',
-            md: 'repeat(4, 1fr)',
-          },
-          gap: 3,
-          mb: 4,
-        }}
-      >
-        {getDashboardCards().map((card, index) => (
-          <Card
-            key={index}
-            sx={{
-              height: '100%',
-              cursor: card.clickable ? 'pointer' : 'default',
-              '&:hover': card.clickable ? {
-                transform: 'translateY(-2px)',
-                boxShadow: 3,
-              } : {},
-              transition: 'all 0.2s ease-in-out',
-            }}
-            onClick={card.onClick}
-          >
-            <CardContent>
-              <Box display="flex" alignItems="center" mb={2}>
-                <Box
-                  sx={{
-                    backgroundColor: card.color,
-                    color: 'white',
-                    borderRadius: '50%',
-                    p: 1,
-                    mr: 2,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  {card.icon}
-                </Box>
-                <Box>
-                  <Typography variant="h4" fontWeight="bold">
-                    {card.value}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {card.subtitle}
-                  </Typography>
-                </Box>
-              </Box>
-              <Typography variant="body1" fontWeight="medium">
-                {card.title}
-              </Typography>
-            </CardContent>
-          </Card>
-        ))}
+      {/* Welcome Message */}
+      <Box mb={3}>
+        <Typography variant="subtitle1" color="text.secondary">
+          Welcome back, {teacherProfile?.first_name} {teacherProfile?.last_name}!
+        </Typography>
       </Box>
 
-      {/* Recent Leave Requests */}
+      {/* Recent Leave Requests and Quick Actions */}
       <Box
         sx={{
           display: 'grid',

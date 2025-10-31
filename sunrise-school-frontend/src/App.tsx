@@ -26,7 +26,7 @@ import TeacherLeaveManagementPage from './pages/teacher/TeacherLeaveManagementPa
 import StudentDashboard from './pages/student/StudentDashboard';
 import StudentLeaveManagementPage from './pages/student/StudentLeaveManagementPage';
 import StudentFeeManagementPage from './pages/student/StudentFeeManagementPage';
-import Profile from './pages/Profile';
+import ProfilePage from './pages/ProfilePage';
 // import ConfigurationTest from './components/common/ConfigurationTest';
 
 import ProtectedRoute from './components/ProtectedRoute';
@@ -223,46 +223,46 @@ function App() {
                 <Route path="/contact" element={<Contact />} />
                 {/* <Route path="/config-test" element={<ConfigurationTest />} /> */}
 
-                {/* Teacher Routes - with main layout */}
-                <Route path="/teacher/dashboard" element={
-                  <ProtectedRoute requiredRole="TEACHER">
-                    <TeacherDashboard />
-                  </ProtectedRoute>
-                } />
-                <Route path="/teacher/leaves" element={
-                  <ProtectedRoute requiredRole="TEACHER">
-                    <TeacherLeaveManagementPage />
-                  </ProtectedRoute>
-                } />
-
-                {/* Student Routes - with main layout */}
-                <Route path="/student/dashboard" element={
-                  <ProtectedRoute requiredRole="STUDENT">
-                    <StudentDashboard />
-                  </ProtectedRoute>
-                } />
-                <Route path="/student/leaves" element={
-                  <ProtectedRoute requiredRole="STUDENT">
-                    <StudentLeaveManagementPage />
-                  </ProtectedRoute>
-                } />
-                <Route path="/student/fees" element={
-                  <ProtectedRoute requiredRole="STUDENT">
-                    <StudentFeeManagementPage />
-                  </ProtectedRoute>
-                } />
-
-                {/* Profile Route - with main layout */}
-                <Route path="/profile" element={
-                  <ProtectedRoute>
-                    <Profile />
-                  </ProtectedRoute>
-                } />
-
                 {/* Catch-all route */}
                 <Route path="*" element={<Home />} />
               </Routes>
             </MainLayout>
+          } />
+
+          {/* Student Routes - Standalone (No MainLayout Header/Footer) */}
+          <Route path="/student/dashboard" element={
+            <ProtectedRoute requiredRole="STUDENT">
+              <StudentDashboard />
+            </ProtectedRoute>
+          } />
+          <Route path="/student/leaves" element={
+            <ProtectedRoute requiredRole="STUDENT">
+              <StudentLeaveManagementPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/student/fees" element={
+            <ProtectedRoute requiredRole="STUDENT">
+              <StudentFeeManagementPage />
+            </ProtectedRoute>
+          } />
+
+          {/* Teacher Routes - Standalone (No MainLayout Header/Footer) */}
+          <Route path="/teacher/dashboard" element={
+            <ProtectedRoute requiredRole="TEACHER">
+              <TeacherDashboard />
+            </ProtectedRoute>
+          } />
+          <Route path="/teacher/leaves" element={
+            <ProtectedRoute requiredRole="TEACHER">
+              <TeacherLeaveManagementPage />
+            </ProtectedRoute>
+          } />
+
+          {/* Profile Route - Standalone (applies appropriate layout based on user type) */}
+          <Route path="/profile" element={
+            <ProtectedRoute>
+              <ProfilePage />
+            </ProtectedRoute>
           } />
 
           {/* Admin Routes - Standalone (No Header/Footer) */}

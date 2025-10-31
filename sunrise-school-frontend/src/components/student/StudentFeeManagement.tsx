@@ -221,26 +221,13 @@ const StudentFeeManagement: React.FC = () => {
 
   return (
     <Box sx={{ width: '100%' }}>
-      {/* Header Section */}
+      {/* Header Section with Session Year Filter */}
       <Box
         display="flex"
-        justifyContent="space-between"
-        alignItems={{ xs: 'flex-start', sm: 'center' }}
-        flexDirection={{ xs: 'column', sm: 'row' }}
-        gap={2}
+        justifyContent="flex-end"
+        alignItems="center"
         mb={3}
       >
-        <Box>
-          <Typography variant="h5" fontWeight="bold" gutterBottom>
-            Fee Management
-          </Typography>
-          {studentProfile && (
-            <Typography variant="body2" color="text.secondary">
-              {studentProfile.first_name} {studentProfile.last_name} - Roll: {studentProfile.roll_number}
-            </Typography>
-          )}
-        </Box>
-
         {/* Session Year Filter */}
         {isLoaded && configuration?.session_years && (
           <FormControl size="small" sx={{ minWidth: 200 }}>

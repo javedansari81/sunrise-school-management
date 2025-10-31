@@ -293,12 +293,9 @@ const TeacherLeaveManagement: React.FC = () => {
   }
 
   return (
-    <Box sx={{ p: { xs: 1, sm: 2, md: 3 } }}>
-      {/* Header Section */}
+    <Box sx={{ width: '100%' }}>
+      {/* Teacher Info */}
       <Box sx={{ mb: 3 }}>
-        <Typography variant="h5" gutterBottom sx={{ fontWeight: 600 }}>
-          Leave Management
-        </Typography>
         <Typography variant="body2" color="textSecondary">
           {teacherProfile && `${teacherProfile.first_name} ${teacherProfile.last_name} (${teacherProfile.employee_id})`}
         </Typography>
@@ -309,7 +306,17 @@ const TeacherLeaveManagement: React.FC = () => {
         <Tabs
           value={currentTab}
           onChange={(e, newValue) => setCurrentTab(newValue)}
-          sx={{ borderBottom: 1, borderColor: 'divider' }}
+          sx={{
+            borderBottom: 1,
+            borderColor: 'divider',
+            '& .MuiTab-root': {
+              textTransform: 'none',
+              fontWeight: 500,
+            },
+            '& .Mui-selected': {
+              fontWeight: 600,
+            }
+          }}
         >
           <Tab label="My Requests" icon={<EventNote />} iconPosition="start" />
           {teacherProfile?.class_teacher_of_id && (
@@ -427,7 +434,20 @@ const TeacherLeaveManagement: React.FC = () => {
       {/* Leave Requests Table */}
       <Paper sx={{ width: '100%' }}>
         <TableContainer>
-          <Table>
+          <Table
+            sx={{
+              '& .MuiTableCell-root': {
+                fontSize: '0.875rem',
+                padding: '12px 16px',
+                borderBottom: '1px solid rgba(224, 224, 224, 1)'
+              },
+              '& .MuiTableHead-root .MuiTableCell-root': {
+                backgroundColor: 'white',
+                fontWeight: 600,
+                fontSize: '0.875rem'
+              }
+            }}
+          >
             <TableHead>
               <TableRow>
                 <TableCell>Leave Type</TableCell>

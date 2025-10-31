@@ -199,16 +199,6 @@ const StudentDashboardOverview: React.FC = () => {
 
   return (
     <Box sx={{ width: '100%' }}>
-      {/* Header */}
-      <Box mb={4}>
-        <Typography variant="h4" fontWeight="bold" gutterBottom>
-          Student Dashboard
-        </Typography>
-        <Typography variant="subtitle1" color="text.secondary">
-          Welcome back, {studentProfile?.first_name} {studentProfile?.last_name}!
-        </Typography>
-      </Box>
-
       {error && (
         <Alert severity="error" sx={{ mb: 3 }}>
           {error}
