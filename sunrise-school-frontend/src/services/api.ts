@@ -149,6 +149,8 @@ export const studentsAPI = {
     });
   },
   deleteProfilePictureById: (studentId: number) => api.delete(`/students/${studentId}/delete-picture`),
+  // Teacher update limited student fields
+  teacherUpdateStudent: (studentId: number, updateData: any) => api.put(`/students/${studentId}/teacher-update`, updateData),
 };
 
 // Teachers API

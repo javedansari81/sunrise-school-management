@@ -206,6 +206,16 @@ class StudentProfileUpdate(BaseModel):
     guardian_relation: Optional[str] = None
 
 
+class StudentTeacherUpdate(BaseModel):
+    """
+    Schema for teacher to update limited student fields
+    Teachers can only edit: roll_number, section, blood_group
+    """
+    roll_number: Optional[str] = Field(None, max_length=20)
+    section: Optional[str] = Field(None, max_length=10)
+    blood_group: Optional[str] = Field(None, max_length=5)
+
+
 class StudentInDBBase(StudentBase):
     id: int
     is_active: bool

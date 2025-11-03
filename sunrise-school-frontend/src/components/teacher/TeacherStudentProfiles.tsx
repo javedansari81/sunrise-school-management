@@ -31,6 +31,8 @@ import {
   Visibility,
   FilterList,
   Close as CloseIcon,
+  Edit as EditIcon,
+  PhotoCamera,
 } from '@mui/icons-material';
 import { DEFAULT_PAGE_SIZE, formatRecordCount, calculateTotalPages } from '../../config/pagination';
 import { studentsAPI } from '../../services/api';
@@ -100,15 +102,26 @@ interface Student {
 const TeacherStudentProfiles: React.FC = () => {
   const [tabValue, setTabValue] = useState(0);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [filterSection, setFilterSection] = useState('all');
   const [filterGender, setFilterGender] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
   const [page, setPage] = useState(1);
   const [totalRecords, setTotalRecords] = useState(0);
+
+  // Edit form state
+  const [editFormData, setEditFormData] = useState({
+    roll_number: '',
+    section: '',
+    blood_group: '',
+  });
+  const [profilePictureFile, setProfilePictureFile] = useState<File | null>(null);
+  const [profilePicturePreview, setProfilePicturePreview] = useState<string | null>(null);
 
   const perPage = DEFAULT_PAGE_SIZE;
   const totalPages = calculateTotalPages(totalRecords, perPage);
@@ -163,9 +176,119 @@ const TeacherStudentProfiles: React.FC = () => {
     setViewDialogOpen(true);
   };
 
+  const handleEditStudent = (student: Student) => {
+    setSelectedStudent(student);
+    setEditFormData({
+      roll_number: student.roll_number || '',
+      section: student.section || '',
+      blood_group: student.blood_group || '',
+    });
+    setProfilePicturePreview(student.profile_picture_url || null);
+    setProfilePictureFile(null);
+    setEditDialogOpen(true);
+  };
+
   const handleCloseViewDialog = () => {
     setViewDialogOpen(false);
     setSelectedStudent(null);
+  };
+
+  const handleCloseEditDialog = () => {
+    setEditDialogOpen(false);
+    setEditFormData({
+      roll_number: '',
+      section: '',
+      blood_group: '',
+    });
+    setProfilePictureFile(null);
+    setProfilePicturePreview(null);
+  };
+
+  const handleEditFormChange = (field: string, value: string) => {
+    setEditFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleProfilePictureChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      // Validate file type
+      const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+      if (!validTypes.includes(file.type)) {
+        setSnackbar({
+          open: true,
+          message: 'Invalid file type. Please upload a JPEG, PNG, GIF, or WebP image.',
+          severity: 'error'
+        });
+        return;
+      }
+
+      // Validate file size (5MB max)
+      if (file.size > 5 * 1024 * 1024) {
+        setSnackbar({
+          open: true,
+          message: 'File size too large. Maximum size is 5MB.',
+          severity: 'error'
+        });
+        return;
+      }
+
+      setProfilePictureFile(file);
+
+      // Create preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setProfilePicturePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleSaveEdit = async () => {
+    if (!selectedStudent) return;
+
+    try {
+      setSaving(true);
+
+      // Update student fields
+      const updateData: any = {};
+      if (editFormData.roll_number !== selectedStudent.roll_number) {
+        updateData.roll_number = editFormData.roll_number || null;
+      }
+      if (editFormData.section !== selectedStudent.section) {
+        updateData.section = editFormData.section || null;
+      }
+      if (editFormData.blood_group !== selectedStudent.blood_group) {
+        updateData.blood_group = editFormData.blood_group || null;
+      }
+
+      // Only call API if there are changes
+      if (Object.keys(updateData).length > 0) {
+        await studentsAPI.teacherUpdateStudent(selectedStudent.id, updateData);
+      }
+
+      // Upload profile picture if changed
+      if (profilePictureFile) {
+        await studentsAPI.uploadProfilePictureById(selectedStudent.id, profilePictureFile);
+      }
+
+      setSnackbar({
+        open: true,
+        message: 'Student profile updated successfully',
+        severity: 'success'
+      });
+
+      handleCloseEditDialog();
+      loadStudents(); // Reload the list
+    } catch (error: any) {
+      console.error('Error updating student:', error);
+      setSnackbar({
+        open: true,
+        message: error.response?.data?.detail || 'Failed to update student profile',
+        severity: 'error'
+      });
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleSnackbarClose = () => {
@@ -319,9 +442,14 @@ const TeacherStudentProfiles: React.FC = () => {
                         />
                       </TableCell>
                       <TableCell>
-                        <IconButton size="small" onClick={() => handleViewStudent(student)}>
-                          <Visibility />
-                        </IconButton>
+                        <Box sx={{ display: 'flex', gap: 1 }}>
+                          <IconButton size="small" onClick={() => handleViewStudent(student)} title="View">
+                            <Visibility />
+                          </IconButton>
+                          <IconButton size="small" onClick={() => handleEditStudent(student)} title="Edit" color="primary">
+                            <EditIcon />
+                          </IconButton>
+                        </Box>
                       </TableCell>
                     </TableRow>
                   ))
@@ -413,9 +541,14 @@ const TeacherStudentProfiles: React.FC = () => {
                         <Chip label="Active" color="success" size="small" />
                       </TableCell>
                       <TableCell>
-                        <IconButton size="small" onClick={() => handleViewStudent(student)}>
-                          <Visibility />
-                        </IconButton>
+                        <Box sx={{ display: 'flex', gap: 1 }}>
+                          <IconButton size="small" onClick={() => handleViewStudent(student)} title="View">
+                            <Visibility />
+                          </IconButton>
+                          <IconButton size="small" onClick={() => handleEditStudent(student)} title="Edit" color="primary">
+                            <EditIcon />
+                          </IconButton>
+                        </Box>
                       </TableCell>
                     </TableRow>
                   ))
@@ -507,9 +640,14 @@ const TeacherStudentProfiles: React.FC = () => {
                         <Chip label="Inactive" color="default" size="small" />
                       </TableCell>
                       <TableCell>
-                        <IconButton size="small" onClick={() => handleViewStudent(student)}>
-                          <Visibility />
-                        </IconButton>
+                        <Box sx={{ display: 'flex', gap: 1 }}>
+                          <IconButton size="small" onClick={() => handleViewStudent(student)} title="View">
+                            <Visibility />
+                          </IconButton>
+                          <IconButton size="small" onClick={() => handleEditStudent(student)} title="Edit" color="primary">
+                            <EditIcon />
+                          </IconButton>
+                        </Box>
                       </TableCell>
                     </TableRow>
                   ))
@@ -745,6 +883,164 @@ const TeacherStudentProfiles: React.FC = () => {
         <DialogActions sx={{ p: 2, bgcolor: 'white', borderTop: '1px solid #e0e0e0' }}>
           <Button onClick={handleCloseViewDialog} variant="contained">
             Close
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Edit Student Dialog */}
+      <Dialog open={editDialogOpen} onClose={handleCloseEditDialog} maxWidth="md" fullWidth>
+        <DialogTitle sx={{ bgcolor: 'white', borderBottom: '1px solid #e0e0e0' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Typography variant="h6">Edit Student Profile</Typography>
+            <IconButton onClick={handleCloseEditDialog} size="small">
+              <CloseIcon />
+            </IconButton>
+          </Box>
+        </DialogTitle>
+        <DialogContent sx={{ pt: 3 }}>
+          {selectedStudent && (
+            <Grid container spacing={3}>
+              {/* Profile Picture */}
+              <Grid size={{ xs: 12 }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                  <Avatar
+                    src={profilePicturePreview || undefined}
+                    sx={{ width: 120, height: 120, bgcolor: 'primary.main' }}
+                  >
+                    {!profilePicturePreview && `${selectedStudent.first_name[0]}${selectedStudent.last_name[0]}`}
+                  </Avatar>
+                  <Button
+                    variant="outlined"
+                    component="label"
+                    startIcon={<PhotoCamera />}
+                  >
+                    Upload Picture
+                    <input
+                      type="file"
+                      hidden
+                      accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+                      onChange={handleProfilePictureChange}
+                    />
+                  </Button>
+                  <Typography variant="caption" color="text.secondary">
+                    Max size: 5MB. Formats: JPEG, PNG, GIF, WebP
+                  </Typography>
+                </Box>
+              </Grid>
+
+              {/* Student Name (Read-only) */}
+              <Grid size={{ xs: 12 }}>
+                <Typography variant="subtitle1" fontWeight="bold" color="primary" gutterBottom>
+                  Student Information
+                </Typography>
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <TextField
+                  fullWidth
+                  label="First Name"
+                  value={selectedStudent.first_name}
+                  disabled
+                  variant="filled"
+                />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <TextField
+                  fullWidth
+                  label="Last Name"
+                  value={selectedStudent.last_name}
+                  disabled
+                  variant="filled"
+                />
+              </Grid>
+
+              {/* Editable Fields */}
+              <Grid size={{ xs: 12 }}>
+                <Typography variant="subtitle1" fontWeight="bold" color="primary" gutterBottom sx={{ mt: 2 }}>
+                  Editable Fields
+                </Typography>
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <TextField
+                  fullWidth
+                  label="Roll Number"
+                  value={editFormData.roll_number}
+                  onChange={(e) => handleEditFormChange('roll_number', e.target.value)}
+                  placeholder="Enter roll number"
+                />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <TextField
+                  fullWidth
+                  select
+                  label="Section"
+                  value={editFormData.section}
+                  onChange={(e) => handleEditFormChange('section', e.target.value)}
+                >
+                  <MenuItem value="">No Section</MenuItem>
+                  <MenuItem value="A">Section A</MenuItem>
+                  <MenuItem value="B">Section B</MenuItem>
+                  <MenuItem value="C">Section C</MenuItem>
+                  <MenuItem value="D">Section D</MenuItem>
+                </TextField>
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <TextField
+                  fullWidth
+                  select
+                  label="Blood Group"
+                  value={editFormData.blood_group}
+                  onChange={(e) => handleEditFormChange('blood_group', e.target.value)}
+                >
+                  <MenuItem value="">Not Specified</MenuItem>
+                  <MenuItem value="A+">A+</MenuItem>
+                  <MenuItem value="A-">A-</MenuItem>
+                  <MenuItem value="B+">B+</MenuItem>
+                  <MenuItem value="B-">B-</MenuItem>
+                  <MenuItem value="AB+">AB+</MenuItem>
+                  <MenuItem value="AB-">AB-</MenuItem>
+                  <MenuItem value="O+">O+</MenuItem>
+                  <MenuItem value="O-">O-</MenuItem>
+                </TextField>
+              </Grid>
+
+              {/* Read-only fields for context */}
+              <Grid size={{ xs: 12 }}>
+                <Typography variant="subtitle1" fontWeight="bold" color="primary" gutterBottom sx={{ mt: 2 }}>
+                  Other Information (Read-only)
+                </Typography>
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <TextField
+                  fullWidth
+                  label="Class"
+                  value={selectedStudent.class_name}
+                  disabled
+                  variant="filled"
+                />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <TextField
+                  fullWidth
+                  label="Admission Number"
+                  value={selectedStudent.admission_number}
+                  disabled
+                  variant="filled"
+                />
+              </Grid>
+            </Grid>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ p: 2, bgcolor: 'white', borderTop: '1px solid #e0e0e0' }}>
+          <Button onClick={handleCloseEditDialog} variant="outlined" disabled={saving}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleSaveEdit}
+            variant="contained"
+            disabled={saving}
+            startIcon={saving ? <CircularProgress size={20} /> : null}
+          >
+            {saving ? 'Saving...' : 'Save Changes'}
           </Button>
         </DialogActions>
       </Dialog>

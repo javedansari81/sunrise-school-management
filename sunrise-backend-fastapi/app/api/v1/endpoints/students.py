@@ -8,7 +8,7 @@ from app.crud.crud_student import student_crud
 from app.crud import fee_record_crud
 from app.crud.crud_teacher import teacher_crud
 from app.schemas.student import (
-    Student, StudentCreate, StudentUpdate, StudentProfileUpdate, StudentWithFees, StudentListResponse,
+    Student, StudentCreate, StudentUpdate, StudentProfileUpdate, StudentTeacherUpdate, StudentWithFees, StudentListResponse,
     ClassEnum, GenderEnum
 )
 from pydantic import BaseModel, Field
@@ -214,6 +214,41 @@ async def update_my_profile(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Student profile not found for this user"
+        )
+
+    # Update only the allowed fields
+    update_data = profile_data.dict(exclude_unset=True)
+    updated_student = await student_crud.update(db, db_obj=student, obj_in=update_data)
+
+    # Return updated student with metadata
+    student_with_metadata = await student_crud.get_with_metadata(db, id=updated_student.id)
+    return Student.from_orm_with_metadata(student_with_metadata)
+
+
+@router.put("/{student_id}/teacher-update", response_model=Student)
+async def teacher_update_student(
+    student_id: int,
+    profile_data: StudentTeacherUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Update limited student fields by teacher
+    Teachers can only edit: roll_number, section, blood_group
+    """
+    # Verify user is a teacher
+    if current_user.user_type_enum != UserTypeEnum.TEACHER:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only teachers can access this endpoint"
+        )
+
+    # Find student record
+    student = await student_crud.get(db, id=student_id)
+    if not student:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Student not found"
         )
 
     # Update only the allowed fields
@@ -636,7 +671,7 @@ async def upload_student_profile_picture(
     current_user: User = Depends(get_current_active_user)
 ):
     """
-    Upload profile picture for a specific student (Admin only)
+    Upload profile picture for a specific student (Admin and Teacher)
     """
     from app.utils.profile_picture_helpers import (
         validate_profile_picture,
@@ -645,11 +680,11 @@ async def upload_student_profile_picture(
         update_student_profile_picture
     )
 
-    # Verify user is admin
-    if current_user.user_type_enum != UserTypeEnum.ADMIN:
+    # Verify user is admin or teacher
+    if current_user.user_type_enum not in [UserTypeEnum.ADMIN, UserTypeEnum.TEACHER]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only admins can upload profile pictures for other students"
+            detail="Only admins and teachers can upload profile pictures for students"
         )
 
     # Find student record
