@@ -459,6 +459,14 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           </MenuItem>
         )}
 
+        {/* Teacher Student Profiles */}
+        {user?.user_type?.toUpperCase() === 'TEACHER' && (
+          <MenuItem onClick={() => { handleUserMenuClose(); navigate('/teacher/students'); }}>
+            <PeopleIcon sx={{ mr: 1 }} />
+            Student Profiles
+          </MenuItem>
+        )}
+
         {/* Student Fee Management */}
         {user?.user_type?.toUpperCase() === 'STUDENT' && (
           <MenuItem onClick={() => { handleUserMenuClose(); navigate('/student/fees'); }}>
