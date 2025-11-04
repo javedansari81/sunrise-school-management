@@ -1016,6 +1016,7 @@ async def get_payment_history(
         "student_id": student_id,
         "student_name": f"{student.first_name} {student.last_name}",
         "admission_number": student.admission_number,
+        "roll_number": student.roll_number,
         "class": student.class_ref.name if student.class_ref else "",
         "session_year": session_year.value,
         "summary": {
@@ -2324,6 +2325,7 @@ async def get_available_months_for_payment(
             "id": student.id,
             "name": f"{student.first_name} {student.last_name}",
             "admission_number": student.admission_number,
+            "roll_number": student.roll_number,
             "class": student.class_ref.name if student.class_ref else "Unknown"
         },
         "session_year": session_year.value,

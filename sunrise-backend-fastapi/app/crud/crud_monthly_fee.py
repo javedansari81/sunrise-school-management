@@ -167,6 +167,8 @@ class CRUDMonthlyFeeTracking(CRUDBase[MonthlyFeeTracking, MonthlyFeeTrackingCrea
         return StudentMonthlyFeeHistory(
             student_id=student.id,
             student_name=f"{student.first_name} {student.last_name}",
+            admission_number=student.admission_number,
+            roll_number=student.roll_number,
             class_name=student.class_ref.description if student.class_ref else "",
             session_year=session_year.name if session_year else "",
             monthly_fee_amount=float(monthly_records[0].monthly_amount) if monthly_records else 0,

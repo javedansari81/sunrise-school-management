@@ -453,6 +453,8 @@ class MonthlyFeeStatus(BaseModel):
 class StudentMonthlyFeeHistory(BaseModel):
     student_id: int
     student_name: str
+    admission_number: str
+    roll_number: Optional[str] = None
     class_name: str
     session_year: str
     monthly_fee_amount: float
