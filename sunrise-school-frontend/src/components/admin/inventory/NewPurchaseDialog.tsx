@@ -418,15 +418,6 @@ const NewPurchaseDialog: React.FC<NewPurchaseDialogProps> = ({
                   <TableHead>
                     <TableRow sx={{ bgcolor: 'white' }}>
                       <TableCell
-                        width={isMobile ? 50 : 60}
-                        sx={{
-                          fontSize: { xs: '0.75rem', sm: '0.875rem' },
-                          py: { xs: 1, sm: 1.5 }
-                        }}
-                      >
-                        Image
-                      </TableCell>
-                      <TableCell
                         sx={{
                           fontSize: { xs: '0.75rem', sm: '0.875rem' },
                           py: { xs: 1, sm: 1.5 },
@@ -479,48 +470,8 @@ const NewPurchaseDialog: React.FC<NewPurchaseDialogProps> = ({
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {items.map((item, index) => {
-                      const selectedItemType = configuration?.inventory_item_types?.find(
-                        (type: any) => type.id === item.inventory_item_type_id
-                      );
-
-                      return (
+                    {items.map((item, index) => (
                         <TableRow key={index}>
-                          <TableCell sx={{ py: { xs: 0.5, sm: 1 } }}>
-                            {selectedItemType?.image_url ? (
-                              <Box
-                                component="img"
-                                src={selectedItemType.image_url}
-                                alt={selectedItemType.description}
-                                sx={{
-                                  width: { xs: 35, sm: 40 },
-                                  height: { xs: 35, sm: 40 },
-                                  objectFit: 'cover',
-                                  borderRadius: 1,
-                                }}
-                              />
-                            ) : (
-                              <Box
-                                sx={{
-                                  width: { xs: 35, sm: 40 },
-                                  height: { xs: 35, sm: 40 },
-                                  bgcolor: 'grey.200',
-                                  borderRadius: 1,
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                }}
-                              >
-                                <Typography
-                                  variant="caption"
-                                  color="text.secondary"
-                                  fontSize={{ xs: 8, sm: 10 }}
-                                >
-                                  No Img
-                                </Typography>
-                              </Box>
-                            )}
-                          </TableCell>
                           <TableCell sx={{ py: { xs: 0.5, sm: 1 } }}>
                             <TextField
                               select
@@ -616,8 +567,7 @@ const NewPurchaseDialog: React.FC<NewPurchaseDialogProps> = ({
                           </IconButton>
                         </TableCell>
                       </TableRow>
-                    );
-                    })}
+                    ))}
                   </TableBody>
                 </Table>
               </TableContainer>
