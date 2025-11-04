@@ -113,6 +113,7 @@ export type ServiceType =
   | 'expense-management'
   | 'teacher-management'
   | 'gallery-management'
+  | 'inventory-management'
   | 'common';
 
 // Dropdown option interface for UI components
@@ -581,6 +582,7 @@ export const configurationAPI = {
   getExpenseManagementConfiguration: () => api.get('/configuration/expense-management/'),
   getTeacherManagementConfiguration: () => api.get('/configuration/teacher-management/'),
   getGalleryManagementConfiguration: () => api.get('/configuration/gallery-management/'),
+  getInventoryManagementConfiguration: () => api.get('/configuration/inventory-management/'),
   getCommonConfiguration: () => api.get('/configuration/common/'),
 
   // Service-specific refresh

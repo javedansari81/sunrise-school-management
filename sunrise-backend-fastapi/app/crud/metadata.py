@@ -288,6 +288,24 @@ async def get_all_metadata_async(db: AsyncSession) -> Dict[str, List[Any]]:
                NULL::BOOLEAN as requires_reference, is_active, created_at, updated_at
         FROM gallery_categories WHERE is_active = true
 
+        UNION ALL
+
+        SELECT 'inventory_item_types' as table_name, id, name, description,
+               NULL::INTEGER as sort_order, NULL::DATE as start_date, NULL::DATE as end_date, NULL::BOOLEAN as is_current,
+               NULL::INTEGER as max_days_per_year, NULL::BOOLEAN as requires_medical_certificate, NULL::DECIMAL as budget_limit,
+               NULL::BOOLEAN as requires_approval, category as color_code, NULL::BOOLEAN as is_final, NULL::INTEGER as level_order,
+               NULL::BOOLEAN as requires_reference, is_active, created_at, updated_at
+        FROM inventory_item_types WHERE is_active = true
+
+        UNION ALL
+
+        SELECT 'inventory_size_types' as table_name, id, name, description,
+               sort_order, NULL::DATE as start_date, NULL::DATE as end_date, NULL::BOOLEAN as is_current,
+               NULL::INTEGER as max_days_per_year, NULL::BOOLEAN as requires_medical_certificate, NULL::DECIMAL as budget_limit,
+               NULL::BOOLEAN as requires_approval, NULL::VARCHAR as color_code, NULL::BOOLEAN as is_final, NULL::INTEGER as level_order,
+               NULL::BOOLEAN as requires_reference, is_active, created_at, updated_at
+        FROM inventory_size_types WHERE is_active = true
+
         ORDER BY table_name, id
     """)
 
@@ -314,7 +332,9 @@ async def get_all_metadata_async(db: AsyncSession) -> Dict[str, List[Any]]:
         "departments": [],
         "positions": [],
         "transport_types": [],
-        "gallery_categories": []
+        "gallery_categories": [],
+        "inventory_item_types": [],
+        "inventory_size_types": []
     }
 
     # Process results efficiently
@@ -416,6 +436,16 @@ async def get_all_metadata_async(db: AsyncSession) -> Dict[str, List[Any]]:
                 'id': row.id, 'name': row.name, 'description': row.description,
                 'icon': row.color_code, 'display_order': row.sort_order,
                 'is_active': row.is_active
+            })()
+        elif table_name == 'inventory_item_types':
+            obj = type('InventoryItemType', (), {
+                'id': row.id, 'name': row.name, 'description': row.description,
+                'category': row.color_code, 'is_active': row.is_active
+            })()
+        elif table_name == 'inventory_size_types':
+            obj = type('InventorySizeType', (), {
+                'id': row.id, 'name': row.name, 'description': row.description,
+                'sort_order': row.sort_order, 'is_active': row.is_active
             })()
         else:
             continue

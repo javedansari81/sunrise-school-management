@@ -10,11 +10,15 @@ from .fee import FeeStructure, FeeRecord, FeePayment, MonthlyFeeTracking, Monthl
 from .leave import LeaveRequest, LeaveBalance, LeavePolicy, LeaveApprover
 from .expense import Expense, Vendor, Budget, ExpenseReport
 from .gallery import GalleryCategory, GalleryImage
+from .inventory import InventoryItemType, InventorySizeType, InventoryPricing, InventoryPurchase, InventoryPurchaseItem
 
 __all__ = [
     # Metadata models
-    "UserType", "SessionYear", "Gender", "Class", "PaymentType", "PaymentStatus", "PaymentMethod",
-    "LeaveType", "LeaveStatus", "ExpenseCategory", "ExpenseStatus", "EmploymentStatus", "Qualification",
+    "UserType", "SessionYear", "Gender", "Class",
+    "PaymentType", "PaymentStatus", "PaymentMethod",
+    "LeaveType", "LeaveStatus",
+    "ExpenseCategory", "ExpenseStatus",
+    "EmploymentStatus", "Qualification",
     # Main models
     "User",
     "Teacher",
@@ -33,5 +37,10 @@ __all__ = [
     "Budget",
     "ExpenseReport",
     "GalleryCategory",
-    "GalleryImage"
+    "GalleryImage",
+    "InventoryItemType",
+    "InventorySizeType",
+    "InventoryPricing",
+    "InventoryPurchase",
+    "InventoryPurchaseItem"
 ]

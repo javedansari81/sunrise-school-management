@@ -20,6 +20,11 @@ from .report import (
     StudentUDISEData, UDISEReportResponse, UDISEReportFilters,
     FeeTrackingData, FeeTrackingReportResponse, FeeTrackingReportFilters
 )
+from .inventory import (
+    InventoryPricingCreate, InventoryPricingUpdate, InventoryPricingResponse,
+    InventoryPurchaseCreate, InventoryPurchaseUpdate, InventoryPurchaseResponse,
+    InventoryPurchaseListResponse, StudentInventorySummary, InventoryStatistics
+)
 
 __all__ = [
     "User",
@@ -65,5 +70,14 @@ __all__ = [
     "UDISEReportFilters",
     "FeeTrackingData",
     "FeeTrackingReportResponse",
-    "FeeTrackingReportFilters"
+    "FeeTrackingReportFilters",
+    "InventoryPricingCreate",
+    "InventoryPricingUpdate",
+    "InventoryPricingResponse",
+    "InventoryPurchaseCreate",
+    "InventoryPurchaseUpdate",
+    "InventoryPurchaseResponse",
+    "InventoryPurchaseListResponse",
+    "StudentInventorySummary",
+    "InventoryStatistics"
 ]

@@ -61,6 +61,10 @@ SERVICE_METADATA_MAPPINGS = {
     "gallery-management": [
         "gallery_categories"
     ],
+    "inventory-management": [
+        "inventory_item_types", "inventory_size_types",
+        "payment_methods", "session_years", "classes"
+    ],
     "common": [
         "session_years", "user_types"
     ]
@@ -125,6 +129,10 @@ async def get_service_metadata_configuration(db: AsyncSession, service_name: str
                 configuration[metadata_type] = [{"id": item.id, "name": item.name, "description": item.description, "base_monthly_fee": float(item.base_monthly_fee), "capacity": item.capacity, "is_active": item.is_active} for item in items]
             elif metadata_type == "gallery_categories":
                 configuration[metadata_type] = [{"id": item.id, "name": item.name, "description": item.description, "icon": item.icon, "display_order": item.display_order, "is_active": item.is_active} for item in items]
+            elif metadata_type == "inventory_item_types":
+                configuration[metadata_type] = [{"id": item.id, "name": item.name, "description": item.description, "category": item.category, "is_active": item.is_active} for item in items]
+            elif metadata_type == "inventory_size_types":
+                configuration[metadata_type] = [{"id": item.id, "name": item.name, "description": item.description, "sort_order": item.sort_order, "is_active": item.is_active} for item in items]
 
     # Add service-specific metadata
     configuration["metadata"] = {
@@ -401,6 +409,30 @@ async def get_gallery_management_configuration(
     )
 
 
+@router.get("/inventory-management/")
+async def get_inventory_management_configuration(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Get configuration for Inventory Management System
+
+    Returns only metadata required for inventory management:
+    - inventory_item_types (uniforms and accessories)
+    - inventory_size_types (XS, S, M, L, XL, XXL, FREE_SIZE)
+    - payment_methods
+    - session_years
+    - classes
+
+    This endpoint provides optimized configuration for tracking school uniform
+    and accessory purchases with size-based pricing.
+    """
+    return await _get_service_configuration_with_cache(
+        db, "inventory-management", request
+    )
+
+
 @router.get("/common/")
 async def get_common_configuration(
     request: Request,
@@ -435,7 +467,7 @@ async def refresh_configuration(
                 If not provided, refreshes all caches.
                 Valid values: fee-management, student-management, leave-management,
                              expense-management, teacher-management, transport-management,
-                             gallery-management, common
+                             gallery-management, inventory-management, common
 
     Requires admin privileges.
     """

@@ -40,6 +40,7 @@ import {
   ExpandLess as ExpandLessIcon,
   AccountBalance as AccountBalanceIcon,
   Settings as SettingsIcon,
+  ShoppingBag as ShoppingBagIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -102,6 +103,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
         { label: 'Fees Management', icon: <AttachMoney />, path: '/admin/fees' },
         { label: 'Expense Management', icon: <Receipt />, path: '/admin/expenses' },
         { label: 'Transport Service', icon: <DirectionsBusIcon />, path: '/admin/transport' },
+        { label: 'Inventory Management', icon: <ShoppingBagIcon />, path: '/admin/inventory' },
       ],
     },
 

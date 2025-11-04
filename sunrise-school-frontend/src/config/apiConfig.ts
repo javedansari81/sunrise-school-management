@@ -18,14 +18,14 @@
  */
 export const getApiBaseUrl = (): string => {
   const apiUrl = process.env.REACT_APP_API_URL;
-  
+
   // In production, API URL must be set
   if (process.env.NODE_ENV === 'production' && !apiUrl) {
     throw new Error('API URL must be configured for production deployment');
   }
-  
-  // Use environment variable or fallback to localhost for development
-  const baseUrl = apiUrl || 'http://localhost:8000/api/v1';
+
+  // Use environment variable or construct from window location for development
+  const baseUrl = apiUrl || `${window.location.protocol}//${window.location.hostname}:8000/api/v1`;
 
   return baseUrl;
 };

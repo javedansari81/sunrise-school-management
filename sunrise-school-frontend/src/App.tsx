@@ -17,6 +17,7 @@ import LeaveManagement from './pages/admin/LeaveManagement';
 import ExpenseManagement from './pages/admin/ExpenseManagement';
 import TransportManagement from './pages/admin/TransportManagement';
 import GalleryManagement from './pages/admin/GalleryManagement';
+import InventoryManagement from './pages/admin/InventoryManagement';
 import StudentProfiles from './pages/admin/StudentProfiles';
 import TeacherProfiles from './pages/admin/TeacherProfiles';
 import StudentUDISEReport from './pages/admin/StudentUDISEReport';
@@ -295,6 +296,11 @@ function App() {
           <Route path="/admin/transport" element={
             <ProtectedRoute requiredRole="ADMIN">
               <TransportManagement />
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/inventory" element={
+            <ProtectedRoute requiredRole="ADMIN">
+              <InventoryManagement />
             </ProtectedRoute>
           } />
           <Route path="/admin/gallery-management" element={
