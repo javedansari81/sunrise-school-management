@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Button,
@@ -30,7 +30,6 @@ import {
   Visibility as VisibilityIcon,
   Add as AddIcon
 } from '@mui/icons-material';
-import { useAuth } from '../../contexts/AuthContext';
 import CollapsibleFilterSection from '../common/CollapsibleFilterSection';
 import NewPurchaseDialog from './inventory/NewPurchaseDialog';
 import PurchaseDetailsDialog from './inventory/PurchaseDetailsDialog';
@@ -51,10 +50,8 @@ interface InventoryManagementSystemProps {
 }
 
 const InventoryManagementSystem: React.FC<InventoryManagementSystemProps> = ({ configuration }) => {
-  const { user } = useAuth();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-  const isTablet = useMediaQuery(theme.breakpoints.between('sm', 'md'));
 
   // State
   const [purchases, setPurchases] = useState<InventoryPurchase[]>([]);
@@ -99,28 +96,7 @@ const InventoryManagementSystem: React.FC<InventoryManagementSystemProps> = ({ c
     severity: 'success'
   });
 
-  // Load purchases
-  useEffect(() => {
-    if (activeTab === 0) {
-      loadPurchases();
-    }
-  }, [page, rowsPerPage, sessionYearId, classId, searchQuery, fromDate, toDate, activeTab]);
-
-  // Load statistics
-  useEffect(() => {
-    if (activeTab === 2) {
-      loadStatistics();
-    }
-  }, [sessionYearId, fromDate, toDate, activeTab]);
-
-  // Load pricing
-  useEffect(() => {
-    if (activeTab === 3) {
-      loadPricing();
-    }
-  }, [pricingFilters, activeTab]);
-
-  const loadPurchases = async () => {
+  const loadPurchases = useCallback(async () => {
     setLoading(true);
     try {
       const response: InventoryPurchaseListResponse = await getPurchases({
@@ -140,9 +116,9 @@ const InventoryManagementSystem: React.FC<InventoryManagementSystemProps> = ({ c
     } finally {
       setLoading(false);
     }
-  };
+  }, [sessionYearId, classId, searchQuery, fromDate, toDate, page, rowsPerPage]);
 
-  const loadStatistics = async () => {
+  const loadStatistics = useCallback(async () => {
     setLoading(true);
     try {
       const stats = await getStatistics({
@@ -157,9 +133,9 @@ const InventoryManagementSystem: React.FC<InventoryManagementSystemProps> = ({ c
     } finally {
       setLoading(false);
     }
-  };
+  }, [sessionYearId, fromDate, toDate]);
 
-  const loadPricing = async () => {
+  const loadPricing = useCallback(async () => {
     try {
       setLoading(true);
       const params: any = {
@@ -177,7 +153,28 @@ const InventoryManagementSystem: React.FC<InventoryManagementSystemProps> = ({ c
     } finally {
       setLoading(false);
     }
-  };
+  }, [sessionYearId, pricingFilters.is_active, pricingFilters.item_type_id]);
+
+  // Load purchases
+  useEffect(() => {
+    if (activeTab === 0) {
+      loadPurchases();
+    }
+  }, [activeTab, loadPurchases]);
+
+  // Load statistics
+  useEffect(() => {
+    if (activeTab === 2) {
+      loadStatistics();
+    }
+  }, [activeTab, loadStatistics]);
+
+  // Load pricing
+  useEffect(() => {
+    if (activeTab === 3) {
+      loadPricing();
+    }
+  }, [activeTab, loadPricing]);
 
 
 
@@ -316,7 +313,7 @@ const InventoryManagementSystem: React.FC<InventoryManagementSystemProps> = ({ c
             label="From Date"
             value={fromDate}
             onChange={(e) => setFromDate(e.target.value)}
-            InputLabelProps={{ shrink: true }}
+            slotProps={{ inputLabel: { shrink: true } }}
             size="small"
             fullWidth={isMobile}
           />
@@ -326,7 +323,7 @@ const InventoryManagementSystem: React.FC<InventoryManagementSystemProps> = ({ c
             label="To Date"
             value={toDate}
             onChange={(e) => setToDate(e.target.value)}
-            InputLabelProps={{ shrink: true }}
+            slotProps={{ inputLabel: { shrink: true } }}
             size="small"
             fullWidth={isMobile}
           />

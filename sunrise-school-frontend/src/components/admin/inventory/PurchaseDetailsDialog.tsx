@@ -16,7 +16,6 @@ import {
   TableRow,
   Paper,
   Divider,
-  Chip,
   useMediaQuery,
   useTheme
 } from '@mui/material';
@@ -35,7 +34,6 @@ const PurchaseDetailsDialog: React.FC<PurchaseDetailsDialogProps> = ({
 }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-  const isTablet = useMediaQuery(theme.breakpoints.between('sm', 'md'));
 
   if (!purchase) return null;
 

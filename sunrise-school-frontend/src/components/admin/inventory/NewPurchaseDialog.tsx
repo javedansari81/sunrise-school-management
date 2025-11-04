@@ -24,7 +24,7 @@ import {
   useTheme
 } from '@mui/material';
 import { Add as AddIcon, Delete as DeleteIcon } from '@mui/icons-material';
-import { calculateItemTotal, calculatePurchaseTotal, createPurchase, getPricing } from '../../../services/inventoryService';
+import { createPurchase, getPricing } from '../../../services/inventoryService';
 import { API_BASE_URL } from '../../../config/apiConfig';
 
 interface NewPurchaseDialogProps {
@@ -51,7 +51,6 @@ const NewPurchaseDialog: React.FC<NewPurchaseDialogProps> = ({
 }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-  const isTablet = useMediaQuery(theme.breakpoints.between('sm', 'md'));
 
   const [loading, setLoading] = useState(false);
   const [students, setStudents] = useState<any[]>([]);
@@ -286,17 +285,6 @@ const NewPurchaseDialog: React.FC<NewPurchaseDialogProps> = ({
     } finally {
       setLoading(false);
     }
-  };
-
-  const getItemTypeName = (id: number): string => {
-    const itemType = configuration?.inventory_item_types?.find((t: any) => t.id === id);
-    return itemType?.description || '';
-  };
-
-  const getSizeName = (id?: number): string => {
-    if (!id) return '';
-    const size = configuration?.inventory_size_types?.find((s: any) => s.id === id);
-    return size?.description || '';
   };
 
   return (
