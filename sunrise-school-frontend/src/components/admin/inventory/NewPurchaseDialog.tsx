@@ -19,7 +19,9 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Paper
+  Paper,
+  useMediaQuery,
+  useTheme
 } from '@mui/material';
 import { Add as AddIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import { calculateItemTotal, calculatePurchaseTotal, createPurchase, getPricing } from '../../../services/inventoryService';
@@ -47,6 +49,10 @@ const NewPurchaseDialog: React.FC<NewPurchaseDialogProps> = ({
   onSuccess,
   onError
 }) => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const isTablet = useMediaQuery(theme.breakpoints.between('sm', 'md'));
+
   const [loading, setLoading] = useState(false);
   const [students, setStudents] = useState<any[]>([]);
   const [loadingStudents, setLoadingStudents] = useState(false);
@@ -294,12 +300,32 @@ const NewPurchaseDialog: React.FC<NewPurchaseDialogProps> = ({
   };
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
-      <DialogTitle sx={{ bgcolor: 'white', borderBottom: 1, borderColor: 'divider' }}>
-        New Purchase
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth="md"
+      fullWidth
+      fullScreen={isMobile}
+      PaperProps={{
+        sx: {
+          m: { xs: 0, sm: 2 },
+          maxHeight: { xs: '100%', sm: '90vh' }
+        }
+      }}
+    >
+      <DialogTitle sx={{
+        bgcolor: 'white',
+        borderBottom: 1,
+        borderColor: 'divider',
+        py: { xs: 1.5, sm: 2 },
+        px: { xs: 2, sm: 3 }
+      }}>
+        <Typography variant="h6" sx={{ fontSize: { xs: '1.125rem', sm: '1.25rem' } }}>
+          New Purchase
+        </Typography>
       </DialogTitle>
-      <DialogContent>
-        <Box sx={{ mt: 2 }}>
+      <DialogContent sx={{ px: { xs: 2, sm: 3 }, py: { xs: 2, sm: 2 } }}>
+        <Box sx={{ mt: { xs: 1, sm: 2 } }}>
           <Grid container spacing={2}>
             {/* Class Selection */}
             <Grid size={{ xs: 12 }}>
@@ -381,20 +407,87 @@ const NewPurchaseDialog: React.FC<NewPurchaseDialogProps> = ({
 
             {/* Items Section */}
             <Grid size={{ xs: 12 }}>
-              <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 600 }}>
+              <Typography
+                variant="subtitle1"
+                sx={{
+                  mb: 1,
+                  fontWeight: 600,
+                  fontSize: { xs: '0.95rem', sm: '1rem' }
+                }}
+              >
                 Items
               </Typography>
-              <TableContainer component={Paper} variant="outlined">
-                <Table size="small">
+              <TableContainer
+                component={Paper}
+                variant="outlined"
+                sx={{
+                  maxHeight: { xs: '300px', sm: '400px' },
+                  overflowX: 'auto',
+                  overflowY: 'auto'
+                }}
+              >
+                <Table size={isMobile ? 'small' : 'small'} stickyHeader>
                   <TableHead>
                     <TableRow sx={{ bgcolor: 'white' }}>
-                      <TableCell width={60}>Image</TableCell>
-                      <TableCell>Item *</TableCell>
-                      <TableCell>Size</TableCell>
-                      <TableCell width={100}>Qty *</TableCell>
-                      <TableCell width={120}>Price *</TableCell>
-                      <TableCell width={120}>Total</TableCell>
-                      <TableCell width={60}></TableCell>
+                      <TableCell
+                        width={isMobile ? 50 : 60}
+                        sx={{
+                          fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                          py: { xs: 1, sm: 1.5 }
+                        }}
+                      >
+                        Image
+                      </TableCell>
+                      <TableCell
+                        sx={{
+                          fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                          py: { xs: 1, sm: 1.5 },
+                          minWidth: { xs: 120, sm: 150 }
+                        }}
+                      >
+                        Item *
+                      </TableCell>
+                      <TableCell
+                        sx={{
+                          fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                          py: { xs: 1, sm: 1.5 },
+                          minWidth: { xs: 80, sm: 100 }
+                        }}
+                      >
+                        Size
+                      </TableCell>
+                      <TableCell
+                        width={isMobile ? 70 : 100}
+                        sx={{
+                          fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                          py: { xs: 1, sm: 1.5 }
+                        }}
+                      >
+                        Qty *
+                      </TableCell>
+                      <TableCell
+                        width={isMobile ? 90 : 120}
+                        sx={{
+                          fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                          py: { xs: 1, sm: 1.5 }
+                        }}
+                      >
+                        Price *
+                      </TableCell>
+                      <TableCell
+                        width={isMobile ? 80 : 120}
+                        sx={{
+                          fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                          py: { xs: 1, sm: 1.5 }
+                        }}
+                      >
+                        Total
+                      </TableCell>
+                      <TableCell
+                        width={isMobile ? 50 : 60}
+                        sx={{ py: { xs: 1, sm: 1.5 } }}
+                      >
+                      </TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -405,15 +498,15 @@ const NewPurchaseDialog: React.FC<NewPurchaseDialogProps> = ({
 
                       return (
                         <TableRow key={index}>
-                          <TableCell>
+                          <TableCell sx={{ py: { xs: 0.5, sm: 1 } }}>
                             {selectedItemType?.image_url ? (
                               <Box
                                 component="img"
                                 src={selectedItemType.image_url}
                                 alt={selectedItemType.description}
                                 sx={{
-                                  width: 40,
-                                  height: 40,
+                                  width: { xs: 35, sm: 40 },
+                                  height: { xs: 35, sm: 40 },
                                   objectFit: 'cover',
                                   borderRadius: 1,
                                 }}
@@ -421,8 +514,8 @@ const NewPurchaseDialog: React.FC<NewPurchaseDialogProps> = ({
                             ) : (
                               <Box
                                 sx={{
-                                  width: 40,
-                                  height: 40,
+                                  width: { xs: 35, sm: 40 },
+                                  height: { xs: 35, sm: 40 },
                                   bgcolor: 'grey.200',
                                   borderRadius: 1,
                                   display: 'flex',
@@ -430,19 +523,29 @@ const NewPurchaseDialog: React.FC<NewPurchaseDialogProps> = ({
                                   justifyContent: 'center',
                                 }}
                               >
-                                <Typography variant="caption" color="text.secondary" fontSize={10}>
+                                <Typography
+                                  variant="caption"
+                                  color="text.secondary"
+                                  fontSize={{ xs: 8, sm: 10 }}
+                                >
                                   No Img
                                 </Typography>
                               </Box>
                             )}
                           </TableCell>
-                          <TableCell>
+                          <TableCell sx={{ py: { xs: 0.5, sm: 1 } }}>
                             <TextField
                               select
                               fullWidth
                               size="small"
                               value={item.inventory_item_type_id}
                               onChange={(e) => handleItemChange(index, 'inventory_item_type_id', Number(e.target.value))}
+                              sx={{
+                                '& .MuiInputBase-input': {
+                                  fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                                  py: { xs: 0.75, sm: 1 }
+                                }
+                              }}
                             >
                               <MenuItem value={0}>Select Item</MenuItem>
                               {configuration?.inventory_item_types?.map((type: any) => (
@@ -452,13 +555,19 @@ const NewPurchaseDialog: React.FC<NewPurchaseDialogProps> = ({
                               ))}
                             </TextField>
                           </TableCell>
-                        <TableCell>
+                        <TableCell sx={{ py: { xs: 0.5, sm: 1 } }}>
                           <TextField
                             select
                             fullWidth
                             size="small"
                             value={item.size_type_id || ''}
                             onChange={(e) => handleItemChange(index, 'size_type_id', e.target.value ? Number(e.target.value) : undefined)}
+                            sx={{
+                              '& .MuiInputBase-input': {
+                                fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                                py: { xs: 0.75, sm: 1 }
+                              }
+                            }}
                           >
                             <MenuItem value="">N/A</MenuItem>
                             {configuration?.inventory_size_types?.map((size: any) => (
@@ -468,32 +577,52 @@ const NewPurchaseDialog: React.FC<NewPurchaseDialogProps> = ({
                             ))}
                           </TextField>
                         </TableCell>
-                        <TableCell>
+                        <TableCell sx={{ py: { xs: 0.5, sm: 1 } }}>
                           <TextField
                             type="number"
                             size="small"
                             value={item.quantity}
                             onChange={(e) => handleItemChange(index, 'quantity', Number(e.target.value))}
                             inputProps={{ min: 1 }}
+                            sx={{
+                              '& .MuiInputBase-input': {
+                                fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                                py: { xs: 0.75, sm: 1 }
+                              }
+                            }}
                           />
                         </TableCell>
-                        <TableCell>
+                        <TableCell sx={{ py: { xs: 0.5, sm: 1 } }}>
                           <TextField
                             type="number"
                             size="small"
                             value={item.unit_price}
                             onChange={(e) => handleItemChange(index, 'unit_price', Number(e.target.value))}
                             inputProps={{ min: 0, step: 0.01 }}
+                            sx={{
+                              '& .MuiInputBase-input': {
+                                fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                                py: { xs: 0.75, sm: 1 }
+                              }
+                            }}
                           />
                         </TableCell>
-                        <TableCell>
+                        <TableCell sx={{
+                          py: { xs: 0.5, sm: 1 },
+                          fontSize: { xs: '0.75rem', sm: '0.875rem' }
+                        }}>
                           ₹{(item.quantity * item.unit_price).toFixed(2)}
                         </TableCell>
-                        <TableCell>
+                        <TableCell sx={{ py: { xs: 0.5, sm: 1 } }}>
                           <IconButton
                             size="small"
                             onClick={() => handleRemoveItem(index)}
                             disabled={items.length === 1}
+                            sx={{
+                              p: { xs: 0.5, sm: 1 },
+                              minWidth: { xs: 36, sm: 40 },
+                              minHeight: { xs: 36, sm: 40 }
+                            }}
                           >
                             <DeleteIcon fontSize="small" />
                           </IconButton>
@@ -507,7 +636,11 @@ const NewPurchaseDialog: React.FC<NewPurchaseDialogProps> = ({
               <Button
                 startIcon={<AddIcon />}
                 onClick={handleAddItem}
-                sx={{ mt: 1 }}
+                size={isMobile ? 'small' : 'medium'}
+                sx={{
+                  mt: 1,
+                  fontSize: { xs: '0.8125rem', sm: '0.875rem' }
+                }}
               >
                 Add Item
               </Button>
@@ -515,8 +648,17 @@ const NewPurchaseDialog: React.FC<NewPurchaseDialogProps> = ({
 
             {/* Total Amount */}
             <Grid size={{ xs: 12 }}>
-              <Box sx={{ display: 'flex', justifyContent: 'flex-end', p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
-                <Typography variant="h6">
+              <Box sx={{
+                display: 'flex',
+                justifyContent: 'flex-end',
+                p: { xs: 1.5, sm: 2 },
+                bgcolor: 'grey.50',
+                borderRadius: 1
+              }}>
+                <Typography
+                  variant="h6"
+                  sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }}
+                >
                   Total Amount: ₹{calculateTotal().toFixed(2)}
                 </Typography>
               </Box>
@@ -592,14 +734,28 @@ const NewPurchaseDialog: React.FC<NewPurchaseDialogProps> = ({
           </Grid>
         </Box>
       </DialogContent>
-      <DialogActions sx={{ px: 3, py: 2 }}>
-        <Button onClick={onClose} disabled={loading}>
+      <DialogActions sx={{
+        px: { xs: 2, sm: 3 },
+        py: { xs: 1.5, sm: 2 },
+        gap: { xs: 1, sm: 1.5 },
+        flexDirection: { xs: 'column-reverse', sm: 'row' }
+      }}>
+        <Button
+          onClick={onClose}
+          disabled={loading}
+          fullWidth={isMobile}
+          size={isMobile ? 'medium' : 'medium'}
+          sx={{ fontSize: { xs: '0.875rem', sm: '0.875rem' } }}
+        >
           Cancel
         </Button>
         <Button
           onClick={handleSubmit}
           variant="contained"
           disabled={loading}
+          fullWidth={isMobile}
+          size={isMobile ? 'medium' : 'medium'}
+          sx={{ fontSize: { xs: '0.875rem', sm: '0.875rem' } }}
         >
           {loading ? <CircularProgress size={24} /> : 'Create Purchase'}
         </Button>

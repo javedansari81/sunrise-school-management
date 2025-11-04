@@ -19,6 +19,8 @@ import {
   Avatar,
   CircularProgress,
   Alert,
+  useMediaQuery,
+  useTheme
 } from '@mui/material';
 import { Close as CloseIcon, CloudUpload as UploadIcon } from '@mui/icons-material';
 import { createPricing, updatePricing, uploadItemTypeImage, InventoryPricing } from '../../../services/inventoryService';
@@ -38,6 +40,10 @@ const PricingDialog: React.FC<PricingDialogProps> = ({
   pricing,
   configuration,
 }) => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const isTablet = useMediaQuery(theme.breakpoints.between('sm', 'md'));
+
   const [formData, setFormData] = useState({
     inventory_item_type_id: '',
     size_type_id: '',
@@ -185,24 +191,65 @@ const PricingDialog: React.FC<PricingDialogProps> = ({
   };
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
-      <DialogTitle sx={{ bgcolor: 'white', borderBottom: 1, borderColor: 'divider' }}>
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth="md"
+      fullWidth
+      fullScreen={isMobile}
+      PaperProps={{
+        sx: {
+          m: { xs: 0, sm: 2 },
+          maxHeight: { xs: '100%', sm: '90vh' }
+        }
+      }}
+    >
+      <DialogTitle sx={{
+        bgcolor: 'white',
+        borderBottom: 1,
+        borderColor: 'divider',
+        py: { xs: 1.5, sm: 2 },
+        px: { xs: 2, sm: 3 }
+      }}>
         <Box display="flex" justifyContent="space-between" alignItems="center">
-          <Typography variant="h6">{isEditMode ? 'Edit Pricing' : 'Add New Pricing'}</Typography>
-          <IconButton onClick={onClose} size="small">
-            <CloseIcon />
+          <Typography
+            variant="h6"
+            sx={{ fontSize: { xs: '1.125rem', sm: '1.25rem' } }}
+          >
+            {isEditMode ? 'Edit Pricing' : 'Add New Pricing'}
+          </Typography>
+          <IconButton
+            onClick={onClose}
+            size="small"
+            sx={{
+              minWidth: { xs: 36, sm: 40 },
+              minHeight: { xs: 36, sm: 40 }
+            }}
+          >
+            <CloseIcon fontSize={isMobile ? 'small' : 'medium'} />
           </IconButton>
         </Box>
       </DialogTitle>
 
-      <DialogContent sx={{ mt: 2 }}>
+      <DialogContent sx={{
+        mt: { xs: 1, sm: 2 },
+        px: { xs: 2, sm: 3 },
+        py: { xs: 2, sm: 2 }
+      }}>
         {error && (
-          <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+          <Alert
+            severity="error"
+            sx={{
+              mb: { xs: 1.5, sm: 2 },
+              fontSize: { xs: '0.8125rem', sm: '0.875rem' }
+            }}
+            onClose={() => setError(null)}
+          >
             {error}
           </Alert>
         )}
 
-        <Grid container spacing={2}>
+        <Grid container spacing={{ xs: 1.5, sm: 2 }}>
           {/* Item Type */}
           <Grid size={{ xs: 12, sm: 6 }}>
             <FormControl fullWidth required disabled={isEditMode}>
@@ -335,15 +382,28 @@ const PricingDialog: React.FC<PricingDialogProps> = ({
           {/* Image Upload */}
           <Grid size={{ xs: 12 }}>
             <Box>
-              <Typography variant="subtitle2" gutterBottom>
+              <Typography
+                variant="subtitle2"
+                gutterBottom
+                sx={{ fontSize: { xs: '0.875rem', sm: '0.875rem' }, fontWeight: 600 }}
+              >
                 Item Image {!isEditMode && '(Optional)'}
               </Typography>
-              <Box display="flex" alignItems="center" gap={2}>
+              <Box
+                display="flex"
+                alignItems="center"
+                gap={{ xs: 1.5, sm: 2 }}
+                flexDirection={{ xs: 'column', sm: 'row' }}
+                sx={{ width: '100%' }}
+              >
                 {imagePreview && (
                   <Avatar
                     src={imagePreview}
                     variant="rounded"
-                    sx={{ width: 100, height: 100 }}
+                    sx={{
+                      width: { xs: 80, sm: 100 },
+                      height: { xs: 80, sm: 100 }
+                    }}
                   />
                 )}
                 <Button
@@ -351,6 +411,9 @@ const PricingDialog: React.FC<PricingDialogProps> = ({
                   component="label"
                   startIcon={uploadingImage ? <CircularProgress size={20} /> : <UploadIcon />}
                   disabled={uploadingImage || !formData.inventory_item_type_id}
+                  fullWidth={isMobile}
+                  size={isMobile ? 'medium' : 'medium'}
+                  sx={{ fontSize: { xs: '0.8125rem', sm: '0.875rem' } }}
                 >
                   {imagePreview ? 'Change Image' : 'Upload Image'}
                   <input
@@ -361,7 +424,15 @@ const PricingDialog: React.FC<PricingDialogProps> = ({
                   />
                 </Button>
               </Box>
-              <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{
+                  mt: 1,
+                  display: 'block',
+                  fontSize: { xs: '0.7rem', sm: '0.75rem' }
+                }}
+              >
                 Max size: 10MB. Formats: JPEG, PNG, GIF, WebP
               </Typography>
             </Box>
@@ -374,16 +445,36 @@ const PricingDialog: React.FC<PricingDialogProps> = ({
                 <Checkbox
                   checked={formData.is_active}
                   onChange={(e) => handleChange('is_active', e.target.checked)}
+                  sx={{
+                    '& .MuiSvgIcon-root': {
+                      fontSize: { xs: 20, sm: 24 }
+                    }
+                  }}
                 />
               }
-              label="Active"
+              label={
+                <Typography sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }}>
+                  Active
+                </Typography>
+              }
             />
           </Grid>
         </Grid>
       </DialogContent>
 
-      <DialogActions sx={{ px: 3, pb: 2 }}>
-        <Button onClick={onClose} disabled={loading || uploadingImage}>
+      <DialogActions sx={{
+        px: { xs: 2, sm: 3 },
+        pb: { xs: 1.5, sm: 2 },
+        gap: { xs: 1, sm: 1.5 },
+        flexDirection: { xs: 'column-reverse', sm: 'row' }
+      }}>
+        <Button
+          onClick={onClose}
+          disabled={loading || uploadingImage}
+          fullWidth={isMobile}
+          size={isMobile ? 'medium' : 'medium'}
+          sx={{ fontSize: { xs: '0.875rem', sm: '0.875rem' } }}
+        >
           Cancel
         </Button>
         <Button
@@ -391,6 +482,9 @@ const PricingDialog: React.FC<PricingDialogProps> = ({
           variant="contained"
           disabled={loading || uploadingImage}
           startIcon={loading || uploadingImage ? <CircularProgress size={20} /> : null}
+          fullWidth={isMobile}
+          size={isMobile ? 'medium' : 'medium'}
+          sx={{ fontSize: { xs: '0.875rem', sm: '0.875rem' } }}
         >
           {loading || uploadingImage ? 'Saving...' : isEditMode ? 'Update' : 'Create'}
         </Button>
