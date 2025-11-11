@@ -1,4 +1,5 @@
 from sqlalchemy import Column, Integer, String, DECIMAL, Date, ForeignKey, Text, DateTime, Boolean, JSON
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
@@ -97,44 +98,52 @@ class Vendor(Base):
     id = Column(Integer, primary_key=True, index=True)
 
     # Basic Information
-    vendor_name = Column(String(200), nullable=False, unique=True)
-    vendor_code = Column(String(50), nullable=True, unique=True)
-    contact_person = Column(String(200), nullable=True)
+    vendor_name = Column(String(200), nullable=False)
+    contact_person = Column(String(100), nullable=True)
 
     # Contact Information
     phone = Column(String(20), nullable=True)
     email = Column(String(255), nullable=True)
-    website = Column(String(255), nullable=True)
-
-    # Address Information
-    address_line1 = Column(String(255), nullable=True)
-    address_line2 = Column(String(255), nullable=True)
+    address = Column(Text, nullable=True)
     city = Column(String(100), nullable=True)
     state = Column(String(100), nullable=True)
-    postal_code = Column(String(20), nullable=True)
+    pincode = Column(String(10), nullable=True)
     country = Column(String(100), default='India')
 
     # Business Information
     gst_number = Column(String(20), nullable=True)
-    pan_number = Column(String(20), nullable=True)
-    business_type = Column(String(100), nullable=True)
+    pan_number = Column(String(15), nullable=True)
+    vendor_categories = Column(JSONB, nullable=True)
 
     # Banking Information
-    bank_name = Column(String(200), nullable=True)
+    bank_name = Column(String(100), nullable=True)
     account_number = Column(String(50), nullable=True)
-    ifsc_code = Column(String(20), nullable=True)
+    ifsc_code = Column(String(15), nullable=True)
+    account_holder_name = Column(String(200), nullable=True)
 
-    # Status and Categories
+    # Contract Information
+    contract_start_date = Column(Date, nullable=True)
+    contract_end_date = Column(Date, nullable=True)
+    payment_terms = Column(String(100), nullable=True)
+    credit_limit = Column(DECIMAL(12, 2), default=0.0)
+
+    # Performance Metrics
+    rating = Column(DECIMAL(3, 2), nullable=True)
+    total_orders = Column(Integer, default=0)
+    total_amount = Column(DECIMAL(15, 2), default=0.0)
+
+    # Status
     is_active = Column(Boolean, default=True)
-    vendor_categories = Column(JSON, nullable=True)  # Array of category IDs
+    is_verified = Column(Boolean, default=False)
 
-    # Credit Terms
-    credit_limit = Column(DECIMAL(12, 2), nullable=True)
-    credit_days = Column(Integer, default=30)
+    # Soft Delete
+    is_deleted = Column(Boolean, default=False)
+    deleted_date = Column(DateTime(timezone=True), nullable=True)
 
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    created_by = Column(Integer, ForeignKey("users.id"), nullable=True)
 
 
 class Budget(Base):

@@ -133,13 +133,7 @@ class DatabaseConstraints:
             "message": "A vendor with this name already exists. Please use a different vendor name.",
             "field_name": "vendor_name"
         },
-        "vendors_vendor_code_key": {
-            "table": "vendors",
-            "columns": ["vendor_code"],
-            "message": "A vendor with this code already exists. Please use a different vendor code.",
-            "field_name": "vendor_code"
-        },
-        
+
         # Purchase Orders table
         "purchase_orders_po_number_key": {
             "table": "purchase_orders",

@@ -16,15 +16,20 @@ from app.api.deps import get_current_active_user, get_current_admin_user
 from app.models.user import User
 from app.models.inventory import (
     InventoryItemType, InventorySizeType, InventoryPricing,
-    InventoryPurchase, InventoryPurchaseItem
+    InventoryPurchase, InventoryPurchaseItem,
+    InventoryStock, InventoryStockProcurement, InventoryStockProcurementItem
 )
 from app.models.student import Student
 from app.schemas.inventory import (
     InventoryPricingCreate, InventoryPricingUpdate, InventoryPricingResponse,
     InventoryPurchaseCreate, InventoryPurchaseUpdate, InventoryPurchaseResponse,
-    InventoryPurchaseListResponse, StudentInventorySummary, InventoryStatistics
+    InventoryPurchaseListResponse, StudentInventorySummary, InventoryStatistics,
+    InventoryStockResponse, InventoryStockUpdate, LowStockAlert,
+    InventoryStockProcurementCreate, InventoryStockProcurementUpdate,
+    InventoryStockProcurementResponse, InventoryStockProcurementListResponse
 )
 from app.crud.crud_inventory import crud_inventory_pricing, crud_inventory_purchase
+from app.crud.crud_inventory_stock import crud_inventory_stock, crud_inventory_stock_procurement
 
 router = APIRouter()
 
@@ -348,15 +353,52 @@ async def create_purchase(
     current_user: User = Depends(get_current_admin_user)
 ):
     """
-    Create new purchase transaction
+    Create new purchase transaction and decrement stock
     Admin only
     """
+    # Check stock availability for all items
+    for item in purchase_data.items:
+        is_available, current_qty = await crud_inventory_stock.check_stock_availability(
+            db,
+            item_type_id=item.inventory_item_type_id,
+            size_type_id=item.size_type_id,
+            required_quantity=item.quantity
+        )
+
+        if not is_available:
+            # Get item details for error message
+            item_query = select(InventoryItemType).where(InventoryItemType.id == item.inventory_item_type_id)
+            item_result = await db.execute(item_query)
+            item_type = item_result.scalar_one_or_none()
+
+            size_name = ""
+            if item.size_type_id:
+                size_query = select(InventorySizeType).where(InventorySizeType.id == item.size_type_id)
+                size_result = await db.execute(size_query)
+                size_type = size_result.scalar_one_or_none()
+                size_name = f" (Size: {size_type.name})" if size_type else ""
+
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Insufficient stock for {item_type.description}{size_name}. Available: {current_qty}, Required: {item.quantity}"
+            )
+
+    # Create purchase
     purchase = await crud_inventory_purchase.create_purchase(
         db,
         purchase_data=purchase_data,
         created_by=current_user.id
     )
-    
+
+    # Decrement stock for each item
+    for item in purchase_data.items:
+        await crud_inventory_stock.adjust_stock_quantity(
+            db,
+            item_type_id=item.inventory_item_type_id,
+            size_type_id=item.size_type_id,
+            quantity_change=-item.quantity  # Negative to decrement
+        )
+
     # Refresh to load all relationships
     await db.refresh(purchase, ['student', 'session_year', 'payment_method', 'items'])
     
@@ -550,4 +592,257 @@ async def get_statistics(
         top_selling_items=top_selling_items
     )
 
+
+# =====================================================
+# Stock Management Endpoints
+# =====================================================
+
+@router.get("/stock/levels/", response_model=List[InventoryStockResponse])
+async def get_stock_levels(
+    item_type_id: Optional[int] = None,
+    size_type_id: Optional[int] = None,
+    low_stock_only: bool = False,
+    page: int = Query(1, ge=1),
+    per_page: int = Query(100, ge=1, le=500),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_admin_user)
+):
+    """
+    Get current stock levels with filters
+    Admin only
+    """
+    skip = (page - 1) * per_page
+    stocks, total = await crud_inventory_stock.get_stock_list(
+        db,
+        item_type_id=item_type_id,
+        size_type_id=size_type_id,
+        low_stock_only=low_stock_only,
+        skip=skip,
+        limit=per_page
+    )
+
+    result = []
+    for stock in stocks:
+        result.append(InventoryStockResponse(
+            id=stock.id,
+            inventory_item_type_id=stock.inventory_item_type_id,
+            size_type_id=stock.size_type_id,
+            current_quantity=stock.current_quantity,
+            minimum_threshold=stock.minimum_threshold,
+            reorder_quantity=stock.reorder_quantity,
+            item_type_name=stock.item_type.name,
+            item_type_description=stock.item_type.description,
+            item_category=stock.item_type.category,
+            item_image_url=stock.item_type.image_url,
+            size_name=stock.size_type.name if stock.size_type else None,
+            last_restocked_date=stock.last_restocked_date,
+            last_updated=stock.last_updated,
+            is_low_stock=stock.current_quantity <= stock.minimum_threshold
+        ))
+
+    return result
+
+
+@router.get("/stock/low-stock-alerts/", response_model=List[LowStockAlert])
+async def get_low_stock_alerts(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_admin_user)
+):
+    """
+    Get items with stock below minimum threshold
+    Admin only
+    """
+    stocks = await crud_inventory_stock.get_low_stock_alerts(db)
+
+    alerts = []
+    for stock in stocks:
+        shortage = stock.minimum_threshold - stock.current_quantity
+        alert_level = "CRITICAL" if stock.current_quantity == 0 else "WARNING"
+
+        alerts.append(LowStockAlert(
+            stock_id=stock.id,
+            inventory_item_type_id=stock.inventory_item_type_id,
+            size_type_id=stock.size_type_id,
+            item_type_name=stock.item_type.name,
+            item_type_description=stock.item_type.description,
+            size_name=stock.size_type.name if stock.size_type else None,
+            current_quantity=stock.current_quantity,
+            minimum_threshold=stock.minimum_threshold,
+            reorder_quantity=stock.reorder_quantity,
+            shortage=shortage,
+            alert_level=alert_level
+        ))
+
+    return alerts
+
+
+@router.put("/stock/{stock_id}/threshold/", response_model=InventoryStockResponse)
+async def update_stock_threshold(
+    stock_id: int,
+    stock_data: InventoryStockUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_admin_user)
+):
+    """
+    Update stock thresholds
+    Admin only
+    """
+    stock = await crud_inventory_stock.update_stock(db, stock_id, stock_data)
+
+    if not stock:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Stock record not found"
+        )
+
+    # Refresh to load relationships
+    await db.refresh(stock, ['item_type', 'size_type'])
+
+    return InventoryStockResponse(
+        id=stock.id,
+        inventory_item_type_id=stock.inventory_item_type_id,
+        size_type_id=stock.size_type_id,
+        current_quantity=stock.current_quantity,
+        minimum_threshold=stock.minimum_threshold,
+        reorder_quantity=stock.reorder_quantity,
+        item_type_name=stock.item_type.name,
+        item_type_description=stock.item_type.description,
+        item_category=stock.item_type.category,
+        item_image_url=stock.item_type.image_url,
+        size_name=stock.size_type.name if stock.size_type else None,
+        last_restocked_date=stock.last_restocked_date,
+        last_updated=stock.last_updated,
+        is_low_stock=stock.current_quantity <= stock.minimum_threshold
+    )
+
+
+# =====================================================
+# Stock Procurement Endpoints
+# =====================================================
+
+@router.get("/stock/procurements/", response_model=InventoryStockProcurementListResponse)
+async def get_stock_procurements(
+    vendor_id: Optional[int] = None,
+    from_date: Optional[date] = None,
+    to_date: Optional[date] = None,
+    payment_status_id: Optional[int] = None,
+    page: int = Query(1, ge=1),
+    per_page: int = Query(25, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_admin_user)
+):
+    """
+    Get stock procurements with filters and pagination
+    Admin only
+    """
+    skip = (page - 1) * per_page
+    procurements, total = await crud_inventory_stock_procurement.get_procurement_list(
+        db,
+        vendor_id=vendor_id,
+        from_date=from_date,
+        to_date=to_date,
+        payment_status_id=payment_status_id,
+        skip=skip,
+        limit=per_page
+    )
+
+    result = []
+    for procurement in procurements:
+        items = []
+        for item in procurement.items:
+            items.append({
+                "id": item.id,
+                "inventory_item_type_id": item.inventory_item_type_id,
+                "size_type_id": item.size_type_id,
+                "quantity": item.quantity,
+                "unit_cost": item.unit_cost,
+                "total_cost": item.total_cost,
+                "item_type_name": item.item_type.name,
+                "item_type_description": item.item_type.description,
+                "item_image_url": item.item_type.image_url,
+                "size_name": item.size_type.name if item.size_type else None,
+                "created_at": item.created_at
+            })
+
+        result.append(InventoryStockProcurementResponse(
+            id=procurement.id,
+            vendor_id=procurement.vendor_id,
+            procurement_date=procurement.procurement_date,
+            invoice_number=procurement.invoice_number,
+            total_amount=procurement.total_amount,
+            payment_method_id=procurement.payment_method_id,
+            payment_status_id=procurement.payment_status_id,
+            payment_date=procurement.payment_date,
+            payment_reference=procurement.payment_reference,
+            remarks=procurement.remarks,
+            invoice_url=procurement.invoice_url,
+            vendor_name=procurement.vendor.vendor_name if procurement.vendor else None,
+            payment_method_name=procurement.payment_method.description,
+            payment_status_name=procurement.payment_status.name,
+            items=items,
+            created_at=procurement.created_at
+        ))
+
+    total_pages = (total + per_page - 1) // per_page
+
+    return InventoryStockProcurementListResponse(
+        procurements=result,
+        total=total,
+        page=page,
+        per_page=per_page,
+        total_pages=total_pages
+    )
+
+
+@router.post("/stock/procurements/", response_model=InventoryStockProcurementResponse, status_code=status.HTTP_201_CREATED)
+async def create_stock_procurement(
+    procurement_data: InventoryStockProcurementCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_admin_user)
+):
+    """
+    Create new stock procurement and update stock levels
+    Admin only
+    """
+    procurement = await crud_inventory_stock_procurement.create_procurement(
+        db,
+        procurement_data=procurement_data,
+        created_by=current_user.id
+    )
+
+    # Build response
+    items = []
+    for item in procurement.items:
+        items.append({
+            "id": item.id,
+            "inventory_item_type_id": item.inventory_item_type_id,
+            "size_type_id": item.size_type_id,
+            "quantity": item.quantity,
+            "unit_cost": item.unit_cost,
+            "total_cost": item.total_cost,
+            "item_type_name": item.item_type.name,
+            "item_type_description": item.item_type.description,
+            "item_image_url": item.item_type.image_url,
+            "size_name": item.size_type.name if item.size_type else None,
+            "created_at": item.created_at
+        })
+
+    return InventoryStockProcurementResponse(
+        id=procurement.id,
+        vendor_id=procurement.vendor_id,
+        procurement_date=procurement.procurement_date,
+        invoice_number=procurement.invoice_number,
+        total_amount=procurement.total_amount,
+        payment_method_id=procurement.payment_method_id,
+        payment_status_id=procurement.payment_status_id,
+        payment_date=procurement.payment_date,
+        payment_reference=procurement.payment_reference,
+        remarks=procurement.remarks,
+        invoice_url=procurement.invoice_url,
+        vendor_name=procurement.vendor.vendor_name if procurement.vendor else None,
+        payment_method_name=procurement.payment_method.description,
+        payment_status_name=procurement.payment_status.name,
+        items=items,
+        created_at=procurement.created_at
+    )
 

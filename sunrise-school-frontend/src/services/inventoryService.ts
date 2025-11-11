@@ -256,6 +256,151 @@ export const calculateItemTotal = (quantity: number, unitPrice: number): number 
   return quantity * unitPrice;
 };
 
+// =====================================================
+// Stock Management Type Definitions
+// =====================================================
+
+export interface InventoryStock {
+  id: number;
+  inventory_item_type_id: number;
+  size_type_id?: number;
+  current_quantity: number;
+  minimum_threshold: number;
+  reorder_quantity: number;
+  item_type_name: string;
+  item_type_description: string;
+  item_category?: string;
+  item_image_url?: string;
+  size_name?: string;
+  last_restocked_date?: string;
+  last_updated: string;
+  is_low_stock: boolean;
+}
+
+export interface LowStockAlert {
+  stock_id: number;
+  inventory_item_type_id: number;
+  size_type_id?: number;
+  item_type_name: string;
+  item_type_description: string;
+  size_name?: string;
+  current_quantity: number;
+  minimum_threshold: number;
+  reorder_quantity: number;
+  shortage: number;
+  alert_level: 'WARNING' | 'CRITICAL';
+}
+
+export interface InventoryStockProcurementItem {
+  id?: number;
+  inventory_item_type_id: number;
+  size_type_id?: number;
+  quantity: number;
+  unit_cost: number;
+  total_cost?: number;
+  item_type_name?: string;
+  item_type_description?: string;
+  item_image_url?: string;
+  size_name?: string;
+  created_at?: string;
+}
+
+export interface InventoryStockProcurement {
+  id: number;
+  vendor_id?: number;
+  procurement_date: string;
+  invoice_number?: string;
+  total_amount: number;
+  payment_method_id: number;
+  payment_status_id: number;
+  payment_date?: string;
+  payment_reference?: string;
+  remarks?: string;
+  invoice_url?: string;
+  vendor_name?: string;
+  payment_method_name: string;
+  payment_status_name: string;
+  items: InventoryStockProcurementItem[];
+  created_at: string;
+}
+
+export interface InventoryStockProcurementListResponse {
+  procurements: InventoryStockProcurement[];
+  total: number;
+  page: number;
+  per_page: number;
+  total_pages: number;
+}
+
+// =====================================================
+// Stock Management API Functions
+// =====================================================
+
+export const getStockLevels = async (params?: {
+  item_type_id?: number;
+  size_type_id?: number;
+  low_stock_only?: boolean;
+  page?: number;
+  per_page?: number;
+}): Promise<InventoryStock[]> => {
+  const response = await api.get('/inventory/stock/levels/', { params });
+  return response.data;
+};
+
+export const getLowStockAlerts = async (): Promise<LowStockAlert[]> => {
+  const response = await api.get('/inventory/stock/low-stock-alerts/');
+  return response.data;
+};
+
+export const updateStockThreshold = async (
+  stockId: number,
+  data: {
+    current_quantity?: number;
+    minimum_threshold?: number;
+    reorder_quantity?: number;
+  }
+): Promise<InventoryStock> => {
+  const response = await api.put(`/inventory/stock/${stockId}/threshold/`, data);
+  return response.data;
+};
+
+// =====================================================
+// Stock Procurement API Functions
+// =====================================================
+
+export const getStockProcurements = async (params?: {
+  vendor_id?: number;
+  from_date?: string;
+  to_date?: string;
+  payment_status_id?: number;
+  page?: number;
+  per_page?: number;
+}): Promise<InventoryStockProcurementListResponse> => {
+  const response = await api.get('/inventory/stock/procurements/', { params });
+  return response.data;
+};
+
+export const createStockProcurement = async (data: {
+  vendor_id?: number;
+  procurement_date: string;
+  invoice_number?: string;
+  payment_method_id: number;
+  payment_status_id?: number;
+  payment_date?: string;
+  payment_reference?: string;
+  remarks?: string;
+  invoice_url?: string;
+  items: Array<{
+    inventory_item_type_id: number;
+    size_type_id?: number;
+    quantity: number;
+    unit_cost: number;
+  }>;
+}): Promise<InventoryStockProcurement> => {
+  const response = await api.post('/inventory/stock/procurements/', data);
+  return response.data;
+};
+
 export const calculatePurchaseTotal = (items: Array<{ quantity: number; unit_price: number }>): number => {
   return items.reduce((total, item) => total + (item.quantity * item.unit_price), 0);
 };

@@ -172,3 +172,150 @@ class InventoryStatistics(BaseModel):
     purchases_by_month: List[dict]  # [{month, count, revenue}]
     top_selling_items: List[dict]  # [{item_name, quantity}]
 
+
+# =====================================================
+# Stock Schemas
+# =====================================================
+
+class InventoryStockBase(BaseModel):
+    """Base schema for inventory stock"""
+    inventory_item_type_id: int = Field(..., description="Inventory item type ID")
+    size_type_id: Optional[int] = Field(None, description="Size type ID (optional)")
+    current_quantity: int = Field(..., ge=0, description="Current quantity in stock")
+    minimum_threshold: int = Field(default=10, ge=0, description="Minimum quantity before alert")
+    reorder_quantity: int = Field(default=50, ge=1, description="Suggested reorder quantity")
+
+
+class InventoryStockCreate(InventoryStockBase):
+    """Schema for creating stock record"""
+    pass
+
+
+class InventoryStockUpdate(BaseModel):
+    """Schema for updating stock record"""
+    current_quantity: Optional[int] = Field(None, ge=0)
+    minimum_threshold: Optional[int] = Field(None, ge=0)
+    reorder_quantity: Optional[int] = Field(None, ge=1)
+
+
+class InventoryStockResponse(InventoryStockBase):
+    """Schema for stock response"""
+    id: int
+    item_type_name: str
+    item_type_description: str
+    item_category: Optional[str] = None
+    item_image_url: Optional[str] = None
+    size_name: Optional[str] = None
+    last_restocked_date: Optional[date] = None
+    last_updated: datetime
+    is_low_stock: bool = False  # Computed field
+
+    class Config:
+        from_attributes = True
+
+
+class LowStockAlert(BaseModel):
+    """Schema for low stock alert"""
+    stock_id: int
+    inventory_item_type_id: int
+    size_type_id: Optional[int] = None
+    item_type_name: str
+    item_type_description: str
+    size_name: Optional[str] = None
+    current_quantity: int
+    minimum_threshold: int
+    reorder_quantity: int
+    shortage: int  # How many below threshold
+    alert_level: str  # 'WARNING' or 'CRITICAL'
+
+
+# =====================================================
+# Stock Procurement Item Schemas
+# =====================================================
+
+class InventoryStockProcurementItemBase(BaseModel):
+    """Base schema for procurement items"""
+    inventory_item_type_id: int = Field(..., description="Inventory item type ID")
+    size_type_id: Optional[int] = Field(None, description="Size type ID (optional)")
+    quantity: int = Field(..., gt=0, description="Quantity procured")
+    unit_cost: Decimal = Field(..., gt=0, description="Cost per unit")
+
+
+class InventoryStockProcurementItemCreate(InventoryStockProcurementItemBase):
+    """Schema for creating procurement items"""
+    pass
+
+
+class InventoryStockProcurementItemResponse(InventoryStockProcurementItemBase):
+    """Schema for procurement item response"""
+    id: int
+    total_cost: Decimal
+    item_type_name: str
+    item_type_description: str
+    item_image_url: Optional[str] = None
+    size_name: Optional[str] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+# =====================================================
+# Stock Procurement Schemas
+# =====================================================
+
+class InventoryStockProcurementBase(BaseModel):
+    """Base schema for stock procurement"""
+    vendor_id: Optional[int] = Field(None, description="Vendor ID (optional for direct purchases)")
+    procurement_date: date = Field(..., description="Date of procurement")
+    invoice_number: Optional[str] = Field(None, max_length=100, description="Vendor invoice number")
+    payment_method_id: int = Field(..., description="Payment method ID")
+    payment_status_id: int = Field(default=1, description="Payment status ID")
+    payment_date: Optional[date] = Field(None, description="Date of payment")
+    payment_reference: Optional[str] = Field(None, max_length=100, description="Payment reference/transaction ID")
+    remarks: Optional[str] = Field(None, description="Additional remarks")
+    invoice_url: Optional[str] = Field(None, max_length=500, description="URL to invoice document")
+
+
+class InventoryStockProcurementCreate(InventoryStockProcurementBase):
+    """Schema for creating stock procurement"""
+    items: List[InventoryStockProcurementItemCreate] = Field(..., min_length=1, description="List of items procured")
+
+    @field_validator('items')
+    @classmethod
+    def validate_items(cls, v):
+        if not v or len(v) == 0:
+            raise ValueError('At least one item is required')
+        return v
+
+
+class InventoryStockProcurementUpdate(BaseModel):
+    """Schema for updating stock procurement"""
+    payment_status_id: Optional[int] = None
+    payment_date: Optional[date] = None
+    payment_reference: Optional[str] = Field(None, max_length=100)
+    remarks: Optional[str] = None
+
+
+class InventoryStockProcurementResponse(InventoryStockProcurementBase):
+    """Schema for stock procurement response"""
+    id: int
+    total_amount: Decimal
+    vendor_name: Optional[str] = None
+    payment_method_name: str
+    payment_status_name: str
+    items: List[InventoryStockProcurementItemResponse]
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class InventoryStockProcurementListResponse(BaseModel):
+    """Schema for paginated procurement list response"""
+    procurements: List[InventoryStockProcurementResponse]
+    total: int
+    page: int
+    per_page: int
+    total_pages: int
+

@@ -228,41 +228,46 @@ class ExpenseDashboard(BaseModel):
 
 # Vendor Schemas
 class VendorBase(BaseModel):
-    """Base schema for vendor records"""
+    """Base schema for vendor records - matches T510_vendors.sql"""
     vendor_name: str = Field(..., min_length=2, max_length=200, description="Vendor/supplier name")
-    vendor_code: Optional[str] = Field(None, max_length=50, description="Unique vendor code")
-    contact_person: Optional[str] = Field(None, max_length=200, description="Primary contact person")
+    contact_person: Optional[str] = Field(None, max_length=100, description="Primary contact person")
 
     # Contact Information
     phone: Optional[str] = Field(None, max_length=20, description="Contact phone number")
     email: Optional[str] = Field(None, max_length=255, description="Contact email address")
-    website: Optional[str] = Field(None, max_length=255, description="Company website")
 
     # Address
     address: Optional[str] = Field(None, description="Complete address")
     city: Optional[str] = Field(None, max_length=100, description="City")
     state: Optional[str] = Field(None, max_length=100, description="State/Province")
-    postal_code: Optional[str] = Field(None, max_length=20, description="Postal/ZIP code")
+    pincode: Optional[str] = Field(None, max_length=10, description="PIN code")
     country: str = Field(default="India", max_length=100, description="Country")
 
     # Business Information
     gst_number: Optional[str] = Field(None, max_length=20, description="GST registration number")
-    pan_number: Optional[str] = Field(None, max_length=20, description="PAN number")
-    business_type: Optional[str] = Field(None, max_length=50, description="Type of business")
+    pan_number: Optional[str] = Field(None, max_length=15, description="PAN number")
+    vendor_categories: Optional[dict] = Field(None, description="JSONB vendor categories")
 
     # Banking Details
     bank_name: Optional[str] = Field(None, max_length=100, description="Bank name")
     account_number: Optional[str] = Field(None, max_length=50, description="Bank account number")
-    ifsc_code: Optional[str] = Field(None, max_length=20, description="IFSC code")
+    ifsc_code: Optional[str] = Field(None, max_length=15, description="IFSC code")
     account_holder_name: Optional[str] = Field(None, max_length=200, description="Account holder name")
 
-    # Status and Categories
-    is_active: bool = Field(default=True, description="Whether vendor is active")
-    vendor_categories: Optional[List[int]] = Field(None, description="Array of category IDs")
+    # Contract Information
+    contract_start_date: Optional[date] = Field(None, description="Contract start date")
+    contract_end_date: Optional[date] = Field(None, description="Contract end date")
+    payment_terms: Optional[str] = Field(None, max_length=100, description="Payment terms")
+    credit_limit: Optional[Decimal] = Field(default=0.0, ge=0, description="Credit limit amount")
 
-    # Credit Terms
-    credit_limit: Optional[Decimal] = Field(None, ge=0, description="Credit limit amount")
-    credit_days: int = Field(default=30, ge=0, le=365, description="Credit payment days")
+    # Performance Metrics
+    rating: Optional[Decimal] = Field(None, ge=0, le=5, description="Vendor rating (0-5)")
+    total_orders: Optional[int] = Field(default=0, ge=0, description="Total number of orders")
+    total_amount: Optional[Decimal] = Field(default=0.0, ge=0, description="Total amount of orders")
+
+    # Status
+    is_active: bool = Field(default=True, description="Whether vendor is active")
+    is_verified: bool = Field(default=False, description="Whether vendor is verified")
 
 
 class VendorCreate(VendorBase):
@@ -273,27 +278,30 @@ class VendorCreate(VendorBase):
 class VendorUpdate(BaseModel):
     """Schema for updating vendor records"""
     vendor_name: Optional[str] = Field(None, min_length=2, max_length=200)
-    vendor_code: Optional[str] = Field(None, max_length=50)
-    contact_person: Optional[str] = Field(None, max_length=200)
+    contact_person: Optional[str] = Field(None, max_length=100)
     phone: Optional[str] = Field(None, max_length=20)
     email: Optional[str] = Field(None, max_length=255)
-    website: Optional[str] = Field(None, max_length=255)
     address: Optional[str] = None
     city: Optional[str] = Field(None, max_length=100)
     state: Optional[str] = Field(None, max_length=100)
-    postal_code: Optional[str] = Field(None, max_length=20)
+    pincode: Optional[str] = Field(None, max_length=10)
     country: Optional[str] = Field(None, max_length=100)
     gst_number: Optional[str] = Field(None, max_length=20)
-    pan_number: Optional[str] = Field(None, max_length=20)
-    business_type: Optional[str] = Field(None, max_length=50)
+    pan_number: Optional[str] = Field(None, max_length=15)
+    vendor_categories: Optional[dict] = None
     bank_name: Optional[str] = Field(None, max_length=100)
     account_number: Optional[str] = Field(None, max_length=50)
-    ifsc_code: Optional[str] = Field(None, max_length=20)
+    ifsc_code: Optional[str] = Field(None, max_length=15)
     account_holder_name: Optional[str] = Field(None, max_length=200)
-    is_active: Optional[bool] = None
-    vendor_categories: Optional[List[int]] = None
+    contract_start_date: Optional[date] = None
+    contract_end_date: Optional[date] = None
+    payment_terms: Optional[str] = Field(None, max_length=100)
     credit_limit: Optional[Decimal] = Field(None, ge=0)
-    credit_days: Optional[int] = Field(None, ge=0, le=365)
+    rating: Optional[Decimal] = Field(None, ge=0, le=5)
+    total_orders: Optional[int] = Field(None, ge=0)
+    total_amount: Optional[Decimal] = Field(None, ge=0)
+    is_active: Optional[bool] = None
+    is_verified: Optional[bool] = None
 
 
 class VendorInDBBase(VendorBase):

@@ -357,17 +357,6 @@ class ExpenseValidator(BaseValidator):
         existing_vendor = result.scalar_one_or_none()
         return existing_vendor is None
 
-    @staticmethod
-    async def validate_unique_vendor_code(db: AsyncSession, vendor_code: str, exclude_id: Optional[int] = None) -> bool:
-        """Check if vendor code is unique"""
-        query = select(Vendor).where(Vendor.vendor_code == vendor_code)
-        if exclude_id:
-            query = query.where(Vendor.id != exclude_id)
-
-        result = await db.execute(query)
-        existing_vendor = result.scalar_one_or_none()
-        return existing_vendor is None
-
     # Note: PurchaseOrder model not available, removing PO validation for now
 
     @staticmethod
@@ -432,11 +421,6 @@ class ExpenseValidator(BaseValidator):
         vendor_name = vendor_data.get('vendor_name')
         if vendor_name and not await ExpenseValidator.validate_unique_vendor_name(db, vendor_name):
             errors.append("A vendor with this name already exists. Please use a different vendor name.")
-
-        # Validate vendor code uniqueness
-        vendor_code = vendor_data.get('vendor_code')
-        if vendor_code and not await ExpenseValidator.validate_unique_vendor_code(db, vendor_code):
-            errors.append("A vendor with this code already exists. Please use a different vendor code.")
 
         # Validate email format
         email = vendor_data.get('email')

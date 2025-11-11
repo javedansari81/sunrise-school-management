@@ -34,6 +34,8 @@ import CollapsibleFilterSection from '../common/CollapsibleFilterSection';
 import NewPurchaseDialog from './inventory/NewPurchaseDialog';
 import PurchaseDetailsDialog from './inventory/PurchaseDetailsDialog';
 import PricingDialog from './inventory/PricingDialog';
+import StockLevelsTab from './inventory/StockLevelsTab';
+import StockProcurementsTab from './inventory/StockProcurementsTab';
 import {
   getPurchases,
   getStatistics,
@@ -350,6 +352,8 @@ const InventoryManagementSystem: React.FC<InventoryManagementSystemProps> = ({ c
           <Tab label="Recent (30 Days)" />
           <Tab label="Statistics" />
           <Tab label="Pricing" />
+          <Tab label="Stock Levels" />
+          <Tab label="Procurements" />
         </Tabs>
       </Box>
 
@@ -1370,6 +1374,23 @@ const InventoryManagementSystem: React.FC<InventoryManagementSystemProps> = ({ c
             </TableContainer>
           </Paper>
         </Box>
+      )}
+
+      {/* Tab 4: Stock Levels */}
+      {activeTab === 4 && (
+        <StockLevelsTab
+          configuration={configuration}
+          onError={(message) => setSnackbar({ open: true, message, severity: 'error' })}
+        />
+      )}
+
+      {/* Tab 5: Stock Procurements */}
+      {activeTab === 5 && (
+        <StockProcurementsTab
+          configuration={configuration}
+          onError={(message) => setSnackbar({ open: true, message, severity: 'error' })}
+          onSuccess={(message) => setSnackbar({ open: true, message, severity: 'success' })}
+        />
       )}
 
       {/* Dialogs */}

@@ -14,6 +14,7 @@ from app.core.database import get_db
 from app.crud import fee_record_crud, student_crud, teacher_crud
 from app.crud.crud_expense import expense_crud
 from app.crud.crud_leave import leave_request_crud
+from app.crud.crud_inventory_stock import crud_inventory_stock
 from app.api.deps import get_current_active_user
 from app.models.user import User
 from app.models.student import Student
@@ -271,6 +272,41 @@ async def get_admin_dashboard_stats(
             logger.error(f"✗ Section 6 FAILED - Revenue growth error: {str(e)}")
             logger.error(f"Traceback: {traceback.format_exc()}")
             response_data["revenue_growth"]["error"] = str(e)
+
+        # Section 7: Inventory Stock Alerts
+        logger.info("--- Section 7: Inventory Stock Alerts ---")
+        try:
+            low_stock_items = await crud_inventory_stock.get_low_stock_alerts(db)
+            critical_count = sum(1 for item in low_stock_items if item.current_quantity == 0)
+            warning_count = len(low_stock_items) - critical_count
+
+            response_data["inventory_stock_alerts"] = {
+                "total_alerts": len(low_stock_items),
+                "critical_count": critical_count,
+                "warning_count": warning_count,
+                "alerts": [
+                    {
+                        "item_name": item.item_type.description,
+                        "size": item.size_type.name if item.size_type else "N/A",
+                        "current_quantity": item.current_quantity,
+                        "minimum_threshold": item.minimum_threshold,
+                        "alert_level": "CRITICAL" if item.current_quantity == 0 else "WARNING"
+                    }
+                    for item in low_stock_items[:10]  # Limit to top 10 for dashboard
+                ]
+            }
+            logger.info(f"Stock alerts: {len(low_stock_items)} total, {critical_count} critical, {warning_count} warning")
+            logger.info("✓ Section 7 completed successfully")
+        except Exception as e:
+            logger.error(f"✗ Section 7 FAILED - Inventory stock alerts error: {str(e)}")
+            logger.error(f"Traceback: {traceback.format_exc()}")
+            response_data["inventory_stock_alerts"] = {
+                "total_alerts": 0,
+                "critical_count": 0,
+                "warning_count": 0,
+                "alerts": [],
+                "error": str(e)
+            }
 
         logger.info("=== get_admin_dashboard_stats completed successfully ===")
         logger.info(f"Final response data: {response_data}")
