@@ -166,6 +166,31 @@ class TransportMonthlyTrackingResponse(TransportMonthlyTrackingBase):
 
 
 # =====================================================
+# Transport Payment Allocation Schemas
+# =====================================================
+
+class TransportPaymentAllocationBase(BaseModel):
+    allocated_amount: Decimal
+    monthly_tracking_id: int
+
+
+class TransportPaymentAllocationResponse(TransportPaymentAllocationBase):
+    id: int
+    transport_payment_id: int
+    is_reversal: bool
+    reverses_allocation_id: Optional[int] = None
+    created_at: datetime
+
+    # Additional fields from monthly tracking
+    month_name: Optional[str] = None
+    academic_year: Optional[int] = None
+    academic_month: Optional[int] = None
+
+    class Config:
+        from_attributes = True
+
+
+# =====================================================
 # Transport Payment Schemas
 # =====================================================
 
@@ -189,6 +214,54 @@ class TransportPaymentResponse(TransportPaymentBase):
     student_id: int
     receipt_number: Optional[str] = None
     created_at: datetime
+
+    # Override amount to allow negative values for reversal payments
+    amount: Decimal = Field(..., description="Payment amount (negative for reversals)")
+
+    # Reversal fields
+    is_reversal: bool = False
+    reverses_payment_id: Optional[int] = None
+    reversed_by_payment_id: Optional[int] = None
+    reversal_reason_id: Optional[int] = None
+    reversal_type: Optional[str] = None
+
+    # Computed properties
+    can_be_reversed: bool = False
+    is_reversed: bool = False
+
+    # Allocations
+    allocations: List[TransportPaymentAllocationResponse] = []
+
+    class Config:
+        from_attributes = True
+
+
+# =====================================================
+# Payment Reversal Schemas
+# =====================================================
+
+class TransportPaymentReversalRequest(BaseModel):
+    """Request for full payment reversal"""
+    reason_id: int = Field(..., description="Reversal reason ID from reversal_reasons table")
+    details: Optional[str] = Field(None, description="Additional details about the reversal")
+
+
+class TransportPartialReversalRequest(BaseModel):
+    """Request for partial payment reversal (specific months)"""
+    allocation_ids: List[int] = Field(..., description="List of allocation IDs to reverse")
+    reason_id: int = Field(..., description="Reversal reason ID from reversal_reasons table")
+    details: Optional[str] = Field(None, description="Additional details about the reversal")
+
+
+class TransportPaymentReversalResponse(BaseModel):
+    """Response after payment reversal"""
+    success: bool
+    message: str
+    reversal_payment_id: int
+    original_payment_id: int
+    reversed_amount: Decimal
+    reversal_type: str  # FULL or PARTIAL
+    affected_months: Optional[List[dict]] = None
 
     class Config:
         from_attributes = True

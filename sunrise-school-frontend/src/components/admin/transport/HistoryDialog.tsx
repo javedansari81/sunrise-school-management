@@ -17,13 +17,23 @@ import {
   Paper,
   Chip,
   Divider,
-  Grid
+  Grid,
+  IconButton,
+  Menu,
+  MenuItem,
+  Tabs,
+  Tab,
+  Alert
 } from '@mui/material';
+import MoreVertIcon from '@mui/icons-material/MoreVert';
 import transportService, {
   EnhancedStudentTransportSummary,
   StudentTransportMonthlyHistory,
   TransportMonthlyTracking
 } from '../../../services/transportService';
+import { configurationService } from '../../../services/configurationService';
+import TransportPaymentReversalDialog from './TransportPaymentReversalDialog';
+import TransportPartialReversalDialog from './TransportPartialReversalDialog';
 
 interface HistoryDialogProps {
   open: boolean;
@@ -31,6 +41,7 @@ interface HistoryDialogProps {
   student: EnhancedStudentTransportSummary | null;
   sessionYear: string;
   sessionYearId: number | null;
+  onDataChange?: () => void; // Callback to refresh parent data after reversal
 }
 
 const HistoryDialog: React.FC<HistoryDialogProps> = ({
@@ -38,15 +49,30 @@ const HistoryDialog: React.FC<HistoryDialogProps> = ({
   onClose,
   student,
   sessionYear,
-  sessionYearId
+  sessionYearId,
+  onDataChange
 }) => {
   const [loading, setLoading] = useState(false);
   const [monthlyHistory, setMonthlyHistory] = useState<StudentTransportMonthlyHistory | null>(null);
+  const [paymentHistory, setPaymentHistory] = useState<any[]>([]);
+  const [currentTab, setCurrentTab] = useState(0);
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [selectedPayment, setSelectedPayment] = useState<any>(null);
+  const [reversalDialogOpen, setReversalDialogOpen] = useState(false);
+  const [partialReversalDialogOpen, setPartialReversalDialogOpen] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string>('');
+  const [errorMessage, setErrorMessage] = useState<string>('');
 
-  // Load monthly history when dialog opens
+  // Load configuration and data when dialog opens
   useEffect(() => {
     if (open && student?.enrollment_id && sessionYearId) {
+      // Load transport-management configuration (includes reversal_reasons)
+      configurationService.loadServiceConfiguration('transport-management').catch(err => {
+        console.error('Failed to load transport-management configuration:', err);
+      });
+
       loadMonthlyHistory();
+      loadPaymentHistory();
     }
   }, [open, student, sessionYearId]);
 
@@ -62,7 +88,6 @@ const HistoryDialog: React.FC<HistoryDialogProps> = ({
       setMonthlyHistory(history);
     } catch (err: any) {
       console.error('Error loading monthly history:', err);
-      // Handle FastAPI validation errors (422) - just log, don't show to user in history dialog
       if (err.response?.status === 422 && Array.isArray(err.response?.data?.detail)) {
         const errorMessages = err.response.data.detail.map((e: any) => e.msg).join(', ');
         console.error('Validation error:', errorMessages);
@@ -71,6 +96,56 @@ const HistoryDialog: React.FC<HistoryDialogProps> = ({
       setLoading(false);
     }
   }, [student, sessionYearId]);
+
+  const loadPaymentHistory = useCallback(async () => {
+    if (!student || !sessionYearId) return;
+
+    try {
+      const payments = await transportService.getPaymentHistory(
+        student.student_id,
+        sessionYearId
+      );
+      setPaymentHistory(payments);
+    } catch (err: any) {
+      console.error('Error loading payment history:', err);
+    }
+  }, [student, sessionYearId]);
+
+  const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, payment: any) => {
+    setAnchorEl(event.currentTarget);
+    setSelectedPayment(payment);
+  };
+
+  const handleMenuClose = () => {
+    setAnchorEl(null);
+  };
+
+  const handleFullReversal = () => {
+    handleMenuClose();
+    setReversalDialogOpen(true);
+  };
+
+  const handlePartialReversal = () => {
+    handleMenuClose();
+    setPartialReversalDialogOpen(true);
+  };
+
+  const handleReversalSuccess = (message: string) => {
+    setSuccessMessage(message);
+    setTimeout(() => setSuccessMessage(''), 5000);
+    loadMonthlyHistory();
+    loadPaymentHistory();
+
+    // Refresh parent component data (Transport Management System landing page)
+    if (onDataChange) {
+      onDataChange();
+    }
+  };
+
+  const handleReversalError = (message: string) => {
+    setErrorMessage(message);
+    setTimeout(() => setErrorMessage(''), 5000);
+  };
 
   const getPaymentStatusChip = (record: TransportMonthlyTracking) => {
     if (!record.is_service_enabled) {
@@ -103,6 +178,18 @@ const HistoryDialog: React.FC<HistoryDialogProps> = ({
         Transport Payment History
       </DialogTitle>
       <DialogContent>
+        {/* Success/Error Messages */}
+        {successMessage && (
+          <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccessMessage('')}>
+            {successMessage}
+          </Alert>
+        )}
+        {errorMessage && (
+          <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErrorMessage('')}>
+            {errorMessage}
+          </Alert>
+        )}
+
         {student && (
           <Box sx={{ mb: 2, p: 2, bgcolor: 'background.default', borderRadius: 1 }}>
             <Typography variant="subtitle2" color="text.secondary">
@@ -120,12 +207,23 @@ const HistoryDialog: React.FC<HistoryDialogProps> = ({
           </Box>
         )}
 
-        {loading ? (
-          <Box display="flex" justifyContent="center" p={3}>
-            <CircularProgress />
-          </Box>
-        ) : monthlyHistory && monthlyHistory.monthly_history ? (
+        {/* Tabs */}
+        <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
+          <Tabs value={currentTab} onChange={(e, newValue) => setCurrentTab(newValue)}>
+            <Tab label="Monthly Records" />
+            <Tab label="Payment History" />
+          </Tabs>
+        </Box>
+
+        {/* Tab Panel 0: Monthly Records */}
+        {currentTab === 0 && (
           <>
+            {loading ? (
+              <Box display="flex" justifyContent="center" p={3}>
+                <CircularProgress />
+              </Box>
+            ) : monthlyHistory && monthlyHistory.monthly_history ? (
+              <>
             {/* Summary */}
             <Box sx={{ mb: 3 }}>
               <Typography variant="subtitle2" gutterBottom>
@@ -269,16 +367,129 @@ const HistoryDialog: React.FC<HistoryDialogProps> = ({
                 </Grid>
               </Grid>
             </Box>
+              </>
+            ) : (
+              <Typography variant="body2" color="text.secondary" align="center">
+                No history available
+              </Typography>
+            )}
           </>
-        ) : (
-          <Typography variant="body2" color="text.secondary" align="center">
-            No history available
-          </Typography>
+        )}
+
+        {/* Tab Panel 1: Payment History */}
+        {currentTab === 1 && (
+          <>
+            {paymentHistory.length > 0 ? (
+              <TableContainer component={Paper} sx={{ maxHeight: 400 }}>
+                <Table size="small" stickyHeader>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell sx={{ bgcolor: 'background.paper', fontWeight: 600 }}>Date</TableCell>
+                      <TableCell sx={{ bgcolor: 'background.paper', fontWeight: 600 }}>Amount</TableCell>
+                      <TableCell sx={{ bgcolor: 'background.paper', fontWeight: 600 }}>Method</TableCell>
+                      <TableCell sx={{ bgcolor: 'background.paper', fontWeight: 600 }}>Status</TableCell>
+                      <TableCell sx={{ bgcolor: 'background.paper', fontWeight: 600 }}>Months</TableCell>
+                      <TableCell align="center" sx={{ bgcolor: 'background.paper', fontWeight: 600, width: 60 }}>Actions</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {paymentHistory.map((payment) => (
+                      <TableRow key={payment.id} hover>
+                        <TableCell>
+                          <Typography variant="body2">
+                            {new Date(payment.payment_date).toLocaleDateString()}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Typography
+                            variant="body2"
+                            fontWeight={500}
+                            color={payment.is_reversal ? 'error' : 'inherit'}
+                          >
+                            {payment.is_reversal ? '-' : ''}₹{Math.abs(payment.amount || 0).toLocaleString()}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2">
+                            {payment.payment_method_name || '-'}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          {payment.is_reversal ? (
+                            <Chip label="Reversal" size="small" color="error" />
+                          ) : payment.is_reversed ? (
+                            <Chip label="Reversed" size="small" color="warning" />
+                          ) : (
+                            <Chip label="Completed" size="small" color="success" />
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2">
+                            {payment.allocations?.length || 0} month(s)
+                          </Typography>
+                        </TableCell>
+                        <TableCell align="center">
+                          {payment.can_be_reversed && !payment.is_reversal && (
+                            <IconButton
+                              size="small"
+                              onClick={(e) => handleMenuOpen(e, payment)}
+                            >
+                              <MoreVertIcon fontSize="small" />
+                            </IconButton>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            ) : (
+              <Typography variant="body2" color="text.secondary" align="center" sx={{ py: 4 }}>
+                No payment history available
+              </Typography>
+            )}
+          </>
         )}
       </DialogContent>
       <DialogActions>
         <Button onClick={handleClose}>Close</Button>
       </DialogActions>
+
+      {/* Reversal Menu */}
+      <Menu
+        anchorEl={anchorEl}
+        open={Boolean(anchorEl)}
+        onClose={handleMenuClose}
+      >
+        <MenuItem onClick={handleFullReversal}>
+          Full Reversal
+        </MenuItem>
+        {selectedPayment && selectedPayment.allocations && selectedPayment.allocations.length > 1 && (
+          <MenuItem onClick={handlePartialReversal}>
+            Partial Reversal (Select Months)
+          </MenuItem>
+        )}
+      </Menu>
+
+      {/* Reversal Dialogs */}
+      {selectedPayment && (
+        <>
+          <TransportPaymentReversalDialog
+            open={reversalDialogOpen}
+            onClose={() => setReversalDialogOpen(false)}
+            payment={selectedPayment}
+            onSuccess={handleReversalSuccess}
+            onError={handleReversalError}
+          />
+          <TransportPartialReversalDialog
+            open={partialReversalDialogOpen}
+            onClose={() => setPartialReversalDialogOpen(false)}
+            payment={selectedPayment}
+            onSuccess={handleReversalSuccess}
+            onError={handleReversalError}
+          />
+        </>
+      )}
     </Dialog>
   );
 };

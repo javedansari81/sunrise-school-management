@@ -117,6 +117,7 @@ export type ServiceType =
   | 'teacher-management'
   | 'gallery-management'
   | 'inventory-management'
+  | 'transport-management'
   | 'common';
 
 // Dropdown option interface for UI components

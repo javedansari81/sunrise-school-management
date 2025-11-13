@@ -12,7 +12,7 @@ import calendar
 
 from app.models.transport import (
     TransportType, TransportDistanceSlab, StudentTransportEnrollment,
-    TransportMonthlyTracking, TransportPayment
+    TransportMonthlyTracking, TransportPayment, TransportPaymentAllocation
 )
 from app.models.student import Student
 from app.models.metadata import SessionYear, Class, PaymentStatus
@@ -392,7 +392,309 @@ class CRUDTransportMonthlyTracking:
         )
 
 
+class CRUDTransportPayment:
+    """CRUD operations for transport payment reversals"""
+
+    async def reverse_payment_full(
+        self,
+        db: AsyncSession,
+        *,
+        payment_id: int,
+        reason_id: int,
+        details: Optional[str],
+        user_id: int
+    ) -> Dict[str, Any]:
+        """
+        Reverse an entire transport payment
+
+        Args:
+            payment_id: ID of the payment to reverse
+            reason_id: Reversal reason ID from reversal_reasons table
+            details: Additional details
+            user_id: ID of user performing the reversal
+
+        Returns:
+            Dictionary with reversal details
+
+        Raises:
+            ValueError: If payment cannot be reversed
+        """
+        # Get the original payment with allocations
+        result = await db.execute(
+            select(TransportPayment)
+            .options(
+                selectinload(TransportPayment.allocations).selectinload(TransportPaymentAllocation.monthly_tracking),
+                selectinload(TransportPayment.enrollment)
+            )
+            .where(TransportPayment.id == payment_id)
+        )
+        original_payment = result.scalar_one_or_none()
+
+        if not original_payment:
+            raise ValueError(f"Payment with ID {payment_id} not found")
+
+        # Validation checks
+        if original_payment.is_reversal:
+            raise ValueError("Cannot reverse a reversal payment")
+
+        if original_payment.reversed_by_payment_id:
+            raise ValueError("This payment has already been reversed")
+
+        # Get all allocations for this payment
+        allocations_result = await db.execute(
+            select(TransportPaymentAllocation)
+            .where(TransportPaymentAllocation.transport_payment_id == payment_id)
+        )
+        allocations = allocations_result.scalars().all()
+
+        if not allocations:
+            raise ValueError("No allocations found for this payment")
+
+        # Create reversal payment with negative amount
+        reversal_payment_data = {
+            "enrollment_id": original_payment.enrollment_id,
+            "student_id": original_payment.student_id,
+            "amount": -original_payment.amount,  # Negative amount
+            "payment_method_id": original_payment.payment_method_id,
+            "payment_date": date.today(),
+            "transaction_id": f"REV-{original_payment.transaction_id or original_payment.id}",
+            "remarks": f"REVERSAL. {details or ''}",
+            "is_reversal": True,
+            "reverses_payment_id": payment_id,
+            "reversal_reason_id": reason_id,
+            "reversal_type": "FULL",
+            "created_by": user_id
+        }
+
+        reversal_payment = TransportPayment(**reversal_payment_data)
+        db.add(reversal_payment)
+        await db.flush()  # Get the ID
+
+        # Update original payment to mark it as reversed
+        original_payment.reversed_by_payment_id = reversal_payment.id
+
+        # Create negative allocations and update monthly tracking
+        affected_months = []
+        for allocation in allocations:
+            # Get monthly tracking record
+            monthly_result = await db.execute(
+                select(TransportMonthlyTracking)
+                .where(TransportMonthlyTracking.id == allocation.monthly_tracking_id)
+            )
+            monthly_tracking = monthly_result.scalar_one_or_none()
+
+            if monthly_tracking:
+                # Create negative allocation
+                reversal_allocation = TransportPaymentAllocation(
+                    transport_payment_id=reversal_payment.id,
+                    monthly_tracking_id=allocation.monthly_tracking_id,
+                    allocated_amount=-allocation.allocated_amount,
+                    is_reversal=True,
+                    reverses_allocation_id=allocation.id,
+                    created_by=user_id
+                )
+                db.add(reversal_allocation)
+
+                # Update monthly tracking paid_amount
+                monthly_tracking.paid_amount = Decimal(str(monthly_tracking.paid_amount)) - Decimal(str(allocation.allocated_amount))
+
+                # Recalculate payment status
+                if monthly_tracking.paid_amount <= 0:
+                    monthly_tracking.payment_status_id = 1  # PENDING
+                elif monthly_tracking.paid_amount >= monthly_tracking.monthly_amount:
+                    monthly_tracking.payment_status_id = 2  # PAID
+                else:
+                    monthly_tracking.payment_status_id = 3  # PARTIAL
+
+                monthly_tracking.updated_at = datetime.now()
+
+                affected_months.append({
+                    "month": monthly_tracking.month_name,
+                    "year": monthly_tracking.academic_year,
+                    "reversed_amount": float(allocation.allocated_amount),
+                    "new_paid_amount": float(monthly_tracking.paid_amount),
+                    "new_status": "Pending" if monthly_tracking.payment_status_id == 1 else ("Paid" if monthly_tracking.payment_status_id == 2 else "Partial")
+                })
+
+        # Commit all changes
+        await db.commit()
+        await db.refresh(reversal_payment)
+
+        return {
+            "success": True,
+            "message": "Payment reversed successfully",
+            "original_payment_id": payment_id,
+            "reversal_payment_id": reversal_payment.id,
+            "reversed_amount": float(original_payment.amount),
+            "reversal_type": "FULL",
+            "affected_months": affected_months
+        }
+
+    async def reverse_payment_partial(
+        self,
+        db: AsyncSession,
+        *,
+        payment_id: int,
+        allocation_ids: List[int],
+        reason_id: int,
+        details: Optional[str],
+        user_id: int
+    ) -> Dict[str, Any]:
+        """
+        Reverse specific month allocations of a transport payment
+
+        Args:
+            payment_id: ID of the payment to partially reverse
+            allocation_ids: List of allocation IDs to reverse
+            reason_id: Reversal reason ID from reversal_reasons table
+            details: Additional details
+            user_id: ID of user performing the reversal
+
+        Returns:
+            Dictionary with reversal details
+
+        Raises:
+            ValueError: If payment or allocations cannot be reversed
+        """
+        # Get the original payment
+        result = await db.execute(
+            select(TransportPayment)
+            .options(selectinload(TransportPayment.enrollment))
+            .where(TransportPayment.id == payment_id)
+        )
+        original_payment = result.scalar_one_or_none()
+
+        if not original_payment:
+            raise ValueError(f"Payment with ID {payment_id} not found")
+
+        # Validation checks
+        if original_payment.is_reversal:
+            raise ValueError("Cannot reverse a reversal payment")
+
+        # Get specified allocations
+        allocations_result = await db.execute(
+            select(TransportPaymentAllocation)
+            .where(
+                and_(
+                    TransportPaymentAllocation.transport_payment_id == payment_id,
+                    TransportPaymentAllocation.id.in_(allocation_ids)
+                )
+            )
+        )
+        allocations = allocations_result.scalars().all()
+
+        if len(allocations) != len(allocation_ids):
+            raise ValueError("Some allocation IDs are invalid or do not belong to this payment")
+
+        # Check if any allocations are already reversed
+        for allocation in allocations:
+            if allocation.is_reversal:
+                raise ValueError(f"Allocation {allocation.id} is already a reversal")
+
+            # Check if this allocation has been reversed
+            reversed_check = await db.execute(
+                select(TransportPaymentAllocation)
+                .where(TransportPaymentAllocation.reverses_allocation_id == allocation.id)
+            )
+            if reversed_check.scalar_one_or_none():
+                raise ValueError(f"Allocation {allocation.id} has already been reversed")
+
+        # Get all allocations to check if this is a full reversal
+        all_allocations_result = await db.execute(
+            select(TransportPaymentAllocation)
+            .where(TransportPaymentAllocation.transport_payment_id == payment_id)
+        )
+        all_allocations = all_allocations_result.scalars().all()
+
+        if len(allocations) == len(all_allocations):
+            raise ValueError("Cannot use partial reversal for all allocations. Use full reversal instead.")
+
+        # Calculate total reversal amount
+        total_reversal_amount = sum(Decimal(str(alloc.allocated_amount)) for alloc in allocations)
+
+        # Create reversal payment with negative amount
+        reversal_payment_data = {
+            "enrollment_id": original_payment.enrollment_id,
+            "student_id": original_payment.student_id,
+            "amount": -total_reversal_amount,  # Negative amount
+            "payment_method_id": original_payment.payment_method_id,
+            "payment_date": date.today(),
+            "transaction_id": f"REV-PARTIAL-{original_payment.transaction_id or original_payment.id}",
+            "remarks": f"PARTIAL REVERSAL. {details or ''}",
+            "is_reversal": True,
+            "reverses_payment_id": payment_id,
+            "reversal_reason_id": reason_id,
+            "reversal_type": "PARTIAL",
+            "created_by": user_id
+        }
+
+        reversal_payment = TransportPayment(**reversal_payment_data)
+        db.add(reversal_payment)
+        await db.flush()  # Get the ID
+
+        # Note: We don't update original_payment.reversed_by_payment_id for partial reversals
+        # This allows tracking multiple partial reversals
+
+        # Create negative allocations and update monthly tracking
+        affected_months = []
+        for allocation in allocations:
+            # Get monthly tracking record
+            monthly_result = await db.execute(
+                select(TransportMonthlyTracking)
+                .where(TransportMonthlyTracking.id == allocation.monthly_tracking_id)
+            )
+            monthly_tracking = monthly_result.scalar_one_or_none()
+
+            if monthly_tracking:
+                # Create negative allocation
+                reversal_allocation = TransportPaymentAllocation(
+                    transport_payment_id=reversal_payment.id,
+                    monthly_tracking_id=allocation.monthly_tracking_id,
+                    allocated_amount=-allocation.allocated_amount,
+                    is_reversal=True,
+                    reverses_allocation_id=allocation.id,
+                    created_by=user_id
+                )
+                db.add(reversal_allocation)
+
+                # Update monthly tracking paid_amount
+                monthly_tracking.paid_amount = Decimal(str(monthly_tracking.paid_amount)) - Decimal(str(allocation.allocated_amount))
+
+                # Recalculate payment status
+                if monthly_tracking.paid_amount <= 0:
+                    monthly_tracking.payment_status_id = 1  # PENDING
+                elif monthly_tracking.paid_amount >= monthly_tracking.monthly_amount:
+                    monthly_tracking.payment_status_id = 2  # PAID
+                else:
+                    monthly_tracking.payment_status_id = 3  # PARTIAL
+
+                monthly_tracking.updated_at = datetime.now()
+
+                affected_months.append({
+                    "month": monthly_tracking.month_name,
+                    "year": monthly_tracking.academic_year,
+                    "reversed_amount": float(allocation.allocated_amount),
+                    "new_paid_amount": float(monthly_tracking.paid_amount),
+                    "new_status": "Pending" if monthly_tracking.payment_status_id == 1 else ("Paid" if monthly_tracking.payment_status_id == 2 else "Partial")
+                })
+
+        # Commit all changes
+        await db.commit()
+        await db.refresh(reversal_payment)
+
+        return {
+            "success": True,
+            "message": f"Successfully reversed {len(allocations)} month(s)",
+            "original_payment_id": payment_id,
+            "reversal_payment_id": reversal_payment.id,
+            "reversed_amount": float(total_reversal_amount),
+            "reversal_type": "PARTIAL",
+            "affected_months": affected_months
+        }
+
+
 # Create instances
 transport_enrollment_crud = CRUDTransportEnrollment()
 transport_monthly_tracking_crud = CRUDTransportMonthlyTracking()
+transport_payment_crud = CRUDTransportPayment()
 

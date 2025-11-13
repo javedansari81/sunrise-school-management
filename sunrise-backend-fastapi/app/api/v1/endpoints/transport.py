@@ -13,13 +13,17 @@ from app.core.database import get_db
 from app.api.deps import get_current_active_user
 from app.models.user import User
 from app.models.transport import TransportType, TransportDistanceSlab
-from app.crud.crud_transport import transport_enrollment_crud, transport_monthly_tracking_crud
+from app.crud.crud_transport import (
+    transport_enrollment_crud, transport_monthly_tracking_crud, transport_payment_crud
+)
 from app.schemas.transport import (
     TransportTypeResponse, TransportDistanceSlabResponse,
     StudentTransportEnrollmentCreate, StudentTransportEnrollmentResponse,
     StudentTransportEnrollmentUpdate, EnhancedStudentTransportSummary,
     EnableTransportMonthlyTrackingRequest, StudentTransportMonthlyHistory,
-    TransportPaymentRequest
+    TransportPaymentRequest, TransportPaymentReversalRequest,
+    TransportPartialReversalRequest, TransportPaymentReversalResponse,
+    TransportPaymentResponse, TransportPaymentAllocationResponse
 )
 from sqlalchemy import select
 
@@ -308,7 +312,22 @@ async def pay_monthly_transport(
                 detail="Selected months are already fully paid"
             )
 
-        # Distribute payment across months
+        # Create payment record first
+        from app.models.transport import TransportPayment, TransportPaymentAllocation
+        payment = TransportPayment(
+            enrollment_id=enrollment.id,
+            student_id=student_id,
+            amount=payment_data.amount,
+            payment_method_id=payment_data.payment_method_id,
+            payment_date=date.today(),
+            transaction_id=payment_data.transaction_id or f"TXN{datetime.now().timestamp()}",
+            remarks=payment_data.remarks,
+            created_by=current_user.id
+        )
+        db.add(payment)
+        await db.flush()  # Get payment ID
+
+        # Distribute payment across months and create allocations
         remaining_amount = payment_data.amount
         months_paid = []
 
@@ -321,6 +340,16 @@ async def pay_monthly_transport(
             if balance > 0:
                 payment_for_month = min(remaining_amount, balance)
                 record.paid_amount = Decimal(str(record.paid_amount)) + payment_for_month
+
+                # Create allocation record
+                allocation = TransportPaymentAllocation(
+                    transport_payment_id=payment.id,
+                    monthly_tracking_id=record.id,
+                    allocated_amount=payment_for_month,
+                    is_reversal=False,
+                    created_by=current_user.id
+                )
+                db.add(allocation)
 
                 # Update payment status with proper Decimal comparison
                 # Round to 2 decimal places to avoid precision issues
@@ -342,20 +371,7 @@ async def pay_monthly_transport(
                     "year": record.academic_year,
                     "amount_paid": float(payment_for_month)
                 })
-        
-        # Create payment record
-        from app.models.transport import TransportPayment
-        payment = TransportPayment(
-            enrollment_id=enrollment.id,
-            student_id=student_id,
-            amount=payment_data.amount,
-            payment_method_id=payment_data.payment_method_id,
-            payment_date=date.today(),
-            transaction_id=payment_data.transaction_id or f"TXN{datetime.now().timestamp()}",
-            remarks=payment_data.remarks
-        )
-        db.add(payment)
-        
+
         await db.commit()
         
         return {
@@ -373,5 +389,198 @@ async def pay_monthly_transport(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error processing payment: {str(e)}"
+        )
+
+
+# =====================================================
+# Payment History Endpoint
+# =====================================================
+
+@router.get("/payments/history/{student_id}", response_model=List[TransportPaymentResponse])
+async def get_transport_payment_history(
+    student_id: int,
+    session_year_id: int = Query(..., description="Session year ID"),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Get payment history for a student with allocations
+    Filters out already-reversed allocations
+    """
+    try:
+        from app.models.transport import TransportPayment, TransportPaymentAllocation
+        from sqlalchemy.orm import selectinload
+
+        # Get enrollment
+        enrollment = await transport_enrollment_crud.get_active_enrollment(
+            db, student_id, session_year_id
+        )
+
+        if not enrollment:
+            return []
+
+        # Get all payments for this enrollment with proper relationship loading
+        from app.models.transport import TransportMonthlyTracking
+
+        result = await db.execute(
+            select(TransportPayment)
+            .options(
+                selectinload(TransportPayment.allocations).selectinload(TransportPaymentAllocation.monthly_tracking)
+            )
+            .where(TransportPayment.enrollment_id == enrollment.id)
+            .order_by(TransportPayment.payment_date.desc(), TransportPayment.id.desc())
+        )
+        payments = result.scalars().all()
+
+        # Get all allocations for this enrollment to check for reversals across all payments
+        all_allocations_query = select(TransportPaymentAllocation).join(
+            TransportPayment
+        ).where(TransportPayment.enrollment_id == enrollment.id)
+        all_allocations_result = await db.execute(all_allocations_query)
+        all_allocations = all_allocations_result.scalars().all()
+
+        # Build a set of allocation IDs that have been reversed
+        reversed_allocation_ids = set()
+        for alloc in all_allocations:
+            if alloc.is_reversal and alloc.reverses_allocation_id:
+                reversed_allocation_ids.add(alloc.reverses_allocation_id)
+
+        # Build response with filtered allocations
+        payment_responses = []
+        for payment in payments:
+            # Filter out reversed allocations
+            filtered_allocations = [
+                alloc for alloc in payment.allocations
+                if alloc.id not in reversed_allocation_ids
+            ]
+
+            # Build allocation responses
+            allocation_responses = []
+            for alloc in filtered_allocations:
+                allocation_responses.append(TransportPaymentAllocationResponse(
+                    id=alloc.id,
+                    transport_payment_id=alloc.transport_payment_id,
+                    monthly_tracking_id=alloc.monthly_tracking_id,
+                    allocated_amount=alloc.allocated_amount,
+                    is_reversal=alloc.is_reversal,
+                    reverses_allocation_id=alloc.reverses_allocation_id,
+                    created_at=alloc.created_at,
+                    month_name=alloc.monthly_tracking.month_name if alloc.monthly_tracking else None,
+                    academic_year=alloc.monthly_tracking.academic_year if alloc.monthly_tracking else None,
+                    academic_month=alloc.monthly_tracking.academic_month if alloc.monthly_tracking else None
+                ))
+
+            payment_responses.append(TransportPaymentResponse(
+                id=payment.id,
+                enrollment_id=payment.enrollment_id,
+                student_id=payment.student_id,
+                amount=payment.amount,
+                payment_method_id=payment.payment_method_id,
+                payment_date=payment.payment_date,
+                transaction_id=payment.transaction_id,
+                remarks=payment.remarks,
+                receipt_number=payment.receipt_number,
+                created_at=payment.created_at,
+                is_reversal=payment.is_reversal,
+                reverses_payment_id=payment.reverses_payment_id,
+                reversed_by_payment_id=payment.reversed_by_payment_id,
+                reversal_reason_id=payment.reversal_reason_id,
+                reversal_type=payment.reversal_type,
+                can_be_reversed=payment.can_be_reversed,
+                is_reversed=payment.is_reversed,
+                allocations=allocation_responses
+            ))
+
+        return payment_responses
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error fetching payment history: {str(e)}"
+        )
+
+
+# =====================================================
+# Payment Reversal Endpoints
+# =====================================================
+
+@router.post("/payments/{payment_id}/reverse/full", response_model=TransportPaymentReversalResponse)
+async def reverse_transport_payment_full(
+    payment_id: int,
+    reversal_data: TransportPaymentReversalRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Reverse an entire transport payment
+
+    This will:
+    - Create a new reversal payment with negative amount
+    - Reverse all month allocations
+    - Update monthly tracking records
+    - Mark original payment as reversed
+    """
+    try:
+        result = await transport_payment_crud.reverse_payment_full(
+            db,
+            payment_id=payment_id,
+            reason_id=reversal_data.reason_id,
+            details=reversal_data.details,
+            user_id=current_user.id
+        )
+
+        return TransportPaymentReversalResponse(**result)
+
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error reversing payment: {str(e)}"
+        )
+
+
+@router.post("/payments/{payment_id}/reverse/partial", response_model=TransportPaymentReversalResponse)
+async def reverse_transport_payment_partial(
+    payment_id: int,
+    reversal_data: TransportPartialReversalRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Reverse specific month allocations of a transport payment
+
+    This will:
+    - Create a new reversal payment with negative amount for selected months
+    - Reverse only the specified month allocations
+    - Update monthly tracking records for affected months
+    - Allow multiple partial reversals on the same payment
+    """
+    try:
+        result = await transport_payment_crud.reverse_payment_partial(
+            db,
+            payment_id=payment_id,
+            allocation_ids=reversal_data.allocation_ids,
+            reason_id=reversal_data.reason_id,
+            details=reversal_data.details,
+            user_id=current_user.id
+        )
+
+        return TransportPaymentReversalResponse(**result)
+
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error reversing payment: {str(e)}"
         )
 

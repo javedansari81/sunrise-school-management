@@ -826,6 +826,7 @@ const TransportManagementSystem: React.FC = () => {
         student={selectedStudent}
         sessionYear={sessionYear}
         sessionYearId={sessionYearId}
+        onDataChange={loadStudents}
       />
     </Box>
   );

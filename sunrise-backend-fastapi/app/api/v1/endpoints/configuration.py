@@ -56,7 +56,7 @@ SERVICE_METADATA_MAPPINGS = {
     ],
     "transport-management": [
         "transport_types", "payment_statuses", "payment_methods",
-        "session_years", "classes"
+        "session_years", "classes", "reversal_reasons"
     ],
     "gallery-management": [
         "gallery_categories"
@@ -384,7 +384,7 @@ async def get_transport_management_configuration(
     Get configuration for Transport Management System
 
     Returns only metadata required for transport management:
-    - transport_types, payment_statuses, payment_methods, session_years, classes
+    - transport_types, payment_statuses, payment_methods, session_years, classes, reversal_reasons
     """
     return await _get_service_configuration_with_cache(
         db, "transport-management", request

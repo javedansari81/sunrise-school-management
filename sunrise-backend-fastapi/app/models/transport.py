@@ -140,11 +140,80 @@ class TransportPayment(Base):
     remarks = Column(Text, nullable=True)
     receipt_number = Column(String(50), nullable=True)
 
+    # Reversal Fields
+    is_reversal = Column(Boolean, default=False, nullable=False)
+    reverses_payment_id = Column(Integer, ForeignKey("transport_payments.id"), nullable=True)
+    reversed_by_payment_id = Column(Integer, ForeignKey("transport_payments.id"), nullable=True)
+    reversal_reason_id = Column(Integer, ForeignKey("reversal_reasons.id"), nullable=True)
+    reversal_type = Column(String(20), nullable=True)  # FULL or PARTIAL
+
     # Audit
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_by = Column(Integer, ForeignKey("users.id"), nullable=True)
 
     # Relationships
     enrollment = relationship("StudentTransportEnrollment", back_populates="payments")
     student = relationship("Student")
     payment_method = relationship("PaymentMethod")
+    allocations = relationship("TransportPaymentAllocation", back_populates="transport_payment", foreign_keys="[TransportPaymentAllocation.transport_payment_id]", cascade="all, delete-orphan")
+    creator = relationship("User", foreign_keys=[created_by])
+    reversal_reason = relationship("ReversalReason", foreign_keys=[reversal_reason_id])
+
+    # Self-referential relationships for reversals
+    reverses_payment = relationship(
+        "TransportPayment",
+        foreign_keys=[reverses_payment_id],
+        remote_side=[id],
+        backref="reversed_by_payments",
+        uselist=False
+    )
+
+    @property
+    def can_be_reversed(self) -> bool:
+        """Check if this payment can be reversed"""
+        return not self.is_reversal and self.reversed_by_payment_id is None
+
+    @property
+    def is_reversed(self) -> bool:
+        """Check if this payment has been reversed"""
+        return self.reversed_by_payment_id is not None
+
+
+class TransportPaymentAllocation(Base):
+    """Month-wise allocation of transport payments"""
+    __tablename__ = "transport_payment_allocations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    transport_payment_id = Column(Integer, ForeignKey("transport_payments.id"), nullable=False)
+    monthly_tracking_id = Column(Integer, ForeignKey("transport_monthly_tracking.id"), nullable=False)
+    allocated_amount = Column(DECIMAL(10, 2), nullable=False)
+
+    # Reversal Fields
+    is_reversal = Column(Boolean, default=False, nullable=False)
+    reverses_allocation_id = Column(Integer, ForeignKey("transport_payment_allocations.id"), nullable=True)
+
+    # Metadata
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+
+    # Relationships
+    transport_payment = relationship("TransportPayment", back_populates="allocations", foreign_keys=[transport_payment_id])
+    monthly_tracking = relationship("TransportMonthlyTracking")
+    creator = relationship("User", foreign_keys=[created_by])
+
+    # Self-referential relationship for reversals
+    reverses_allocation = relationship(
+        "TransportPaymentAllocation",
+        foreign_keys=[reverses_allocation_id],
+        remote_side=[id],
+        backref="reversed_by_allocations",
+        uselist=False
+    )
+
+    @property
+    def allocation_percentage(self) -> float:
+        """Calculate what percentage of payment this allocation represents"""
+        if self.transport_payment and self.transport_payment.amount > 0:
+            return float(self.allocated_amount) / float(self.transport_payment.amount) * 100
+        return 0.0
 

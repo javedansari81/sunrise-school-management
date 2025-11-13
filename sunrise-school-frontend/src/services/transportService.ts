@@ -232,6 +232,29 @@ const transportService = {
   getConfiguration: async (): Promise<any> => {
     const response = await api.get('/configuration/transport-management/');
     return response.data;
+  },
+
+  // Get payment history for a student
+  getPaymentHistory: async (studentId: number, sessionYearId: number): Promise<any[]> => {
+    const response = await api.get(`/transport/payments/history/${studentId}`, {
+      params: { session_year_id: sessionYearId }
+    });
+    return response.data;
+  },
+
+  // Reverse payment (full)
+  reversePaymentFull: async (paymentId: number, data: { reason_id: number; details?: string }): Promise<any> => {
+    const response = await api.post(`/transport/payments/${paymentId}/reverse/full`, data);
+    return response.data;
+  },
+
+  // Reverse payment (partial - specific months)
+  reversePaymentPartial: async (
+    paymentId: number,
+    data: { allocation_ids: number[]; reason_id: number; details?: string }
+  ): Promise<any> => {
+    const response = await api.post(`/transport/payments/${paymentId}/reverse/partial`, data);
+    return response.data;
   }
 };
 
