@@ -53,6 +53,8 @@ import {
   Assessment as AssessmentIcon,
   DirectionsBus,
   FilterList,
+  Undo as UndoIcon,
+  MoreVert as MoreVertIcon,
 } from '@mui/icons-material';
 import {
   SessionYearDropdown,
@@ -70,6 +72,9 @@ import {
   DEFAULT_SESSION_YEAR_ID,
   DEFAULT_SESSION_YEAR
 } from '../../utils/sessionYearUtils';
+import PaymentReversalDialog from './PaymentReversalDialog';
+import PartialReversalDialog from './PartialReversalDialog';
+import { Menu } from '@mui/material';
 
 // White header dialog styles (matching Transport Service design)
 const whiteDialogStyles = {
@@ -244,6 +249,13 @@ const FeeManagementComponent: React.FC = () => {
     message: '',
     severity: 'success' as 'success' | 'error' | 'warning' | 'info'
   });
+
+  // Reversal dialog states
+  const [reversalDialogOpen, setReversalDialogOpen] = useState(false);
+  const [partialReversalDialogOpen, setPartialReversalDialogOpen] = useState(false);
+  const [selectedPaymentForReversal, setSelectedPaymentForReversal] = useState<any>(null);
+  const [paymentAllocations, setPaymentAllocations] = useState<any[]>([]);
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
 
   // Auto-calculate payment amount when months are selected
   useEffect(() => {
@@ -702,6 +714,57 @@ const FeeManagementComponent: React.FC = () => {
         }));
       }
     }
+  };
+
+  // Handle opening reversal menu
+  const handleReversalMenuOpen = (event: React.MouseEvent<HTMLElement>, payment: any) => {
+    setAnchorEl(event.currentTarget);
+    setSelectedPaymentForReversal(payment);
+    // Get allocations for this payment if available
+    // Backend already filters out reversed allocations, so we can use them directly
+    if (payment.allocations && Array.isArray(payment.allocations)) {
+      setPaymentAllocations(payment.allocations);
+    }
+  };
+
+  const handleReversalMenuClose = () => {
+    setAnchorEl(null);
+  };
+
+  // Handle full reversal
+  const handleFullReversal = () => {
+    handleReversalMenuClose();
+    setReversalDialogOpen(true);
+  };
+
+  // Handle partial reversal
+  const handlePartialReversal = () => {
+    handleReversalMenuClose();
+    setPartialReversalDialogOpen(true);
+  };
+
+  // Handle reversal success
+  const handleReversalSuccess = (message: string) => {
+    setSnackbar({
+      open: true,
+      message,
+      severity: 'success'
+    });
+    // Refresh payment history
+    if (paymentHistory && paymentHistory.student_id) {
+      fetchPaymentHistory(paymentHistory.student_id);
+    }
+    // Refresh students summary
+    fetchStudentsSummary();
+  };
+
+  // Handle reversal error
+  const handleReversalError = (message: string) => {
+    setSnackbar({
+      open: true,
+      message,
+      severity: 'error'
+    });
   };
 
   // Enable monthly tracking for selected students
@@ -1855,6 +1918,8 @@ const FeeManagementComponent: React.FC = () => {
                         <TableCell align="right" sx={{ fontWeight: 'bold' }}>Amount</TableCell>
                         <TableCell sx={{ fontWeight: 'bold' }}>Method</TableCell>
                         <TableCell sx={{ fontWeight: 'bold' }}>Transaction ID</TableCell>
+                        <TableCell sx={{ fontWeight: 'bold' }}>Status</TableCell>
+                        <TableCell align="center" sx={{ fontWeight: 'bold' }}>Actions</TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
@@ -1873,7 +1938,7 @@ const FeeManagementComponent: React.FC = () => {
                         if (allPayments.length === 0) {
                           return (
                             <TableRow>
-                              <TableCell colSpan={4} align="center" sx={{ py: 4 }}>
+                              <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
                                 <Typography variant="body2" color="text.secondary">
                                   No payments recorded yet
                                 </Typography>
@@ -1891,17 +1956,36 @@ const FeeManagementComponent: React.FC = () => {
                           });
 
                           const transactionId = payment.transaction_id || 'N/A';
+                          const isReversal = payment.is_reversal || false;
+                          const isReversed = payment.is_reversed || payment.reversed_by_payment_id != null;
+                          const canBeReversed = payment.can_be_reversed !== false && !isReversal && !isReversed;
 
                           return (
-                            <TableRow key={index} hover>
+                            <TableRow
+                              key={index}
+                              hover
+                              sx={{
+                                opacity: isReversed || isReversal ? 0.6 : 1,
+                                textDecoration: isReversed ? 'line-through' : 'none'
+                              }}
+                            >
                               <TableCell>
-                                <Typography variant="body2" fontWeight="600">
+                                <Typography
+                                  variant="body2"
+                                  fontWeight="600"
+                                  sx={{ textDecoration: isReversed ? 'line-through' : 'none' }}
+                                >
                                   {formattedDate}
                                 </Typography>
                               </TableCell>
                               <TableCell align="right">
-                                <Typography variant="body2" fontWeight="bold" color="success.main">
-                                  ₹{payment.amount?.toLocaleString() || 0}
+                                <Typography
+                                  variant="body2"
+                                  fontWeight="bold"
+                                  color={isReversal ? 'error.main' : 'success.main'}
+                                  sx={{ textDecoration: isReversed ? 'line-through' : 'none' }}
+                                >
+                                  {isReversal && '- '}₹{Math.abs(payment.amount || 0).toLocaleString()}
                                 </Typography>
                               </TableCell>
                               <TableCell>
@@ -1913,9 +1997,62 @@ const FeeManagementComponent: React.FC = () => {
                                 />
                               </TableCell>
                               <TableCell>
-                                <Typography variant="body2" color="text.secondary" sx={{ fontFamily: 'monospace' }}>
+                                <Typography
+                                  variant="body2"
+                                  color="text.secondary"
+                                  sx={{
+                                    fontFamily: 'monospace',
+                                    textDecoration: isReversed ? 'line-through' : 'none'
+                                  }}
+                                >
                                   {transactionId}
                                 </Typography>
+                              </TableCell>
+                              <TableCell>
+                                {isReversal && (
+                                  <Chip
+                                    size="small"
+                                    label="REVERSAL"
+                                    color="error"
+                                    sx={{ fontWeight: 600 }}
+                                  />
+                                )}
+                                {isReversed && !isReversal && (
+                                  <Chip
+                                    size="small"
+                                    label="REVERSED"
+                                    color="warning"
+                                    sx={{ fontWeight: 600 }}
+                                  />
+                                )}
+                                {!isReversal && !isReversed && (
+                                  <Chip
+                                    size="small"
+                                    label="ACTIVE"
+                                    color="success"
+                                    variant="outlined"
+                                  />
+                                )}
+                              </TableCell>
+                              <TableCell align="center">
+                                {canBeReversed && (
+                                  <Tooltip title="Reverse Payment">
+                                    <IconButton
+                                      size="small"
+                                      onClick={(e) => handleReversalMenuOpen(e, payment)}
+                                      color="error"
+                                    >
+                                      <MoreVertIcon fontSize="small" />
+                                    </IconButton>
+                                  </Tooltip>
+                                )}
+                                {(isReversed || isReversal) && (
+                                  <Tooltip title={isReversal ? "This is a reversal payment" : "This payment has been reversed"}>
+                                    <IconButton size="small" disabled>
+                                      <UndoIcon fontSize="small" />
+                                    </IconButton>
+                                  </Tooltip>
+                                )}
                               </TableCell>
                             </TableRow>
                           );
@@ -2167,6 +2304,50 @@ const FeeManagementComponent: React.FC = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Reversal Action Menu */}
+      <Menu
+        anchorEl={anchorEl}
+        open={Boolean(anchorEl)}
+        onClose={handleReversalMenuClose}
+      >
+        <MenuItem onClick={handleFullReversal}>
+          <UndoIcon fontSize="small" sx={{ mr: 1 }} />
+          Full Reversal
+        </MenuItem>
+        {paymentAllocations.length > 1 && (
+          <MenuItem onClick={handlePartialReversal}>
+            <UndoIcon fontSize="small" sx={{ mr: 1 }} />
+            Partial Reversal (Select Months)
+          </MenuItem>
+        )}
+      </Menu>
+
+      {/* Full Payment Reversal Dialog */}
+      <PaymentReversalDialog
+        open={reversalDialogOpen}
+        onClose={() => {
+          setReversalDialogOpen(false);
+          setSelectedPaymentForReversal(null);
+        }}
+        payment={selectedPaymentForReversal}
+        onSuccess={handleReversalSuccess}
+        onError={handleReversalError}
+      />
+
+      {/* Partial Payment Reversal Dialog */}
+      <PartialReversalDialog
+        open={partialReversalDialogOpen}
+        onClose={() => {
+          setPartialReversalDialogOpen(false);
+          setSelectedPaymentForReversal(null);
+          setPaymentAllocations([]);
+        }}
+        payment={selectedPaymentForReversal}
+        allocations={paymentAllocations}
+        onSuccess={handleReversalSuccess}
+        onError={handleReversalError}
+      />
 
       {/* Snackbar for notifications */}
       <Snackbar

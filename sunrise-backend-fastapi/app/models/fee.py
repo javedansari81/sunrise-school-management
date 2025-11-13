@@ -1,4 +1,5 @@
 from sqlalchemy import Column, Integer, String, Date, ForeignKey, Text, DateTime, DECIMAL, Boolean
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import enum
@@ -160,18 +161,57 @@ class FeePayment(Base):
     # Additional Info
     remarks = Column(Text, nullable=True)
     receipt_number = Column(String(50), nullable=True)
-    
+
+    # Reversal Fields
+    is_reversal = Column(Boolean, default=False, nullable=False)
+    reverses_payment_id = Column(Integer, ForeignKey("fee_payments.id"), nullable=True)
+    reversed_by_payment_id = Column(Integer, ForeignKey("fee_payments.id"), nullable=True)
+    reversal_reason_id = Column(Integer, ForeignKey("reversal_reasons.id"), nullable=True)
+    reversal_type = Column(String(20), nullable=True)  # 'FULL' or 'PARTIAL'
+    created_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    
+
     # Relationships
     fee_record = relationship("FeeRecord", back_populates="payments")
     payment_method = relationship("PaymentMethod", back_populates="fee_payments")
+    reversal_reason_ref = relationship("ReversalReason", back_populates="fee_payments")
+    creator = relationship("User", foreign_keys=[created_by])
+
+    # Self-referential relationships for reversals
+    reverses_payment = relationship(
+        "FeePayment",
+        foreign_keys=[reverses_payment_id],
+        remote_side=[id],
+        backref="reversed_by_payments",
+        uselist=False
+    )
+    reversed_by_payment = relationship(
+        "FeePayment",
+        foreign_keys=[reversed_by_payment_id],
+        remote_side=[id],
+        backref="reverses_payments",
+        uselist=False
+    )
+
+    # Relationship to allocations
+    allocations = relationship("MonthlyPaymentAllocation", back_populates="fee_payment", foreign_keys="MonthlyPaymentAllocation.fee_payment_id")
 
     @property
     def payment_method_name(self) -> str:
         """Get payment method name from relationship"""
         return self.payment_method.name if self.payment_method else ""
+
+    @property
+    def is_reversed(self) -> bool:
+        """Check if this payment has been reversed"""
+        return self.reversed_by_payment_id is not None
+
+    @property
+    def can_be_reversed(self) -> bool:
+        """Check if this payment can be reversed"""
+        return not self.is_reversal and not self.is_reversed
 
 
 class MonthlyFeeTracking(Base):
@@ -226,9 +266,27 @@ class MonthlyPaymentAllocation(Base):
     monthly_tracking_id = Column(Integer, ForeignKey("monthly_fee_tracking.id"), nullable=False)
     allocated_amount = Column(DECIMAL(10, 2), nullable=False)
 
+    # Reversal Fields
+    is_reversal = Column(Boolean, default=False, nullable=False)
+    reverses_allocation_id = Column(Integer, ForeignKey("monthly_payment_allocations.id"), nullable=True)
+
     # Metadata
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     created_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+
+    # Relationships
+    fee_payment = relationship("FeePayment", back_populates="allocations", foreign_keys=[fee_payment_id])
+    monthly_tracking = relationship("MonthlyFeeTracking")
+    creator = relationship("User", foreign_keys=[created_by])
+
+    # Self-referential relationship for reversals
+    reverses_allocation = relationship(
+        "MonthlyPaymentAllocation",
+        foreign_keys=[reverses_allocation_id],
+        remote_side=[id],
+        backref="reversed_by_allocations",
+        uselist=False
+    )
 
     @property
     def allocation_percentage(self) -> float:
@@ -236,3 +294,38 @@ class MonthlyPaymentAllocation(Base):
         if self.fee_payment and self.fee_payment.amount > 0:
             return float(self.allocated_amount) / float(self.fee_payment.amount) * 100
         return 0.0
+
+    @property
+    def is_reversed(self) -> bool:
+        """Check if this allocation has been reversed"""
+        return any(alloc.reverses_allocation_id == self.id for alloc in self.reversed_by_allocations if hasattr(self, 'reversed_by_allocations'))
+
+
+class FeePaymentAuditLog(Base):
+    __tablename__ = "fee_payment_audit_log"
+
+    id = Column(Integer, primary_key=True, index=True)
+    payment_id = Column(Integer, ForeignKey("fee_payments.id"), nullable=False)
+    action = Column(String(50), nullable=False)
+    performed_by = Column(Integer, ForeignKey("users.id"), nullable=False)
+    performed_at = Column(DateTime(timezone=True), server_default=func.now())
+    reason = Column(Text, nullable=True)
+    old_values = Column(JSONB, nullable=True)  # JSONB for storing structured data
+    new_values = Column(JSONB, nullable=True)  # JSONB for storing structured data
+
+    # Relationships
+    payment = relationship("FeePayment")
+    user = relationship("User", foreign_keys=[performed_by])
+
+    @property
+    def action_description(self) -> str:
+        """Get human-readable action description"""
+        action_map = {
+            'CREATED': 'Payment Created',
+            'UPDATED': 'Payment Updated',
+            'DELETED': 'Payment Deleted',
+            'REVERSED_FULL': 'Payment Fully Reversed',
+            'REVERSED_PARTIAL': 'Payment Partially Reversed',
+            'REVERSAL_CREATED': 'Reversal Payment Created'
+        }
+        return action_map.get(self.action, self.action)

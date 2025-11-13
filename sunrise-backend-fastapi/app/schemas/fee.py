@@ -314,7 +314,55 @@ class FeePaymentInDBBase(FeePaymentBase):
 
 
 class FeePayment(FeePaymentInDBBase):
-    pass
+    # Reversal fields
+    is_reversal: bool = False
+    reverses_payment_id: Optional[int] = None
+    reversed_by_payment_id: Optional[int] = None
+    reversal_reason: Optional[str] = None
+    reversal_type: Optional[str] = None
+    created_by: Optional[int] = None
+
+    # Computed properties
+    is_reversed: bool = False
+    can_be_reversed: bool = True
+
+
+# Reversal Reason Enum (DEPRECATED - Use reversal_reason_id from configuration endpoint instead)
+class ReversalReasonEnum(str, Enum):
+    INCORRECT_AMOUNT = "Incorrect Amount Entered"
+    DUPLICATE_PAYMENT = "Duplicate Payment"
+    WRONG_STUDENT = "Wrong Student Account"
+    WRONG_PAYMENT_METHOD = "Wrong Payment Method"
+    PROCESSING_ERROR = "Payment Processing Error"
+    STUDENT_REQUEST = "Student Request/Refund"
+    ADMINISTRATIVE_CORRECTION = "Administrative Correction"
+    OTHER = "Other"
+
+
+# Payment Reversal Schemas
+class FeePaymentReversalRequest(BaseModel):
+    """Request schema for full payment reversal"""
+    reason_id: int = Field(..., description="Reversal reason ID from reversal_reasons table")
+    details: Optional[str] = Field(None, description="Additional details about the reversal")
+
+
+class FeePaymentPartialReversalRequest(BaseModel):
+    """Request schema for partial (month-specific) payment reversal"""
+    allocation_ids: List[int] = Field(..., min_items=1, description="List of monthly_payment_allocation IDs to reverse")
+    reason_id: int = Field(..., description="Reversal reason ID from reversal_reasons table")
+    details: Optional[str] = Field(None, description="Additional details about the reversal")
+
+
+class FeePaymentReversalResponse(BaseModel):
+    """Response schema for payment reversal operations"""
+    success: bool
+    message: str
+    original_payment_id: int
+    reversal_payment_id: int
+    reversal_amount: float
+    reversal_type: str  # 'FULL' or 'PARTIAL'
+    affected_months: List[dict]
+    fee_record_updated: dict
 
 
 # Filter and Response Schemas

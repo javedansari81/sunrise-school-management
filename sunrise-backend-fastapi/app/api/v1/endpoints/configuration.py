@@ -37,7 +37,7 @@ CACHE_TTL = 300
 SERVICE_METADATA_MAPPINGS = {
     "fee-management": [
         "payment_types", "payment_statuses", "payment_methods",
-        "session_years", "classes"
+        "session_years", "classes", "reversal_reasons"
     ],
     "student-management": [
         "genders", "classes", "session_years", "user_types"
@@ -127,6 +127,8 @@ async def get_service_metadata_configuration(db: AsyncSession, service_name: str
                 configuration[metadata_type] = [{"id": item.id, "name": item.name, "description": item.description, "is_active": item.is_active} for item in items]
             elif metadata_type == "transport_types":
                 configuration[metadata_type] = [{"id": item.id, "name": item.name, "description": item.description, "base_monthly_fee": float(item.base_monthly_fee), "capacity": item.capacity, "is_active": item.is_active} for item in items]
+            elif metadata_type == "reversal_reasons":
+                configuration[metadata_type] = [{"id": item.id, "name": item.name, "description": item.description, "is_active": item.is_active} for item in items]
             elif metadata_type == "gallery_categories":
                 configuration[metadata_type] = [{"id": item.id, "name": item.name, "description": item.description, "icon": item.icon, "display_order": item.display_order, "is_active": item.is_active} for item in items]
             elif metadata_type == "inventory_item_types":

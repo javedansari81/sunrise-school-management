@@ -11,7 +11,7 @@ from sqlalchemy.future import select
 from app.models.metadata import (
     UserType, SessionYear, Gender, Class, PaymentType, PaymentStatus, PaymentMethod,
     LeaveType, LeaveStatus, ExpenseCategory, ExpenseStatus, EmploymentStatus, Qualification,
-    Department, Position
+    Department, Position, ReversalReason
 )
 from app.models.transport import TransportType
 from app.models.gallery import GalleryCategory
@@ -106,6 +106,7 @@ department_crud = MetadataCRUD(Department)
 position_crud = MetadataCRUD(Position)
 transport_type_crud = MetadataCRUD(TransportType)
 gallery_category_crud = MetadataCRUD(GalleryCategory)
+reversal_reason_crud = MetadataCRUD(ReversalReason)
 
 
 def get_all_metadata(db: Session) -> Dict[str, List[Any]]:
@@ -306,6 +307,15 @@ async def get_all_metadata_async(db: AsyncSession) -> Dict[str, List[Any]]:
                NULL::BOOLEAN as requires_reference, is_active, created_at, updated_at
         FROM inventory_size_types WHERE is_active = true
 
+        UNION ALL
+
+        SELECT 'reversal_reasons' as table_name, id, name, description,
+               NULL::INTEGER as sort_order, NULL::DATE as start_date, NULL::DATE as end_date, NULL::BOOLEAN as is_current,
+               NULL::INTEGER as max_days_per_year, NULL::BOOLEAN as requires_medical_certificate, NULL::DECIMAL as budget_limit,
+               NULL::BOOLEAN as requires_approval, NULL::VARCHAR as color_code, NULL::BOOLEAN as is_final, NULL::INTEGER as level_order,
+               NULL::BOOLEAN as requires_reference, is_active, created_at, updated_at
+        FROM reversal_reasons WHERE is_active = true
+
         ORDER BY table_name, id
     """)
 
@@ -334,7 +344,8 @@ async def get_all_metadata_async(db: AsyncSession) -> Dict[str, List[Any]]:
         "transport_types": [],
         "gallery_categories": [],
         "inventory_item_types": [],
-        "inventory_size_types": []
+        "inventory_size_types": [],
+        "reversal_reasons": []
     }
 
     # Process results efficiently
@@ -446,6 +457,11 @@ async def get_all_metadata_async(db: AsyncSession) -> Dict[str, List[Any]]:
             obj = type('InventorySizeType', (), {
                 'id': row.id, 'name': row.name, 'description': row.description,
                 'sort_order': row.sort_order, 'is_active': row.is_active
+            })()
+        elif table_name == 'reversal_reasons':
+            obj = type('ReversalReason', (), {
+                'id': row.id, 'name': row.name, 'description': row.description,
+                'is_active': row.is_active
             })()
         else:
             continue

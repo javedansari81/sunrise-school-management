@@ -239,3 +239,17 @@ class Position(Base):
 
     # Relationships
     teachers = relationship("Teacher", back_populates="position")
+
+
+class ReversalReason(Base):
+    __tablename__ = "reversal_reasons"
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String(100), nullable=False, unique=True)
+    description = Column(String(255), nullable=False)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships
+    fee_payments = relationship("FeePayment", back_populates="reversal_reason_ref")

@@ -91,6 +91,13 @@ export const enhancedFeesAPI = {
   getFeeStructure: () =>
     api.get('/fees/structure'),
 
+  // Payment Reversal APIs
+  reversePaymentFull: (paymentId: number, data: { reason_id: number; details?: string }) =>
+    api.post(`/fees/payments/${paymentId}/reverse`, data),
+
+  reversePaymentPartial: (paymentId: number, data: { allocation_ids: number[]; reason_id: number; details?: string }) =>
+    api.post(`/fees/payments/${paymentId}/reverse-months`, data),
+
   // Admin Dashboard Statistics (moved to dashboard endpoints)
   getAdminDashboardStats: (sessionYearId?: number) =>
     api.get('/dashboard/admin-dashboard-stats', {

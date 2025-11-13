@@ -74,6 +74,8 @@ export interface GalleryCategory extends MetadataItem {
   display_order?: number;
 }
 
+export interface ReversalReason extends MetadataItem {}
+
 export interface Configuration {
   user_types?: UserType[];
   session_years?: SessionYear[];
@@ -82,6 +84,7 @@ export interface Configuration {
   payment_types?: PaymentType[];
   payment_statuses?: PaymentStatus[];
   payment_methods?: PaymentMethod[];
+  reversal_reasons?: ReversalReason[];
   leave_types?: LeaveType[];
   leave_statuses?: LeaveStatus[];
   expense_categories?: ExpenseCategory[];

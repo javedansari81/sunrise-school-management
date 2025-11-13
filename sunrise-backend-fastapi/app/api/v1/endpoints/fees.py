@@ -17,14 +17,15 @@ from app.schemas.fee import (
     FeeFilters, FeeListResponse, FeeDashboard, FeeCollectionReport,
     SessionYearEnum, PaymentStatusEnum, PaymentTypeEnum,
     EnhancedStudentFeeSummary, StudentMonthlyFeeHistory, EnhancedPaymentRequest,
-    EnableMonthlyTrackingRequest, MonthlyFeeTracking
+    EnableMonthlyTrackingRequest, MonthlyFeeTracking,
+    FeePaymentReversalRequest, FeePaymentPartialReversalRequest, FeePaymentReversalResponse
 )
 from app.api.deps import get_current_active_user
 from app.models.user import User
 from app.models.student import Student
 from app.models.teacher import Teacher
 from app.models.expense import Expense as ExpenseModel
-from app.models.fee import FeeRecord as FeeRecordModel, FeePayment as FeePaymentModel, MonthlyFeeTracking as MonthlyFeeTrackingModel
+from app.models.fee import FeeRecord as FeeRecordModel, FeePayment as FeePaymentModel, MonthlyFeeTracking as MonthlyFeeTrackingModel, MonthlyPaymentAllocation
 
 router = APIRouter()
 
@@ -349,6 +350,137 @@ async def process_fee_payment(
     )
 
     return payment
+
+
+# =====================================================
+# Payment Reversal Endpoints
+# =====================================================
+
+@router.post("/payments/{payment_id}/reverse", response_model=FeePaymentReversalResponse)
+async def reverse_payment_full(
+    payment_id: int,
+    reversal_request: FeePaymentReversalRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Reverse an entire payment with all its allocations
+
+    This endpoint allows admins to reverse a payment completely, undoing all
+    monthly allocations and updating fee records accordingly.
+
+    **Authorization:** Admin only (user_type_id = 1)
+
+    **Business Rules:**
+    - Cannot reverse a payment that is already reversed
+    - Cannot reverse a reversal payment itself
+    - Creates a new payment record with negative amount
+    - Updates all affected monthly tracking records
+    - Updates fee record totals and status
+    - Creates audit log entry
+
+    **Args:**
+    - payment_id: ID of the payment to reverse
+    - reversal_request: Contains reason and optional details
+
+    **Returns:**
+    - FeePaymentReversalResponse with reversal details
+    """
+    # Check admin authorization
+    if current_user.user_type_id != 1:  # 1 = Admin
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only administrators can reverse payments"
+        )
+
+    try:
+        result = await fee_payment_crud.reverse_payment_full(
+            db,
+            payment_id=payment_id,
+            reason_id=reversal_request.reason_id,
+            details=reversal_request.details,
+            user_id=current_user.id
+        )
+        return result
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error reversing payment: {str(e)}"
+        )
+
+
+@router.post("/payments/{payment_id}/reverse-months", response_model=FeePaymentReversalResponse)
+async def reverse_payment_partial(
+    payment_id: int,
+    reversal_request: FeePaymentPartialReversalRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Reverse specific month allocations of a payment (partial reversal)
+
+    This endpoint allows admins to reverse only specific months of a payment,
+    leaving other months intact. Useful when some months were correct but others weren't.
+
+    **Authorization:** Admin only (user_type_id = 1)
+
+    **Business Rules:**
+    - Cannot reverse all allocations (use full reversal instead)
+    - Cannot reverse allocations that are already reversed
+    - Cannot reverse a reversal payment itself
+    - Creates a new payment record with negative amount (sum of selected allocations)
+    - Updates only affected monthly tracking records
+    - Updates fee record totals and status
+    - Creates audit log entry
+
+    **Args:**
+    - payment_id: ID of the payment to partially reverse
+    - reversal_request: Contains allocation_ids, reason, and optional details
+
+    **Returns:**
+    - FeePaymentReversalResponse with reversal details
+    """
+    # Check admin authorization
+    if current_user.user_type_id != 1:  # 1 = Admin
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only administrators can reverse payments"
+        )
+
+    # Validate allocation_ids
+    if not reversal_request.allocation_ids:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="At least one allocation ID must be provided"
+        )
+
+    try:
+        result = await fee_payment_crud.reverse_payment_partial(
+            db,
+            payment_id=payment_id,
+            allocation_ids=reversal_request.allocation_ids,
+            reason_id=reversal_request.reason_id,
+            details=reversal_request.details,
+            user_id=current_user.id
+        )
+        return result
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error reversing payment: {str(e)}"
+        )
 
 
 @router.post("/student-submit/{student_id}")
@@ -954,13 +1086,27 @@ async def get_payment_history(
     individual_payments_total = 0  # Track sum of individual payment amounts
 
     for fee_record in fee_records:
-        # Get all payments for this fee record with payment method relationship
+        # Get all payments for this fee record with payment method and allocations relationships
         payments_query = select(FeePaymentModel).options(
-            selectinload(FeePaymentModel.payment_method)
+            selectinload(FeePaymentModel.payment_method),
+            selectinload(FeePaymentModel.allocations).selectinload(MonthlyPaymentAllocation.monthly_tracking)
         ).where(FeePaymentModel.fee_record_id == fee_record.id).order_by(FeePaymentModel.created_at.desc())
 
         payments_result = await db.execute(payments_query)
         payments = payments_result.scalars().all()
+
+        # Get all allocations for this fee record to check for reversals across all payments
+        all_allocations_query = select(MonthlyPaymentAllocation).join(
+            FeePaymentModel
+        ).where(FeePaymentModel.fee_record_id == fee_record.id)
+        all_allocations_result = await db.execute(all_allocations_query)
+        all_allocations = all_allocations_result.scalars().all()
+
+        # Build a set of allocation IDs that have been reversed
+        reversed_allocation_ids = set()
+        for alloc in all_allocations:
+            if alloc.is_reversal and alloc.reverses_allocation_id:
+                reversed_allocation_ids.add(alloc.reverses_allocation_id)
 
         record_info = {
             "fee_record_id": fee_record.id,
@@ -977,6 +1123,29 @@ async def get_payment_history(
 
         # Add individual payment details
         for payment in payments:
+            # Build allocations list for this payment
+            # Only include non-reversal allocations that haven't been reversed
+            allocations_list = []
+            if payment.allocations:
+                for alloc in payment.allocations:
+                    # Skip reversal allocations (negative amounts)
+                    if alloc.is_reversal:
+                        continue
+
+                    # Check if this allocation has been reversed
+                    # by checking if its ID is in the reversed_allocation_ids set
+                    if alloc.id in reversed_allocation_ids:
+                        continue
+
+                    # Include this allocation as it hasn't been reversed
+                    allocations_list.append({
+                        "id": alloc.id,
+                        "allocated_amount": float(alloc.allocated_amount),
+                        "month": alloc.monthly_tracking.academic_month if alloc.monthly_tracking else None,
+                        "month_name": alloc.monthly_tracking.month_name if alloc.monthly_tracking else None,
+                        "is_reversal": alloc.is_reversal
+                    })
+
             payment_detail = {
                 "payment_id": payment.id,
                 "amount": payment.amount,
@@ -985,7 +1154,12 @@ async def get_payment_history(
                 "transaction_id": payment.transaction_id,
                 "receipt_number": payment.receipt_number,
                 "remarks": payment.remarks,
-                "created_at": payment.created_at
+                "created_at": payment.created_at,
+                "is_reversal": payment.is_reversal,
+                "is_reversed": payment.is_reversed,
+                "can_be_reversed": payment.can_be_reversed,
+                "reversed_by_payment_id": payment.reversed_by_payment_id,
+                "allocations": allocations_list
             }
             record_info["payments"].append(payment_detail)
             individual_payments_total += float(payment.amount)  # Add to individual total
