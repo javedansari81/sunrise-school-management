@@ -18,7 +18,14 @@ from app.schemas.leave import (
 
 
 class CRUDLeaveRequest(CRUDBase[LeaveRequest, LeaveRequestCreate, LeaveRequestUpdate]):
-    """CRUD operations for Leave Requests with metadata-driven architecture"""
+    """
+    CRUD operations for Leave Requests with metadata-driven architecture
+
+    Status Management:
+    - Uses leave_status_id to track request state (1=Pending, 2=Approved, 3=Rejected, 4=Cancelled)
+    - All status changes go through update_status() method
+    - No soft delete columns - deletion marks status as CANCELLED
+    """
 
     async def create(self, db: AsyncSession, *, obj_in: dict) -> LeaveRequest:
         """Create a new leave request with automatic total days calculation"""
@@ -455,6 +462,52 @@ class CRUDLeaveRequest(CRUDBase[LeaveRequest, LeaveRequestCreate, LeaveRequestUp
 
         return leaves, total
 
+    async def update_status(
+        self,
+        db: AsyncSession,
+        *,
+        leave_request: LeaveRequest,
+        leave_status_id: int,
+        reviewer_id: Optional[int] = None,
+        review_comments: Optional[str] = None
+    ) -> LeaveRequest:
+        """
+        Update leave request status (approve, reject, or cancel)
+        - For approval/rejection: provide reviewer_id and optional review_comments
+        - For cancellation: only leave_status_id is required
+        """
+        leave_request.leave_status_id = leave_status_id
+        leave_request.updated_at = datetime.utcnow()
+
+        # Set approval metadata only if reviewer_id is provided (for approve/reject)
+        if reviewer_id:
+            leave_request.approved_by = reviewer_id
+            leave_request.approved_at = datetime.utcnow()
+            if review_comments:
+                leave_request.approval_comments = review_comments
+
+        db.add(leave_request)
+        await db.commit()
+        await db.refresh(leave_request)
+
+        return leave_request
+
+    async def remove(self, db: AsyncSession, *, id: int) -> LeaveRequest:
+        """
+        Override remove to update leave_status_id to CANCELLED (4) instead of soft delete.
+        This marks the leave request as cancelled rather than deleting it.
+        """
+        obj = await self.get(db, id=id)
+        if obj:
+            # Use update_status to mark as CANCELLED (ID = 4)
+            await self.update_status(
+                db,
+                leave_request=obj,
+                leave_status_id=4
+            )
+        return obj
+
+    # Backward compatibility: keep approve_request as alias
     async def approve_request(
         self,
         db: AsyncSession,
@@ -464,19 +517,17 @@ class CRUDLeaveRequest(CRUDBase[LeaveRequest, LeaveRequestCreate, LeaveRequestUp
         leave_status_id: int,
         review_comments: Optional[str] = None
     ) -> LeaveRequest:
-        """Approve or reject a leave request"""
-        leave_request.leave_status_id = leave_status_id
-        leave_request.approved_by = reviewer_id
-        leave_request.approved_at = datetime.utcnow()
-
-        if review_comments:
-            leave_request.approval_comments = review_comments
-
-        db.add(leave_request)
-        await db.commit()
-        await db.refresh(leave_request)
-
-        return leave_request
+        """
+        Approve or reject a leave request (backward compatibility wrapper)
+        Use update_status() for new code
+        """
+        return await self.update_status(
+            db,
+            leave_request=leave_request,
+            leave_status_id=leave_status_id,
+            reviewer_id=reviewer_id,
+            review_comments=review_comments
+        )
 
     async def get_leave_statistics(
         self, db: AsyncSession, *, year: Optional[int] = None

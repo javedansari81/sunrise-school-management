@@ -442,6 +442,7 @@ async def delete_leave_request(
 ):
     """
     Delete a leave request (only allowed for pending requests)
+    This marks the leave request as CANCELLED rather than permanently deleting it.
     Can be deleted by:
     - Admins (any leave request)
     - Class teachers (student leaves from their assigned class only)
@@ -472,7 +473,7 @@ async def delete_leave_request(
         )
 
     await leave_request_crud.remove(db, id=leave_id)
-    return {"message": "Leave request deleted successfully"}
+    return {"message": "Leave request cancelled successfully"}
 
 
 @router.patch("/{leave_id}/approve", response_model=LeaveRequest)
