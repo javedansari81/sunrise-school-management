@@ -30,6 +30,7 @@ import { useServiceConfiguration } from '../../contexts/ConfigurationContext';
 import { studentLeaveAPI } from '../../services/api';
 import { configurationService } from '../../services/configurationService';
 import { dialogStyles } from '../../styles/dialogTheme';
+import { formatDateForAPI } from '../../utils/dateUtils';
 
 interface StudentLeaveRequestDialogProps {
   open: boolean;
@@ -149,8 +150,8 @@ const StudentLeaveRequestDialog: React.FC<StudentLeaveRequestDialogProps> = ({
 
       const leaveData = {
         leave_type_id: parseInt(formData.leave_type_id),
-        start_date: formData.start_date?.toISOString().split('T')[0],
-        end_date: formData.end_date?.toISOString().split('T')[0],
+        start_date: formatDateForAPI(formData.start_date),
+        end_date: formatDateForAPI(formData.end_date),
         total_days: calculateTotalDays(),
         reason: formData.reason.trim(),
         parent_consent: formData.parent_consent,

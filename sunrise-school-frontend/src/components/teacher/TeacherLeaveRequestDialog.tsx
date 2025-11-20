@@ -35,6 +35,7 @@ import { useServiceConfiguration } from '../../contexts/ConfigurationContext';
 import { leaveAPI, teachersAPI } from '../../services/api';
 import { configurationService } from '../../services/configurationService';
 import { dialogStyles } from '../../styles/dialogTheme';
+import { formatDateForAPI } from '../../utils/dateUtils';
 
 interface TeacherLeaveRequestDialogProps {
   open: boolean;
@@ -189,8 +190,8 @@ const TeacherLeaveRequestDialog: React.FC<TeacherLeaveRequestDialogProps> = ({
 
       const leaveData = {
         leave_type_id: parseInt(formData.leave_type_id),
-        start_date: formData.start_date?.toISOString().split('T')[0],
-        end_date: formData.end_date?.toISOString().split('T')[0],
+        start_date: formatDateForAPI(formData.start_date),
+        end_date: formatDateForAPI(formData.end_date),
         total_days: calculateTotalDays(),
         reason: formData.reason.trim(),
         substitute_teacher_id: formData.substitute_teacher_id ? parseInt(formData.substitute_teacher_id) : null,
