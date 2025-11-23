@@ -1,4 +1,4 @@
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Union
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload, joinedload
@@ -83,6 +83,44 @@ class CRUDStudent(CRUDBase[Student, StudentCreate, StudentUpdate]):
             select(Student).where(Student.user_id == user_id)
         )
         return result.scalar_one_or_none()
+
+    async def update(
+        self,
+        db: AsyncSession,
+        *,
+        db_obj: Student,
+        obj_in: Union[StudentUpdate, Dict[str, Any]]
+    ) -> Student:
+        """
+        Override update method to cascade is_active status to user account.
+        When student.is_active changes, automatically update users.is_active.
+        """
+        # Check if is_active is being updated
+        if isinstance(obj_in, dict):
+            update_data = obj_in
+        else:
+            update_data = obj_in.dict(exclude_unset=True)
+
+        # If is_active is being changed, cascade to user account
+        if 'is_active' in update_data and db_obj.user_id:
+            new_is_active = update_data['is_active']
+
+            # Only update if the value is actually changing
+            if db_obj.is_active != new_is_active:
+                # Get the associated user
+                user_result = await db.execute(
+                    select(User).where(User.id == db_obj.user_id)
+                )
+                user = user_result.scalar_one_or_none()
+
+                if user:
+                    # Update user's is_active status to match student's is_active
+                    user.is_active = new_is_active
+                    db.add(user)
+                    # Note: We don't commit here, let the parent update method handle the commit
+
+        # Call parent update method to handle the actual student update
+        return await super().update(db, db_obj=db_obj, obj_in=obj_in)
 
     async def get_with_metadata(self, db: AsyncSession, id: int) -> Optional[Student]:
         """Get student with metadata relationships loaded"""
