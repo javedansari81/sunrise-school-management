@@ -14,6 +14,7 @@ import {
   ListItemText,
   ListItemIcon,
   Divider,
+  LinearProgress,
 } from '@mui/material';
 import {
   EventNote,
@@ -23,6 +24,10 @@ import {
   Pending,
   Person,
   AccountBalanceWallet,
+  School,
+  Badge,
+  CalendarToday,
+  DirectionsBus,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -40,13 +45,41 @@ interface LeaveRequest {
   created_at: string;
 }
 
-interface StudentProfile {
-  id: number;
-  first_name: string;
-  last_name: string;
-  roll_number: string;
-  class_name: string;
-  email: string;
+interface DashboardStats {
+  academic_info: {
+    admission_number: string;
+    first_name: string;
+    last_name: string;
+    class_name: string;
+    class_code: string;
+    section: string | null;
+    roll_number: string | null;
+    session_year: string;
+    gender: string;
+    date_of_birth: string;
+    admission_date: string;
+  };
+  leave_stats: {
+    total: number;
+    pending: number;
+    approved: number;
+    rejected: number;
+  };
+  fee_summary: {
+    has_fee_records: boolean;
+    total_fee: number;
+    total_paid: number;
+    remaining_balance: number;
+    last_payment_date: string | null;
+    payment_percentage: number;
+  };
+  transport_info: {
+    transport_type_name: string;
+    pickup_location: string;
+    drop_location: string;
+    monthly_fee: number;
+    distance_km: number;
+  } | null;
 }
 
 const StudentDashboardOverview: React.FC = () => {
@@ -55,18 +88,7 @@ const StudentDashboardOverview: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [recentLeaves, setRecentLeaves] = useState<LeaveRequest[]>([]);
-  const [studentProfile, setStudentProfile] = useState<StudentProfile | null>(null);
-  const [leaveStats, setLeaveStats] = useState({
-    total: 0,
-    pending: 0,
-    approved: 0,
-    rejected: 0,
-  });
-  const [feeStats, setFeeStats] = useState<{
-    totalPaid: number;
-    remainingBalance: number;
-    hasFeeRecords: boolean;
-  } | null>(null);
+  const [dashboardStats, setDashboardStats] = useState<DashboardStats | null>(null);
 
   useEffect(() => {
     loadDashboardData();
@@ -76,44 +98,17 @@ const StudentDashboardOverview: React.FC = () => {
     try {
       setLoading(true);
 
-      // Load student profile, recent leave requests, and fee data
-      const [profileResponse, leavesResponse, feeResponse] = await Promise.all([
-        studentsAPI.getMyProfile(),
-        studentLeaveAPI.getMyLeaveRequests(),
-        studentFeeAPI.getMyFees(4).catch(() => null) // Don't fail if fee data unavailable
+      // Load dashboard stats and recent leave requests
+      const [statsResponse, leavesResponse] = await Promise.all([
+        studentsAPI.getMyDashboardStats(),
+        studentLeaveAPI.getMyLeaveRequests()
       ]);
 
-      setStudentProfile(profileResponse.data);
+      setDashboardStats(statsResponse.data);
 
       // Process leave requests
       const leaves = Array.isArray(leavesResponse) ? leavesResponse : [];
       setRecentLeaves(leaves.slice(0, 5)); // Show only recent 5
-
-      // Calculate leave stats
-      const stats = leaves.reduce((acc, leave) => {
-        acc.total++;
-        if (leave.leave_status_id === 1) acc.pending++;
-        else if (leave.leave_status_id === 2) acc.approved++;
-        else if (leave.leave_status_id === 3) acc.rejected++;
-        return acc;
-      }, { total: 0, pending: 0, approved: 0, rejected: 0 });
-
-      setLeaveStats(stats);
-
-      // Process fee data
-      if (feeResponse && feeResponse.has_fee_records && feeResponse.monthly_history) {
-        setFeeStats({
-          totalPaid: feeResponse.monthly_history.total_paid || 0,
-          remainingBalance: feeResponse.monthly_history.total_balance || 0,
-          hasFeeRecords: true
-        });
-      } else {
-        setFeeStats({
-          totalPaid: 0,
-          remainingBalance: 0,
-          hasFeeRecords: false
-        });
-      }
 
       setError(null);
     } catch (err: any) {
@@ -151,24 +146,26 @@ const StudentDashboardOverview: React.FC = () => {
     clickable?: boolean;
     onClick?: () => void;
   }> => {
+    if (!dashboardStats) return [];
+
     const cards = [
       {
         title: 'Total Leave Requests',
-        value: leaveStats.total.toString(),
+        value: dashboardStats.leave_stats.total.toString(),
         icon: <EventNote fontSize="large" />,
         color: '#1976d2',
         subtitle: 'All time requests',
       },
       {
         title: 'Pending Approval',
-        value: leaveStats.pending.toString(),
+        value: dashboardStats.leave_stats.pending.toString(),
         icon: <Pending fontSize="large" />,
         color: '#f57c00',
         subtitle: 'Awaiting review',
       },
       {
         title: 'Approved Leaves',
-        value: leaveStats.approved.toString(),
+        value: dashboardStats.leave_stats.approved.toString(),
         icon: <CheckCircle fontSize="large" />,
         color: '#388e3c',
         subtitle: 'Successfully approved',
@@ -176,17 +173,23 @@ const StudentDashboardOverview: React.FC = () => {
     ];
 
     // Add fee card if fee data is available
-    if (feeStats?.hasFeeRecords) {
+    if (dashboardStats.fee_summary.has_fee_records) {
       cards.push({
         title: 'Fee Balance',
-        value: `₹${feeStats.remainingBalance.toFixed(0)}`,
+        value: `₹${dashboardStats.fee_summary.remaining_balance.toFixed(0)}`,
         icon: <AccountBalanceWallet fontSize="large" />,
         color: '#9c27b0',
-        subtitle: `Paid: ₹${feeStats.totalPaid.toFixed(0)}`,
+        subtitle: `Paid: ₹${dashboardStats.fee_summary.total_paid.toFixed(0)}`,
       });
     }
 
     return cards;
+  };
+
+  const getFeeProgressColor = (percentage: number) => {
+    if (percentage >= 75) return 'success';
+    if (percentage >= 25) return 'warning';
+    return 'error';
   };
 
   if (loading) {
@@ -205,6 +208,252 @@ const StudentDashboardOverview: React.FC = () => {
         </Alert>
       )}
 
+      {/* Welcome Message */}
+      {dashboardStats && (
+        <Box mb={3}>
+          <Typography variant="h5" fontWeight="bold" gutterBottom>
+            Welcome back, {dashboardStats.academic_info.first_name} {dashboardStats.academic_info.last_name}!
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Class {dashboardStats.academic_info.class_name}
+            {dashboardStats.academic_info.section && `-${dashboardStats.academic_info.section}`}
+            {dashboardStats.academic_info.roll_number && ` • Roll No: ${dashboardStats.academic_info.roll_number}`}
+          </Typography>
+        </Box>
+      )}
+
+      {/* Academic Information Section */}
+      {dashboardStats && (
+        <Paper sx={{ p: { xs: 2, md: 3 }, mb: 3 }}>
+          <Typography variant="h6" fontWeight="bold" mb={3}>
+            Academic Information
+          </Typography>
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: {
+                xs: '1fr',
+                sm: 'repeat(2, 1fr)',
+                md: 'repeat(3, 1fr)',
+              },
+              gap: 2,
+            }}
+          >
+            <Box display="flex" alignItems="center" gap={1}>
+              <Badge color="primary" />
+              <Box>
+                <Typography variant="caption" color="text.secondary">
+                  Admission Number
+                </Typography>
+                <Typography variant="body1" fontWeight="medium">
+                  {dashboardStats.academic_info.admission_number}
+                </Typography>
+              </Box>
+            </Box>
+            <Box display="flex" alignItems="center" gap={1}>
+              <School color="primary" />
+              <Box>
+                <Typography variant="caption" color="text.secondary">
+                  Class & Section
+                </Typography>
+                <Typography variant="body1" fontWeight="medium">
+                  {dashboardStats.academic_info.class_name}
+                  {dashboardStats.academic_info.section && `-${dashboardStats.academic_info.section}`}
+                </Typography>
+              </Box>
+            </Box>
+            {dashboardStats.academic_info.roll_number && (
+              <Box display="flex" alignItems="center" gap={1}>
+                <Person color="primary" />
+                <Box>
+                  <Typography variant="caption" color="text.secondary">
+                    Roll Number
+                  </Typography>
+                  <Typography variant="body1" fontWeight="medium">
+                    {dashboardStats.academic_info.roll_number}
+                  </Typography>
+                </Box>
+              </Box>
+            )}
+            <Box display="flex" alignItems="center" gap={1}>
+              <CalendarToday color="primary" />
+              <Box>
+                <Typography variant="caption" color="text.secondary">
+                  Session Year
+                </Typography>
+                <Typography variant="body1" fontWeight="medium">
+                  {dashboardStats.academic_info.session_year}
+                </Typography>
+              </Box>
+            </Box>
+            <Box display="flex" alignItems="center" gap={1}>
+              <CalendarToday color="primary" />
+              <Box>
+                <Typography variant="caption" color="text.secondary">
+                  Date of Birth
+                </Typography>
+                <Typography variant="body1" fontWeight="medium">
+                  {new Date(dashboardStats.academic_info.date_of_birth).toLocaleDateString()}
+                </Typography>
+              </Box>
+            </Box>
+            <Box display="flex" alignItems="center" gap={1}>
+              <CalendarToday color="primary" />
+              <Box>
+                <Typography variant="caption" color="text.secondary">
+                  Admission Date
+                </Typography>
+                <Typography variant="body1" fontWeight="medium">
+                  {new Date(dashboardStats.academic_info.admission_date).toLocaleDateString()}
+                </Typography>
+              </Box>
+            </Box>
+          </Box>
+        </Paper>
+      )}
+
+      {/* Fee Summary Section with Progress Bar */}
+      {dashboardStats && dashboardStats.fee_summary.has_fee_records && (
+        <Paper sx={{ p: { xs: 2, md: 3 }, mb: 3 }}>
+          <Typography variant="h6" fontWeight="bold" mb={3}>
+            Fee Summary
+          </Typography>
+          <Box>
+            <Box mb={3}>
+              <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
+                <Typography variant="body2" color="text.secondary">
+                  Payment Progress
+                </Typography>
+                <Typography variant="body2" fontWeight="bold" color="primary">
+                  {dashboardStats.fee_summary.payment_percentage.toFixed(1)}%
+                </Typography>
+              </Box>
+              <LinearProgress
+                variant="determinate"
+                value={Math.min(dashboardStats.fee_summary.payment_percentage, 100)}
+                color={getFeeProgressColor(dashboardStats.fee_summary.payment_percentage)}
+                sx={{ height: 10, borderRadius: 5 }}
+              />
+            </Box>
+            <Box
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: {
+                  xs: '1fr',
+                  sm: 'repeat(3, 1fr)',
+                },
+                gap: 3,
+                mb: 2,
+              }}
+            >
+              <Box>
+                <Typography variant="caption" color="text.secondary">
+                  Total Fee Amount
+                </Typography>
+                <Typography variant="h6" fontWeight="bold" color="primary">
+                  ₹{dashboardStats.fee_summary.total_fee.toFixed(2)}
+                </Typography>
+              </Box>
+              <Box>
+                <Typography variant="caption" color="text.secondary">
+                  Paid Amount
+                </Typography>
+                <Typography variant="h6" fontWeight="bold" color="success.main">
+                  ₹{dashboardStats.fee_summary.total_paid.toFixed(2)}
+                </Typography>
+              </Box>
+              <Box>
+                <Typography variant="caption" color="text.secondary">
+                  Remaining Balance
+                </Typography>
+                <Typography variant="h6" fontWeight="bold" color="error.main">
+                  ₹{dashboardStats.fee_summary.remaining_balance.toFixed(2)}
+                </Typography>
+              </Box>
+            </Box>
+            {dashboardStats.fee_summary.last_payment_date && (
+              <Box>
+                <Typography variant="caption" color="text.secondary">
+                  Last Payment: {new Date(dashboardStats.fee_summary.last_payment_date).toLocaleDateString()}
+                </Typography>
+              </Box>
+            )}
+          </Box>
+        </Paper>
+      )}
+
+      {/* Transport Information Section */}
+      {dashboardStats && dashboardStats.transport_info && (
+        <Paper sx={{ p: { xs: 2, md: 3 }, mb: 3 }}>
+          <Typography variant="h6" fontWeight="bold" mb={3}>
+            Transport Information
+          </Typography>
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: {
+                xs: '1fr',
+                sm: 'repeat(2, 1fr)',
+                md: 'repeat(3, 1fr)',
+              },
+              gap: 2,
+            }}
+          >
+            <Box display="flex" alignItems="center" gap={1}>
+              <DirectionsBus color="primary" />
+              <Box>
+                <Typography variant="caption" color="text.secondary">
+                  Transport Type
+                </Typography>
+                <Typography variant="body1" fontWeight="medium">
+                  {dashboardStats.transport_info.transport_type_name}
+                </Typography>
+              </Box>
+            </Box>
+            <Box display="flex" alignItems="center" gap={1}>
+              <DirectionsBus color="primary" />
+              <Box>
+                <Typography variant="caption" color="text.secondary">
+                  Distance
+                </Typography>
+                <Typography variant="body1" fontWeight="medium">
+                  {dashboardStats.transport_info.distance_km > 0
+                    ? `${dashboardStats.transport_info.distance_km} km`
+                    : 'N/A'}
+                </Typography>
+              </Box>
+            </Box>
+            <Box display="flex" alignItems="center" gap={1}>
+              <AccountBalanceWallet color="primary" />
+              <Box>
+                <Typography variant="caption" color="text.secondary">
+                  Monthly Fee
+                </Typography>
+                <Typography variant="body1" fontWeight="medium">
+                  ₹{dashboardStats.transport_info.monthly_fee.toFixed(2)}
+                </Typography>
+              </Box>
+            </Box>
+            <Box>
+              <Typography variant="caption" color="text.secondary">
+                Pickup Location
+              </Typography>
+              <Typography variant="body1" fontWeight="medium">
+                {dashboardStats.transport_info.pickup_location}
+              </Typography>
+            </Box>
+            <Box>
+              <Typography variant="caption" color="text.secondary">
+                Drop Location
+              </Typography>
+              <Typography variant="body1" fontWeight="medium">
+                {dashboardStats.transport_info.drop_location}
+              </Typography>
+            </Box>
+          </Box>
+        </Paper>
+      )}
+
       {/* Dashboard Cards */}
       <Box
         sx={{
@@ -212,9 +461,9 @@ const StudentDashboardOverview: React.FC = () => {
           gridTemplateColumns: {
             xs: '1fr',
             sm: 'repeat(2, 1fr)',
-            md: 'repeat(4, 1fr)',
+            lg: 'repeat(4, 1fr)',
           },
-          gap: 3,
+          gap: 2,
           mb: 4,
         }}
       >
@@ -222,43 +471,32 @@ const StudentDashboardOverview: React.FC = () => {
           <Card
             key={index}
             sx={{
-              height: '100%',
-              cursor: card.clickable ? 'pointer' : 'default',
-              '&:hover': card.clickable ? {
-                transform: 'translateY(-2px)',
-                boxShadow: 3,
-              } : {},
-              transition: 'all 0.2s ease-in-out',
+              background: `linear-gradient(135deg, ${card.color} 0%, ${card.color}dd 100%)`,
+              color: 'white',
+              transition: 'transform 0.2s, box-shadow 0.2s',
+              '&:hover': {
+                transform: 'translateY(-4px)',
+                boxShadow: 6,
+              },
             }}
             onClick={card.onClick}
           >
             <CardContent>
-              <Box display="flex" alignItems="center" mb={2}>
-                <Box
-                  sx={{
-                    backgroundColor: card.color,
-                    color: 'white',
-                    borderRadius: '50%',
-                    p: 1,
-                    mr: 2,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  {card.icon}
-                </Box>
+              <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={1}>
                 <Box>
-                  <Typography variant="h4" fontWeight="bold">
+                  <Typography variant="h4" fontWeight="bold" gutterBottom>
                     {card.value}
                   </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {card.subtitle}
+                  <Typography variant="body2" sx={{ opacity: 0.9 }}>
+                    {card.title}
                   </Typography>
                 </Box>
+                <Box sx={{ opacity: 0.8 }}>
+                  {card.icon}
+                </Box>
               </Box>
-              <Typography variant="body1" fontWeight="medium">
-                {card.title}
+              <Typography variant="caption" sx={{ opacity: 0.8 }}>
+                {card.subtitle}
               </Typography>
             </CardContent>
           </Card>
@@ -273,11 +511,11 @@ const StudentDashboardOverview: React.FC = () => {
             xs: '1fr',
             md: '2fr 1fr',
           },
-          gap: 3,
+          gap: 2,
         }}
       >
         <Box>
-          <Paper sx={{ p: 3 }}>
+          <Paper sx={{ p: { xs: 2, md: 3 } }}>
             <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
               <Typography variant="h6" fontWeight="bold">
                 Recent Leave Requests
@@ -336,7 +574,7 @@ const StudentDashboardOverview: React.FC = () => {
           </Paper>
         </Box>
 
-        <Paper sx={{ p: 3 }}>
+        <Paper sx={{ p: { xs: 2, md: 3 } }}>
           <Typography variant="h6" fontWeight="bold" mb={2}>
             Quick Actions
           </Typography>
@@ -349,7 +587,7 @@ const StudentDashboardOverview: React.FC = () => {
             >
               Manage Leave Requests
             </Button>
-            {feeStats?.hasFeeRecords && (
+            {dashboardStats?.fee_summary.has_fee_records && (
               <Button
                 variant="contained"
                 startIcon={<AccountBalanceWallet />}

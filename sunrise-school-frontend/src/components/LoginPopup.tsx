@@ -73,8 +73,10 @@ const LoginPopup: React.FC<LoginPopupProps> = ({ open, onClose }) => {
         navigate('/admin/dashboard');
       } else if (userType?.toUpperCase() === 'TEACHER') {
         navigate('/teacher/dashboard');
+      } else if (userType?.toUpperCase() === 'STUDENT') {
+        navigate('/student/dashboard');
       } else {
-        navigate('/'); // Students and other users go to home
+        navigate('/'); // Other users go to home
       }
     } catch (err: any) {
       setError(err.response?.data?.detail || err.message || 'Login failed. Please check your credentials.');

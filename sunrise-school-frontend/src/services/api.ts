@@ -158,6 +158,8 @@ export const studentsAPI = {
   deleteProfilePictureById: (studentId: number) => api.delete(`/students/${studentId}/delete-picture`),
   // Teacher update limited student fields
   teacherUpdateStudent: (studentId: number, updateData: any) => api.put(`/students/${studentId}/teacher-update`, updateData),
+  // Dashboard and statistics
+  getMyDashboardStats: () => api.get('/students/my-dashboard-stats'),
 };
 
 // Teachers API
@@ -189,6 +191,7 @@ export const teachersAPI = {
   deleteProfilePictureById: (teacherId: number) => api.delete(`/teachers/${teacherId}/delete-picture`),
   // Dashboard and statistics
   getDashboardStats: () => api.get('/teachers/dashboard/stats'),
+  getMyDashboardStats: () => api.get('/teachers/my-dashboard-stats'),
   // Search and filters
   searchTeachers: (searchTerm: string, limit: number = 20) =>
     api.get(`/teachers/search?q=${encodeURIComponent(searchTerm)}&limit=${limit}`),

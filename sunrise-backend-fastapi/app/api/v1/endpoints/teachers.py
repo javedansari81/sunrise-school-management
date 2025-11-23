@@ -1,9 +1,10 @@
 from typing import Optional, List, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, Query, status, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import text
 import math
 import json
-from datetime import datetime
+from datetime import datetime, date
 
 from app.core.database import get_db
 from app.crud import teacher_crud
@@ -185,6 +186,149 @@ async def get_my_profile(
         teacher_with_metadata['subjects_list'] = []
 
     return teacher_with_metadata
+
+
+@router.get("/my-dashboard-stats")
+async def get_my_dashboard_stats(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Get current teacher's dashboard statistics including leave stats and professional info
+    """
+    # Verify user is a teacher
+    if current_user.user_type_enum != UserTypeEnum.TEACHER:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only teachers can access this endpoint"
+        )
+
+    # Find teacher record linked to this user
+    teacher = await teacher_crud.get_by_user_id(db, user_id=current_user.id)
+    if not teacher:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Teacher profile not found for this user"
+        )
+
+    # Get teacher with metadata
+    teacher_query = text("""
+        SELECT
+            t.*,
+            d.description as department_name,
+            p.description as position_name,
+            q.description as qualification_name,
+            es.description as employment_status_name,
+            c.description as class_teacher_of_name
+        FROM sunrise.teachers t
+        LEFT JOIN sunrise.departments d ON t.department_id = d.id
+        LEFT JOIN sunrise.positions p ON t.position_id = p.id
+        LEFT JOIN sunrise.qualifications q ON t.qualification_id = q.id
+        LEFT JOIN sunrise.employment_statuses es ON t.employment_status_id = es.id
+        LEFT JOIN sunrise.classes c ON t.class_teacher_of_id = c.id
+        WHERE t.id = :teacher_id
+    """)
+
+    result = await db.execute(teacher_query, {"teacher_id": teacher.id})
+    teacher_data = result.fetchone()
+
+    if not teacher_data:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Teacher data not found"
+        )
+
+    # Calculate tenure
+    joining_date = teacher_data.joining_date
+    if joining_date:
+        today = date.today()
+        years = today.year - joining_date.year
+        months = today.month - joining_date.month
+        if months < 0:
+            years -= 1
+            months += 12
+
+        if years > 0:
+            tenure_text = f"{years} year{'s' if years > 1 else ''}"
+            if months > 0:
+                tenure_text += f", {months} month{'s' if months > 1 else ''}"
+        elif months > 0:
+            tenure_text = f"{months} month{'s' if months > 1 else ''}"
+        else:
+            tenure_text = "Less than a month"
+    else:
+        tenure_text = "N/A"
+
+    # Get leave statistics for this teacher
+    leave_stats_query = text("""
+        SELECT
+            COUNT(*) as total,
+            COUNT(CASE WHEN leave_status_id = 1 THEN 1 END) as pending,
+            COUNT(CASE WHEN leave_status_id = 2 THEN 1 END) as approved,
+            COUNT(CASE WHEN leave_status_id = 3 THEN 1 END) as rejected
+        FROM sunrise.leave_requests
+        WHERE applicant_type = 'teacher' AND applicant_id = :teacher_id
+    """)
+
+    leave_result = await db.execute(leave_stats_query, {"teacher_id": teacher.id})
+    leave_stats = leave_result.fetchone()
+
+    # Get upcoming approved leaves
+    upcoming_leaves_query = text("""
+        SELECT
+            lr.id,
+            lr.start_date,
+            lr.end_date,
+            lr.total_days,
+            lr.reason,
+            lt.description as leave_type_name
+        FROM sunrise.leave_requests lr
+        LEFT JOIN sunrise.leave_types lt ON lr.leave_type_id = lt.id
+        WHERE lr.applicant_type = 'teacher'
+        AND lr.applicant_id = :teacher_id
+        AND lr.leave_status_id = 2
+        AND lr.end_date >= CURRENT_DATE
+        ORDER BY lr.start_date ASC
+        LIMIT 5
+    """)
+
+    upcoming_result = await db.execute(upcoming_leaves_query, {"teacher_id": teacher.id})
+    upcoming_leaves = [
+        {
+            "id": row.id,
+            "start_date": row.start_date.isoformat() if row.start_date else None,
+            "end_date": row.end_date.isoformat() if row.end_date else None,
+            "total_days": row.total_days,
+            "reason": row.reason,
+            "leave_type_name": row.leave_type_name
+        }
+        for row in upcoming_result
+    ]
+
+    return {
+        "professional_info": {
+            "employee_id": teacher_data.employee_id,
+            "first_name": teacher_data.first_name,
+            "last_name": teacher_data.last_name,
+            "department": teacher_data.department_name,
+            "position": teacher_data.position_name,
+            "qualification": teacher_data.qualification_name,
+            "employment_status": teacher_data.employment_status_name,
+            "joining_date": teacher_data.joining_date.isoformat() if teacher_data.joining_date else None,
+            "tenure": tenure_text,
+            "experience_years": teacher_data.experience_years,
+            "class_teacher_of": teacher_data.class_teacher_of_name,
+            "email": teacher_data.email,
+            "phone": teacher_data.phone
+        },
+        "leave_stats": {
+            "total": leave_stats.total if leave_stats else 0,
+            "pending": leave_stats.pending if leave_stats else 0,
+            "approved": leave_stats.approved if leave_stats else 0,
+            "rejected": leave_stats.rejected if leave_stats else 0
+        },
+        "upcoming_leaves": upcoming_leaves
+    }
 
 
 @router.get("/{teacher_id}", response_model=Dict[str, Any])

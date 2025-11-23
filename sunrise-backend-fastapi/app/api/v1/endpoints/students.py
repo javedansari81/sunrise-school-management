@@ -1,6 +1,7 @@
 from typing import Optional, List, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, Query, status, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import text
 import math
 
 from app.core.database import get_db
@@ -223,6 +224,166 @@ async def update_my_profile(
     # Return updated student with metadata
     student_with_metadata = await student_crud.get_with_metadata(db, id=updated_student.id)
     return Student.from_orm_with_metadata(student_with_metadata)
+
+
+@router.get("/my-dashboard-stats")
+async def get_my_dashboard_stats(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Get current student's dashboard statistics including academic info, fee summary, and leave stats
+    """
+    # Verify user is a student
+    if current_user.user_type_enum != UserTypeEnum.STUDENT:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only students can access this endpoint"
+        )
+
+    # Find student record linked to this user
+    student = await student_crud.get_by_user_id(db, user_id=current_user.id)
+    if not student:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Student profile not found for this user"
+        )
+
+    # Get student with metadata
+    student_query = text("""
+        SELECT
+            s.*,
+            c.description as class_name,
+            c.name as class_code,
+            g.description as gender_name,
+            sy.name as session_year_name
+        FROM sunrise.students s
+        LEFT JOIN sunrise.classes c ON s.class_id = c.id
+        LEFT JOIN sunrise.genders g ON s.gender_id = g.id
+        LEFT JOIN sunrise.session_years sy ON s.session_year_id = sy.id
+        WHERE s.id = :student_id
+    """)
+
+    result = await db.execute(student_query, {"student_id": student.id})
+    student_data = result.fetchone()
+
+    if not student_data:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Student data not found"
+        )
+
+    # Get leave statistics for this student
+    leave_stats_query = text("""
+        SELECT
+            COUNT(*) as total,
+            COUNT(CASE WHEN leave_status_id = 1 THEN 1 END) as pending,
+            COUNT(CASE WHEN leave_status_id = 2 THEN 1 END) as approved,
+            COUNT(CASE WHEN leave_status_id = 3 THEN 1 END) as rejected
+        FROM sunrise.leave_requests
+        WHERE applicant_type = 'student' AND applicant_id = :student_id
+    """)
+
+    leave_result = await db.execute(leave_stats_query, {"student_id": student.id})
+    leave_stats = leave_result.fetchone()
+
+    # Get fee summary for this student
+    fee_summary_query = text("""
+        SELECT
+            fr.id,
+            fr.total_amount,
+            fr.balance_amount,
+            COALESCE(SUM(fp.amount), 0) as total_paid,
+            MAX(fp.payment_date) as last_payment_date
+        FROM sunrise.fee_records fr
+        LEFT JOIN sunrise.fee_payments fp ON fr.id = fp.fee_record_id
+        WHERE fr.student_id = :student_id
+        AND fr.session_year_id = :session_year_id
+        GROUP BY fr.id, fr.total_amount, fr.balance_amount
+    """)
+
+    fee_result = await db.execute(fee_summary_query, {
+        "student_id": student.id,
+        "session_year_id": student_data.session_year_id
+    })
+    fee_data = fee_result.fetchone()
+
+    # Calculate fee information
+    has_fee_records = fee_data is not None
+    if has_fee_records:
+        total_fee = float(fee_data.total_amount) if fee_data.total_amount else 0.0
+        total_paid = float(fee_data.total_paid) if fee_data.total_paid else 0.0
+        remaining_balance = float(fee_data.balance_amount) if fee_data.balance_amount else 0.0
+        last_payment_date = fee_data.last_payment_date.isoformat() if fee_data.last_payment_date else None
+        payment_percentage = (total_paid / total_fee * 100) if total_fee > 0 else 0.0
+    else:
+        total_fee = 0.0
+        total_paid = 0.0
+        remaining_balance = 0.0
+        last_payment_date = None
+        payment_percentage = 0.0
+
+    # Get transport information if enrolled
+    transport_query = text("""
+        SELECT
+            ste.id,
+            ste.transport_type_id,
+            tt.description as transport_type_name,
+            ste.pickup_location,
+            ste.drop_location,
+            ste.monthly_fee,
+            ste.distance_km
+        FROM sunrise.student_transport_enrollment ste
+        LEFT JOIN sunrise.transport_types tt ON ste.transport_type_id = tt.id
+        WHERE ste.student_id = :student_id
+        AND ste.is_active = TRUE
+        AND ste.discontinue_date IS NULL
+        LIMIT 1
+    """)
+
+    transport_result = await db.execute(transport_query, {"student_id": student.id})
+    transport_data = transport_result.fetchone()
+
+    transport_info = None
+    if transport_data:
+        transport_info = {
+            "transport_type_name": transport_data.transport_type_name or "N/A",
+            "pickup_location": transport_data.pickup_location or "N/A",
+            "drop_location": transport_data.drop_location or "N/A",
+            "monthly_fee": float(transport_data.monthly_fee) if transport_data.monthly_fee else 0.0,
+            "distance_km": float(transport_data.distance_km) if transport_data.distance_km else 0.0
+        }
+
+    return {
+        "academic_info": {
+            "admission_number": student_data.admission_number,
+            "first_name": student_data.first_name,
+            "last_name": student_data.last_name,
+            "class_name": student_data.class_name,
+            "class_code": student_data.class_code,
+            "section": student_data.section,
+            "roll_number": student_data.roll_number,
+            "session_year": student_data.session_year_name,
+            "gender": student_data.gender_name,
+            "date_of_birth": student_data.date_of_birth.isoformat() if student_data.date_of_birth else None,
+            "admission_date": student_data.admission_date.isoformat() if student_data.admission_date else None
+        },
+        "leave_stats": {
+            "total": leave_stats.total if leave_stats else 0,
+            "pending": leave_stats.pending if leave_stats else 0,
+            "approved": leave_stats.approved if leave_stats else 0,
+            "rejected": leave_stats.rejected if leave_stats else 0
+        },
+        "fee_summary": {
+            "has_fee_records": has_fee_records,
+            "total_fee": total_fee,
+            "total_paid": total_paid,
+            "remaining_balance": remaining_balance,
+            "last_payment_date": last_payment_date,
+            "payment_percentage": round(payment_percentage, 2)
+        },
+        "transport_info": transport_info
+    }
 
 
 @router.put("/{student_id}/teacher-update", response_model=Student)
