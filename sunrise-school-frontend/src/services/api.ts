@@ -58,6 +58,19 @@ export const authAPI = {
     api.get('/auth/profile'),
   updateProfile: (profileData: any) =>
     api.put('/auth/profile/update', profileData),
+  // Password management
+  changePassword: (currentPassword: string, newPassword: string) =>
+    api.put('/users/me/change-password', {
+      current_password: currentPassword,
+      new_password: newPassword
+    }),
+};
+
+// Admin API
+export const adminAPI = {
+  // User management
+  resetUserPassword: (userId: number) =>
+    api.put(`/users/${userId}/reset-password`, { reset_to_default: true }),
 };
 
 // Enhanced Fee Management APIs

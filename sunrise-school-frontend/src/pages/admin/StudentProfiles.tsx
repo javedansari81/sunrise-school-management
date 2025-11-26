@@ -55,11 +55,13 @@ import {
   LocationOn,
   Search,
   FilterList,
+  VpnKey as KeyIcon,
 } from '@mui/icons-material';
 import AdminLayout from '../../components/Layout/AdminLayout';
 import { studentsAPI, studentSiblingsAPI } from '../../services/api';
 import { useErrorDialog } from '../../hooks/useErrorDialog';
 import ErrorDialog from '../../components/common/ErrorDialog';
+import ResetPasswordDialog from '../../components/admin/ResetPasswordDialog';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -84,6 +86,7 @@ function TabPanel(props: TabPanelProps) {
 
 interface Student {
   id: number;
+  user_id?: number;
   admission_number: string;
   first_name: string;
   last_name: string;
@@ -155,6 +158,10 @@ const StudentProfilesContent: React.FC = () => {
   const [detectedSiblingsDialogOpen, setDetectedSiblingsDialogOpen] = useState(false);
   const [detectedSiblingsInfo, setDetectedSiblingsInfo] = useState<any>(null);
   const [createdStudentName, setCreatedStudentName] = useState('');
+
+  // Password reset state
+  const [resetPasswordDialogOpen, setResetPasswordDialogOpen] = useState(false);
+  const [selectedUserForReset, setSelectedUserForReset] = useState<any>(null);
   const [siblingWaiverInfo, setSiblingWaiverInfo] = useState<any>(null);
   const [studentForm, setStudentForm] = useState({
     admission_number: '',
@@ -531,6 +538,37 @@ const StudentProfilesContent: React.FC = () => {
     }
   };
 
+  const handleResetPassword = (student: Student) => {
+    // Check if student has a user account
+    if (!student.user_id) {
+      setSnackbar({
+        open: true,
+        message: 'This student does not have a user account. Cannot reset password.',
+        severity: 'error'
+      });
+      return;
+    }
+
+    // Prepare user data for reset dialog
+    const userData = {
+      id: student.user_id,
+      email: student.email,
+      first_name: student.first_name,
+      last_name: student.last_name,
+      user_type: 'STUDENT'
+    };
+    setSelectedUserForReset(userData);
+    setResetPasswordDialogOpen(true);
+  };
+
+  const handlePasswordResetSuccess = () => {
+    setSnackbar({
+      open: true,
+      message: 'Password reset successfully',
+      severity: 'success'
+    });
+  };
+
   // Hardcoded sections and blood groups (these are not in metadata yet)
   const sections = ['A', 'B', 'C', 'D'];
   const bloodGroups = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
@@ -783,6 +821,15 @@ const StudentProfilesContent: React.FC = () => {
                           <IconButton size="small" onClick={() => handleOpenDialog('edit', student)}>
                             <Edit />
                           </IconButton>
+                          <IconButton
+                            size="small"
+                            color="primary"
+                            onClick={() => handleResetPassword(student)}
+                            disabled={!student.user_id}
+                            title={!student.user_id ? 'No user account' : 'Reset password'}
+                          >
+                            <KeyIcon />
+                          </IconButton>
                           <IconButton size="small" color="error" onClick={() => handleDelete(student.id)}>
                             <Delete />
                           </IconButton>
@@ -867,6 +914,15 @@ const StudentProfilesContent: React.FC = () => {
                         <IconButton size="small" onClick={() => handleOpenDialog('edit', student)}>
                           <Edit />
                         </IconButton>
+                        <IconButton
+                          size="small"
+                          color="primary"
+                          onClick={() => handleResetPassword(student)}
+                          disabled={!student.user_id}
+                          title={!student.user_id ? 'No user account' : 'Reset password'}
+                        >
+                          <KeyIcon />
+                        </IconButton>
                         <IconButton size="small" color="error" onClick={() => handleDelete(student.id)}>
                           <Delete />
                         </IconButton>
@@ -949,6 +1005,15 @@ const StudentProfilesContent: React.FC = () => {
                         </IconButton>
                         <IconButton size="small" onClick={() => handleOpenDialog('edit', student)}>
                           <Edit />
+                        </IconButton>
+                        <IconButton
+                          size="small"
+                          color="primary"
+                          onClick={() => handleResetPassword(student)}
+                          disabled={!student.user_id}
+                          title={!student.user_id ? 'No user account' : 'Reset password'}
+                        >
+                          <KeyIcon />
                         </IconButton>
                         <IconButton size="small" color="error" onClick={() => handleDelete(student.id)}>
                           <Delete />
@@ -1413,6 +1478,17 @@ const StudentProfilesContent: React.FC = () => {
           }}
           detectedSiblingsInfo={detectedSiblingsInfo}
           studentName={createdStudentName}
+        />
+
+        {/* Reset Password Dialog */}
+        <ResetPasswordDialog
+          open={resetPasswordDialogOpen}
+          onClose={() => {
+            setResetPasswordDialogOpen(false);
+            setSelectedUserForReset(null);
+          }}
+          user={selectedUserForReset}
+          onSuccess={handlePasswordResetSuccess}
         />
 
         {/* Snackbar for notifications */}

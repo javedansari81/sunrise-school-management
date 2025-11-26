@@ -39,7 +39,8 @@ import {
   Search as SearchIcon,
   Phone as PhoneIcon,
   Email as EmailIcon,
-  FilterList
+  FilterList,
+  VpnKey as KeyIcon,
 } from '@mui/icons-material';
 
 import { useAuth } from '../../contexts/AuthContext';
@@ -48,6 +49,7 @@ import { teachersAPI } from '../../services/api';
 import { useErrorDialog } from '../../hooks/useErrorDialog';
 import ErrorDialog from '../common/ErrorDialog';
 import CollapsibleFilterSection from '../common/CollapsibleFilterSection';
+import ResetPasswordDialog from './ResetPasswordDialog';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -193,6 +195,10 @@ const TeacherProfilesSystem: React.FC = () => {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedTeacher, setSelectedTeacher] = useState<Teacher | null>(null);
   const [editFormData, setEditFormData] = useState<Record<string, any>>({});
+
+  // Password reset state
+  const [resetPasswordDialogOpen, setResetPasswordDialogOpen] = useState(false);
+  const [selectedUserForReset, setSelectedUserForReset] = useState<any>(null);
 
   // Form state for new teacher
   const [formData, setFormData] = useState<TeacherFormData>({
@@ -535,6 +541,38 @@ const TeacherProfilesSystem: React.FC = () => {
     } finally {
       setDialogLoading(false);
     }
+  };
+
+  // Handle reset password
+  const handleResetPassword = (teacher: Teacher) => {
+    // Check if teacher has a user account
+    if (!teacher.user_id) {
+      setSnackbar({
+        open: true,
+        message: 'This teacher does not have a user account. Cannot reset password.',
+        severity: 'error'
+      });
+      return;
+    }
+
+    // Prepare user data for reset dialog
+    const userData = {
+      id: teacher.user_id,
+      email: teacher.email,
+      first_name: teacher.first_name,
+      last_name: teacher.last_name,
+      user_type: 'TEACHER'
+    };
+    setSelectedUserForReset(userData);
+    setResetPasswordDialogOpen(true);
+  };
+
+  const handlePasswordResetSuccess = () => {
+    setSnackbar({
+      open: true,
+      message: 'Password reset successfully',
+      severity: 'success'
+    });
   };
 
   // Handle delete teacher (soft delete)
@@ -952,6 +990,18 @@ const TeacherProfilesSystem: React.FC = () => {
                               <EditIcon fontSize="small" />
                             </IconButton>
                           </Tooltip>
+                          <Tooltip title={!teacher.user_id ? "No user account" : "Reset Password"}>
+                            <span>
+                              <IconButton
+                                size="small"
+                                color="primary"
+                                onClick={() => handleResetPassword(teacher)}
+                                disabled={!teacher.user_id}
+                              >
+                                <KeyIcon fontSize="small" />
+                              </IconButton>
+                            </span>
+                          </Tooltip>
                           <Tooltip title="Delete Teacher">
                             <IconButton size="small" color="error" onClick={() => handleDeleteTeacher(teacher)}>
                               <DeleteIcon fontSize="small" />
@@ -1064,6 +1114,18 @@ const TeacherProfilesSystem: React.FC = () => {
                                 <EditIcon fontSize="small" />
                               </IconButton>
                             </Tooltip>
+                            <Tooltip title={!teacher.user_id ? "No user account" : "Reset Password"}>
+                              <span>
+                                <IconButton
+                                  size="small"
+                                  color="primary"
+                                  onClick={() => handleResetPassword(teacher)}
+                                  disabled={!teacher.user_id}
+                                >
+                                  <KeyIcon fontSize="small" />
+                                </IconButton>
+                              </span>
+                            </Tooltip>
                             <Tooltip title="Delete Teacher">
                               <IconButton size="small" color="error" onClick={() => handleDeleteTeacher(teacher)}>
                                 <DeleteIcon fontSize="small" />
@@ -1172,6 +1234,18 @@ const TeacherProfilesSystem: React.FC = () => {
                               <IconButton size="small" color="primary" onClick={() => handleEditTeacher(teacher)}>
                                 <EditIcon fontSize="small" />
                               </IconButton>
+                            </Tooltip>
+                            <Tooltip title={!teacher.user_id ? "No user account" : "Reset Password"}>
+                              <span>
+                                <IconButton
+                                  size="small"
+                                  color="primary"
+                                  onClick={() => handleResetPassword(teacher)}
+                                  disabled={!teacher.user_id}
+                                >
+                                  <KeyIcon fontSize="small" />
+                                </IconButton>
+                              </span>
                             </Tooltip>
                             <Tooltip title="Delete Teacher">
                               <IconButton size="small" color="error" onClick={() => handleDeleteTeacher(teacher)}>
@@ -1944,6 +2018,17 @@ const TeacherProfilesSystem: React.FC = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Reset Password Dialog */}
+      <ResetPasswordDialog
+        open={resetPasswordDialogOpen}
+        onClose={() => {
+          setResetPasswordDialogOpen(false);
+          setSelectedUserForReset(null);
+        }}
+        user={selectedUserForReset}
+        onSuccess={handlePasswordResetSuccess}
+      />
 
       {/* Snackbar for notifications */}
       <Snackbar

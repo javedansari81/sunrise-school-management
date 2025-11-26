@@ -27,12 +27,14 @@ import {
   CalendarToday as CalendarIcon,
   Badge as BadgeIcon,
   CameraAlt as CameraIcon,
-  Delete as DeleteIcon
+  Delete as DeleteIcon,
+  Lock as LockIcon
 } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import { authAPI, studentsAPI, teachersAPI } from '../services/api';
 import { ProfileData } from '../types/profile';
 import ProfileEditDialog from '../components/profile/ProfileEditDialog';
+import ChangePasswordDialog from '../components/profile/ChangePasswordDialog';
 
 const Profile: React.FC = () => {
   const { user, refreshUser } = useAuth();
@@ -40,6 +42,7 @@ const Profile: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [changePasswordDialogOpen, setChangePasswordDialogOpen] = useState(false);
   const [uploadingPicture, setUploadingPicture] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
@@ -1107,7 +1110,7 @@ const Profile: React.FC = () => {
         </Paper>
       )}
 
-      {/* Edit Profile Button */}
+      {/* Action Buttons */}
       <Box sx={{ mt: 3, display: 'flex', gap: 2, justifyContent: 'center' }}>
         <Button
           variant="contained"
@@ -1116,6 +1119,14 @@ const Profile: React.FC = () => {
           size="large"
         >
           Edit Profile
+        </Button>
+        <Button
+          variant="outlined"
+          startIcon={<LockIcon />}
+          onClick={() => setChangePasswordDialogOpen(true)}
+          size="large"
+        >
+          Change Password
         </Button>
       </Box>
 
@@ -1128,6 +1139,12 @@ const Profile: React.FC = () => {
           onProfileUpdated={handleProfileUpdated}
         />
       )}
+
+      {/* Change Password Dialog */}
+      <ChangePasswordDialog
+        open={changePasswordDialogOpen}
+        onClose={() => setChangePasswordDialogOpen(false)}
+      />
     </Box>
   );
 };
