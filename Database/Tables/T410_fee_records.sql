@@ -30,6 +30,11 @@ CREATE TABLE fee_records (
     paid_amount DECIMAL(10,2) DEFAULT 0.00,
     balance_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00,
 
+    -- Sibling waiver columns (from V010)
+    has_sibling_waiver BOOLEAN DEFAULT FALSE,
+    sibling_waiver_percentage DECIMAL(5,2) DEFAULT 0.00 CHECK (sibling_waiver_percentage >= 0 AND sibling_waiver_percentage <= 100),
+    original_total_amount DECIMAL(10,2),
+
     -- Due Date
     due_date DATE,
 
@@ -59,6 +64,7 @@ CREATE TABLE fee_records (
 CREATE INDEX IF NOT EXISTS idx_fee_records_student ON fee_records(student_id);
 CREATE INDEX IF NOT EXISTS idx_fee_records_session ON fee_records(session_year_id);
 CREATE INDEX IF NOT EXISTS idx_fee_records_monthly_tracked ON fee_records(is_monthly_tracked) WHERE is_monthly_tracked = TRUE;
+CREATE INDEX IF NOT EXISTS idx_fee_records_sibling_waiver ON fee_records(has_sibling_waiver) WHERE has_sibling_waiver = TRUE;
 
 -- Add comments
 COMMENT ON TABLE fee_records IS 'Student fee records';
@@ -69,6 +75,9 @@ COMMENT ON COLUMN fee_records.is_monthly_tracked IS 'Whether this fee record use
 COMMENT ON COLUMN fee_records.academic_month IS 'Academic month (1-12, where 4=April)';
 COMMENT ON COLUMN fee_records.academic_year IS 'Academic year (e.g., 2025)';
 COMMENT ON COLUMN fee_records.balance_amount IS 'Calculated as total_amount - paid_amount';
+COMMENT ON COLUMN fee_records.has_sibling_waiver IS 'Whether this fee record has a sibling-based waiver applied';
+COMMENT ON COLUMN fee_records.sibling_waiver_percentage IS 'Percentage of fee waived due to sibling discount (0-100)';
+COMMENT ON COLUMN fee_records.original_total_amount IS 'Original total amount before sibling waiver applied';
 COMMENT ON COLUMN fee_records.transaction_id IS 'Payment transaction ID';
 COMMENT ON COLUMN fee_records.payment_date IS 'Date of payment';
 COMMENT ON COLUMN fee_records.remarks IS 'Additional remarks or notes';

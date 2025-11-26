@@ -11,7 +11,7 @@ DROP TABLE IF EXISTS students CASCADE;
 CREATE TABLE students (
     id SERIAL PRIMARY KEY,
     user_id INTEGER UNIQUE,
-    admission_number VARCHAR(50) NOT NULL UNIQUE,
+    admission_number VARCHAR(50) NOT NULL,
     first_name VARCHAR(100) NOT NULL,
     last_name VARCHAR(100) NOT NULL,
     email VARCHAR(255),
@@ -56,6 +56,15 @@ CREATE TABLE students (
 );
 
 -- Create indexes
+-- Note: Using partial unique indexes instead of UNIQUE constraints to support soft delete
+CREATE UNIQUE INDEX IF NOT EXISTS students_admission_number_active_unique
+ON students (admission_number)
+WHERE (is_deleted = FALSE OR is_deleted IS NULL);
+
+CREATE UNIQUE INDEX IF NOT EXISTS students_email_active_unique
+ON students (email)
+WHERE (is_deleted = FALSE OR is_deleted IS NULL) AND email IS NOT NULL;
+
 CREATE INDEX IF NOT EXISTS idx_students_admission ON students(admission_number);
 CREATE INDEX IF NOT EXISTS idx_students_class ON students(class_id);
 CREATE INDEX IF NOT EXISTS idx_students_session ON students(session_year_id);
@@ -66,7 +75,8 @@ CREATE INDEX IF NOT EXISTS idx_students_active_not_deleted ON students(is_active
 -- Add comments
 COMMENT ON TABLE students IS 'Student profile information';
 COMMENT ON COLUMN students.user_id IS 'Foreign key to users table (nullable - students may not have login accounts)';
-COMMENT ON COLUMN students.admission_number IS 'Unique admission number';
+COMMENT ON COLUMN students.admission_number IS 'Unique admission number (unique only for non-deleted students)';
+COMMENT ON COLUMN students.email IS 'Student email address (unique only for non-deleted students with non-null email)';
 COMMENT ON COLUMN students.profile_picture_url IS 'Cloudinary URL for student profile picture';
 COMMENT ON COLUMN students.profile_picture_cloudinary_id IS 'Cloudinary public ID for profile picture management (deletion/replacement)';
 COMMENT ON COLUMN students.is_deleted IS 'Soft delete flag';

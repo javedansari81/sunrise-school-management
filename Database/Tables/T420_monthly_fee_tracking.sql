@@ -23,6 +23,12 @@ CREATE TABLE monthly_fee_tracking (
     payment_status_id INTEGER DEFAULT 1,
     late_fee DECIMAL(10,2) DEFAULT 0.00,
     discount_amount DECIMAL(10,2) DEFAULT 0.00,
+
+    -- Sibling waiver columns (from V010)
+    original_monthly_amount DECIMAL(10,2),
+    fee_waiver_percentage DECIMAL(5,2) DEFAULT 0.00 CHECK (fee_waiver_percentage >= 0 AND fee_waiver_percentage <= 100),
+    waiver_reason TEXT,
+
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE,
     FOREIGN KEY (fee_record_id) REFERENCES fee_records(id) ON DELETE CASCADE,
@@ -37,6 +43,7 @@ CREATE INDEX IF NOT EXISTS idx_monthly_fee_student ON monthly_fee_tracking(stude
 CREATE INDEX IF NOT EXISTS idx_monthly_fee_session ON monthly_fee_tracking(session_year_id);
 CREATE INDEX IF NOT EXISTS idx_monthly_fee_record ON monthly_fee_tracking(fee_record_id);
 CREATE INDEX IF NOT EXISTS idx_monthly_fee_status ON monthly_fee_tracking(payment_status_id);
+CREATE INDEX IF NOT EXISTS idx_monthly_fee_tracking_waiver ON monthly_fee_tracking(fee_waiver_percentage) WHERE fee_waiver_percentage > 0;
 
 -- Add comments
 COMMENT ON TABLE monthly_fee_tracking IS 'Monthly fee tracking for students - stores month-wise payment records';
@@ -50,4 +57,7 @@ COMMENT ON COLUMN monthly_fee_tracking.balance_amount IS 'Computed: Remaining ba
 COMMENT ON COLUMN monthly_fee_tracking.due_date IS 'Due date for this month (typically 10th of the month)';
 COMMENT ON COLUMN monthly_fee_tracking.late_fee IS 'Late fee charged if payment is overdue';
 COMMENT ON COLUMN monthly_fee_tracking.discount_amount IS 'Discount applied to this month';
+COMMENT ON COLUMN monthly_fee_tracking.original_monthly_amount IS 'Original monthly amount before any waiver applied';
+COMMENT ON COLUMN monthly_fee_tracking.fee_waiver_percentage IS 'Percentage of fee waived (0-100)';
+COMMENT ON COLUMN monthly_fee_tracking.waiver_reason IS 'Reason for fee waiver (e.g., "Sibling discount - youngest of 3")';
 
