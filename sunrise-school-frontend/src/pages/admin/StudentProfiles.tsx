@@ -41,6 +41,8 @@ import {
 } from '../../components/common/MetadataDropdown';
 import ServiceConfigurationLoader from '../../components/common/ServiceConfigurationLoader';
 import CollapsibleFilterSection from '../../components/common/CollapsibleFilterSection';
+import DetectedSiblingsDialog from '../../components/common/DetectedSiblingsDialog';
+import SiblingInfoDisplay from '../../components/common/SiblingInfoDisplay';
 import {
   Add,
   Edit,
@@ -55,7 +57,7 @@ import {
   FilterList,
 } from '@mui/icons-material';
 import AdminLayout from '../../components/Layout/AdminLayout';
-import { studentsAPI } from '../../services/api';
+import { studentsAPI, studentSiblingsAPI } from '../../services/api';
 import { useErrorDialog } from '../../hooks/useErrorDialog';
 import ErrorDialog from '../../components/common/ErrorDialog';
 
@@ -148,6 +150,12 @@ const StudentProfilesContent: React.FC = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [totalStudents, setTotalStudents] = useState(0);
   const perPage = DEFAULT_PAGE_SIZE;
+
+  // Sibling-related state
+  const [detectedSiblingsDialogOpen, setDetectedSiblingsDialogOpen] = useState(false);
+  const [detectedSiblingsInfo, setDetectedSiblingsInfo] = useState<any>(null);
+  const [createdStudentName, setCreatedStudentName] = useState('');
+  const [siblingWaiverInfo, setSiblingWaiverInfo] = useState<any>(null);
   const [studentForm, setStudentForm] = useState({
     admission_number: '',
     roll_number: '',
@@ -231,6 +239,18 @@ const StudentProfilesContent: React.FC = () => {
     }
   };
 
+  // Load sibling waiver info for a student
+  const loadSiblingWaiverInfo = async (studentId: number) => {
+    try {
+      const waiverInfo = await studentSiblingsAPI.getSiblingWaiverInfo(studentId);
+      setSiblingWaiverInfo(waiverInfo);
+    } catch (error) {
+      console.error('Error loading sibling waiver info:', error);
+      // Don't show error snackbar - just log it
+      setSiblingWaiverInfo(null);
+    }
+  };
+
   // Load students when page, filters, or tab changes
   useEffect(() => {
     loadStudents();
@@ -260,7 +280,7 @@ const StudentProfilesContent: React.FC = () => {
     return () => clearTimeout(timer);
   }, [searchTerm]);
 
-  const handleOpenDialog = (mode: 'view' | 'edit' | 'create', student?: Student) => {
+  const handleOpenDialog = async (mode: 'view' | 'edit' | 'create', student?: Student) => {
     // Validate mandatory fields for existing students
     if (student && (mode === 'view' || mode === 'edit')) {
       const missingFields = [];
@@ -322,41 +342,91 @@ const StudentProfilesContent: React.FC = () => {
         is_active: student.is_active
       });
       setSelectedStudent(student);
+
+      // Load sibling waiver info for view mode
+      if (mode === 'view') {
+        loadSiblingWaiverInfo(student.id);
+      } else {
+        setSiblingWaiverInfo(null);
+      }
     } else {
-      setStudentForm({
-        admission_number: '',
-        roll_number: '',
-        first_name: '',
-        last_name: '',
-        class_id: '',
-        session_year_id: '4', // Default to current session year
-        section: '',
-        date_of_birth: '',
-        gender_id: '',
-        blood_group: '',
-        phone: '',
-        email: '',
-        aadhar_no: '',
-        address: '',
-        city: '',
-        state: '',
-        postal_code: '',
-        country: 'India',
-        father_name: '',
-        father_phone: '',
-        father_email: '',
-        father_occupation: '',
-        mother_name: '',
-        mother_phone: '',
-        mother_email: '',
-        mother_occupation: '',
-        emergency_contact_name: '',
-        emergency_contact_phone: '',
-        emergency_contact_relation: '',
-        admission_date: '',
-        previous_school: '',
-        is_active: true
-      });
+      // For new student, fetch next admission number
+      try {
+        const response = await studentsAPI.getNextAdmissionNumber();
+        const nextAdmissionNumber = response.data?.next_admission_number || '';
+
+        setStudentForm({
+          admission_number: nextAdmissionNumber,
+          roll_number: '',
+          first_name: '',
+          last_name: '',
+          class_id: '',
+          session_year_id: '4', // Default to current session year
+          section: '',
+          date_of_birth: '',
+          gender_id: '',
+          blood_group: '',
+          phone: '',
+          email: '',
+          aadhar_no: '',
+          address: '',
+          city: '',
+          state: '',
+          postal_code: '',
+          country: 'India',
+          father_name: '',
+          father_phone: '',
+          father_email: '',
+          father_occupation: '',
+          mother_name: '',
+          mother_phone: '',
+          mother_email: '',
+          mother_occupation: '',
+          emergency_contact_name: '',
+          emergency_contact_phone: '',
+          emergency_contact_relation: '',
+          admission_date: '',
+          previous_school: '',
+          is_active: true
+        });
+      } catch (error) {
+        console.error('Error fetching next admission number:', error);
+        // If error, just use empty string
+        setStudentForm({
+          admission_number: '',
+          roll_number: '',
+          first_name: '',
+          last_name: '',
+          class_id: '',
+          session_year_id: '4', // Default to current session year
+          section: '',
+          date_of_birth: '',
+          gender_id: '',
+          blood_group: '',
+          phone: '',
+          email: '',
+          aadhar_no: '',
+          address: '',
+          city: '',
+          state: '',
+          postal_code: '',
+          country: 'India',
+          father_name: '',
+          father_phone: '',
+          father_email: '',
+          father_occupation: '',
+          mother_name: '',
+          mother_phone: '',
+          mother_email: '',
+          mother_occupation: '',
+          emergency_contact_name: '',
+          emergency_contact_phone: '',
+          emergency_contact_relation: '',
+          admission_date: '',
+          previous_school: '',
+          is_active: true
+        });
+      }
       setSelectedStudent(null);
     }
     setOpenDialog(true);
@@ -420,14 +490,25 @@ const StudentProfilesContent: React.FC = () => {
         // Update existing student
         await studentsAPI.updateStudent(selectedStudent.id, studentData);
         setSnackbar({ open: true, message: 'Student updated successfully', severity: 'success' });
+        handleCloseDialog();
+        loadStudents(); // Reload the list
       } else {
         // Create new student
-        await studentsAPI.createStudent(studentData);
-        setSnackbar({ open: true, message: 'Student created successfully', severity: 'success' });
-      }
+        const response = await studentsAPI.createStudent(studentData);
 
-      handleCloseDialog();
-      loadStudents(); // Reload the list
+        // Check if siblings were detected
+        if (response.data?.detected_siblings && response.data.detected_siblings.siblings.length > 0) {
+          // Show detected siblings dialog
+          setDetectedSiblingsInfo(response.data.detected_siblings);
+          setCreatedStudentName(`${studentForm.first_name} ${studentForm.last_name}`);
+          setDetectedSiblingsDialogOpen(true);
+        } else {
+          setSnackbar({ open: true, message: 'Student created successfully', severity: 'success' });
+        }
+
+        handleCloseDialog();
+        loadStudents(); // Reload the list
+      }
     } catch (error: any) {
       console.error('Error saving student:', error);
 
@@ -953,6 +1034,7 @@ const StudentProfilesContent: React.FC = () => {
                   onChange={handleFormChange}
                   required
                   disabled={dialogMode === 'view'}
+                  helperText={dialogMode === 'create' ? 'Auto-generated (editable)' : ''}
                 />
               </Grid>
               <Grid size={{ xs: 12, sm: 6 }}>
@@ -1105,7 +1187,7 @@ const StudentProfilesContent: React.FC = () => {
                   disabled={dialogMode === 'view'}
                 />
               </Grid>
-              {/* Email field only shown in view mode - auto-generated for new students */}
+              {/* Email field only shown in view mode */}
               {dialogMode === 'view' && (
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <TextField
@@ -1115,19 +1197,7 @@ const StudentProfilesContent: React.FC = () => {
                     type="email"
                     value={studentForm.email}
                     disabled={true}
-                    helperText="This is the auto-generated login email for the student"
                   />
-                </Grid>
-              )}
-
-              {/* Show note about email generation for new students */}
-              {dialogMode === 'create' && (
-                <Grid size={12}>
-                  <Alert severity="info" sx={{ mt: 1 }}>
-                    <strong>Email Generation:</strong> A unique email address will be automatically generated
-                    for this student based on their name and date of birth (format: firstname.lastname.ddmmyyyy@sunriseschool.edu).
-                    The student can view their login email in their profile after creation.
-                  </Alert>
                 </Grid>
               )}
               <Grid size={{ xs: 12, sm: 6 }}>
@@ -1313,6 +1383,13 @@ const StudentProfilesContent: React.FC = () => {
                   disabled={dialogMode === 'view'}
                 />
               </Grid>
+
+              {/* Sibling Information - Only show in view mode */}
+              {dialogMode === 'view' && siblingWaiverInfo && siblingWaiverInfo.has_siblings && (
+                <Grid size={12} sx={{ mt: 2 }}>
+                  <SiblingInfoDisplay waiverInfo={siblingWaiverInfo} />
+                </Grid>
+              )}
             </Grid>
           </DialogContent>
           <DialogActions>
@@ -1326,6 +1403,17 @@ const StudentProfilesContent: React.FC = () => {
             )}
           </DialogActions>
         </Dialog>
+
+        {/* Detected Siblings Dialog */}
+        <DetectedSiblingsDialog
+          open={detectedSiblingsDialogOpen}
+          onClose={() => {
+            setDetectedSiblingsDialogOpen(false);
+            setSnackbar({ open: true, message: 'Student created successfully with sibling links', severity: 'success' });
+          }}
+          detectedSiblingsInfo={detectedSiblingsInfo}
+          studentName={createdStudentName}
+        />
 
         {/* Snackbar for notifications */}
         <Snackbar

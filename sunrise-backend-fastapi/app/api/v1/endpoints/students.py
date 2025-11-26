@@ -22,6 +22,19 @@ from app.schemas.user import UserTypeEnum
 router = APIRouter()
 
 
+@router.get("/next-admission-number")
+async def get_next_admission_number(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Get the next available admission number for creating a new student.
+    This endpoint is used to auto-prefill the admission number field in the UI.
+    """
+    next_admission_number = await student_crud.get_next_admission_number(db)
+    return {"next_admission_number": next_admission_number}
+
+
 @router.get("/", response_model=StudentListResponse)
 @router.get("", response_model=StudentListResponse)  # Handle both with and without trailing slash
 async def get_students(
@@ -102,6 +115,39 @@ async def create_student(
             response_data = Student.from_orm_with_metadata(student_with_metadata).dict()
             if success_message:
                 response_data["success_message"] = success_message
+
+            # Include detected siblings information if any
+            detected_siblings = getattr(student, '_detected_siblings', [])
+            if detected_siblings:
+                from app.crud.crud_student_sibling import student_sibling_crud
+
+                # Get waiver info for the newly created student
+                waiver_info = await student_sibling_crud.get_sibling_waiver_info(db, student_id=student.id)
+
+                # Build detected siblings list
+                detected_siblings_list = []
+                for sibling in detected_siblings:
+                    sibling_with_class = await student_crud.get_with_metadata(db, id=sibling.id)
+                    detected_siblings_list.append({
+                        "student_id": sibling.id,
+                        "admission_number": sibling.admission_number,
+                        "first_name": sibling.first_name,
+                        "last_name": sibling.last_name,
+                        "full_name": f"{sibling.first_name} {sibling.last_name}",
+                        "class_name": sibling_with_class.class_ref.description if sibling_with_class and sibling_with_class.class_ref else "",
+                        "section": sibling.section,
+                        "date_of_birth": str(sibling.date_of_birth) if sibling.date_of_birth else None
+                    })
+
+                response_data["detected_siblings"] = {
+                    "siblings": detected_siblings_list,
+                    "total_siblings_count": waiver_info["total_siblings_count"],
+                    "birth_order": waiver_info["birth_order"],
+                    "birth_order_description": waiver_info["birth_order_description"],
+                    "fee_waiver_percentage": float(waiver_info["fee_waiver_percentage"]),
+                    "waiver_reason": waiver_info["waiver_reason"],
+                    "message": f"Detected {len(detected_siblings)} sibling(s) and automatically linked them"
+                }
 
             return response_data
 

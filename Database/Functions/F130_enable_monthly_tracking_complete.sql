@@ -45,9 +45,18 @@ DECLARE
     v_month_name TEXT;
     v_due_date DATE;
     v_academic_months INTEGER[] := ARRAY[4, 5, 6, 7, 8, 9, 10, 11, 12, 1, 2, 3];
-    v_month_names TEXT[] := ARRAY['April', 'May', 'June', 'July', 'August', 'September', 
+    v_month_names TEXT[] := ARRAY['April', 'May', 'June', 'July', 'August', 'September',
                                     'October', 'November', 'December', 'January', 'February', 'March'];
     v_existing_count INTEGER;
+    -- Sibling waiver variables
+    v_sibling_count INTEGER;
+    v_birth_order INTEGER;
+    v_waiver_percentage DECIMAL(5,2);
+    v_waiver_reason TEXT;
+    v_original_monthly_fee DECIMAL(10,2);
+    v_waived_monthly_fee DECIMAL(10,2);
+    v_original_total_fee DECIMAL(10,2);
+    v_waived_total_fee DECIMAL(10,2);
 BEGIN
     -- Loop through each student ID
     FOREACH v_student_id IN ARRAY p_student_ids
@@ -80,7 +89,35 @@ BEGIN
             END IF;
             
             v_student_name := v_student.full_name;
-            
+
+            -- Check for sibling waiver
+            v_waiver_percentage := 0.00;
+            v_waiver_reason := NULL;
+            v_birth_order := 1;
+
+            -- Get sibling information for this student
+            SELECT COUNT(*) + 1 INTO v_sibling_count
+            FROM student_siblings ss
+            WHERE ss.student_id = v_student_id
+              AND ss.is_active = TRUE;
+
+            -- If student has siblings, get their waiver info
+            IF v_sibling_count > 1 THEN
+                SELECT
+                    ss.birth_order,
+                    ss.fee_waiver_percentage
+                INTO v_birth_order, v_waiver_percentage
+                FROM student_siblings ss
+                WHERE ss.student_id = v_student_id
+                  AND ss.is_active = TRUE
+                LIMIT 1;
+
+                -- Get waiver reason text
+                IF v_waiver_percentage > 0 THEN
+                    v_waiver_reason := get_waiver_reason_text(v_sibling_count, v_birth_order, v_waiver_percentage);
+                END IF;
+            END IF;
+
             -- Check if fee record already exists
             SELECT 
                 fr.id,
@@ -95,17 +132,32 @@ BEGIN
                 -- Fee record exists
                 v_fee_record_id := v_fee_record.id;
                 v_fee_record_created := FALSE;
-                
-                -- Update to enable monthly tracking if not already enabled
-                IF NOT v_fee_record.is_monthly_tracked THEN
-                    UPDATE fee_records
-                    SET is_monthly_tracked = TRUE,
-                        updated_at = NOW()
-                    WHERE id = v_fee_record_id;
+
+                -- Calculate original monthly fee from annual fee
+                v_original_monthly_fee := ROUND(v_fee_record.total_amount / 12, 2);
+                v_original_total_fee := v_fee_record.total_amount;
+
+                -- Apply sibling waiver if applicable
+                IF v_waiver_percentage > 0 THEN
+                    v_waived_monthly_fee := ROUND(v_original_monthly_fee * (100 - v_waiver_percentage) / 100, 2);
+                    v_waived_total_fee := v_waived_monthly_fee * 12;
+                ELSE
+                    v_waived_monthly_fee := v_original_monthly_fee;
+                    v_waived_total_fee := v_original_total_fee;
                 END IF;
-                
-                -- Calculate monthly fee from annual fee
-                v_monthly_fee := ROUND(v_fee_record.total_amount / 12, 2);
+
+                v_monthly_fee := v_waived_monthly_fee;
+
+                -- Update fee record with sibling waiver info
+                UPDATE fee_records
+                SET is_monthly_tracked = TRUE,
+                    has_sibling_waiver = (v_waiver_percentage > 0),
+                    sibling_waiver_percentage = v_waiver_percentage,
+                    original_total_amount = CASE WHEN v_waiver_percentage > 0 THEN v_original_total_fee ELSE NULL END,
+                    total_amount = v_waived_total_fee,
+                    balance_amount = v_waived_total_fee - COALESCE(paid_amount, 0),
+                    updated_at = NOW()
+                WHERE id = v_fee_record_id;
             ELSE
                 -- Fee record doesn't exist, create it
                 -- First, get fee structure for this class and session
@@ -120,12 +172,25 @@ BEGIN
 
                 IF NOT FOUND THEN
                     -- No fee structure found, use default
-                    v_monthly_fee := 1000.00; -- Default monthly fee
+                    v_original_monthly_fee := 1000.00; -- Default monthly fee
                 ELSE
-                    v_monthly_fee := ROUND(v_fee_structure.total_annual_fee / 12, 2);
+                    v_original_monthly_fee := ROUND(v_fee_structure.total_annual_fee / 12, 2);
                 END IF;
-                
-                -- Create fee record
+
+                v_original_total_fee := v_original_monthly_fee * 12;
+
+                -- Apply sibling waiver if applicable
+                IF v_waiver_percentage > 0 THEN
+                    v_waived_monthly_fee := ROUND(v_original_monthly_fee * (100 - v_waiver_percentage) / 100, 2);
+                    v_waived_total_fee := v_waived_monthly_fee * 12;
+                ELSE
+                    v_waived_monthly_fee := v_original_monthly_fee;
+                    v_waived_total_fee := v_original_total_fee;
+                END IF;
+
+                v_monthly_fee := v_waived_monthly_fee;
+
+                -- Create fee record with sibling waiver info
                 INSERT INTO fee_records (
                     student_id,
                     session_year_id,
@@ -137,24 +202,30 @@ BEGIN
                     payment_status_id,
                     due_date,
                     is_monthly_tracked,
+                    has_sibling_waiver,
+                    sibling_waiver_percentage,
+                    original_total_amount,
                     is_active,
                     created_at
                 ) VALUES (
                     v_student_id,
                     p_session_year_id,
                     v_student.class_id,
-                    v_monthly_fee * 12, -- Annual fee
+                    v_waived_total_fee, -- Annual fee after waiver
                     0.00,
-                    v_monthly_fee * 12, -- Balance = Total initially
+                    v_waived_total_fee, -- Balance = Total initially
                     2, -- Monthly payment type
                     1, -- Pending status
                     DATE(p_start_year || '-' || LPAD(p_start_month::TEXT, 2, '0') || '-10'), -- Due date: 10th of start month
                     TRUE, -- Enable monthly tracking
+                    (v_waiver_percentage > 0), -- Has sibling waiver
+                    v_waiver_percentage,
+                    CASE WHEN v_waiver_percentage > 0 THEN v_original_total_fee ELSE NULL END,
                     TRUE,
                     NOW()
                 )
                 RETURNING id INTO v_fee_record_id;
-                
+
                 v_fee_record_created := TRUE;
             END IF;
             
@@ -164,18 +235,146 @@ BEGIN
             FROM monthly_fee_tracking mft
             WHERE mft.student_id = v_student_id
               AND mft.session_year_id = p_session_year_id;
-            
+
             IF v_existing_count > 0 THEN
-                -- Records already exist, don't create duplicates
-                student_id := v_student_id;
-                student_name := v_student_name;
-                fee_record_id := v_fee_record_id;
-                fee_record_created := v_fee_record_created;
-                monthly_records_created := 0;
-                success := TRUE;
-                message := 'Monthly tracking already enabled (' || v_existing_count || ' records exist)';
-                RETURN NEXT;
-                CONTINUE;
+                -- Records already exist, check if waiver has changed
+                DECLARE
+                    v_old_waiver_percentage DECIMAL(5,2);
+                    v_updated_count INTEGER := 0;
+                    v_new_monthly_amount DECIMAL(10,2);
+                    v_original_amount DECIMAL(10,2);
+                BEGIN
+                    -- Get the waiver percentage from existing records
+                    SELECT COALESCE(mft.fee_waiver_percentage, 0)
+                    INTO v_old_waiver_percentage
+                    FROM monthly_fee_tracking mft
+                    WHERE mft.student_id = v_student_id
+                      AND mft.session_year_id = p_session_year_id
+                    LIMIT 1;
+
+                    -- Check if waiver has changed
+                    IF v_old_waiver_percentage != v_waiver_percentage THEN
+                        -- Waiver has changed, update unpaid records
+                        -- Get original monthly amount (before any waiver)
+                        -- Priority: 1) fee_records.original_total_amount, 2) fee_structure, 3) monthly_tracking, 4) default
+
+                        -- First try to get from fee_records.original_total_amount
+                        SELECT COALESCE(fr.original_total_amount, fr.total_amount) / 12
+                        INTO v_original_amount
+                        FROM fee_records fr
+                        WHERE fr.student_id = v_student_id
+                          AND fr.session_year_id = p_session_year_id
+                          AND COALESCE(fr.original_total_amount, fr.total_amount) > 0;
+
+                        -- If fee_records doesn't have valid original amount, get from fee structure
+                        IF v_original_amount IS NULL OR v_original_amount = 0 THEN
+                            SELECT fs.total_annual_fee / 12
+                            INTO v_original_amount
+                            FROM fee_structures fs
+                            WHERE fs.class_id = v_student.class_id
+                              AND fs.session_year_id = p_session_year_id
+                            LIMIT 1;
+                        END IF;
+
+                        -- If still no valid amount, get from monthly tracking
+                        IF v_original_amount IS NULL OR v_original_amount = 0 THEN
+                            SELECT COALESCE(mft.original_monthly_amount, mft.monthly_amount)
+                            INTO v_original_amount
+                            FROM monthly_fee_tracking mft
+                            WHERE mft.student_id = v_student_id
+                              AND mft.session_year_id = p_session_year_id
+                              AND COALESCE(mft.original_monthly_amount, mft.monthly_amount) > 0
+                            LIMIT 1;
+                        END IF;
+
+                        -- If still no amount found, use default
+                        IF v_original_amount IS NULL OR v_original_amount = 0 THEN
+                            v_original_amount := 1000.00; -- Default monthly fee
+                        END IF;
+
+                        -- Calculate new monthly amount with updated waiver
+                        IF v_waiver_percentage > 0 THEN
+                            v_new_monthly_amount := ROUND(v_original_amount * (100 - v_waiver_percentage) / 100, 2);
+                        ELSE
+                            v_new_monthly_amount := v_original_amount;
+                        END IF;
+
+                        -- Update unpaid monthly tracking records
+                        UPDATE monthly_fee_tracking mft
+                        SET monthly_amount = v_new_monthly_amount,
+                            original_monthly_amount = v_original_amount,
+                            fee_waiver_percentage = v_waiver_percentage,
+                            waiver_reason = v_waiver_reason,
+                            updated_at = NOW()
+                        WHERE mft.student_id = v_student_id
+                          AND mft.session_year_id = p_session_year_id
+                          AND mft.payment_status_id = 1; -- Only update unpaid records
+
+                        GET DIAGNOSTICS v_updated_count = ROW_COUNT;
+
+                        -- Also update the fee_records table with new totals
+                        DECLARE
+                            v_new_total_amount DECIMAL(10,2);
+                            v_original_total_amount DECIMAL(10,2);
+                            v_current_paid_amount DECIMAL(10,2);
+                        BEGIN
+                            -- Calculate original annual total (sum of all original monthly amounts)
+                            SELECT SUM(COALESCE(mft.original_monthly_amount, mft.monthly_amount))
+                            INTO v_original_total_amount
+                            FROM monthly_fee_tracking mft
+                            WHERE mft.student_id = v_student_id
+                              AND mft.session_year_id = p_session_year_id;
+
+                            -- Calculate new annual total using waiver percentage
+                            -- total_amount = original_total_amount * (100 - waiver_percentage) / 100
+                            IF v_waiver_percentage > 0 THEN
+                                v_new_total_amount := ROUND(v_original_total_amount * (100 - v_waiver_percentage) / 100, 2);
+                            ELSE
+                                v_new_total_amount := v_original_total_amount;
+                            END IF;
+
+                            -- Get current paid amount from fee_records
+                            SELECT COALESCE(fr.paid_amount, 0)
+                            INTO v_current_paid_amount
+                            FROM fee_records fr
+                            WHERE fr.student_id = v_student_id
+                              AND fr.session_year_id = p_session_year_id;
+
+                            -- Update fee_records with new totals
+                            UPDATE fee_records fr
+                            SET total_amount = v_new_total_amount,
+                                original_total_amount = v_original_total_amount,
+                                balance_amount = v_new_total_amount - v_current_paid_amount,
+                                has_sibling_waiver = (v_waiver_percentage > 0),
+                                sibling_waiver_percentage = v_waiver_percentage,
+                                updated_at = NOW()
+                            WHERE fr.student_id = v_student_id
+                              AND fr.session_year_id = p_session_year_id;
+                        END;
+
+                        -- Return success with update information
+                        student_id := v_student_id;
+                        student_name := v_student_name;
+                        fee_record_id := v_fee_record_id;
+                        fee_record_created := v_fee_record_created;
+                        monthly_records_created := v_updated_count;
+                        success := TRUE;
+                        message := 'Waiver updated from ' || v_old_waiver_percentage || '% to ' || v_waiver_percentage || '% (' || v_updated_count || ' unpaid records updated)';
+                        RETURN NEXT;
+                        CONTINUE;
+                    ELSE
+                        -- Waiver hasn't changed, records already exist
+                        student_id := v_student_id;
+                        student_name := v_student_name;
+                        fee_record_id := v_fee_record_id;
+                        fee_record_created := v_fee_record_created;
+                        monthly_records_created := 0;
+                        success := TRUE;
+                        message := 'Monthly tracking already enabled (' || v_existing_count || ' records exist, waiver unchanged)';
+                        RETURN NEXT;
+                        CONTINUE;
+                    END IF;
+                END;
             END IF;
             
             -- Create 12 monthly tracking records (April to March)
@@ -194,7 +393,7 @@ BEGIN
                 -- Calculate due date (10th of each month)
                 v_due_date := DATE(v_year || '-' || LPAD(v_month::TEXT, 2, '0') || '-10');
                 
-                -- Insert monthly tracking record
+                -- Insert monthly tracking record with sibling waiver info
                 INSERT INTO monthly_fee_tracking (
                     fee_record_id,
                     student_id,
@@ -203,6 +402,9 @@ BEGIN
                     academic_year,
                     month_name,
                     monthly_amount,
+                    original_monthly_amount,
+                    fee_waiver_percentage,
+                    waiver_reason,
                     paid_amount,
                     due_date,
                     payment_status_id,
@@ -216,7 +418,10 @@ BEGIN
                     v_month,
                     v_year,
                     v_month_name,
-                    v_monthly_fee,
+                    v_monthly_fee, -- Waived monthly amount
+                    CASE WHEN v_waiver_percentage > 0 THEN v_original_monthly_fee ELSE NULL END,
+                    v_waiver_percentage,
+                    v_waiver_reason,
                     0.00, -- Initially unpaid
                     v_due_date,
                     1, -- Pending status

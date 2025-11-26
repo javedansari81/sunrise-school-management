@@ -121,6 +121,7 @@ export const enhancedFeesAPI = {
 export const studentsAPI = {
   getStudents: (params?: URLSearchParams) => api.get(`/students${params ? `?${params.toString()}` : ''}`),
   getStudent: (id: number) => api.get(`/students/${id}`),
+  getNextAdmissionNumber: () => api.get('/students/next-admission-number'),
   createStudent: (studentData: any) => api.post('/students', studentData),
   updateStudent: (id: number, studentData: any) => api.put(`/students/${id}`, studentData),
   deleteStudent: (id: number) => api.delete(`/students/${id}`),
@@ -166,6 +167,7 @@ export const studentsAPI = {
 export const teachersAPI = {
   getTeachers: (params?: string) => api.get(`/teachers${params ? `?${params}` : ''}`),
   getTeacher: (id: number) => api.get(`/teachers/${id}`),
+  getNextEmployeeId: () => api.get('/teachers/next-employee-id'),
   createTeacher: (teacherData: any) => api.post('/teachers', teacherData),
   updateTeacher: (id: number, teacherData: any) => api.put(`/teachers/${id}`, teacherData),
   deleteTeacher: (id: number) => api.delete(`/teachers/${id}`),
@@ -525,6 +527,37 @@ export const reportsAPI = {
   // Get Fee Tracking Report
   getFeeTrackingReport: (params: URLSearchParams) =>
     api.get(`/reports/fee-tracking?${params.toString()}`).then(response => response.data),
+};
+
+// Student Siblings API
+export const studentSiblingsAPI = {
+  // Get siblings for a student
+  getSiblings: (studentId: number, includeInactive: boolean = false) =>
+    api.get(`/students/${studentId}/siblings`, { params: { include_inactive: includeInactive } }).then(response => response.data),
+
+  // Get sibling waiver info
+  getSiblingWaiverInfo: (studentId: number) =>
+    api.get(`/students/${studentId}/siblings/waiver-info`).then(response => response.data),
+
+  // Detect siblings for a student
+  detectSiblings: (studentId: number) =>
+    api.post(`/students/${studentId}/siblings/detect`).then(response => response.data),
+
+  // Link two students as siblings
+  linkSibling: (studentId: number, siblingId: number) =>
+    api.post(`/students/${studentId}/siblings/link/${siblingId}`).then(response => response.data),
+
+  // Link multiple siblings at once
+  linkMultipleSiblings: (studentId: number, siblingIds: number[], relationshipType: string = 'SIBLING') =>
+    api.post(`/students/${studentId}/siblings/link-multiple`, { sibling_student_ids: siblingIds, relationship_type: relationshipType }).then(response => response.data),
+
+  // Unlink sibling relationship
+  unlinkSibling: (studentId: number, siblingId: number) =>
+    api.delete(`/students/${studentId}/siblings/${siblingId}`).then(response => response.data),
+
+  // Recalculate sibling waiver (with option to update fee records)
+  recalculateWaiver: (studentId: number, updateFeeRecords: boolean = true) =>
+    api.put(`/students/${studentId}/siblings/recalculate-waiver`, null, { params: { update_fee_records: updateFeeRecords } }).then(response => response.data),
 };
 
 export default api;

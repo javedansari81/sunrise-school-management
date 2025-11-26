@@ -17,6 +17,20 @@ from app.models.user import User, UserTypeEnum
 
 router = APIRouter()
 
+
+@router.get("/next-employee-id")
+async def get_next_employee_id(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Get the next available employee ID for creating a new teacher.
+    This endpoint is used to auto-prefill the employee ID field in the UI.
+    """
+    next_employee_id = await teacher_crud.get_next_employee_id(db)
+    return {"next_employee_id": next_employee_id}
+
+
 @router.get("/", response_model=Dict[str, Any])
 @router.get("", response_model=Dict[str, Any])  # Handle both with and without trailing slash
 async def get_teachers(

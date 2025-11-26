@@ -102,6 +102,11 @@ class FeeRecord(Base):
     paid_amount = Column(DECIMAL(10, 2), default=0.0)
     balance_amount = Column(DECIMAL(10, 2), nullable=False)
 
+    # Sibling Waiver Fields
+    has_sibling_waiver = Column(Boolean, default=False)
+    sibling_waiver_percentage = Column(DECIMAL(5, 2), default=0.00)
+    original_total_amount = Column(DECIMAL(10, 2), nullable=True)
+
     # Due Date
     due_date = Column(Date, nullable=False)
 
@@ -231,6 +236,11 @@ class MonthlyFeeTracking(Base):
     monthly_amount = Column(DECIMAL(10, 2), nullable=False, default=0.00)
     paid_amount = Column(DECIMAL(10, 2), nullable=False, default=0.00)
     # balance_amount is computed column in database
+
+    # Sibling Waiver Fields
+    original_monthly_amount = Column(DECIMAL(10, 2), nullable=True)
+    fee_waiver_percentage = Column(DECIMAL(5, 2), default=0.00)
+    waiver_reason = Column(Text, nullable=True)
 
     # Status and Dates
     due_date = Column(Date, nullable=False)

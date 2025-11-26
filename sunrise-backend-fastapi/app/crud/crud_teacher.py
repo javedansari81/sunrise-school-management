@@ -23,6 +23,59 @@ class CRUDTeacher(CRUDBase[Teacher, TeacherCreate, TeacherUpdate]):
     def __init__(self):
         super().__init__(Teacher)
 
+    async def get_next_employee_id(self, db: AsyncSession) -> str:
+        """
+        Get the next available employee ID by finding the maximum existing ID
+        and incrementing it. Handles both numeric and alphanumeric formats.
+
+        Returns:
+            str: Next employee ID (e.g., "EMP001", "EMP002", etc.)
+        """
+        try:
+            # Get the maximum employee ID from the database
+            result = await db.execute(
+                select(Teacher.employee_id)
+                .where(
+                    and_(
+                        Teacher.is_deleted != True,
+                        Teacher.employee_id.isnot(None)
+                    )
+                )
+                .order_by(desc(Teacher.employee_id))
+                .limit(1)
+            )
+            max_employee_id = result.scalar_one_or_none()
+
+            if not max_employee_id:
+                # No teachers exist yet, start with default
+                return "EMP001"
+
+            # Extract numeric part from employee ID
+            # Handle formats like "EMP001", "001", "EMP-001", etc.
+            import re
+            numeric_match = re.search(r'(\d+)$', max_employee_id)
+
+            if numeric_match:
+                # Extract the numeric part
+                numeric_part = numeric_match.group(1)
+                prefix = max_employee_id[:numeric_match.start()]
+
+                # Increment the number
+                next_number = int(numeric_part) + 1
+
+                # Preserve the zero-padding
+                next_number_str = str(next_number).zfill(len(numeric_part))
+
+                # Combine prefix and new number
+                return f"{prefix}{next_number_str}"
+            else:
+                # If no numeric part found, default to EMP001
+                return "EMP001"
+
+        except Exception as e:
+            # On any error, return default
+            return "EMP001"
+
     async def get_by_employee_id(
         self, db: AsyncSession, *, employee_id: str
     ) -> Optional[Teacher]:
@@ -372,15 +425,61 @@ class CRUDTeacher(CRUDBase[Teacher, TeacherCreate, TeacherUpdate]):
             await db.rollback()
             raise
 
+    async def remove(self, db: AsyncSession, *, id: int) -> Teacher:
+        """
+        Override base remove method to cascade soft delete to user account
+        This is called by the DELETE endpoint
+        """
+        obj = await self.get(db, id=id)
+        if obj:
+            # Soft delete using available columns
+            obj.is_active = False
+            obj.is_deleted = True
+            obj.deleted_date = datetime.utcnow()
+
+            # Cascade soft delete to user account if exists
+            if obj.user_id:
+                user_result = await db.execute(
+                    select(User).where(User.id == obj.user_id)
+                )
+                user = user_result.scalar_one_or_none()
+
+                if user:
+                    user.is_active = False
+                    user.is_deleted = True
+                    user.deleted_date = datetime.utcnow()
+                    db.add(user)
+
+            await db.commit()
+            await db.refresh(obj)
+        return obj
+
     async def soft_delete(
         self, db: AsyncSession, *, id: int
     ) -> Optional[Teacher]:
-        """Soft delete teacher by setting is_deleted=True and deleted_date"""
+        """
+        Soft delete teacher by setting is_deleted=True and deleted_date
+        Also cascades soft delete to the associated user account
+        """
         teacher = await self.get(db, id=id)
         if teacher:
             teacher.is_deleted = True
             teacher.deleted_date = datetime.utcnow()
             teacher.is_active = False  # Also deactivate
+
+            # Cascade soft delete to user account if exists
+            if teacher.user_id:
+                user_result = await db.execute(
+                    select(User).where(User.id == teacher.user_id)
+                )
+                user = user_result.scalar_one_or_none()
+
+                if user:
+                    user.is_active = False
+                    user.is_deleted = True
+                    user.deleted_date = datetime.utcnow()
+                    db.add(user)
+
             await db.commit()
             await db.refresh(teacher)
         return teacher

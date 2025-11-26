@@ -142,6 +142,9 @@ interface MonthlyFeeStatus {
   days_overdue?: number;
   late_fee: number;
   discount_amount: number;
+  original_monthly_amount?: number;
+  fee_waiver_percentage?: number;
+  waiver_reason?: string;
 }
 
 interface StudentMonthlyFeeHistory {
@@ -1678,6 +1681,19 @@ const FeeManagementComponent: React.FC = () => {
                 <Typography variant="subtitle2" color="text.secondary" gutterBottom sx={{ fontWeight: 600 }}>
                   Monthly Breakdown ({selectedStudent.monthly_history?.length || 0} Months)
                 </Typography>
+
+                {/* Sibling Waiver Alert */}
+                {selectedStudent.monthly_history?.some((m: any) => m.fee_waiver_percentage && m.fee_waiver_percentage > 0) && (
+                  <Alert severity="info" sx={{ mb: 2 }}>
+                    <Typography variant="body2" fontWeight="600">
+                      Sibling Fee Waiver Applied
+                    </Typography>
+                    <Typography variant="caption">
+                      {selectedStudent.monthly_history.find((m: any) => m.waiver_reason)?.waiver_reason || 'Fee waiver applied due to sibling enrollment'}
+                    </Typography>
+                  </Alert>
+                )}
+
                 <TableContainer component={Paper} variant="outlined">
                   <Table size="small">
                     <TableHead>
@@ -1706,6 +1722,11 @@ const FeeManagementComponent: React.FC = () => {
                             <Typography variant="body2">
                               ₹{month.monthly_amount.toLocaleString()}
                             </Typography>
+                            {month.original_monthly_amount && month.fee_waiver_percentage && month.fee_waiver_percentage > 0 && (
+                              <Typography variant="caption" color="success.main" sx={{ display: 'block' }}>
+                                <del>₹{month.original_monthly_amount.toLocaleString()}</del> ({month.fee_waiver_percentage}% waiver)
+                              </Typography>
+                            )}
                           </TableCell>
                           <TableCell align="right">
                             <Typography variant="body2" fontWeight="600" color={month.paid_amount > 0 ? 'success.main' : 'text.secondary'}>

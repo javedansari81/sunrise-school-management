@@ -288,7 +288,75 @@ const TeacherProfilesSystem: React.FC = () => {
   };
 
   // Dialog handlers
-  const handleOpenDialog = () => {
+  const handleOpenDialog = async () => {
+    // Fetch next employee ID when opening create dialog
+    try {
+      const response = await teachersAPI.getNextEmployeeId();
+      const nextEmployeeId = response.data?.next_employee_id || '';
+
+      setFormData({
+        employee_id: nextEmployeeId,
+        first_name: '',
+        last_name: '',
+        date_of_birth: '',
+        gender_id: '',
+        phone: '',
+        email: '',
+        aadhar_no: '',
+        address: '',
+        city: '',
+        state: '',
+        postal_code: '',
+        country: 'India',
+        emergency_contact_name: '',
+        emergency_contact_phone: '',
+        emergency_contact_relation: '',
+        position_id: '',
+        department_id: '',
+        subjects: '',
+        qualification_id: '',
+        employment_status_id: '',
+        experience_years: '',
+        joining_date: '',
+        class_teacher_of_id: '',
+        classes_assigned: '',
+        salary: '',
+        is_active: true
+      });
+    } catch (error) {
+      console.error('Error fetching next employee ID:', error);
+      // If error, just use empty string
+      setFormData({
+        employee_id: '',
+        first_name: '',
+        last_name: '',
+        date_of_birth: '',
+        gender_id: '',
+        phone: '',
+        email: '',
+        aadhar_no: '',
+        address: '',
+        city: '',
+        state: '',
+        postal_code: '',
+        country: 'India',
+        emergency_contact_name: '',
+        emergency_contact_phone: '',
+        emergency_contact_relation: '',
+        position_id: '',
+        department_id: '',
+        subjects: '',
+        qualification_id: '',
+        employment_status_id: '',
+        experience_years: '',
+        joining_date: '',
+        class_teacher_of_id: '',
+        classes_assigned: '',
+        salary: '',
+        is_active: true
+      });
+    }
+
     setOpenDialog(true);
     setFormErrors({});
   };
@@ -1168,7 +1236,7 @@ const TeacherProfilesSystem: React.FC = () => {
                   value={formData.employee_id}
                   onChange={(e) => handleFormChange('employee_id', e.target.value)}
                   error={!!formErrors.employee_id}
-                  helperText={formErrors.employee_id}
+                  helperText={formErrors.employee_id || 'Auto-generated (editable)'}
                   size="small"
                   required
                 />
@@ -1250,13 +1318,6 @@ const TeacherProfilesSystem: React.FC = () => {
                   size="small"
                 />
               </Box>
-
-              {/* Email generation notice */}
-              <Alert severity="info" sx={{ mt: 1, mb: 2 }}>
-                <strong>Email Generation:</strong> A unique email address will be automatically generated
-                for this teacher based on their name and date of birth (format: firstname.lastname.ddmmyyyy@sunriseschool.edu).
-                The teacher can view their login email in their profile after creation.
-              </Alert>
             </Box>
 
             {/* Professional Information Section */}
@@ -1707,7 +1768,6 @@ const TeacherProfilesSystem: React.FC = () => {
                 type="email"
                 value={editFormData.email || ''}
                 disabled={true}
-                helperText="This is the auto-generated login email for the teacher"
               />
             </Box>
 

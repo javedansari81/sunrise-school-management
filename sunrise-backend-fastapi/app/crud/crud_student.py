@@ -2,7 +2,7 @@ from typing import List, Optional, Dict, Any, Union
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload, joinedload
-from sqlalchemy import and_, or_, func, desc
+from sqlalchemy import and_, or_, func, desc, text
 from sqlalchemy.exc import IntegrityError
 from datetime import datetime
 
@@ -23,6 +23,59 @@ from app.core.error_handler import (
 class CRUDStudent(CRUDBase[Student, StudentCreate, StudentUpdate]):
     def __init__(self):
         super().__init__(Student)
+
+    async def get_next_admission_number(self, db: AsyncSession) -> str:
+        """
+        Get the next available admission number by finding the maximum existing number
+        and incrementing it. Handles both numeric and alphanumeric formats.
+
+        Returns:
+            str: Next admission number (e.g., "ADM001", "ADM002", etc.)
+        """
+        try:
+            # Get the maximum admission number from the database
+            result = await db.execute(
+                select(Student.admission_number)
+                .where(
+                    and_(
+                        Student.is_deleted != True,
+                        Student.admission_number.isnot(None)
+                    )
+                )
+                .order_by(desc(Student.admission_number))
+                .limit(1)
+            )
+            max_admission_number = result.scalar_one_or_none()
+
+            if not max_admission_number:
+                # No students exist yet, start with default
+                return "ADM001"
+
+            # Extract numeric part from admission number
+            # Handle formats like "ADM001", "001", "ADM-001", etc.
+            import re
+            numeric_match = re.search(r'(\d+)$', max_admission_number)
+
+            if numeric_match:
+                # Extract the numeric part
+                numeric_part = numeric_match.group(1)
+                prefix = max_admission_number[:numeric_match.start()]
+
+                # Increment the number
+                next_number = int(numeric_part) + 1
+
+                # Preserve the zero-padding
+                next_number_str = str(next_number).zfill(len(numeric_part))
+
+                # Combine prefix and new number
+                return f"{prefix}{next_number_str}"
+            else:
+                # If no numeric part found, default to ADM001
+                return "ADM001"
+
+        except Exception as e:
+            # On any error, return default
+            return "ADM001"
 
     async def get(self, db: AsyncSession, id: Any) -> Optional[Student]:
         """Override to include class relationship"""
@@ -94,12 +147,27 @@ class CRUDStudent(CRUDBase[Student, StudentCreate, StudentUpdate]):
         """
         Override update method to cascade is_active status to user account.
         When student.is_active changes, automatically update users.is_active.
+        Also re-detect siblings if father details change.
         """
+        from app.core.logging import log_crud_operation
+        import logging
+
         # Check if is_active is being updated
         if isinstance(obj_in, dict):
             update_data = obj_in
         else:
             update_data = obj_in.dict(exclude_unset=True)
+
+        # Check if father details are changing (for sibling re-detection)
+        father_details_changed = False
+        if 'father_name' in update_data or 'father_phone' in update_data:
+            old_father_name = db_obj.father_name
+            old_father_phone = db_obj.father_phone
+            new_father_name = update_data.get('father_name', old_father_name)
+            new_father_phone = update_data.get('father_phone', old_father_phone)
+
+            if old_father_name != new_father_name or old_father_phone != new_father_phone:
+                father_details_changed = True
 
         # If is_active is being changed, cascade to user account
         if 'is_active' in update_data and db_obj.user_id:
@@ -120,7 +188,51 @@ class CRUDStudent(CRUDBase[Student, StudentCreate, StudentUpdate]):
                     # Note: We don't commit here, let the parent update method handle the commit
 
         # Call parent update method to handle the actual student update
-        return await super().update(db, db_obj=db_obj, obj_in=obj_in)
+        updated_student = await super().update(db, db_obj=db_obj, obj_in=obj_in)
+
+        # Re-detect siblings if father details changed
+        if father_details_changed:
+            try:
+                from app.crud.crud_student_sibling import student_sibling_crud
+
+                # Remove old sibling relationships
+                await db.execute(
+                    text("DELETE FROM student_siblings WHERE student_id = :sid OR sibling_student_id = :sid"),
+                    {"sid": updated_student.id}
+                )
+
+                # Detect new siblings
+                new_father_name = update_data.get('father_name', updated_student.father_name)
+                new_father_phone = update_data.get('father_phone', updated_student.father_phone)
+
+                if new_father_name and new_father_phone:
+                    potential_siblings = await student_sibling_crud.detect_siblings_by_father_and_phone(
+                        db,
+                        father_name=new_father_name,
+                        father_phone=new_father_phone,
+                        exclude_student_id=updated_student.id
+                    )
+
+                    if potential_siblings:
+                        sibling_ids = [s.id for s in potential_siblings]
+                        await student_sibling_crud.create_sibling_relationships_for_student(
+                            db,
+                            student_id=updated_student.id,
+                            detected_sibling_ids=sibling_ids
+                        )
+
+                        log_crud_operation("SIBLING_REDETECTION", f"Re-detected {len(potential_siblings)} siblings after update",
+                                         student_id=updated_student.id, sibling_count=len(potential_siblings))
+
+                await db.commit()
+
+            except Exception as sibling_error:
+                log_crud_operation("SIBLING_REDETECTION_ERROR", f"Failed to re-detect siblings: {str(sibling_error)}",
+                                 "error", student_id=updated_student.id)
+                logging.exception("Sibling re-detection error:")
+                # Don't fail update due to sibling detection errors
+
+        return updated_student
 
     async def get_with_metadata(self, db: AsyncSession, id: int) -> Optional[Student]:
         """Get student with metadata relationships loaded"""
@@ -288,6 +400,42 @@ class CRUDStudent(CRUDBase[Student, StudentCreate, StudentUpdate]):
 
                     # Don't fail student creation, but ensure we log this properly
                     print(f"Warning: Failed to create/link user account for student {obj_in.admission_number}: {user_creation_error}")
+
+            # Detect and link siblings after student creation
+            detected_siblings = []
+            if obj_in.father_name and obj_in.father_phone:
+                try:
+                    from app.crud.crud_student_sibling import student_sibling_crud
+
+                    # Detect potential siblings
+                    potential_siblings = await student_sibling_crud.detect_siblings_by_father_and_phone(
+                        db,
+                        father_name=obj_in.father_name,
+                        father_phone=obj_in.father_phone,
+                        exclude_student_id=db_obj.id
+                    )
+
+                    if potential_siblings:
+                        # Create sibling relationships
+                        sibling_ids = [s.id for s in potential_siblings]
+                        await student_sibling_crud.create_sibling_relationships_for_student(
+                            db,
+                            student_id=db_obj.id,
+                            detected_sibling_ids=sibling_ids
+                        )
+                        detected_siblings = potential_siblings
+
+                        log_crud_operation("SIBLING_DETECTION", f"Detected and linked {len(detected_siblings)} siblings",
+                                         student_id=db_obj.id, sibling_count=len(detected_siblings))
+
+                except Exception as sibling_error:
+                    log_crud_operation("SIBLING_DETECTION_ERROR", f"Failed to detect/link siblings: {str(sibling_error)}",
+                                     "error", student_id=db_obj.id)
+                    logging.exception("Sibling detection error:")
+                    # Don't fail student creation due to sibling detection errors
+
+            # Store detected siblings info on the object for later use
+            db_obj._detected_siblings = detected_siblings
 
             return db_obj
 
@@ -506,9 +654,40 @@ class CRUDStudent(CRUDBase[Student, StudentCreate, StudentUpdate]):
             'class_distribution': class_stats
         }
 
+    async def remove(self, db: AsyncSession, *, id: int) -> Student:
+        """
+        Override base remove method to cascade soft delete to user account
+        This is called by the DELETE endpoint
+        """
+        obj = await self.get(db, id=id)
+        if obj:
+            # Soft delete using available columns
+            obj.is_active = False
+            obj.is_deleted = True
+            obj.deleted_date = datetime.utcnow()
+
+            # Cascade soft delete to user account if exists
+            if obj.user_id:
+                user_result = await db.execute(
+                    select(User).where(User.id == obj.user_id)
+                )
+                user = user_result.scalar_one_or_none()
+
+                if user:
+                    user.is_active = False
+                    user.is_deleted = True
+                    user.deleted_date = datetime.utcnow()
+                    db.add(user)
+
+            db.add(obj)
+            await db.commit()
+            await db.refresh(obj)
+        return obj
+
     async def soft_delete(self, db: AsyncSession, *, id: int) -> Optional[Student]:
         """
         Soft delete a student record by setting is_deleted=True and deleted_date
+        Also cascades soft delete to the associated user account
         """
         try:
             # Get the student
@@ -523,6 +702,20 @@ class CRUDStudent(CRUDBase[Student, StudentCreate, StudentUpdate]):
             # Set soft delete flags
             obj.is_deleted = True
             obj.deleted_date = datetime.utcnow()
+            obj.is_active = False  # Also deactivate
+
+            # Cascade soft delete to user account if exists
+            if obj.user_id:
+                user_result = await db.execute(
+                    select(User).where(User.id == obj.user_id)
+                )
+                user = user_result.scalar_one_or_none()
+
+                if user:
+                    user.is_active = False
+                    user.is_deleted = True
+                    user.deleted_date = datetime.utcnow()
+                    db.add(user)
 
             db.add(obj)
             await db.commit()
@@ -536,6 +729,7 @@ class CRUDStudent(CRUDBase[Student, StudentCreate, StudentUpdate]):
     async def restore(self, db: AsyncSession, *, id: int) -> Optional[Student]:
         """
         Restore a soft-deleted student record
+        Also restores the associated user account (clears is_deleted flag)
         """
         try:
             # Get the student (including soft deleted ones)
@@ -550,6 +744,20 @@ class CRUDStudent(CRUDBase[Student, StudentCreate, StudentUpdate]):
             # Clear soft delete flags
             obj.is_deleted = False
             obj.deleted_date = None
+            obj.is_active = True  # Reactivate
+
+            # Cascade restore to user account if exists
+            if obj.user_id:
+                user_result = await db.execute(
+                    select(User).where(User.id == obj.user_id)
+                )
+                user = user_result.scalar_one_or_none()
+
+                if user:
+                    user.is_active = True
+                    user.is_deleted = False
+                    user.deleted_date = None
+                    db.add(user)
 
             db.add(obj)
             await db.commit()
