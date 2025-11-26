@@ -563,11 +563,16 @@ class CRUDStudent(CRUDBase[Student, StudentCreate, StudentUpdate]):
                     )
                 ).label('female_count')
             )
-            .where(Student.is_active == True)
+            .where(
+                and_(
+                    Student.is_active == True,
+                    or_(Student.is_deleted == False, Student.is_deleted.is_(None))
+                )
+            )
             .group_by(Student.current_class)
             .order_by(Student.current_class)
         )
-        
+
         stats = []
         for row in result:
             stats.append({
@@ -576,7 +581,7 @@ class CRUDStudent(CRUDBase[Student, StudentCreate, StudentUpdate]):
                 'male_count': row.male_count,
                 'female_count': row.female_count
             })
-        
+
         return stats
 
     async def get_recent_admissions(
@@ -584,7 +589,12 @@ class CRUDStudent(CRUDBase[Student, StudentCreate, StudentUpdate]):
     ) -> List[Student]:
         result = await db.execute(
             select(Student)
-            .where(Student.is_active == True)
+            .where(
+                and_(
+                    Student.is_active == True,
+                    or_(Student.is_deleted == False, Student.is_deleted.is_(None))
+                )
+            )
             .order_by(desc(Student.admission_date))
             .limit(limit)
         )
@@ -599,12 +609,13 @@ class CRUDStudent(CRUDBase[Student, StudentCreate, StudentUpdate]):
             Student.admission_number.ilike(f"%{search_term}%"),
             func.concat(Student.first_name, ' ', Student.last_name).ilike(f"%{search_term}%")
         ]
-        
+
         result = await db.execute(
             select(Student)
             .where(
                 and_(
                     Student.is_active == True,
+                    or_(Student.is_deleted == False, Student.is_deleted.is_(None)),
                     or_(*search_conditions)
                 )
             )
@@ -614,31 +625,46 @@ class CRUDStudent(CRUDBase[Student, StudentCreate, StudentUpdate]):
         return result.scalars().all()
 
     async def get_dashboard_stats(self, db: AsyncSession) -> Dict[str, Any]:
-        # Total students
+        # Total students (excluding soft deleted)
         total_result = await db.execute(
-            select(func.count(Student.id)).where(Student.is_active == True)
+            select(func.count(Student.id)).where(
+                and_(
+                    Student.is_active == True,
+                    or_(Student.is_deleted == False, Student.is_deleted.is_(None))
+                )
+            )
         )
         total_students = total_result.scalar()
 
-        # Gender distribution
+        # Gender distribution (excluding soft deleted)
         gender_result = await db.execute(
             select(
                 Student.gender_id,
                 func.count(Student.id).label('count')
             )
-            .where(Student.is_active == True)
+            .where(
+                and_(
+                    Student.is_active == True,
+                    or_(Student.is_deleted == False, Student.is_deleted.is_(None))
+                )
+            )
             .group_by(Student.gender_id)
         )
 
         gender_stats = {row.gender_id: row.count for row in gender_result}
 
-        # Class distribution
+        # Class distribution (excluding soft deleted)
         class_result = await db.execute(
             select(
                 Student.class_id,
                 func.count(Student.id).label('count')
             )
-            .where(Student.is_active == True)
+            .where(
+                and_(
+                    Student.is_active == True,
+                    or_(Student.is_deleted == False, Student.is_deleted.is_(None))
+                )
+            )
             .group_by(Student.class_id)
             .order_by(Student.class_id)
         )

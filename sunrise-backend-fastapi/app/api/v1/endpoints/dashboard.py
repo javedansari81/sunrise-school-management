@@ -63,11 +63,12 @@ async def get_admin_dashboard_stats(
             student_stats = await student_crud.get_dashboard_stats(db)
             logger.info(f"Student stats retrieved: {student_stats}")
 
-            # Calculate students added this month
+            # Calculate students added this month (excluding soft deleted)
             logger.info("Calculating students added this month...")
             students_this_month_query = select(func.count(Student.id)).where(
                 and_(
                     Student.is_active == True,
+                    or_(Student.is_deleted == False, Student.is_deleted.is_(None)),
                     Student.created_at >= current_month_start
                 )
             )
@@ -354,7 +355,7 @@ async def get_admin_dashboard_enhanced_stats(
 
         # 1. Student Management - Detailed Statistics
         try:
-            # Get class-wise breakdown
+            # Get class-wise breakdown (excluding soft deleted)
             class_breakdown_query = text("""
                 SELECT
                     c.description as class_name,
@@ -364,6 +365,7 @@ async def get_admin_dashboard_enhanced_stats(
                 FROM sunrise.students s
                 LEFT JOIN sunrise.classes c ON s.class_id = c.id
                 WHERE s.is_active = TRUE
+                    AND (s.is_deleted = FALSE OR s.is_deleted IS NULL)
                 GROUP BY c.id, c.description
                 ORDER BY c.id
             """)
@@ -378,7 +380,7 @@ async def get_admin_dashboard_enhanced_stats(
                 for row in class_result
             ]
 
-            # Get total and active/inactive counts
+            # Get total and active/inactive counts (excluding soft deleted)
             student_stats_query = text("""
                 SELECT
                     COUNT(*) as total_students,
@@ -386,6 +388,7 @@ async def get_admin_dashboard_enhanced_stats(
                     COUNT(CASE WHEN is_active = FALSE THEN 1 END) as inactive_students,
                     COUNT(CASE WHEN created_at >= :month_start THEN 1 END) as recent_enrollments
                 FROM sunrise.students
+                WHERE (is_deleted = FALSE OR is_deleted IS NULL)
             """)
             student_stats_result = await db.execute(
                 student_stats_query,
