@@ -89,6 +89,7 @@ interface GalleryImageFormData {
   description: string;
   display_order: string;
   is_visible_on_home_page: boolean;
+  home_page_display_order: string;
   file?: File | null;
 }
 
@@ -130,6 +131,7 @@ const GalleryManagement: React.FC = () => {
     description: '',
     display_order: '0',
     is_visible_on_home_page: false,
+    home_page_display_order: '',
     file: null,
   });
 
@@ -209,6 +211,7 @@ const GalleryManagement: React.FC = () => {
         description: image.description || '',
         display_order: image.display_order?.toString() || '0',
         is_visible_on_home_page: image.is_visible_on_home_page || false,
+        home_page_display_order: image.home_page_display_order?.toString() || '',
         file: null,
       });
       setSelectedImage(image);
@@ -221,6 +224,7 @@ const GalleryManagement: React.FC = () => {
         description: '',
         display_order: '0',
         is_visible_on_home_page: false,
+        home_page_display_order: '',
         file: null,
       });
       setSelectedImage(null);
@@ -239,6 +243,7 @@ const GalleryManagement: React.FC = () => {
       description: '',
       display_order: '0',
       is_visible_on_home_page: false,
+      home_page_display_order: '',
       file: null,
     });
   };
@@ -304,6 +309,7 @@ const GalleryManagement: React.FC = () => {
           description: imageForm.description || null,
           display_order: parseInt(imageForm.display_order),
           is_visible_on_home_page: imageForm.is_visible_on_home_page,
+          home_page_display_order: imageForm.home_page_display_order ? parseInt(imageForm.home_page_display_order) : null,
         };
 
         await galleryAPI.updateImage(selectedImage.id, updateData);
@@ -324,6 +330,9 @@ const GalleryManagement: React.FC = () => {
         }
         formData.append('display_order', imageForm.display_order);
         formData.append('is_visible_on_home_page', imageForm.is_visible_on_home_page.toString());
+        if (imageForm.home_page_display_order) {
+          formData.append('home_page_display_order', imageForm.home_page_display_order);
+        }
 
         await galleryAPI.uploadImage(formData);
         setSnackbar({ open: true, message: 'Image uploaded successfully', severity: 'success' });
@@ -732,7 +741,7 @@ const GalleryManagement: React.FC = () => {
                                     variant="outlined"
                                   />
                                 </TableCell>
-                                <TableCell>{image.display_order}</TableCell>
+                                <TableCell>{image.home_page_display_order ?? '-'}</TableCell>
                                 <TableCell>
                                   <Stack direction="row" spacing={1}>
                                     <Tooltip title="View Details">
@@ -940,6 +949,23 @@ const GalleryManagement: React.FC = () => {
                     label="Show on Home Page Carousel"
                   />
                 </Grid>
+
+                {/* Home Page Display Order - Conditional Field */}
+                {imageForm.is_visible_on_home_page && (
+                  <Grid size={{ xs: 12, sm: 6 }}>
+                    <TextField
+                      fullWidth
+                      label="Home Page Display Order"
+                      name="home_page_display_order"
+                      type="number"
+                      value={imageForm.home_page_display_order}
+                      onChange={handleFormChange}
+                      disabled={dialogMode === 'view'}
+                      helperText="(Optional) Lower numbers appear first on home page carousel. Leave empty to sort by upload date."
+                      inputProps={{ min: 1, step: 1 }}
+                    />
+                  </Grid>
+                )}
               </Grid>
             </DialogContent>
             <DialogActions>

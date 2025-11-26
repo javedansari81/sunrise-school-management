@@ -54,9 +54,10 @@ class GalleryImageBase(BaseModel):
     category_id: int = Field(..., description="Category ID")
     title: str = Field(..., max_length=200, description="Image title")
     description: Optional[str] = Field(None, description="Image description")
-    display_order: int = Field(0, description="Display order (lower = first)")
+    display_order: int = Field(0, description="Display order within category (lower = first)")
     is_active: bool = Field(True, description="Active status")
     is_visible_on_home_page: bool = Field(False, description="Show on home page carousel")
+    home_page_display_order: Optional[int] = Field(None, description="Display order on home page (lower = first, NULL = after explicit ordering)")
 
 
 class GalleryImageCreate(GalleryImageBase):
@@ -75,6 +76,7 @@ class GalleryImageUpdate(BaseModel):
     display_order: Optional[int] = None
     is_active: Optional[bool] = None
     is_visible_on_home_page: Optional[bool] = None
+    home_page_display_order: Optional[int] = None
 
 
 class GalleryImageResponse(GalleryImageBase):
@@ -131,6 +133,7 @@ class PublicGalleryImage(BaseModel):
     cloudinary_url: str
     cloudinary_thumbnail_url: Optional[str] = None
     display_order: int
+    home_page_display_order: Optional[int] = None
     upload_date: datetime
 
     class Config:

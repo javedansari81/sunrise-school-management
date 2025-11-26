@@ -43,6 +43,7 @@ class GalleryImage(Base):
     display_order = Column(Integer, default=0)
     is_active = Column(Boolean, default=True)
     is_visible_on_home_page = Column(Boolean, default=False)
+    home_page_display_order = Column(Integer, nullable=True, default=None)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 

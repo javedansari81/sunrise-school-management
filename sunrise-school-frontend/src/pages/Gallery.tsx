@@ -285,7 +285,7 @@ const Gallery: React.FC = () => {
               key={category.id}
               label={
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  {category.icon && iconMap[category.icon]}
+                  {category.icon ? (iconMap[category.icon] || <PhotoLibrary />) : <PhotoLibrary />}
                   <span>{category.name}</span>
                   <Chip label={category.images.length} size="small" color="primary" />
                 </Box>
@@ -337,7 +337,7 @@ const Gallery: React.FC = () => {
                 onClick={() => handleCategorySelect(category.id)}
               >
                 <ListItemIcon>
-                  {category.icon && iconMap[category.icon]}
+                  {category.icon ? (iconMap[category.icon] || <PhotoLibrary />) : <PhotoLibrary />}
                 </ListItemIcon>
                 <ListItemText primary={category.name} />
               </MuiMenuItem>

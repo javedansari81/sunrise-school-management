@@ -21,6 +21,7 @@ CREATE TABLE gallery_images (
     display_order INTEGER DEFAULT 0,
     is_active BOOLEAN DEFAULT TRUE,
     is_visible_on_home_page BOOLEAN DEFAULT FALSE,
+    home_page_display_order INTEGER DEFAULT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE
 );
@@ -35,17 +36,19 @@ COMMENT ON COLUMN gallery_images.cloudinary_public_id IS 'Unique Cloudinary iden
 COMMENT ON COLUMN gallery_images.cloudinary_url IS 'Full Cloudinary URL for original image';
 COMMENT ON COLUMN gallery_images.cloudinary_thumbnail_url IS 'Optimized thumbnail URL for faster loading';
 COMMENT ON COLUMN gallery_images.uploaded_by IS 'User ID who uploaded the image';
-COMMENT ON COLUMN gallery_images.display_order IS 'Order for displaying images (lower = first)';
+COMMENT ON COLUMN gallery_images.display_order IS 'Order for displaying images within their category (lower = first) - used for category-based sorting only';
 COMMENT ON COLUMN gallery_images.is_active IS 'Flag to show/hide image in gallery';
 COMMENT ON COLUMN gallery_images.is_visible_on_home_page IS 'Flag to display image on home page carousel/slider';
+COMMENT ON COLUMN gallery_images.home_page_display_order IS 'Order for displaying images on home page carousel (lower = first) - used for home page sorting only. NULL values appear after explicit ordering';
 
 -- Create indexes
 CREATE INDEX idx_gallery_images_category ON gallery_images(category_id);
 CREATE INDEX idx_gallery_images_active ON gallery_images(is_active);
 CREATE INDEX idx_gallery_images_home_page ON gallery_images(is_visible_on_home_page);
 CREATE INDEX idx_gallery_images_display_order ON gallery_images(display_order);
+CREATE INDEX idx_gallery_images_home_page_display_order ON gallery_images(home_page_display_order);
 CREATE INDEX idx_gallery_images_upload_date ON gallery_images(upload_date DESC);
 
--- Create composite index for home page queries
-CREATE INDEX idx_gallery_images_home_page_active ON gallery_images(is_visible_on_home_page, is_active, display_order);
+-- Create composite index for home page queries (optimized for new ordering logic)
+CREATE INDEX idx_gallery_images_home_page_active ON gallery_images(is_visible_on_home_page, is_active, home_page_display_order, upload_date DESC);
 

@@ -139,6 +139,7 @@ async def get_home_page_images(
     """
     Get featured images for home page carousel
     Returns images where is_visible_on_home_page = TRUE
+    Ordered by home_page_display_order (NULL values appear last), then upload_date
     Public endpoint - no authentication required
     """
     query = select(GalleryImage).join(GalleryCategory).options(
@@ -151,7 +152,7 @@ async def get_home_page_images(
             GalleryCategory.is_active == True
         )
     ).order_by(
-        GalleryImage.display_order.asc(),
+        GalleryImage.home_page_display_order.asc().nulls_last(),
         GalleryImage.upload_date.desc()
     ).limit(limit)
 
@@ -210,6 +211,7 @@ async def upload_gallery_image(
     description: Optional[str] = Form(None),
     is_visible_on_home_page: bool = Form(False),
     display_order: int = Form(0),
+    home_page_display_order: Optional[int] = Form(None),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_admin_user)
 ):
@@ -256,7 +258,8 @@ async def upload_gallery_image(
             cloudinary_thumbnail_url=thumbnail_url,
             uploaded_by=current_user.id,
             is_visible_on_home_page=is_visible_on_home_page,
-            display_order=display_order
+            display_order=display_order,
+            home_page_display_order=home_page_display_order
         )
         
         db.add(new_image)
@@ -376,6 +379,8 @@ async def update_gallery_image(
         image.is_active = image_update.is_active
     if image_update.is_visible_on_home_page is not None:
         image.is_visible_on_home_page = image_update.is_visible_on_home_page
+    if image_update.home_page_display_order is not None:
+        image.home_page_display_order = image_update.home_page_display_order
 
     await db.commit()
     await db.refresh(image)

@@ -200,6 +200,7 @@ async def get_public_home_page_images(
     """
     Get featured images for home page carousel
     Returns images where is_visible_on_home_page = TRUE
+    Ordered by home_page_display_order (NULL values appear last), then upload_date
     Public endpoint - no authentication required
 
     Args:
@@ -212,7 +213,7 @@ async def get_public_home_page_images(
             GalleryCategory.is_active == True
         )
     ).order_by(
-        GalleryImage.display_order.asc(),
+        GalleryImage.home_page_display_order.asc().nulls_last(),
         GalleryImage.upload_date.desc()
     ).limit(limit)
 
@@ -228,6 +229,7 @@ async def get_public_home_page_images(
             'cloudinary_url': img.cloudinary_url,
             'cloudinary_thumbnail_url': img.cloudinary_thumbnail_url,
             'display_order': img.display_order,
+            'home_page_display_order': img.home_page_display_order,
             'upload_date': img.upload_date
         }
         for img in images
