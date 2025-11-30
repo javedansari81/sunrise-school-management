@@ -32,6 +32,7 @@ import {
   Dashboard as DashboardIcon,
   BeachAccess as BeachAccessIcon,
   AccountBalance as AccountBalanceIcon,
+  CalendarMonth as CalendarMonthIcon,
   ChevronLeft as ChevronLeftIcon,
   ChevronRight as ChevronRightIcon,
 } from '@mui/icons-material';
@@ -127,6 +128,14 @@ const StudentLayout: React.FC<StudentLayoutProps> = ({ children }) => {
     navigate('/student/fees');
   };
 
+  const handleAttendance = () => {
+    handleUserMenuClose();
+    if (isMobile) {
+      setMobileOpen(false);
+    }
+    navigate('/student/attendance');
+  };
+
   const handleProfile = () => {
     handleUserMenuClose();
     if (isMobile) {
@@ -152,6 +161,8 @@ const StudentLayout: React.FC<StudentLayoutProps> = ({ children }) => {
       return 'Leave Management';
     } else if (location.pathname === '/student/fees') {
       return 'Fee Management';
+    } else if (location.pathname === '/student/attendance') {
+      return 'My Attendance';
     } else if (location.pathname === '/profile') {
       return 'Profile';
     }
@@ -493,6 +504,10 @@ const StudentLayout: React.FC<StudentLayoutProps> = ({ children }) => {
         <MenuItem onClick={handleFeeManagement}>
           <AccountBalanceIcon sx={{ mr: 1 }} />
           Fee Management
+        </MenuItem>
+        <MenuItem onClick={handleAttendance}>
+          <CalendarMonthIcon sx={{ mr: 1 }} />
+          My Attendance
         </MenuItem>
         <MenuItem onClick={handleProfile}>
           <PersonIcon sx={{ mr: 1 }} />

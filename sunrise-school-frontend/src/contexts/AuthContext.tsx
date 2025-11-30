@@ -12,6 +12,17 @@ interface User {
   is_active: boolean;
   profile_picture_url?: string | null;
   phone?: string;
+  teacher_profile?: {
+    id: number;
+    class_teacher_of_id?: number;
+    class_teacher_of_name?: string;
+    [key: string]: any;
+  };
+  student_profile?: {
+    id: number;
+    class_id?: number;
+    [key: string]: any;
+  };
 }
 
 interface LoginResponse {
@@ -162,7 +173,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const mappedUser = {
         ...profileData.user_info,
         user_type: profileData.user_info.user_type || mapUserTypeIdToString(profileData.user_info.user_type_id),
-        profile_picture_url: profilePictureUrl
+        profile_picture_url: profilePictureUrl,
+        teacher_profile: profileData.teacher_profile,
+        student_profile: profileData.student_profile
       };
 
       setUser(mappedUser);

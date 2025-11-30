@@ -41,6 +41,7 @@ import {
   AccountBalance as AccountBalanceIcon,
   Settings as SettingsIcon,
   ShoppingBag as ShoppingBagIcon,
+  EventAvailable as AttendanceIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -114,6 +115,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
       icon: <SettingsIcon />,
       children: [
         { label: 'Leave Management', icon: <BeachAccess />, path: '/admin/leaves' },
+        { label: 'Attendance Management', icon: <AttendanceIcon />, path: '/admin/attendance' },
         { label: 'Gallery Management', icon: <PhotoLibraryIcon />, path: '/admin/gallery-management' },
       ],
     },

@@ -11,6 +11,7 @@ from .leave import LeaveRequest, LeaveBalance, LeavePolicy, LeaveApprover
 from .expense import Expense, Vendor, Budget, ExpenseReport
 from .gallery import GalleryCategory, GalleryImage
 from .inventory import InventoryItemType, InventorySizeType, InventoryPricing, InventoryPurchase, InventoryPurchaseItem
+from .attendance import AttendanceStatus, AttendancePeriod, AttendanceRecord
 
 __all__ = [
     # Metadata models
@@ -19,6 +20,7 @@ __all__ = [
     "LeaveType", "LeaveStatus",
     "ExpenseCategory", "ExpenseStatus",
     "EmploymentStatus", "Qualification",
+    "AttendanceStatus", "AttendancePeriod",
     # Main models
     "User",
     "Teacher",
@@ -42,5 +44,6 @@ __all__ = [
     "InventorySizeType",
     "InventoryPricing",
     "InventoryPurchase",
-    "InventoryPurchaseItem"
+    "InventoryPurchaseItem",
+    "AttendanceRecord"
 ]

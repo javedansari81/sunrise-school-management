@@ -307,6 +307,40 @@ ON CONFLICT (id) DO UPDATE SET
     is_active = EXCLUDED.is_active,
     updated_at = NOW();
 
+-- =====================================================
+-- Attendance Statuses Data
+-- =====================================================
+INSERT INTO attendance_statuses (id, name, description, color_code, affects_attendance_percentage, is_active) VALUES
+(1, 'PRESENT', 'Present', '#28A745', TRUE, TRUE),
+(2, 'ABSENT', 'Absent', '#DC3545', TRUE, TRUE),
+(3, 'LATE', 'Late', '#FFC107', TRUE, TRUE),
+(4, 'HALF_DAY', 'Half Day', '#17A2B8', TRUE, TRUE),
+(5, 'EXCUSED', 'Excused', '#6C757D', FALSE, TRUE),
+(6, 'HOLIDAY', 'Holiday', '#007BFF', FALSE, TRUE),
+(7, 'LEAVE', 'On Leave', '#6F42C1', FALSE, TRUE)
+ON CONFLICT (id) DO UPDATE SET
+    name = EXCLUDED.name,
+    description = EXCLUDED.description,
+    color_code = EXCLUDED.color_code,
+    affects_attendance_percentage = EXCLUDED.affects_attendance_percentage,
+    is_active = EXCLUDED.is_active,
+    updated_at = NOW();
+
+-- =====================================================
+-- Attendance Periods Data
+-- =====================================================
+INSERT INTO attendance_periods (id, name, description, start_time, end_time, is_active) VALUES
+(1, 'FULL_DAY', 'Full Day', '08:00:00', '14:30:00', TRUE),
+(2, 'MORNING', 'Morning', '08:00:00', '11:00:00', TRUE),
+(3, 'AFTERNOON', 'Afternoon', '11:00:00', '14:30:00', TRUE)
+ON CONFLICT (id) DO UPDATE SET
+    name = EXCLUDED.name,
+    description = EXCLUDED.description,
+    start_time = EXCLUDED.start_time,
+    end_time = EXCLUDED.end_time,
+    is_active = EXCLUDED.is_active,
+    updated_at = NOW();
+
 -- Commit transaction
 COMMIT;
 
@@ -334,6 +368,8 @@ COMMIT;
 \echo '- 12 Positions'
 \echo '- 8 Inventory item types'
 \echo '- 7 Inventory size types'
+\echo '- 7 Attendance statuses (with color codes)'
+\echo '- 3 Attendance periods (with time ranges)'
 \echo ''
-\echo 'Total: 115 metadata records loaded'
+\echo 'Total: 125 metadata records loaded'
 \echo '=========================================='

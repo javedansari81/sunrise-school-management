@@ -65,6 +65,10 @@ SERVICE_METADATA_MAPPINGS = {
         "inventory_item_types", "inventory_size_types",
         "payment_methods", "session_years", "classes"
     ],
+    "attendance-management": [
+        "attendance_statuses", "attendance_periods",
+        "session_years", "classes"
+    ],
     "common": [
         "session_years", "user_types"
     ]
@@ -135,6 +139,10 @@ async def get_service_metadata_configuration(db: AsyncSession, service_name: str
                 configuration[metadata_type] = [{"id": item.id, "name": item.name, "description": item.description, "category": item.category, "is_active": item.is_active} for item in items]
             elif metadata_type == "inventory_size_types":
                 configuration[metadata_type] = [{"id": item.id, "name": item.name, "description": item.description, "sort_order": item.sort_order, "is_active": item.is_active} for item in items]
+            elif metadata_type == "attendance_statuses":
+                configuration[metadata_type] = [{"id": item.id, "name": item.name, "description": item.description, "color_code": item.color_code, "is_active": item.is_active} for item in items]
+            elif metadata_type == "attendance_periods":
+                configuration[metadata_type] = [{"id": item.id, "name": item.name, "description": item.description, "is_active": item.is_active} for item in items]
 
     # Add service-specific metadata
     configuration["metadata"] = {
@@ -435,6 +443,29 @@ async def get_inventory_management_configuration(
     )
 
 
+@router.get("/attendance-management/")
+async def get_attendance_management_configuration(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Get configuration for Attendance Management System
+
+    Returns only metadata required for attendance management:
+    - attendance_statuses (Present, Absent, Late, Half Day, Excused, Holiday, Leave)
+    - attendance_periods (Full Day, Morning, Afternoon)
+    - session_years
+    - classes
+
+    This endpoint provides optimized configuration for daily attendance tracking
+    with status-based color coding and period-based attendance marking.
+    """
+    return await _get_service_configuration_with_cache(
+        db, "attendance-management", request
+    )
+
+
 @router.get("/common/")
 async def get_common_configuration(
     request: Request,
@@ -469,7 +500,7 @@ async def refresh_configuration(
                 If not provided, refreshes all caches.
                 Valid values: fee-management, student-management, leave-management,
                              expense-management, teacher-management, transport-management,
-                             gallery-management, inventory-management, common
+                             gallery-management, inventory-management, attendance-management, common
 
     Requires admin privileges.
     """

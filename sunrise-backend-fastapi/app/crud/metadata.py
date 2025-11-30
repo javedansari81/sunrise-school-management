@@ -15,6 +15,7 @@ from app.models.metadata import (
 )
 from app.models.transport import TransportType
 from app.models.gallery import GalleryCategory
+from app.models.attendance import AttendanceStatus, AttendancePeriod
 # Note: Schema imports removed to avoid circular dependencies
 # Schemas will be imported in endpoints as needed
 
@@ -107,6 +108,8 @@ position_crud = MetadataCRUD(Position)
 transport_type_crud = MetadataCRUD(TransportType)
 gallery_category_crud = MetadataCRUD(GalleryCategory)
 reversal_reason_crud = MetadataCRUD(ReversalReason)
+attendance_status_crud = MetadataCRUD(AttendanceStatus)
+attendance_period_crud = MetadataCRUD(AttendancePeriod)
 
 
 def get_all_metadata(db: Session) -> Dict[str, List[Any]]:
@@ -316,6 +319,24 @@ async def get_all_metadata_async(db: AsyncSession) -> Dict[str, List[Any]]:
                NULL::BOOLEAN as requires_reference, is_active, created_at, updated_at
         FROM reversal_reasons WHERE is_active = true
 
+        UNION ALL
+
+        SELECT 'attendance_statuses' as table_name, id, name, description,
+               NULL::INTEGER as sort_order, NULL::DATE as start_date, NULL::DATE as end_date, NULL::BOOLEAN as is_current,
+               NULL::INTEGER as max_days_per_year, NULL::BOOLEAN as requires_medical_certificate, NULL::DECIMAL as budget_limit,
+               NULL::BOOLEAN as requires_approval, color_code, NULL::BOOLEAN as is_final, NULL::INTEGER as level_order,
+               NULL::BOOLEAN as requires_reference, is_active, created_at, updated_at
+        FROM attendance_statuses WHERE is_active = true
+
+        UNION ALL
+
+        SELECT 'attendance_periods' as table_name, id, name, description,
+               NULL::INTEGER as sort_order, NULL::DATE as start_date, NULL::DATE as end_date, NULL::BOOLEAN as is_current,
+               NULL::INTEGER as max_days_per_year, NULL::BOOLEAN as requires_medical_certificate, NULL::DECIMAL as budget_limit,
+               NULL::BOOLEAN as requires_approval, NULL::VARCHAR as color_code, NULL::BOOLEAN as is_final, NULL::INTEGER as level_order,
+               NULL::BOOLEAN as requires_reference, is_active, created_at, updated_at
+        FROM attendance_periods WHERE is_active = true
+
         ORDER BY table_name, id
     """)
 
@@ -345,7 +366,9 @@ async def get_all_metadata_async(db: AsyncSession) -> Dict[str, List[Any]]:
         "gallery_categories": [],
         "inventory_item_types": [],
         "inventory_size_types": [],
-        "reversal_reasons": []
+        "reversal_reasons": [],
+        "attendance_statuses": [],
+        "attendance_periods": []
     }
 
     # Process results efficiently
@@ -460,6 +483,16 @@ async def get_all_metadata_async(db: AsyncSession) -> Dict[str, List[Any]]:
             })()
         elif table_name == 'reversal_reasons':
             obj = type('ReversalReason', (), {
+                'id': row.id, 'name': row.name, 'description': row.description,
+                'is_active': row.is_active
+            })()
+        elif table_name == 'attendance_statuses':
+            obj = type('AttendanceStatus', (), {
+                'id': row.id, 'name': row.name, 'description': row.description,
+                'color_code': row.color_code, 'is_active': row.is_active
+            })()
+        elif table_name == 'attendance_periods':
+            obj = type('AttendancePeriod', (), {
                 'id': row.id, 'name': row.name, 'description': row.description,
                 'is_active': row.is_active
             })()

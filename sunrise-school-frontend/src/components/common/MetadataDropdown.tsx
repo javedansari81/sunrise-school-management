@@ -28,7 +28,7 @@ interface BaseDropdownProps {
 
 // Generic metadata dropdown component
 interface MetadataDropdownProps extends BaseDropdownProps {
-  metadataType: 'userTypes' | 'sessionYears' | 'genders' | 'classes' | 'paymentTypes' | 'paymentStatuses' | 'paymentMethods' | 'leaveTypes' | 'leaveStatuses' | 'expenseCategories' | 'expenseStatuses' | 'employmentStatuses' | 'qualifications';
+  metadataType: 'userTypes' | 'sessionYears' | 'genders' | 'classes' | 'paymentTypes' | 'paymentStatuses' | 'paymentMethods' | 'leaveTypes' | 'leaveStatuses' | 'expenseCategories' | 'expenseStatuses' | 'employmentStatuses' | 'qualifications' | 'attendanceStatuses' | 'attendancePeriods';
 }
 
 export const MetadataDropdown: React.FC<MetadataDropdownProps> = ({
@@ -52,6 +52,7 @@ export const MetadataDropdown: React.FC<MetadataDropdownProps> = ({
   const leaveConfig = configurationService.getServiceConfiguration('leave-management');
   const expenseConfig = configurationService.getServiceConfiguration('expense-management');
   const teacherConfig = configurationService.getServiceConfiguration('teacher-management');
+  const attendanceConfig = configurationService.getServiceConfiguration('attendance-management');
 
   // Map camelCase metadataType to snake_case configuration property names
   const metadataTypeMap: Record<string, string> = {
@@ -67,12 +68,14 @@ export const MetadataDropdown: React.FC<MetadataDropdownProps> = ({
     'expenseCategories': 'expense_categories',
     'expenseStatuses': 'expense_statuses',
     'employmentStatuses': 'employment_statuses',
-    'qualifications': 'qualifications'
+    'qualifications': 'qualifications',
+    'attendanceStatuses': 'attendance_statuses',
+    'attendancePeriods': 'attendance_periods'
   };
 
   // Get options based on metadata type from available configurations
   const getOptions = () => {
-    const configs = [feeConfig, studentConfig, leaveConfig, expenseConfig, teacherConfig].filter(Boolean);
+    const configs = [feeConfig, studentConfig, leaveConfig, expenseConfig, teacherConfig, attendanceConfig].filter(Boolean);
     const configKey = metadataTypeMap[metadataType];
 
     if (!configKey) {
@@ -186,6 +189,20 @@ export const LeaveStatusDropdown: React.FC<Omit<BaseDropdownProps, 'label'> & { 
   ...props
 }) => (
   <MetadataDropdown metadataType="leaveStatuses" label={label} {...props} />
+);
+
+export const AttendanceStatusDropdown: React.FC<Omit<BaseDropdownProps, 'label'> & { label?: string }> = ({
+  label = 'Attendance Status',
+  ...props
+}) => (
+  <MetadataDropdown metadataType="attendanceStatuses" label={label} {...props} />
+);
+
+export const AttendancePeriodDropdown: React.FC<Omit<BaseDropdownProps, 'label'> & { label?: string }> = ({
+  label = 'Attendance Period',
+  ...props
+}) => (
+  <MetadataDropdown metadataType="attendancePeriods" label={label} {...props} />
 );
 
 export const ExpenseCategoryDropdown: React.FC<Omit<BaseDropdownProps, 'label'> & { label?: string }> = ({

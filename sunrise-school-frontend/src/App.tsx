@@ -18,6 +18,7 @@ import ExpenseManagement from './pages/admin/ExpenseManagement';
 import TransportManagement from './pages/admin/TransportManagement';
 import GalleryManagement from './pages/admin/GalleryManagement';
 import InventoryManagement from './pages/admin/InventoryManagement';
+import AttendanceManagement from './pages/admin/AttendanceManagement';
 import StudentProfiles from './pages/admin/StudentProfiles';
 import TeacherProfiles from './pages/admin/TeacherProfiles';
 import StudentUDISEReport from './pages/admin/StudentUDISEReport';
@@ -25,9 +26,11 @@ import FeeTrackingReport from './pages/admin/FeeTrackingReport';
 import TeacherDashboard from './pages/teacher/TeacherDashboard';
 import TeacherLeaveManagementPage from './pages/teacher/TeacherLeaveManagementPage';
 import TeacherStudentProfilesPage from './pages/teacher/TeacherStudentProfilesPage';
+import TeacherAttendancePage from './pages/teacher/TeacherAttendancePage';
 import StudentDashboard from './pages/student/StudentDashboard';
 import StudentLeaveManagementPage from './pages/student/StudentLeaveManagementPage';
 import StudentFeeManagementPage from './pages/student/StudentFeeManagementPage';
+import StudentAttendancePage from './pages/student/StudentAttendancePage';
 import ProfilePage from './pages/ProfilePage';
 // import ConfigurationTest from './components/common/ConfigurationTest';
 
@@ -247,6 +250,11 @@ function App() {
               <StudentFeeManagementPage />
             </ProtectedRoute>
           } />
+          <Route path="/student/attendance" element={
+            <ProtectedRoute requiredRole="STUDENT">
+              <StudentAttendancePage />
+            </ProtectedRoute>
+          } />
 
           {/* Teacher Routes - Standalone (No MainLayout Header/Footer) */}
           <Route path="/teacher/dashboard" element={
@@ -262,6 +270,11 @@ function App() {
           <Route path="/teacher/students" element={
             <ProtectedRoute requiredRole="TEACHER">
               <TeacherStudentProfilesPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/teacher/attendance" element={
+            <ProtectedRoute requiredRole="TEACHER">
+              <TeacherAttendancePage />
             </ProtectedRoute>
           } />
 
@@ -301,6 +314,11 @@ function App() {
           <Route path="/admin/inventory" element={
             <ProtectedRoute requiredRole="ADMIN">
               <InventoryManagement />
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/attendance" element={
+            <ProtectedRoute requiredRole="ADMIN">
+              <AttendanceManagement />
             </ProtectedRoute>
           } />
           <Route path="/admin/gallery-management" element={

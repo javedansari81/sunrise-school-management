@@ -35,6 +35,7 @@ import {
   ChevronLeft as ChevronLeftIcon,
   ChevronRight as ChevronRightIcon,
   PersonAdd as PersonAddIcon,
+  EventNote as AttendanceIcon,
 } from '@mui/icons-material';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -128,6 +129,14 @@ const TeacherLayout: React.FC<TeacherLayoutProps> = ({ children }) => {
     navigate('/teacher/students');
   };
 
+  const handleAttendance = () => {
+    handleUserMenuClose();
+    if (isMobile) {
+      setMobileOpen(false);
+    }
+    navigate('/teacher/attendance');
+  };
+
   const handleProfile = () => {
     handleUserMenuClose();
     if (isMobile) {
@@ -153,6 +162,8 @@ const TeacherLayout: React.FC<TeacherLayoutProps> = ({ children }) => {
       return 'Leave Management';
     } else if (location.pathname === '/teacher/students') {
       return 'Student Profiles';
+    } else if (location.pathname === '/teacher/attendance') {
+      return 'Attendance Management';
     } else if (location.pathname === '/profile') {
       return 'Profile';
     }
@@ -494,6 +505,10 @@ const TeacherLayout: React.FC<TeacherLayoutProps> = ({ children }) => {
         <MenuItem onClick={handleStudentProfiles}>
           <PersonAddIcon sx={{ mr: 1 }} />
           Student Profiles
+        </MenuItem>
+        <MenuItem onClick={handleAttendance}>
+          <AttendanceIcon sx={{ mr: 1 }} />
+          Attendance
         </MenuItem>
         <MenuItem onClick={handleProfile}>
           <PersonIcon sx={{ mr: 1 }} />

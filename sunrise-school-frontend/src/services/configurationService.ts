@@ -76,6 +76,16 @@ export interface GalleryCategory extends MetadataItem {
 
 export interface ReversalReason extends MetadataItem {}
 
+export interface AttendanceStatus extends MetadataItem {
+  color_code?: string;
+  affects_attendance_percentage?: boolean;
+}
+
+export interface AttendancePeriod extends MetadataItem {
+  start_time?: string;
+  end_time?: string;
+}
+
 export interface Configuration {
   user_types?: UserType[];
   session_years?: SessionYear[];
@@ -94,6 +104,8 @@ export interface Configuration {
   departments?: Department[];
   positions?: Position[];
   gallery_categories?: GalleryCategory[];
+  attendance_statuses?: AttendanceStatus[];
+  attendance_periods?: AttendancePeriod[];
   metadata: {
     service?: string;
     last_updated?: string;
@@ -118,6 +130,7 @@ export type ServiceType =
   | 'gallery-management'
   | 'inventory-management'
   | 'transport-management'
+  | 'attendance-management'
   | 'common';
 
 // Dropdown option interface for UI components

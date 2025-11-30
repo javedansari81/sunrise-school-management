@@ -82,6 +82,7 @@ export const ConfigurationProvider: React.FC<ConfigurationProviderProps> = ({
     'gallery-management': false,
     'inventory-management': false,
     'transport-management': false,
+    'attendance-management': false,
     'common': false,
   });
   const [serviceErrors, setServiceErrors] = useState<Record<ServiceType, string | null>>({
@@ -93,6 +94,7 @@ export const ConfigurationProvider: React.FC<ConfigurationProviderProps> = ({
     'gallery-management': null,
     'inventory-management': null,
     'transport-management': null,
+    'attendance-management': null,
     'common': null,
   });
 

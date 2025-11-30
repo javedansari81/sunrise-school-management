@@ -305,7 +305,7 @@ const TeacherStudentProfiles: React.FC = () => {
   const sections = Array.from(new Set(students.map(s => s.section).filter(Boolean)));
 
   return (
-    <Box sx={{ p: { xs: 1, sm: 2, md: 3 } }}>
+    <Box sx={{ width: '100%' }}>
       {/* Filters */}
       <Paper elevation={3} sx={{ p: 3, mb: 3 }}>
         <Typography variant="h6" fontWeight="bold" mb={2}>
