@@ -585,10 +585,9 @@ const ExpenseManagement: React.FC = () => {
 
   return (
     <AdminLayout>
-      <Box sx={{ p: { xs: 1, sm: 2, md: 3 } }}>
-        <ServiceConfigurationLoader service="expense-management">
-      {/* Filters */}
-      <CollapsibleFilterSection
+      <ServiceConfigurationLoader service="expense-management">
+        {/* Filters */}
+        <CollapsibleFilterSection
         title="Filters"
         defaultExpanded={true}
         persistKey="expense-management-filters"
@@ -1367,8 +1366,7 @@ const ExpenseManagement: React.FC = () => {
           )}
         </DialogActions>
       </Dialog>
-        </ServiceConfigurationLoader>
-      </Box>
+      </ServiceConfigurationLoader>
     </AdminLayout>
   );
 };

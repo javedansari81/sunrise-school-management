@@ -226,10 +226,9 @@ const StudentUDISEReport: React.FC = () => {
 
   return (
     <AdminLayout>
-      <Box sx={{ p: { xs: 1, sm: 2, md: 3 } }}>
-        <ServiceConfigurationLoader service="student-management">
-          {/* Filters - Compact & Collapsible */}
-          <Paper elevation={2} sx={{ mb: 2 }}>
+      <ServiceConfigurationLoader service="student-management">
+        {/* Filters - Compact & Collapsible */}
+        <Paper elevation={2} sx={{ mb: 2 }}>
             <Box
               display="flex"
               justifyContent="space-between"
@@ -441,10 +440,9 @@ const StudentUDISEReport: React.FC = () => {
               sx={{ width: '100%' }}
             >
               {snackbar.message}
-            </Alert>
-          </Snackbar>
-        </ServiceConfigurationLoader>
-      </Box>
+          </Alert>
+        </Snackbar>
+      </ServiceConfigurationLoader>
     </AdminLayout>
   );
 };

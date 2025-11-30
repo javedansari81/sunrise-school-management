@@ -17,19 +17,13 @@ import {
   ListItemIcon,
   ListItemText,
   Divider,
-  Button,
+  Tooltip,
 } from '@mui/material';
 import {
   Menu as MenuIcon,
   Logout as LogoutIcon,
   Person as PersonIcon,
   Home as HomeIcon,
-  Info as InfoIcon,
-  School as SchoolIcon,
-  Assignment as AssignmentIcon,
-  People as PeopleIcon,
-  PhotoLibrary as PhotoLibraryIcon,
-  ContactMail as ContactMailIcon,
   Dashboard as DashboardIcon,
   BeachAccess as BeachAccessIcon,
   ChevronLeft as ChevronLeftIcon,
@@ -59,14 +53,12 @@ const TeacherLayout: React.FC<TeacherLayoutProps> = ({ children }) => {
   const [drawerCollapsed, setDrawerCollapsed] = useState(true);
   const [userMenuAnchor, setUserMenuAnchor] = useState<null | HTMLElement>(null);
 
-  const publicMenuItems = [
-    { label: 'Home', icon: <HomeIcon />, path: '/' },
-    { label: 'About', icon: <InfoIcon />, path: '/about' },
-    { label: 'Academics', icon: <SchoolIcon />, path: '/academics' },
-    { label: 'Admissions', icon: <AssignmentIcon />, path: '/admissions' },
-    { label: 'Faculty', icon: <PeopleIcon />, path: '/faculty' },
-    { label: 'Gallery', icon: <PhotoLibraryIcon />, path: '/gallery' },
-    { label: 'Contact', icon: <ContactMailIcon />, path: '/contact' },
+  // Teacher-specific menu items for right panel navigation
+  const teacherMenuItems = [
+    { label: 'Dashboard', icon: <DashboardIcon />, path: '/teacher/dashboard' },
+    { label: 'Leave Management', icon: <BeachAccessIcon />, path: '/teacher/leaves' },
+    { label: 'Student Profiles', icon: <PersonAddIcon />, path: '/teacher/students' },
+    { label: 'Attendance', icon: <AttendanceIcon />, path: '/teacher/attendance' },
   ];
 
   const handleDrawerToggle = () => {
@@ -105,38 +97,6 @@ const TeacherLayout: React.FC<TeacherLayoutProps> = ({ children }) => {
     navigate('/');
   };
 
-  const handleDashboard = () => {
-    handleUserMenuClose();
-    if (isMobile) {
-      setMobileOpen(false);
-    }
-    navigate('/teacher/dashboard');
-  };
-
-  const handleLeaveManagement = () => {
-    handleUserMenuClose();
-    if (isMobile) {
-      setMobileOpen(false);
-    }
-    navigate('/teacher/leaves');
-  };
-
-  const handleStudentProfiles = () => {
-    handleUserMenuClose();
-    if (isMobile) {
-      setMobileOpen(false);
-    }
-    navigate('/teacher/students');
-  };
-
-  const handleAttendance = () => {
-    handleUserMenuClose();
-    if (isMobile) {
-      setMobileOpen(false);
-    }
-    navigate('/teacher/attendance');
-  };
-
   const handleProfile = () => {
     handleUserMenuClose();
     if (isMobile) {
@@ -149,22 +109,11 @@ const TeacherLayout: React.FC<TeacherLayoutProps> = ({ children }) => {
 
   // Get page title based on current route
   const getPageTitle = () => {
-    const currentItem = publicMenuItems.find((item) => item.path === location.pathname);
+    const currentItem = teacherMenuItems.find((item) => item.path === location.pathname);
     if (currentItem) {
-      if (currentItem.path === '/') {
-        return 'Welcome to Sunrise National Public School';
-      }
       return currentItem.label;
     }
-    if (location.pathname === '/teacher/dashboard') {
-      return 'Teacher Dashboard';
-    } else if (location.pathname === '/teacher/leaves') {
-      return 'Leave Management';
-    } else if (location.pathname === '/teacher/students') {
-      return 'Student Profiles';
-    } else if (location.pathname === '/teacher/attendance') {
-      return 'Attendance Management';
-    } else if (location.pathname === '/profile') {
+    if (location.pathname === '/profile') {
       return 'Profile';
     }
     return 'Teacher Dashboard';
@@ -221,10 +170,74 @@ const TeacherLayout: React.FC<TeacherLayoutProps> = ({ children }) => {
 
       <Divider />
 
-      {/* Navigation Menu */}
+      {/* Scrollable Content Area */}
       <Box sx={{ flexGrow: 1, overflowY: 'auto', overflowX: 'hidden' }}>
+        {/* Open Main Website Link */}
+        <Box sx={{ px: 1, py: 2 }}>
+          <Tooltip title={!isMobile ? "Open Main Website" : ""} placement="right">
+            <ListItemButton
+              onClick={() => window.open('/', '_blank', 'noopener,noreferrer')}
+              sx={{
+                borderRadius: 2,
+                minHeight: isMobile ? 48 : 56,
+                flexDirection: isMobile ? 'row' : 'column',
+                justifyContent: 'center',
+                alignItems: 'center',
+                px: isMobile ? 2.5 : 1,
+                py: isMobile ? 0 : 1,
+                backgroundColor: 'rgba(76, 175, 80, 0.08)',
+                color: '#2e7d32',
+                '&:hover': {
+                  backgroundColor: 'rgba(76, 175, 80, 0.15)',
+                },
+                transition: 'all 0.2s',
+                border: '1px solid rgba(76, 175, 80, 0.3)',
+              }}
+            >
+              <ListItemIcon
+                sx={{
+                  minWidth: isMobile ? 40 : 0,
+                  color: '#2e7d32',
+                  justifyContent: 'center',
+                  mb: isMobile ? 0 : 0.5,
+                }}
+              >
+                <HomeIcon />
+              </ListItemIcon>
+              {isMobile ? (
+                <ListItemText
+                  primary="Open Main Website"
+                  slotProps={{
+                    primary: {
+                      sx: {
+                        fontSize: '0.95rem',
+                        fontWeight: 600,
+                      }
+                    }
+                  }}
+                />
+              ) : (
+                <Typography
+                  variant="caption"
+                  sx={{
+                    fontSize: '0.7rem',
+                    fontWeight: 600,
+                    textAlign: 'center',
+                    lineHeight: 1.2,
+                  }}
+                >
+                  Website
+                </Typography>
+              )}
+            </ListItemButton>
+          </Tooltip>
+        </Box>
+
+        <Divider />
+
+        {/* Teacher Navigation Menu */}
         <List sx={{ py: 1 }}>
-          {publicMenuItems.map((item) => (
+          {teacherMenuItems.map((item) => (
             <ListItem key={item.path} disablePadding sx={{ display: 'block' }}>
               <ListItemButton
                 onClick={() => handleNavigation(item.path)}
@@ -494,22 +507,6 @@ const TeacherLayout: React.FC<TeacherLayoutProps> = ({ children }) => {
             </Typography>
           </Box>
         )}
-        <MenuItem onClick={handleDashboard}>
-          <DashboardIcon sx={{ mr: 1 }} />
-          Dashboard
-        </MenuItem>
-        <MenuItem onClick={handleLeaveManagement}>
-          <BeachAccessIcon sx={{ mr: 1 }} />
-          Leave Management
-        </MenuItem>
-        <MenuItem onClick={handleStudentProfiles}>
-          <PersonAddIcon sx={{ mr: 1 }} />
-          Student Profiles
-        </MenuItem>
-        <MenuItem onClick={handleAttendance}>
-          <AttendanceIcon sx={{ mr: 1 }} />
-          Attendance
-        </MenuItem>
         <MenuItem onClick={handleProfile}>
           <PersonIcon sx={{ mr: 1 }} />
           Profile

@@ -639,9 +639,8 @@ const StudentProfilesContent: React.FC = () => {
 
   return (
     <AdminLayout>
-      <Box sx={{ p: { xs: 1, sm: 2, md: 3 } }}>
-        {/* Filters and Search */}
-        <CollapsibleFilterSection
+      {/* Filters and Search */}
+      <CollapsibleFilterSection
           title="Filters"
           defaultExpanded={true}
           persistKey="student-profiles-filters"
@@ -1504,11 +1503,10 @@ const StudentProfilesContent: React.FC = () => {
           >
             {snackbar.message}
           </Alert>
-        </Snackbar>
+      </Snackbar>
 
-        {/* Error Dialog for better error handling */}
-        <ErrorDialog {...errorDialog.dialogProps} />
-      </Box>
+      {/* Error Dialog for better error handling */}
+      <ErrorDialog {...errorDialog.dialogProps} />
     </AdminLayout>
   );
 };

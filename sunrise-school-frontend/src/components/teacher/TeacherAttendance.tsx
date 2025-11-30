@@ -47,7 +47,6 @@ import {
   BeachAccess as HolidayIcon,
   EventBusy as LeaveIcon,
   Save as SaveIcon,
-  Refresh as RefreshIcon,
   CheckCircleOutline as MarkAllIcon,
 } from '@mui/icons-material';
 import { format } from 'date-fns';
@@ -393,15 +392,6 @@ const TeacherAttendance: React.FC = () => {
 
   return (
     <Box sx={{ width: '100%' }}>
-      {/* Header */}
-      <Box sx={{ mb: 3 }}>
-        <Typography variant="h4" gutterBottom fontWeight="bold" color="primary">
-          Mark Attendance
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          Use keyboard shortcuts: P=Present, A=Absent, L=Late, H=Half Day, E=Excused
-        </Typography>
-      </Box>
 
       {/* Filters */}
       <Paper sx={{ p: 3, mb: 3 }}>
@@ -427,7 +417,7 @@ const TeacherAttendance: React.FC = () => {
               required
             />
           </Grid>
-          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+          <Grid size={{ xs: 12, sm: 6, md: 4 }}>
             <FormControl fullWidth size="small">
               <InputLabel>Period</InputLabel>
               <Select
@@ -443,18 +433,6 @@ const TeacherAttendance: React.FC = () => {
                   )) : null}
               </Select>
             </FormControl>
-          </Grid>
-          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-            <Button
-              fullWidth
-              variant="contained"
-              startIcon={<RefreshIcon />}
-              onClick={loadStudents}
-              disabled={!classId || !attendanceDate || loading}
-              sx={{ height: '40px' }}
-            >
-              Load Students
-            </Button>
           </Grid>
         </Grid>
       </Paper>

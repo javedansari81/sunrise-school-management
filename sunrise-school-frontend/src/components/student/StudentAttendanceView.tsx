@@ -72,9 +72,16 @@ const StudentAttendanceView: React.FC = () => {
   // Initialize session year from configuration (default to 2025-26 session)
   useEffect(() => {
     if (isLoaded && configuration?.session_years) {
-      const currentSessionYear = configuration.session_years.find((sy: any) => sy.is_current);
-      if (currentSessionYear) {
-        setSessionYearId(currentSessionYear.id);
+      // Default to Academic Year 2025-26 (ID = 4)
+      const defaultSessionYear = configuration.session_years.find((sy: any) => sy.id === 4);
+      if (defaultSessionYear) {
+        setSessionYearId(defaultSessionYear.id);
+      } else {
+        // Fallback to is_current if 2025-26 is not available
+        const currentSessionYear = configuration.session_years.find((sy: any) => sy.is_current);
+        if (currentSessionYear) {
+          setSessionYearId(currentSessionYear.id);
+        }
       }
     }
   }, [isLoaded, configuration]);
@@ -421,15 +428,6 @@ const StudentAttendanceView: React.FC = () => {
 
   return (
     <Box sx={{ width: '100%' }}>
-      {/* Header */}
-      <Box sx={{ mb: 3 }}>
-        <Typography variant="h4" gutterBottom fontWeight="bold" color="primary">
-          My Attendance
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          View your attendance records and statistics
-        </Typography>
-      </Box>
 
       {/* Statistics Cards */}
       {summary && (

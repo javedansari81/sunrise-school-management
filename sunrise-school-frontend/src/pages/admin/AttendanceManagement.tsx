@@ -1,5 +1,4 @@
 import React from 'react';
-import { Box } from '@mui/material';
 import AdminLayout from '../../components/Layout/AdminLayout';
 import AttendanceManagementSystem from '../../components/admin/AttendanceManagementSystem';
 import ServiceConfigurationLoader from '../../components/common/ServiceConfigurationLoader';
@@ -7,11 +6,9 @@ import ServiceConfigurationLoader from '../../components/common/ServiceConfigura
 const AttendanceManagement: React.FC = () => {
   return (
     <AdminLayout>
-      <Box sx={{ p: { xs: 1, sm: 2, md: 3 } }}>
-        <ServiceConfigurationLoader service="attendance-management">
-          <AttendanceManagementSystem />
-        </ServiceConfigurationLoader>
-      </Box>
+      <ServiceConfigurationLoader service="attendance-management">
+        <AttendanceManagementSystem />
+      </ServiceConfigurationLoader>
     </AdminLayout>
   );
 };

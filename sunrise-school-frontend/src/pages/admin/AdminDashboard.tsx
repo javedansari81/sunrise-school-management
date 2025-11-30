@@ -540,37 +540,36 @@ const AdminDashboard: React.FC = () => {
 
   return (
     <AdminLayout>
-      <Box sx={{ p: { xs: 1, sm: 2, md: 3 } }}>
-        {/* Error Alert */}
-        {error && (
-          <Alert severity="error" sx={{ mb: 2 }}>
-            {error}
-          </Alert>
-        )}
+      {/* Error Alert */}
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error}
+        </Alert>
+      )}
 
-        {/* Loading State */}
-        {loading && (
-          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
-            <CircularProgress size={60} />
-          </Box>
-        )}
+      {/* Loading State */}
+      {loading && (
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
+          <CircularProgress size={60} />
+        </Box>
+      )}
 
-        {/* Dashboard Cards */}
-        {!loading && (
-          <Box
-            sx={{
-              display: 'grid',
-              gridTemplateColumns: {
-                xs: '1fr',
-                sm: 'repeat(2, 1fr)',
-                lg: 'repeat(3, 1fr)',
-              },
-              gap: { xs: 1.5, sm: 2, md: 2.5 },
-              mb: { xs: 2.5, sm: 3 },
-              alignItems: 'start', // Prevent cards from stretching to match tallest card
-            }}
-          >
-          {getDashboardCards().map((card) => (
+      {/* Dashboard Cards */}
+      {!loading && (
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: {
+              xs: '1fr',
+              sm: 'repeat(2, 1fr)',
+              lg: 'repeat(3, 1fr)',
+            },
+            gap: { xs: 1.5, sm: 2, md: 2.5 },
+            mb: { xs: 2.5, sm: 3 },
+            alignItems: 'start', // Prevent cards from stretching to match tallest card
+          }}
+        >
+        {getDashboardCards().map((card) => (
             <Card
               key={card.key}
               sx={{
@@ -791,14 +790,13 @@ const AdminDashboard: React.FC = () => {
                       >
                         Review
                       </Button>
-                    </Box>
                   </Box>
-                ))}
-              </Box>
-            </CardContent>
-          </Card>
-        )}
-      </Box>
+                </Box>
+              ))}
+            </Box>
+          </CardContent>
+        </Card>
+      )}
     </AdminLayout>
   );
 };

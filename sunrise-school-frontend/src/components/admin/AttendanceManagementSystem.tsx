@@ -189,9 +189,8 @@ const AttendanceManagementSystem: React.FC = () => {
 
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns}>
-      <Box sx={{ width: '100%', p: 3 }}>
-        {/* Filters */}
-        <CollapsibleFilterSection
+      {/* Filters */}
+      <CollapsibleFilterSection
           title="Filters"
           defaultExpanded={true}
         >
@@ -429,10 +428,9 @@ const AttendanceManagementSystem: React.FC = () => {
             severity={snackbar.severity}
             sx={{ width: '100%' }}
           >
-            {snackbar.message}
-          </Alert>
-        </Snackbar>
-      </Box>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </LocalizationProvider>
   );
 };

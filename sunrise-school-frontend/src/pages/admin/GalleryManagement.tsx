@@ -422,10 +422,9 @@ const GalleryManagement: React.FC = () => {
 
   return (
     <AdminLayout>
-      <Box sx={{ p: { xs: 1, sm: 2, md: 3 } }}>
-        <ServiceConfigurationLoader service="gallery-management">
-          {/* Filters Section - Above Tabs */}
-          <CollapsibleFilterSection
+      <ServiceConfigurationLoader service="gallery-management">
+        {/* Filters Section - Above Tabs */}
+        <CollapsibleFilterSection
             title="Filters"
             defaultExpanded={true}
             persistKey="gallery-management-filters"
@@ -998,10 +997,9 @@ const GalleryManagement: React.FC = () => {
               sx={{ width: '100%' }}
             >
               {snackbar.message}
-            </Alert>
-          </Snackbar>
-        </ServiceConfigurationLoader>
-      </Box>
+          </Alert>
+        </Snackbar>
+      </ServiceConfigurationLoader>
     </AdminLayout>
   );
 };

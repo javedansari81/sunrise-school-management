@@ -867,7 +867,7 @@ const FeeManagementComponent: React.FC = () => {
   }
 
   return (
-    <Box sx={{ p: { xs: 1, sm: 2, md: 3 } }}>
+    <>
       {/* Filters - Mobile Responsive */}
       <CollapsibleFilterSection
         title="Filters"
@@ -2379,11 +2379,11 @@ const FeeManagementComponent: React.FC = () => {
         <Alert
           onClose={() => setSnackbar(prev => ({ ...prev, open: false }))}
           severity={snackbar.severity}
-        >
-          {snackbar.message}
-        </Alert>
-      </Snackbar>
-    </Box>
+      >
+        {snackbar.message}
+      </Alert>
+    </Snackbar>
+    </>
   );
 };
 

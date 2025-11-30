@@ -45,6 +45,7 @@ import {
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import Footer from './Footer';
 
 interface MenuItem {
   label: string;
@@ -618,7 +619,8 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
         component="main"
         sx={{
           flexGrow: 1,
-          backgroundColor: '#f5f5f5',
+          display: 'flex',
+          flexDirection: 'column',
           minHeight: '100vh',
           width: {
             xs: '100%',
@@ -678,7 +680,12 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
         )}
 
         {/* Page Content */}
-        <Box sx={{ p: { xs: 2, sm: 3 } }}>{children}</Box>
+        <Box sx={{ flexGrow: 1, backgroundColor: '#f5f5f5' }}>
+          <Box sx={{ p: { xs: 2, sm: 3 } }}>{children}</Box>
+        </Box>
+
+        {/* Footer */}
+        <Footer />
       </Box>
 
       {/* User Menu */}
