@@ -2740,16 +2740,21 @@ async def get_my_fees(
             detail="This endpoint is only accessible to students"
         )
 
-    # Get student profile from current user with metadata
-    student = await student_crud.get_with_metadata(db, id=current_user.id)
+    # Get student profile from current user using user_id
+    student = await student_crud.get_by_user_id(db, user_id=current_user.id)
     if not student:
-        # Fallback to get_by_user_id if get_with_metadata doesn't work
-        student = await student_crud.get_by_user_id(db, user_id=current_user.id)
-        if not student:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Student profile not found for current user"
-            )
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Student profile not found for current user"
+        )
+
+    # Load metadata relationships for the student
+    student = await student_crud.get_with_metadata(db, id=student.id)
+    if not student:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Student profile not found for current user"
+        )
 
     # Extract student info early to avoid lazy loading issues
     student_id = student.id
@@ -2852,16 +2857,21 @@ async def get_my_monthly_history(
             detail="This endpoint is only accessible to students"
         )
 
-    # Get student profile from current user with metadata
-    student = await student_crud.get_with_metadata(db, id=current_user.id)
+    # Get student profile from current user using user_id
+    student = await student_crud.get_by_user_id(db, user_id=current_user.id)
     if not student:
-        # Fallback to get_by_user_id if get_with_metadata doesn't work
-        student = await student_crud.get_by_user_id(db, user_id=current_user.id)
-        if not student:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Student profile not found for current user"
-            )
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Student profile not found for current user"
+        )
+
+    # Load metadata relationships for the student
+    student = await student_crud.get_with_metadata(db, id=student.id)
+    if not student:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Student profile not found for current user"
+        )
 
     # Extract student info early to avoid lazy loading issues
     student_id = student.id
