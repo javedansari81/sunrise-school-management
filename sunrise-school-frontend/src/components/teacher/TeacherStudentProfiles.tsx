@@ -372,16 +372,16 @@ const TeacherStudentProfiles: React.FC = () => {
         </Tabs>
 
         <TabPanel value={tabValue} index={0}>
-          <TableContainer sx={{ maxHeight: { xs: '60vh', sm: '70vh' }, overflow: 'auto' }}>
-            <Table stickyHeader>
+          <TableContainer sx={{ maxHeight: { xs: '60vh', sm: '70vh' }, overflow: 'auto', overflowX: 'auto' }}>
+            <Table stickyHeader size="small">
               <TableHead>
                 <TableRow>
-                  <TableCell sx={{ backgroundColor: 'white', fontWeight: 600 }}>Student</TableCell>
-                  <TableCell sx={{ backgroundColor: 'white', fontWeight: 600 }}>Roll Number</TableCell>
-                  <TableCell sx={{ backgroundColor: 'white', fontWeight: 600 }}>Class</TableCell>
-                  <TableCell sx={{ backgroundColor: 'white', fontWeight: 600 }}>Parent Contact</TableCell>
-                  <TableCell sx={{ backgroundColor: 'white', fontWeight: 600 }}>Status</TableCell>
-                  <TableCell sx={{ backgroundColor: 'white', fontWeight: 600 }}>Actions</TableCell>
+                  <TableCell sx={{ backgroundColor: 'white', fontWeight: 600, fontSize: { xs: '0.75rem', sm: '0.875rem' }, minWidth: { xs: 140, sm: 180 } }}>Student</TableCell>
+                  <TableCell sx={{ backgroundColor: 'white', fontWeight: 600, fontSize: { xs: '0.75rem', sm: '0.875rem' }, display: { xs: 'none', sm: 'table-cell' } }}>Roll Number</TableCell>
+                  <TableCell sx={{ backgroundColor: 'white', fontWeight: 600, fontSize: { xs: '0.75rem', sm: '0.875rem' }, display: { xs: 'none', md: 'table-cell' } }}>Class</TableCell>
+                  <TableCell sx={{ backgroundColor: 'white', fontWeight: 600, fontSize: { xs: '0.75rem', sm: '0.875rem' }, display: { xs: 'none', md: 'table-cell' } }}>Parent Contact</TableCell>
+                  <TableCell sx={{ backgroundColor: 'white', fontWeight: 600, fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>Status</TableCell>
+                  <TableCell sx={{ backgroundColor: 'white', fontWeight: 600, fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>Actions</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -402,52 +402,53 @@ const TeacherStudentProfiles: React.FC = () => {
                 ) : (
                   students.map((student) => (
                     <TableRow key={student.id}>
-                      <TableCell>
-                        <Box display="flex" alignItems="center" gap={2}>
+                      <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
+                        <Box display="flex" alignItems="center" gap={{ xs: 1, sm: 2 }}>
                           <Avatar
                             src={student.profile_picture_url || undefined}
-                            sx={{ bgcolor: 'primary.main' }}
+                            sx={{ bgcolor: 'primary.main', width: { xs: 32, sm: 40 }, height: { xs: 32, sm: 40 } }}
                           >
                             {!student.profile_picture_url && `${student.first_name[0]}${student.last_name[0]}`}
                           </Avatar>
                           <Box>
-                            <Typography variant="body2" fontWeight="bold">
+                            <Typography variant="body2" fontWeight="bold" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
                               {student.first_name} {student.last_name}
                             </Typography>
                           </Box>
                         </Box>
                       </TableCell>
-                      <TableCell>{student.roll_number || 'Not Assigned'}</TableCell>
-                      <TableCell>
+                      <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, display: { xs: 'none', sm: 'table-cell' } }}>{student.roll_number || 'Not Assigned'}</TableCell>
+                      <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, display: { xs: 'none', md: 'table-cell' } }}>
                         <Box>
-                          <Typography variant="body2">{student.class_name}</Typography>
-                          <Typography variant="caption" color="text.secondary">
+                          <Typography variant="body2" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>{student.class_name}</Typography>
+                          <Typography variant="caption" color="text.secondary" sx={{ fontSize: { xs: '0.65rem', sm: '0.75rem' } }}>
                             {student.section ? `Section ${student.section}` : 'No Section'}
                           </Typography>
                         </Box>
                       </TableCell>
-                      <TableCell>
+                      <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, display: { xs: 'none', md: 'table-cell' } }}>
                         <Box>
-                          <Typography variant="body2">{student.father_name}</Typography>
-                          <Typography variant="caption" color="text.secondary">
+                          <Typography variant="body2" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>{student.father_name}</Typography>
+                          <Typography variant="caption" color="text.secondary" sx={{ fontSize: { xs: '0.65rem', sm: '0.75rem' } }}>
                             {student.father_phone || student.phone || 'No Phone'}
                           </Typography>
                         </Box>
                       </TableCell>
-                      <TableCell>
+                      <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
                         <Chip
                           label={student.is_active ? 'Active' : 'Inactive'}
                           color={student.is_active ? 'success' : 'default'}
                           size="small"
+                          sx={{ fontSize: { xs: '0.65rem', sm: '0.75rem' } }}
                         />
                       </TableCell>
-                      <TableCell>
-                        <Box sx={{ display: 'flex', gap: 1 }}>
-                          <IconButton size="small" onClick={() => handleViewStudent(student)} title="View">
-                            <Visibility />
+                      <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
+                        <Box sx={{ display: 'flex', gap: { xs: 0.5, sm: 1 } }}>
+                          <IconButton size="small" onClick={() => handleViewStudent(student)} title="View" sx={{ minWidth: 40, minHeight: 40 }}>
+                            <Visibility sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
                           </IconButton>
-                          <IconButton size="small" onClick={() => handleEditStudent(student)} title="Edit" color="primary">
-                            <EditIcon />
+                          <IconButton size="small" onClick={() => handleEditStudent(student)} title="Edit" color="primary" sx={{ minWidth: 40, minHeight: 40 }}>
+                            <EditIcon sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
                           </IconButton>
                         </Box>
                       </TableCell>
@@ -475,16 +476,16 @@ const TeacherStudentProfiles: React.FC = () => {
         </TabPanel>
 
         <TabPanel value={tabValue} index={1}>
-          <TableContainer sx={{ maxHeight: { xs: '60vh', sm: '70vh' }, overflow: 'auto' }}>
-            <Table stickyHeader>
+          <TableContainer sx={{ maxHeight: { xs: '60vh', sm: '70vh' }, overflow: 'auto', overflowX: 'auto' }}>
+            <Table stickyHeader size="small">
               <TableHead>
                 <TableRow>
-                  <TableCell sx={{ backgroundColor: 'white', fontWeight: 600 }}>Student</TableCell>
-                  <TableCell sx={{ backgroundColor: 'white', fontWeight: 600 }}>Roll Number</TableCell>
-                  <TableCell sx={{ backgroundColor: 'white', fontWeight: 600 }}>Class</TableCell>
-                  <TableCell sx={{ backgroundColor: 'white', fontWeight: 600 }}>Parent Contact</TableCell>
-                  <TableCell sx={{ backgroundColor: 'white', fontWeight: 600 }}>Status</TableCell>
-                  <TableCell sx={{ backgroundColor: 'white', fontWeight: 600 }}>Actions</TableCell>
+                  <TableCell sx={{ backgroundColor: 'white', fontWeight: 600, fontSize: { xs: '0.75rem', sm: '0.875rem' }, minWidth: { xs: 140, sm: 180 } }}>Student</TableCell>
+                  <TableCell sx={{ backgroundColor: 'white', fontWeight: 600, fontSize: { xs: '0.75rem', sm: '0.875rem' }, display: { xs: 'none', sm: 'table-cell' } }}>Roll Number</TableCell>
+                  <TableCell sx={{ backgroundColor: 'white', fontWeight: 600, fontSize: { xs: '0.75rem', sm: '0.875rem' }, display: { xs: 'none', md: 'table-cell' } }}>Class</TableCell>
+                  <TableCell sx={{ backgroundColor: 'white', fontWeight: 600, fontSize: { xs: '0.75rem', sm: '0.875rem' }, display: { xs: 'none', md: 'table-cell' } }}>Parent Contact</TableCell>
+                  <TableCell sx={{ backgroundColor: 'white', fontWeight: 600, fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>Status</TableCell>
+                  <TableCell sx={{ backgroundColor: 'white', fontWeight: 600, fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>Actions</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -505,48 +506,48 @@ const TeacherStudentProfiles: React.FC = () => {
                 ) : (
                   students.map((student) => (
                     <TableRow key={student.id}>
-                      <TableCell>
-                        <Box display="flex" alignItems="center" gap={2}>
+                      <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
+                        <Box display="flex" alignItems="center" gap={{ xs: 1, sm: 2 }}>
                           <Avatar
                             src={student.profile_picture_url || undefined}
-                            sx={{ bgcolor: 'primary.main' }}
+                            sx={{ bgcolor: 'primary.main', width: { xs: 32, sm: 40 }, height: { xs: 32, sm: 40 } }}
                           >
                             {!student.profile_picture_url && `${student.first_name[0]}${student.last_name[0]}`}
                           </Avatar>
                           <Box>
-                            <Typography variant="body2" fontWeight="bold">
+                            <Typography variant="body2" fontWeight="bold" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
                               {student.first_name} {student.last_name}
                             </Typography>
                           </Box>
                         </Box>
                       </TableCell>
-                      <TableCell>{student.roll_number || 'Not Assigned'}</TableCell>
-                      <TableCell>
+                      <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, display: { xs: 'none', sm: 'table-cell' } }}>{student.roll_number || 'Not Assigned'}</TableCell>
+                      <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, display: { xs: 'none', md: 'table-cell' } }}>
                         <Box>
-                          <Typography variant="body2">{student.class_name}</Typography>
-                          <Typography variant="caption" color="text.secondary">
+                          <Typography variant="body2" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>{student.class_name}</Typography>
+                          <Typography variant="caption" color="text.secondary" sx={{ fontSize: { xs: '0.65rem', sm: '0.75rem' } }}>
                             {student.section ? `Section ${student.section}` : 'No Section'}
                           </Typography>
                         </Box>
                       </TableCell>
-                      <TableCell>
+                      <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, display: { xs: 'none', md: 'table-cell' } }}>
                         <Box>
-                          <Typography variant="body2">{student.father_name}</Typography>
-                          <Typography variant="caption" color="text.secondary">
+                          <Typography variant="body2" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>{student.father_name}</Typography>
+                          <Typography variant="caption" color="text.secondary" sx={{ fontSize: { xs: '0.65rem', sm: '0.75rem' } }}>
                             {student.father_phone || student.phone || 'No Phone'}
                           </Typography>
                         </Box>
                       </TableCell>
-                      <TableCell>
-                        <Chip label="Active" color="success" size="small" />
+                      <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
+                        <Chip label="Active" color="success" size="small" sx={{ fontSize: { xs: '0.65rem', sm: '0.75rem' } }} />
                       </TableCell>
-                      <TableCell>
-                        <Box sx={{ display: 'flex', gap: 1 }}>
-                          <IconButton size="small" onClick={() => handleViewStudent(student)} title="View">
-                            <Visibility />
+                      <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
+                        <Box sx={{ display: 'flex', gap: { xs: 0.5, sm: 1 } }}>
+                          <IconButton size="small" onClick={() => handleViewStudent(student)} title="View" sx={{ minWidth: 40, minHeight: 40 }}>
+                            <Visibility sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
                           </IconButton>
-                          <IconButton size="small" onClick={() => handleEditStudent(student)} title="Edit" color="primary">
-                            <EditIcon />
+                          <IconButton size="small" onClick={() => handleEditStudent(student)} title="Edit" color="primary" sx={{ minWidth: 40, minHeight: 40 }}>
+                            <EditIcon sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
                           </IconButton>
                         </Box>
                       </TableCell>
@@ -574,16 +575,16 @@ const TeacherStudentProfiles: React.FC = () => {
         </TabPanel>
 
         <TabPanel value={tabValue} index={2}>
-          <TableContainer sx={{ maxHeight: { xs: '60vh', sm: '70vh' }, overflow: 'auto' }}>
-            <Table stickyHeader>
+          <TableContainer sx={{ maxHeight: { xs: '60vh', sm: '70vh' }, overflow: 'auto', overflowX: 'auto' }}>
+            <Table stickyHeader size="small">
               <TableHead>
                 <TableRow>
-                  <TableCell sx={{ backgroundColor: 'white', fontWeight: 600 }}>Student</TableCell>
-                  <TableCell sx={{ backgroundColor: 'white', fontWeight: 600 }}>Roll Number</TableCell>
-                  <TableCell sx={{ backgroundColor: 'white', fontWeight: 600 }}>Class</TableCell>
-                  <TableCell sx={{ backgroundColor: 'white', fontWeight: 600 }}>Parent Contact</TableCell>
-                  <TableCell sx={{ backgroundColor: 'white', fontWeight: 600 }}>Status</TableCell>
-                  <TableCell sx={{ backgroundColor: 'white', fontWeight: 600 }}>Actions</TableCell>
+                  <TableCell sx={{ backgroundColor: 'white', fontWeight: 600, fontSize: { xs: '0.75rem', sm: '0.875rem' }, minWidth: { xs: 140, sm: 180 } }}>Student</TableCell>
+                  <TableCell sx={{ backgroundColor: 'white', fontWeight: 600, fontSize: { xs: '0.75rem', sm: '0.875rem' }, display: { xs: 'none', sm: 'table-cell' } }}>Roll Number</TableCell>
+                  <TableCell sx={{ backgroundColor: 'white', fontWeight: 600, fontSize: { xs: '0.75rem', sm: '0.875rem' }, display: { xs: 'none', md: 'table-cell' } }}>Class</TableCell>
+                  <TableCell sx={{ backgroundColor: 'white', fontWeight: 600, fontSize: { xs: '0.75rem', sm: '0.875rem' }, display: { xs: 'none', md: 'table-cell' } }}>Parent Contact</TableCell>
+                  <TableCell sx={{ backgroundColor: 'white', fontWeight: 600, fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>Status</TableCell>
+                  <TableCell sx={{ backgroundColor: 'white', fontWeight: 600, fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>Actions</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -604,48 +605,48 @@ const TeacherStudentProfiles: React.FC = () => {
                 ) : (
                   students.map((student) => (
                     <TableRow key={student.id}>
-                      <TableCell>
-                        <Box display="flex" alignItems="center" gap={2}>
+                      <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
+                        <Box display="flex" alignItems="center" gap={{ xs: 1, sm: 2 }}>
                           <Avatar
                             src={student.profile_picture_url || undefined}
-                            sx={{ bgcolor: 'grey.500' }}
+                            sx={{ bgcolor: 'grey.500', width: { xs: 32, sm: 40 }, height: { xs: 32, sm: 40 } }}
                           >
                             {!student.profile_picture_url && `${student.first_name[0]}${student.last_name[0]}`}
                           </Avatar>
                           <Box>
-                            <Typography variant="body2" fontWeight="bold">
+                            <Typography variant="body2" fontWeight="bold" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
                               {student.first_name} {student.last_name}
                             </Typography>
                           </Box>
                         </Box>
                       </TableCell>
-                      <TableCell>{student.roll_number || 'Not Assigned'}</TableCell>
-                      <TableCell>
+                      <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, display: { xs: 'none', sm: 'table-cell' } }}>{student.roll_number || 'Not Assigned'}</TableCell>
+                      <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, display: { xs: 'none', md: 'table-cell' } }}>
                         <Box>
-                          <Typography variant="body2">{student.class_name}</Typography>
-                          <Typography variant="caption" color="text.secondary">
+                          <Typography variant="body2" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>{student.class_name}</Typography>
+                          <Typography variant="caption" color="text.secondary" sx={{ fontSize: { xs: '0.65rem', sm: '0.75rem' } }}>
                             {student.section ? `Section ${student.section}` : 'No Section'}
                           </Typography>
                         </Box>
                       </TableCell>
-                      <TableCell>
+                      <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, display: { xs: 'none', md: 'table-cell' } }}>
                         <Box>
-                          <Typography variant="body2">{student.father_name}</Typography>
-                          <Typography variant="caption" color="text.secondary">
+                          <Typography variant="body2" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>{student.father_name}</Typography>
+                          <Typography variant="caption" color="text.secondary" sx={{ fontSize: { xs: '0.65rem', sm: '0.75rem' } }}>
                             {student.father_phone || student.phone || 'No Phone'}
                           </Typography>
                         </Box>
                       </TableCell>
-                      <TableCell>
-                        <Chip label="Inactive" color="default" size="small" />
+                      <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
+                        <Chip label="Inactive" color="default" size="small" sx={{ fontSize: { xs: '0.65rem', sm: '0.75rem' } }} />
                       </TableCell>
-                      <TableCell>
-                        <Box sx={{ display: 'flex', gap: 1 }}>
-                          <IconButton size="small" onClick={() => handleViewStudent(student)} title="View">
-                            <Visibility />
+                      <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
+                        <Box sx={{ display: 'flex', gap: { xs: 0.5, sm: 1 } }}>
+                          <IconButton size="small" onClick={() => handleViewStudent(student)} title="View" sx={{ minWidth: 40, minHeight: 40 }}>
+                            <Visibility sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
                           </IconButton>
-                          <IconButton size="small" onClick={() => handleEditStudent(student)} title="Edit" color="primary">
-                            <EditIcon />
+                          <IconButton size="small" onClick={() => handleEditStudent(student)} title="Edit" color="primary" sx={{ minWidth: 40, minHeight: 40 }}>
+                            <EditIcon sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
                           </IconButton>
                         </Box>
                       </TableCell>

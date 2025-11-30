@@ -585,16 +585,17 @@ const LeaveManagementSystem: React.FC = () => {
               >
               <Table
                 stickyHeader
+                size="small"
                 sx={{
                   '& .MuiTableCell-root': {
-                    fontSize: '0.875rem',
-                    padding: '12px 16px',
+                    fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                    padding: { xs: '8px 12px', sm: '12px 16px' },
                     borderBottom: '1px solid rgba(224, 224, 224, 1)'
                   },
                   '& .MuiTableHead-root .MuiTableCell-root': {
                     backgroundColor: 'grey.50',
                     fontWeight: 600,
-                    fontSize: '0.875rem'
+                    fontSize: { xs: '0.75rem', sm: '0.875rem' }
                   }
                 }}
               >
@@ -629,6 +630,7 @@ const LeaveManagementSystem: React.FC = () => {
                         label={leave.applicant_type === 'student' ? 'Student' : 'Teacher'}
                         size="small"
                         variant="outlined"
+                        sx={{ fontSize: { xs: '0.65rem', sm: '0.75rem' } }}
                       />
                     </TableCell>
                     <TableCell>{leave.leave_type_name || 'Unknown'}</TableCell>
@@ -642,47 +644,53 @@ const LeaveManagementSystem: React.FC = () => {
                         size="small"
                         sx={{
                           backgroundColor: getStatusColor(leave.leave_status_name || 'Unknown', leave.leave_status_color),
-                          color: 'white'
+                          color: 'white',
+                          fontSize: { xs: '0.65rem', sm: '0.75rem' }
                         }}
                       />
                     </TableCell>
                     <TableCell>
-                      <Tooltip title="View">
-                        <IconButton size="small" onClick={() => handleOpenDialog(leave, true)}>
-                          <ViewIcon />
-                        </IconButton>
-                      </Tooltip>
-                      {leave.leave_status_name?.toUpperCase() === 'PENDING' && (
-                        <>
-                          <Tooltip title="Approve">
-                            <IconButton
-                              size="small"
-                              color="success"
-                              onClick={() => handleApprove(leave.id, 2, 'Approved')}
-                            >
-                              <ApproveIcon />
-                            </IconButton>
-                          </Tooltip>
-                          <Tooltip title="Reject">
-                            <IconButton
-                              size="small"
-                              color="error"
-                              onClick={() => handleApprove(leave.id, 3, 'Rejected')}
-                            >
-                              <RejectIcon />
-                            </IconButton>
-                          </Tooltip>
-                          <Tooltip title="Delete">
-                            <IconButton
-                              size="small"
-                              color="error"
-                              onClick={() => handleDelete(leave.id)}
-                            >
-                              <DeleteIcon />
-                            </IconButton>
-                          </Tooltip>
-                        </>
-                      )}
+                      <Box sx={{ display: 'flex', gap: { xs: 0.25, sm: 0.5 }, flexWrap: 'wrap' }}>
+                        <Tooltip title="View">
+                          <IconButton size="small" onClick={() => handleOpenDialog(leave, true)} sx={{ minWidth: 36, minHeight: 36 }}>
+                            <ViewIcon sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
+                          </IconButton>
+                        </Tooltip>
+                        {leave.leave_status_name?.toUpperCase() === 'PENDING' && (
+                          <>
+                            <Tooltip title="Approve">
+                              <IconButton
+                                size="small"
+                                color="success"
+                                onClick={() => handleApprove(leave.id, 2, 'Approved')}
+                                sx={{ minWidth: 36, minHeight: 36 }}
+                              >
+                                <ApproveIcon sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
+                              </IconButton>
+                            </Tooltip>
+                            <Tooltip title="Reject">
+                              <IconButton
+                                size="small"
+                                color="error"
+                                onClick={() => handleApprove(leave.id, 3, 'Rejected')}
+                                sx={{ minWidth: 36, minHeight: 36 }}
+                              >
+                                <RejectIcon sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
+                              </IconButton>
+                            </Tooltip>
+                            <Tooltip title="Delete">
+                              <IconButton
+                                size="small"
+                                color="error"
+                                onClick={() => handleDelete(leave.id)}
+                                sx={{ minWidth: 36, minHeight: 36 }}
+                              >
+                                <DeleteIcon sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
+                              </IconButton>
+                            </Tooltip>
+                          </>
+                        )}
+                      </Box>
                     </TableCell>
                   </TableRow>
                     ))
@@ -732,16 +740,17 @@ const LeaveManagementSystem: React.FC = () => {
               >
               <Table
                 stickyHeader
+                size="small"
                 sx={{
                   '& .MuiTableCell-root': {
-                    fontSize: '0.875rem',
-                    padding: '12px 16px',
+                    fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                    padding: { xs: '8px 12px', sm: '12px 16px' },
                     borderBottom: '1px solid rgba(224, 224, 224, 1)'
                   },
                   '& .MuiTableHead-root .MuiTableCell-root': {
                     backgroundColor: 'grey.50',
                     fontWeight: 600,
-                    fontSize: '0.875rem'
+                    fontSize: { xs: '0.75rem', sm: '0.875rem' }
                   }
                 }}
               >
@@ -778,34 +787,35 @@ const LeaveManagementSystem: React.FC = () => {
                               label={leave.applicant_type === 'student' ? 'Student' : 'Teacher'}
                               size="small"
                               variant="outlined"
+                              sx={{ fontSize: { xs: '0.65rem', sm: '0.75rem' } }}
                             />
                           </TableCell>
                           <TableCell>{leave.leave_type_name || 'Unknown'}</TableCell>
                           <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
                             <Stack spacing={0.5}>
-                              <Typography variant="body2" noWrap>
+                              <Typography variant="body2" noWrap sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
                                 {leave.start_date ? new Date(leave.start_date).toLocaleDateString() : 'N/A'}
                               </Typography>
-                              <Typography variant="caption" color="text.secondary" noWrap>
+                              <Typography variant="caption" color="text.secondary" noWrap sx={{ fontSize: { xs: '0.65rem', sm: '0.75rem' } }}>
                                 to {leave.end_date ? new Date(leave.end_date).toLocaleDateString() : 'N/A'}
                               </Typography>
                             </Stack>
                           </TableCell>
                           <TableCell>{leave.total_days || 0}</TableCell>
-                          <TableCell>
-                            <Typography variant="caption" color="textSecondary">
+                          <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
+                            <Typography variant="caption" color="textSecondary" sx={{ fontSize: { xs: '0.65rem', sm: '0.75rem' } }}>
                               {leave.created_at ? new Date(leave.created_at).toLocaleDateString() : 'N/A'}
                             </Typography>
                           </TableCell>
                           <TableCell align="center">
-                            <Stack direction="row" spacing={0.5} justifyContent="center">
+                            <Stack direction="row" spacing={{ xs: 0.25, sm: 0.5 }} justifyContent="center" flexWrap="wrap">
                               <Tooltip title="View Details">
                                 <IconButton
                                   size="small"
                                   onClick={() => handleOpenDialog(leave, true)}
-                                  sx={{ color: 'primary.main' }}
+                                  sx={{ color: 'primary.main', minWidth: 36, minHeight: 36 }}
                                 >
-                                  <ViewIcon />
+                                  <ViewIcon sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
                                 </IconButton>
                               </Tooltip>
                               {leave.leave_status_name?.toUpperCase() === 'PENDING' && (
@@ -814,27 +824,27 @@ const LeaveManagementSystem: React.FC = () => {
                                     <IconButton
                                       size="small"
                                       onClick={() => handleApprove(leave.id, 2, 'Approved')}
-                                      sx={{ color: 'success.main' }}
+                                      sx={{ color: 'success.main', minWidth: 36, minHeight: 36 }}
                                     >
-                                      <ApproveIcon />
+                                      <ApproveIcon sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
                                     </IconButton>
                                   </Tooltip>
                                   <Tooltip title="Reject Request">
                                     <IconButton
                                       size="small"
                                       onClick={() => handleApprove(leave.id, 3, 'Rejected')}
-                                      sx={{ color: 'error.main' }}
+                                      sx={{ color: 'error.main', minWidth: 36, minHeight: 36 }}
                                     >
-                                      <RejectIcon />
+                                      <RejectIcon sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
                                     </IconButton>
                                   </Tooltip>
                                   <Tooltip title="Delete Request">
                                     <IconButton
                                       size="small"
                                       onClick={() => handleDelete(leave.id)}
-                                      sx={{ color: 'error.main' }}
+                                      sx={{ color: 'error.main', minWidth: 36, minHeight: 36 }}
                                     >
-                                      <DeleteIcon />
+                                      <DeleteIcon sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
                                     </IconButton>
                                   </Tooltip>
                                 </>
@@ -889,16 +899,17 @@ const LeaveManagementSystem: React.FC = () => {
               >
               <Table
                 stickyHeader
+                size="small"
                 sx={{
                   '& .MuiTableCell-root': {
-                    fontSize: '0.875rem',
-                    padding: '12px 16px',
+                    fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                    padding: { xs: '8px 12px', sm: '12px 16px' },
                     borderBottom: '1px solid rgba(224, 224, 224, 1)'
                   },
                   '& .MuiTableHead-root .MuiTableCell-root': {
                     backgroundColor: 'grey.50',
                     fontWeight: 600,
-                    fontSize: '0.875rem'
+                    fontSize: { xs: '0.75rem', sm: '0.875rem' }
                   }
                 }}
               >
@@ -937,16 +948,16 @@ const LeaveManagementSystem: React.FC = () => {
                           </TableCell>
                           <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
                             <Stack spacing={0.5}>
-                              <Typography variant="body2" noWrap>
+                              <Typography variant="body2" noWrap sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
                                 {leave.start_date ? new Date(leave.start_date).toLocaleDateString() : 'N/A'}
                               </Typography>
-                              <Typography variant="caption" color="text.secondary" noWrap>
+                              <Typography variant="caption" color="text.secondary" noWrap sx={{ fontSize: { xs: '0.65rem', sm: '0.75rem' } }}>
                                 to {leave.end_date ? new Date(leave.end_date).toLocaleDateString() : 'N/A'}
                               </Typography>
                             </Stack>
                           </TableCell>
                           <TableCell>
-                            <Typography variant="body2" fontWeight="bold">
+                            <Typography variant="body2" fontWeight="bold" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
                               {leave.total_days || 0}
                             </Typography>
                           </TableCell>
@@ -956,29 +967,30 @@ const LeaveManagementSystem: React.FC = () => {
                               size="small"
                               sx={{
                                 backgroundColor: getStatusColor(leave.leave_status_name || 'Unknown', leave.leave_status_color),
-                                color: 'white'
+                                color: 'white',
+                                fontSize: { xs: '0.65rem', sm: '0.75rem' }
                               }}
                             />
                           </TableCell>
                           <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
-                            <Typography variant="caption" color="textSecondary">
+                            <Typography variant="caption" color="textSecondary" sx={{ fontSize: { xs: '0.65rem', sm: '0.75rem' } }}>
                               {leave.created_at ? new Date(leave.created_at).toLocaleDateString() : 'N/A'}
                             </Typography>
                           </TableCell>
                           <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
-                            <Typography variant="caption" color="textSecondary">
+                            <Typography variant="caption" color="textSecondary" sx={{ fontSize: { xs: '0.65rem', sm: '0.75rem' } }}>
                               {leave.reviewer_name || (leave.leave_status_name === 'Pending' ? 'Pending' : 'N/A')}
                             </Typography>
                           </TableCell>
                           <TableCell align="center">
-                            <Stack direction="row" spacing={0.5} justifyContent="center">
+                            <Stack direction="row" spacing={{ xs: 0.25, sm: 0.5 }} justifyContent="center" flexWrap="wrap">
                               <Tooltip title="View Details">
                                 <IconButton
                                   size="small"
                                   onClick={() => handleOpenDialog(leave, true)}
-                                  sx={{ color: 'primary.main' }}
+                                  sx={{ color: 'primary.main', minWidth: 36, minHeight: 36 }}
                                 >
-                                  <ViewIcon />
+                                  <ViewIcon sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
                                 </IconButton>
                               </Tooltip>
                               {leave.leave_status_name?.toUpperCase() === 'PENDING' && (
@@ -987,27 +999,27 @@ const LeaveManagementSystem: React.FC = () => {
                                     <IconButton
                                       size="small"
                                       onClick={() => handleApprove(leave.id, 2, 'Approved')}
-                                      sx={{ color: 'success.main' }}
+                                      sx={{ color: 'success.main', minWidth: 36, minHeight: 36 }}
                                     >
-                                      <ApproveIcon />
+                                      <ApproveIcon sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
                                     </IconButton>
                                   </Tooltip>
                                   <Tooltip title="Reject Request">
                                     <IconButton
                                       size="small"
                                       onClick={() => handleApprove(leave.id, 3, 'Rejected')}
-                                      sx={{ color: 'error.main' }}
+                                      sx={{ color: 'error.main', minWidth: 36, minHeight: 36 }}
                                     >
-                                      <RejectIcon />
+                                      <RejectIcon sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
                                     </IconButton>
                                   </Tooltip>
                                   <Tooltip title="Delete Request">
                                     <IconButton
                                       size="small"
                                       onClick={() => handleDelete(leave.id)}
-                                      sx={{ color: 'error.main' }}
+                                      sx={{ color: 'error.main', minWidth: 36, minHeight: 36 }}
                                     >
-                                      <DeleteIcon />
+                                      <DeleteIcon sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
                                     </IconButton>
                                   </Tooltip>
                                 </>

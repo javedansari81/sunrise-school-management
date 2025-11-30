@@ -495,15 +495,15 @@ const TeacherAttendance: React.FC = () => {
           Please select a class and date to load students
         </Alert>
       ) : (
-        <TableContainer component={Paper}>
+        <TableContainer component={Paper} sx={{ overflowX: 'auto' }}>
           <Table size="small">
             <TableHead>
               <TableRow sx={{ backgroundColor: '#F8F9FA' }}>
-                <TableCell width="80px"><strong>Roll No</strong></TableCell>
-                <TableCell><strong>Student Name</strong></TableCell>
-                <TableCell width="400px"><strong>Quick Actions</strong></TableCell>
-                <TableCell width="150px"><strong>Status</strong></TableCell>
-                <TableCell width="200px"><strong>Remarks</strong></TableCell>
+                <TableCell sx={{ width: { xs: '60px', sm: '80px' }, fontSize: { xs: '0.75rem', sm: '0.875rem' } }}><strong>Roll</strong></TableCell>
+                <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, minWidth: { xs: 120, sm: 150 } }}><strong>Student Name</strong></TableCell>
+                <TableCell sx={{ width: { xs: '200px', sm: '400px' }, fontSize: { xs: '0.75rem', sm: '0.875rem' } }}><strong>Quick Actions</strong></TableCell>
+                <TableCell sx={{ width: { xs: '100px', sm: '150px' }, fontSize: { xs: '0.75rem', sm: '0.875rem' } }}><strong>Status</strong></TableCell>
+                <TableCell sx={{ width: { xs: '150px', sm: '200px' }, fontSize: { xs: '0.75rem', sm: '0.875rem' }, display: { xs: 'none', md: 'table-cell' } }}><strong>Remarks</strong></TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -519,20 +519,21 @@ const TeacherAttendance: React.FC = () => {
                     transition: 'background-color 0.2s',
                   }}
                 >
-                  <TableCell>
+                  <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
                     <Chip
                       label={student.roll_number}
                       size="small"
                       color={index === focusedIndex ? 'primary' : 'default'}
+                      sx={{ fontSize: { xs: '0.65rem', sm: '0.75rem' } }}
                     />
                   </TableCell>
-                  <TableCell>
-                    <Typography variant="body2">
+                  <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
+                    <Typography variant="body2" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
                       {student.first_name} {student.last_name}
                     </Typography>
                   </TableCell>
-                  <TableCell>
-                    <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+                  <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
+                    <Box sx={{ display: 'flex', gap: { xs: 0.25, sm: 0.5 }, flexWrap: 'wrap' }}>
                       <Tooltip title="Present (P)">
                         <IconButton
                           size="small"
@@ -541,9 +542,11 @@ const TeacherAttendance: React.FC = () => {
                           sx={{
                             color: student.attendance_status_id === 1 ? '#28A745' : 'inherit',
                             backgroundColor: student.attendance_status_id === 1 ? 'rgba(40, 167, 69, 0.1)' : 'transparent',
+                            minWidth: { xs: 36, sm: 40 },
+                            minHeight: { xs: 36, sm: 40 },
                           }}
                         >
-                          <PresentIcon fontSize="small" />
+                          <PresentIcon sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
                         </IconButton>
                       </Tooltip>
                       <Tooltip title="Absent (A)">
@@ -554,9 +557,11 @@ const TeacherAttendance: React.FC = () => {
                           sx={{
                             color: student.attendance_status_id === 2 ? '#DC3545' : 'inherit',
                             backgroundColor: student.attendance_status_id === 2 ? 'rgba(220, 53, 69, 0.1)' : 'transparent',
+                            minWidth: { xs: 36, sm: 40 },
+                            minHeight: { xs: 36, sm: 40 },
                           }}
                         >
-                          <AbsentIcon fontSize="small" />
+                          <AbsentIcon sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
                         </IconButton>
                       </Tooltip>
                       <Tooltip title="Late (L)">
@@ -567,9 +572,11 @@ const TeacherAttendance: React.FC = () => {
                           sx={{
                             color: student.attendance_status_id === 3 ? '#FFC107' : 'inherit',
                             backgroundColor: student.attendance_status_id === 3 ? 'rgba(255, 193, 7, 0.1)' : 'transparent',
+                            minWidth: { xs: 36, sm: 40 },
+                            minHeight: { xs: 36, sm: 40 },
                           }}
                         >
-                          <LateIcon fontSize="small" />
+                          <LateIcon sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
                         </IconButton>
                       </Tooltip>
                       <Tooltip title="Half Day (H)">
@@ -580,9 +587,11 @@ const TeacherAttendance: React.FC = () => {
                           sx={{
                             color: student.attendance_status_id === 4 ? '#17A2B8' : 'inherit',
                             backgroundColor: student.attendance_status_id === 4 ? 'rgba(23, 162, 184, 0.1)' : 'transparent',
+                            minWidth: { xs: 36, sm: 40 },
+                            minHeight: { xs: 36, sm: 40 },
                           }}
                         >
-                          <HalfDayIcon fontSize="small" />
+                          <HalfDayIcon sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
                         </IconButton>
                       </Tooltip>
                       <Tooltip title="Excused (E)">
@@ -593,14 +602,16 @@ const TeacherAttendance: React.FC = () => {
                           sx={{
                             color: student.attendance_status_id === 5 ? '#6C757D' : 'inherit',
                             backgroundColor: student.attendance_status_id === 5 ? 'rgba(108, 117, 125, 0.1)' : 'transparent',
+                            minWidth: { xs: 36, sm: 40 },
+                            minHeight: { xs: 36, sm: 40 },
                           }}
                         >
-                          <ExcusedIcon fontSize="small" />
+                          <ExcusedIcon sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
                         </IconButton>
                       </Tooltip>
                     </Box>
                   </TableCell>
-                  <TableCell>
+                  <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
                     {student.is_saving ? (
                       <CircularProgress size={20} />
                     ) : student.attendance_status_id ? (
@@ -614,13 +625,14 @@ const TeacherAttendance: React.FC = () => {
                           backgroundColor: student.attendance_status_color + '20',
                           color: student.attendance_status_color,
                           fontWeight: 600,
+                          fontSize: { xs: '0.65rem', sm: '0.75rem' },
                         }}
                       />
                     ) : (
-                      <Chip label="Not Marked" size="small" variant="outlined" />
+                      <Chip label="Not Marked" size="small" variant="outlined" sx={{ fontSize: { xs: '0.65rem', sm: '0.75rem' } }} />
                     )}
                   </TableCell>
-                  <TableCell>
+                  <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, display: { xs: 'none', md: 'table-cell' } }}>
                     <TextField
                       size="small"
                       placeholder="Optional"

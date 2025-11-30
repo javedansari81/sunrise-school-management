@@ -291,12 +291,12 @@ const TransportManagementSystem: React.FC = () => {
 
   const getStatusChip = (student: EnhancedStudentTransportSummary) => {
     if (!student.is_enrolled) {
-      return <Chip label="Not Enrolled" size="small" color="default" />;
+      return <Chip label="Not Enrolled" size="small" color="default" sx={{ fontSize: { xs: '0.65rem', sm: '0.75rem' } }} />;
     }
     if (student.discontinue_date) {
-      return <Chip label="Discontinued" size="small" color="warning" />;
+      return <Chip label="Discontinued" size="small" color="warning" sx={{ fontSize: { xs: '0.65rem', sm: '0.75rem' } }} />;
     }
-    return <Chip label="Enrolled" size="small" color="success" />;
+    return <Chip label="Enrolled" size="small" color="success" sx={{ fontSize: { xs: '0.65rem', sm: '0.75rem' } }} />;
   };
 
   const paginatedStudents = filteredStudents.slice(
@@ -446,16 +446,17 @@ const TransportManagementSystem: React.FC = () => {
                 >
                   <Table
                     stickyHeader
+                    size="small"
                     sx={{
                       '& .MuiTableCell-root': {
-                        fontSize: '0.875rem',
-                        padding: '12px 16px',
+                        fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                        padding: { xs: '8px 12px', sm: '12px 16px' },
                         borderBottom: '1px solid rgba(224, 224, 224, 1)'
                       },
                       '& .MuiTableHead-root .MuiTableCell-root': {
                         backgroundColor: 'white',
                         fontWeight: 600,
-                        fontSize: '0.875rem'
+                        fontSize: { xs: '0.75rem', sm: '0.875rem' }
                       }
                     }}
                   >
@@ -487,29 +488,30 @@ const TransportManagementSystem: React.FC = () => {
                           </TableCell>
                           <TableCell align="center">
                             {student.is_enrolled ? (
-                              <>
+                              <Box sx={{ display: 'flex', gap: { xs: 0.25, sm: 0.5 }, justifyContent: 'center', flexWrap: 'wrap' }}>
                                 <Tooltip title="Make Payment">
-                                  <IconButton size="small" onClick={() => handlePaymentClick(student)}>
-                                    <PaymentIcon fontSize="small" />
+                                  <IconButton size="small" onClick={() => handlePaymentClick(student)} sx={{ minWidth: 36, minHeight: 36 }}>
+                                    <PaymentIcon sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
                                   </IconButton>
                                 </Tooltip>
                                 <Tooltip title="View History">
-                                  <IconButton size="small" onClick={() => handleHistoryClick(student)}>
-                                    <HistoryIcon fontSize="small" />
+                                  <IconButton size="small" onClick={() => handleHistoryClick(student)} sx={{ minWidth: 36, minHeight: 36 }}>
+                                    <HistoryIcon sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
                                   </IconButton>
                                 </Tooltip>
                                 <Tooltip title="Discontinue">
-                                  <IconButton size="small" onClick={() => handleDiscontinue(student)} color="error">
-                                    <CancelIcon fontSize="small" />
+                                  <IconButton size="small" onClick={() => handleDiscontinue(student)} color="error" sx={{ minWidth: 36, minHeight: 36 }}>
+                                    <CancelIcon sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
                                   </IconButton>
                                 </Tooltip>
-                              </>
+                              </Box>
                             ) : (
                               <Button
                                 size="small"
                                 variant="outlined"
                                 startIcon={<AddIcon />}
                                 onClick={() => handleEnrollClick(student)}
+                                sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}
                               >
                                 Enroll
                               </Button>

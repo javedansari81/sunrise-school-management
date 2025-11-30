@@ -563,18 +563,18 @@ const GalleryManagement: React.FC = () => {
               <Paper elevation={3} sx={{ p: 3 }}>
                 <Box>
                   <>
-                    <TableContainer>
-                      <Table>
+                    <TableContainer sx={{ maxHeight: { xs: '60vh', sm: '70vh' }, overflow: 'auto', overflowX: 'auto' }}>
+                      <Table stickyHeader size="small">
                         <TableHead>
                           <TableRow>
-                            <TableCell>Thumbnail</TableCell>
-                            <TableCell>Title</TableCell>
-                            <TableCell>Category</TableCell>
-                            <TableCell>Upload Date</TableCell>
-                            <TableCell>Uploaded By</TableCell>
-                            <TableCell>Status</TableCell>
-                            <TableCell>Home Page</TableCell>
-                            <TableCell>Actions</TableCell>
+                            <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, fontWeight: 600, minWidth: { xs: 60, sm: 80 } }}>Thumbnail</TableCell>
+                            <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, fontWeight: 600, minWidth: { xs: 120, sm: 150 } }}>Title</TableCell>
+                            <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, fontWeight: 600, display: { xs: 'none', sm: 'table-cell' } }}>Category</TableCell>
+                            <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, fontWeight: 600, display: { xs: 'none', md: 'table-cell' } }}>Upload Date</TableCell>
+                            <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, fontWeight: 600, display: { xs: 'none', md: 'table-cell' } }}>Uploaded By</TableCell>
+                            <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, fontWeight: 600 }}>Status</TableCell>
+                            <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, fontWeight: 600, display: { xs: 'none', lg: 'table-cell' } }}>Home Page</TableCell>
+                            <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, fontWeight: 600 }}>Actions</TableCell>
                           </TableRow>
                         </TableHead>
                         <TableBody>
@@ -589,57 +589,61 @@ const GalleryManagement: React.FC = () => {
                           ) : (
                             paginatedImages.map((image) => (
                               <TableRow key={image.id}>
-                                <TableCell>
+                                <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
                                   <CardMedia
                                     component="img"
-                                    sx={{ width: 80, height: 60, objectFit: 'cover', borderRadius: 1 }}
+                                    sx={{ width: { xs: 60, sm: 80 }, height: { xs: 45, sm: 60 }, objectFit: 'cover', borderRadius: 1 }}
                                     image={image.cloudinary_thumbnail_url || image.cloudinary_url}
                                     alt={image.title}
                                   />
                                 </TableCell>
-                                <TableCell>
-                                  <Typography variant="body2" noWrap sx={{ maxWidth: 200 }}>
+                                <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
+                                  <Typography variant="body2" noWrap sx={{ maxWidth: { xs: 120, sm: 200 }, fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
                                     {image.title}
                                   </Typography>
                                 </TableCell>
-                                <TableCell>
+                                <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, display: { xs: 'none', sm: 'table-cell' } }}>
                                   <Chip
                                     label={image.category_name || 'Unknown'}
                                     size="small"
                                     color="primary"
                                     variant="outlined"
+                                    sx={{ fontSize: { xs: '0.65rem', sm: '0.75rem' } }}
                                   />
                                 </TableCell>
-                                <TableCell>
+                                <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, display: { xs: 'none', md: 'table-cell' } }}>
                                   {new Date(image.upload_date).toLocaleDateString()}
                                 </TableCell>
-                                <TableCell>
+                                <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, display: { xs: 'none', md: 'table-cell' } }}>
                                   {image.uploaded_by_name || '-'}
                                 </TableCell>
-                                <TableCell>
+                                <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
                                   <Chip
                                     label={image.is_active ? 'Active' : 'Inactive'}
                                     size="small"
                                     color={image.is_active ? 'success' : 'default'}
+                                    sx={{ fontSize: { xs: '0.65rem', sm: '0.75rem' } }}
                                   />
                                 </TableCell>
-                                <TableCell>
+                                <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, display: { xs: 'none', lg: 'table-cell' } }}>
                                   <Chip
                                     label={image.is_visible_on_home_page ? 'Yes' : 'No'}
                                     size="small"
                                     color={image.is_visible_on_home_page ? 'warning' : 'default'}
                                     icon={image.is_visible_on_home_page ? <HomeIcon /> : undefined}
+                                    sx={{ fontSize: { xs: '0.65rem', sm: '0.75rem' } }}
                                   />
                                 </TableCell>
-                                <TableCell>
-                                  <Stack direction="row" spacing={1}>
+                                <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
+                                  <Stack direction="row" spacing={{ xs: 0.25, sm: 0.5 }} flexWrap="wrap">
                                     <Tooltip title="View Details">
                                       <IconButton
                                         size="small"
                                         color="primary"
                                         onClick={() => handleOpenDialog(image, 'view')}
+                                        sx={{ minWidth: 36, minHeight: 36 }}
                                       >
-                                        <Visibility />
+                                        <Visibility sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
                                       </IconButton>
                                     </Tooltip>
                                     <Tooltip title="Edit">
@@ -647,8 +651,9 @@ const GalleryManagement: React.FC = () => {
                                         size="small"
                                         color="secondary"
                                         onClick={() => handleOpenDialog(image, 'edit')}
+                                        sx={{ minWidth: 36, minHeight: 36 }}
                                       >
-                                        <Edit />
+                                        <Edit sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
                                       </IconButton>
                                     </Tooltip>
                                     <Tooltip title="Delete">
@@ -656,8 +661,9 @@ const GalleryManagement: React.FC = () => {
                                         size="small"
                                         color="error"
                                         onClick={() => handleDelete(image.id)}
+                                        sx={{ minWidth: 36, minHeight: 36 }}
                                       >
-                                        <Delete />
+                                        <Delete sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
                                       </IconButton>
                                     </Tooltip>
                                   </Stack>
@@ -696,15 +702,15 @@ const GalleryManagement: React.FC = () => {
               </Box>
             ) : (
               <Paper elevation={3} sx={{ p: 3 }}>
-                <TableContainer>
-                      <Table>
+                <TableContainer sx={{ maxHeight: { xs: '60vh', sm: '70vh' }, overflow: 'auto', overflowX: 'auto' }}>
+                      <Table stickyHeader size="small">
                         <TableHead>
                           <TableRow>
-                            <TableCell>Thumbnail</TableCell>
-                            <TableCell>Title</TableCell>
-                            <TableCell>Category</TableCell>
-                            <TableCell>Display Order</TableCell>
-                            <TableCell>Actions</TableCell>
+                            <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, fontWeight: 600, minWidth: { xs: 60, sm: 80 } }}>Thumbnail</TableCell>
+                            <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, fontWeight: 600, minWidth: { xs: 120, sm: 150 } }}>Title</TableCell>
+                            <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, fontWeight: 600, display: { xs: 'none', sm: 'table-cell' } }}>Category</TableCell>
+                            <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, fontWeight: 600 }}>Display Order</TableCell>
+                            <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, fontWeight: 600 }}>Actions</TableCell>
                           </TableRow>
                         </TableHead>
                         <TableBody>
@@ -719,37 +725,39 @@ const GalleryManagement: React.FC = () => {
                           ) : (
                             paginatedImages.map((image) => (
                               <TableRow key={image.id}>
-                                <TableCell>
+                                <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
                                   <CardMedia
                                     component="img"
-                                    sx={{ width: 80, height: 60, objectFit: 'cover', borderRadius: 1 }}
+                                    sx={{ width: { xs: 60, sm: 80 }, height: { xs: 45, sm: 60 }, objectFit: 'cover', borderRadius: 1 }}
                                     image={image.cloudinary_thumbnail_url || image.cloudinary_url}
                                     alt={image.title}
                                   />
                                 </TableCell>
-                                <TableCell>
-                                  <Typography variant="body2">
+                                <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
+                                  <Typography variant="body2" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
                                     {image.title}
                                   </Typography>
                                 </TableCell>
-                                <TableCell>
+                                <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, display: { xs: 'none', sm: 'table-cell' } }}>
                                   <Chip
                                     label={image.category_name || 'Unknown'}
                                     size="small"
                                     color="primary"
                                     variant="outlined"
+                                    sx={{ fontSize: { xs: '0.65rem', sm: '0.75rem' } }}
                                   />
                                 </TableCell>
-                                <TableCell>{image.home_page_display_order ?? '-'}</TableCell>
-                                <TableCell>
-                                  <Stack direction="row" spacing={1}>
+                                <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>{image.home_page_display_order ?? '-'}</TableCell>
+                                <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
+                                  <Stack direction="row" spacing={{ xs: 0.25, sm: 0.5 }} flexWrap="wrap">
                                     <Tooltip title="View Details">
                                       <IconButton
                                         size="small"
                                         color="primary"
                                         onClick={() => handleOpenDialog(image, 'view')}
+                                        sx={{ minWidth: 36, minHeight: 36 }}
                                       >
-                                        <Visibility />
+                                        <Visibility sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
                                       </IconButton>
                                     </Tooltip>
                                     <Tooltip title="Edit">
@@ -757,8 +765,9 @@ const GalleryManagement: React.FC = () => {
                                         size="small"
                                         color="secondary"
                                         onClick={() => handleOpenDialog(image, 'edit')}
+                                        sx={{ minWidth: 36, minHeight: 36 }}
                                       >
-                                        <Edit />
+                                        <Edit sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
                                       </IconButton>
                                     </Tooltip>
                                     <Tooltip title="Delete">
@@ -766,8 +775,9 @@ const GalleryManagement: React.FC = () => {
                                         size="small"
                                         color="error"
                                         onClick={() => handleDelete(image.id)}
+                                        sx={{ minWidth: 36, minHeight: 36 }}
                                       >
-                                        <Delete />
+                                        <Delete sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
                                       </IconButton>
                                     </Tooltip>
                                   </Stack>

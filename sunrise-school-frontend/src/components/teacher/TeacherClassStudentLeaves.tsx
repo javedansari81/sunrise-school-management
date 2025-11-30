@@ -289,79 +289,85 @@ const TeacherClassStudentLeaves: React.FC<TeacherClassStudentLeavesProps> = ({ t
 
       {/* Leave Requests Table */}
       <Paper>
-        <TableContainer>
+        <TableContainer sx={{ maxHeight: { xs: '60vh', sm: '70vh' }, overflow: 'auto', overflowX: 'auto' }}>
           {loading ? (
             <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
               <CircularProgress />
             </Box>
           ) : (
-            <Table>
+            <Table size="small" stickyHeader>
               <TableHead>
                 <TableRow sx={{ backgroundColor: 'white' }}>
-                  <TableCell><strong>Student</strong></TableCell>
-                  <TableCell><strong>Leave Type</strong></TableCell>
-                  <TableCell><strong>Duration</strong></TableCell>
-                  <TableCell><strong>Days</strong></TableCell>
-                  <TableCell><strong>Status</strong></TableCell>
-                  <TableCell><strong>Applied On</strong></TableCell>
-                  <TableCell align="center"><strong>Actions</strong></TableCell>
+                  <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, fontWeight: 600, minWidth: { xs: 120, sm: 150 } }}><strong>Student</strong></TableCell>
+                  <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, fontWeight: 600, display: { xs: 'none', sm: 'table-cell' } }}><strong>Leave Type</strong></TableCell>
+                  <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, fontWeight: 600, display: { xs: 'none', md: 'table-cell' } }}><strong>Duration</strong></TableCell>
+                  <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, fontWeight: 600, display: { xs: 'none', md: 'table-cell' } }}><strong>Days</strong></TableCell>
+                  <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, fontWeight: 600 }}><strong>Status</strong></TableCell>
+                  <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, fontWeight: 600, display: { xs: 'none', sm: 'table-cell' } }}><strong>Applied On</strong></TableCell>
+                  <TableCell align="center" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, fontWeight: 600 }}><strong>Actions</strong></TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {leaveRequests.length > 0 ? (
                   leaveRequests.map((leave) => (
                     <TableRow key={leave.id} hover>
-                      <TableCell>{leave.applicant_name}</TableCell>
-                      <TableCell>{leave.leave_type_name}</TableCell>
-                      <TableCell>
+                      <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>{leave.applicant_name}</TableCell>
+                      <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, display: { xs: 'none', sm: 'table-cell' } }}>{leave.leave_type_name}</TableCell>
+                      <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, display: { xs: 'none', md: 'table-cell' } }}>
                         {formatDate(leave.start_date)} - {formatDate(leave.end_date)}
                       </TableCell>
-                      <TableCell>{leave.total_days}</TableCell>
-                      <TableCell>
+                      <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, display: { xs: 'none', md: 'table-cell' } }}>{leave.total_days}</TableCell>
+                      <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
                         <Chip
                           label={leave.leave_status_name}
                           color={getStatusColor(leave.leave_status_id)}
                           size="small"
+                          sx={{ fontSize: { xs: '0.65rem', sm: '0.75rem' } }}
                         />
                       </TableCell>
-                      <TableCell>{formatDate(leave.created_at)}</TableCell>
-                      <TableCell align="center">
-                        <Tooltip title="View Details">
-                          <IconButton size="small" onClick={() => handleViewLeave(leave)}>
-                            <ViewIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                        {leave.leave_status_id === 1 && (
-                          <>
-                            <Tooltip title="Approve">
-                              <IconButton 
-                                size="small" 
-                                color="success"
-                                onClick={() => handleOpenApprovalDialog(leave, 'approve')}
-                              >
-                                <ApproveIcon fontSize="small" />
-                              </IconButton>
-                            </Tooltip>
-                            <Tooltip title="Reject">
-                              <IconButton 
-                                size="small" 
-                                color="error"
-                                onClick={() => handleOpenApprovalDialog(leave, 'reject')}
-                              >
-                                <RejectIcon fontSize="small" />
-                              </IconButton>
-                            </Tooltip>
-                            <Tooltip title="Delete">
-                              <IconButton 
-                                size="small" 
-                                color="error"
-                                onClick={() => handleDelete(leave)}
-                              >
-                                <DeleteIcon fontSize="small" />
-                              </IconButton>
-                            </Tooltip>
-                          </>
-                        )}
+                      <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, display: { xs: 'none', sm: 'table-cell' } }}>{formatDate(leave.created_at)}</TableCell>
+                      <TableCell align="center" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
+                        <Box sx={{ display: 'flex', gap: { xs: 0.25, sm: 0.5 }, justifyContent: 'center', flexWrap: 'wrap' }}>
+                          <Tooltip title="View Details">
+                            <IconButton size="small" onClick={() => handleViewLeave(leave)} sx={{ minWidth: 36, minHeight: 36 }}>
+                              <ViewIcon sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
+                            </IconButton>
+                          </Tooltip>
+                          {leave.leave_status_id === 1 && (
+                            <>
+                              <Tooltip title="Approve">
+                                <IconButton
+                                  size="small"
+                                  color="success"
+                                  onClick={() => handleOpenApprovalDialog(leave, 'approve')}
+                                  sx={{ minWidth: 36, minHeight: 36 }}
+                                >
+                                  <ApproveIcon sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
+                                </IconButton>
+                              </Tooltip>
+                              <Tooltip title="Reject">
+                                <IconButton
+                                  size="small"
+                                  color="error"
+                                  onClick={() => handleOpenApprovalDialog(leave, 'reject')}
+                                  sx={{ minWidth: 36, minHeight: 36 }}
+                                >
+                                  <RejectIcon sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
+                                </IconButton>
+                              </Tooltip>
+                              <Tooltip title="Delete">
+                                <IconButton
+                                  size="small"
+                                  color="error"
+                                  onClick={() => handleDelete(leave)}
+                                  sx={{ minWidth: 36, minHeight: 36 }}
+                                >
+                                  <DeleteIcon sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
+                                </IconButton>
+                              </Tooltip>
+                            </>
+                          )}
+                        </Box>
                       </TableCell>
                     </TableRow>
                   ))

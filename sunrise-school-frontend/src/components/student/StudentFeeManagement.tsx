@@ -318,52 +318,53 @@ const StudentFeeManagement: React.FC = () => {
                   </Typography>
                 </Box>
 
-                <TableContainer sx={{ maxHeight: 600 }}>
-                  <Table stickyHeader>
+                <TableContainer sx={{ maxHeight: 600, overflowX: 'auto' }}>
+                  <Table stickyHeader size="small">
                     <TableHead>
                       <TableRow>
-                        <TableCell sx={{ fontWeight: 'bold', backgroundColor: 'white' }}>Month</TableCell>
-                        <TableCell sx={{ fontWeight: 'bold', backgroundColor: 'white' }}>Due Date</TableCell>
-                        <TableCell align="right" sx={{ fontWeight: 'bold', backgroundColor: 'white' }}>Monthly Fee</TableCell>
-                        <TableCell align="right" sx={{ fontWeight: 'bold', backgroundColor: 'white' }}>Paid Amount</TableCell>
-                        <TableCell align="right" sx={{ fontWeight: 'bold', backgroundColor: 'white' }}>Balance</TableCell>
-                        <TableCell align="center" sx={{ fontWeight: 'bold', backgroundColor: 'white' }}>Status</TableCell>
+                        <TableCell sx={{ fontWeight: 'bold', backgroundColor: 'white', fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>Month</TableCell>
+                        <TableCell sx={{ fontWeight: 'bold', backgroundColor: 'white', fontSize: { xs: '0.75rem', sm: '0.875rem' }, display: { xs: 'none', sm: 'table-cell' } }}>Due Date</TableCell>
+                        <TableCell align="right" sx={{ fontWeight: 'bold', backgroundColor: 'white', fontSize: { xs: '0.75rem', sm: '0.875rem' }, display: { xs: 'none', md: 'table-cell' } }}>Monthly Fee</TableCell>
+                        <TableCell align="right" sx={{ fontWeight: 'bold', backgroundColor: 'white', fontSize: { xs: '0.75rem', sm: '0.875rem' }, display: { xs: 'none', md: 'table-cell' } }}>Paid Amount</TableCell>
+                        <TableCell align="right" sx={{ fontWeight: 'bold', backgroundColor: 'white', fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>Balance</TableCell>
+                        <TableCell align="center" sx={{ fontWeight: 'bold', backgroundColor: 'white', fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>Status</TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
                       {feeData.monthly_history.monthly_history.map((month) => (
                         <TableRow key={`${month.year}-${month.month}`} hover>
-                          <TableCell>
-                            <Typography variant="body2" fontWeight="medium">
+                          <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
+                            <Typography variant="body2" fontWeight="medium" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
                               {month.month_name} {month.year}
                             </Typography>
                           </TableCell>
-                          <TableCell>
-                            <Typography variant="body2">
+                          <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, display: { xs: 'none', sm: 'table-cell' } }}>
+                            <Typography variant="body2" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
                               {formatDate(month.due_date)}
                             </Typography>
                             {month.is_overdue && month.days_overdue && (
-                              <Typography variant="caption" color="error">
+                              <Typography variant="caption" color="error" sx={{ fontSize: { xs: '0.65rem', sm: '0.75rem' } }}>
                                 {month.days_overdue} days overdue
                               </Typography>
                             )}
                           </TableCell>
-                          <TableCell align="right">
+                          <TableCell align="right" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, display: { xs: 'none', md: 'table-cell' } }}>
                             {formatCurrency(month.monthly_amount)}
                           </TableCell>
-                          <TableCell align="right">
+                          <TableCell align="right" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, display: { xs: 'none', md: 'table-cell' } }}>
                             {formatCurrency(month.paid_amount)}
                           </TableCell>
-                          <TableCell align="right">
+                          <TableCell align="right" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
                             <Typography
                               variant="body2"
                               fontWeight="medium"
                               color={month.balance_amount > 0 ? 'error' : 'success.main'}
+                              sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}
                             >
                               {formatCurrency(month.balance_amount)}
                             </Typography>
                           </TableCell>
-                          <TableCell align="center">
+                          <TableCell align="center" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
                             <Chip
                               label={month.status.toUpperCase()}
                               size="small"
@@ -371,7 +372,8 @@ const StudentFeeManagement: React.FC = () => {
                                 backgroundColor: getStatusColor(month.status),
                                 color: 'white',
                                 fontWeight: 'bold',
-                                minWidth: 80
+                                minWidth: { xs: 60, sm: 80 },
+                                fontSize: { xs: '0.65rem', sm: '0.75rem' }
                               }}
                             />
                           </TableCell>

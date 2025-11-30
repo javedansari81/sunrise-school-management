@@ -913,17 +913,17 @@ const TeacherProfilesSystem: React.FC = () => {
           </Box>
         ) : (
           <Paper elevation={3} sx={{ p: 3 }}>
-            <TableContainer sx={{ maxHeight: { xs: '60vh', sm: '70vh' }, overflow: 'auto' }}>
-              <Table stickyHeader>
+            <TableContainer sx={{ maxHeight: { xs: '60vh', sm: '70vh' }, overflow: 'auto', overflowX: 'auto' }}>
+              <Table stickyHeader size="small">
                 <TableHead>
                   <TableRow>
-                    <TableCell>Teacher</TableCell>
-                    <TableCell>Employee ID</TableCell>
-                    <TableCell>Department</TableCell>
-                    <TableCell>Position</TableCell>
-                    <TableCell>Contact</TableCell>
-                    <TableCell>Status</TableCell>
-                    <TableCell>Actions</TableCell>
+                    <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, fontWeight: 600, minWidth: { xs: 140, sm: 180 } }}>Teacher</TableCell>
+                    <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, fontWeight: 600, display: { xs: 'none', sm: 'table-cell' } }}>Employee ID</TableCell>
+                    <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, fontWeight: 600, display: { xs: 'none', md: 'table-cell' } }}>Department</TableCell>
+                    <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, fontWeight: 600, display: { xs: 'none', md: 'table-cell' } }}>Position</TableCell>
+                    <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, fontWeight: 600, display: { xs: 'none', md: 'table-cell' } }}>Contact</TableCell>
+                    <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, fontWeight: 600 }}>Status</TableCell>
+                    <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, fontWeight: 600 }}>Actions</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -938,56 +938,57 @@ const TeacherProfilesSystem: React.FC = () => {
                   ) : (
                     filteredTeachers.map((teacher) => (
                     <TableRow key={teacher.id}>
-                      <TableCell>
-                        <Box display="flex" alignItems="center" gap={2}>
+                      <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
+                        <Box display="flex" alignItems="center" gap={{ xs: 1, sm: 2 }}>
                           <Avatar
                             src={teacher.profile_picture_url || undefined}
-                            sx={{ bgcolor: 'primary.main' }}
+                            sx={{ bgcolor: 'primary.main', width: { xs: 32, sm: 40 }, height: { xs: 32, sm: 40 } }}
                           >
                             {!teacher.profile_picture_url && `${teacher.first_name[0]}${teacher.last_name[0]}`}
                           </Avatar>
                           <Box>
-                            <Typography variant="body2" fontWeight="bold">
+                            <Typography variant="body2" fontWeight="bold" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
                               {teacher.first_name} {teacher.last_name}
                             </Typography>
-                            <Typography variant="caption" color="text.secondary">
+                            <Typography variant="caption" color="text.secondary" sx={{ fontSize: { xs: '0.65rem', sm: '0.75rem' } }}>
                               {teacher.qualification_name || 'Not Specified'}
                             </Typography>
                           </Box>
                         </Box>
                       </TableCell>
-                      <TableCell>{teacher.employee_id}</TableCell>
-                      <TableCell>{teacher.department_name || teacher.department || 'Not Assigned'}</TableCell>
-                      <TableCell>{teacher.position_name || teacher.position || 'Not Assigned'}</TableCell>
-                      <TableCell>
+                      <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, display: { xs: 'none', sm: 'table-cell' } }}>{teacher.employee_id}</TableCell>
+                      <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, display: { xs: 'none', md: 'table-cell' } }}>{teacher.department_name || teacher.department || 'Not Assigned'}</TableCell>
+                      <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, display: { xs: 'none', md: 'table-cell' } }}>{teacher.position_name || teacher.position || 'Not Assigned'}</TableCell>
+                      <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, display: { xs: 'none', md: 'table-cell' } }}>
                         <Box display="flex" flexDirection="column" gap={0.5}>
                           <Box display="flex" alignItems="center" gap={1}>
-                            <PhoneIcon fontSize="small" color="action" />
-                            <Typography variant="caption">{teacher.phone}</Typography>
+                            <PhoneIcon sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }} color="action" />
+                            <Typography variant="caption" sx={{ fontSize: { xs: '0.65rem', sm: '0.75rem' } }}>{teacher.phone}</Typography>
                           </Box>
                           <Box display="flex" alignItems="center" gap={1}>
-                            <EmailIcon fontSize="small" color="action" />
-                            <Typography variant="caption">{teacher.email}</Typography>
+                            <EmailIcon sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }} color="action" />
+                            <Typography variant="caption" sx={{ fontSize: { xs: '0.65rem', sm: '0.75rem' } }}>{teacher.email}</Typography>
                           </Box>
                         </Box>
                       </TableCell>
-                      <TableCell>
+                      <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
                         <Chip
                           label={teacher.is_active ? 'Active' : 'Inactive'}
                           color={teacher.is_active ? 'success' : 'default'}
                           size="small"
+                          sx={{ fontSize: { xs: '0.65rem', sm: '0.75rem' } }}
                         />
                       </TableCell>
-                      <TableCell>
-                        <Box display="flex" gap={1}>
+                      <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
+                        <Box display="flex" gap={{ xs: 0.25, sm: 0.5 }} flexWrap="wrap">
                           <Tooltip title="View Details">
-                            <IconButton size="small" onClick={() => handleViewTeacher(teacher)}>
-                              <ViewIcon fontSize="small" />
+                            <IconButton size="small" onClick={() => handleViewTeacher(teacher)} sx={{ minWidth: 36, minHeight: 36 }}>
+                              <ViewIcon sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
                             </IconButton>
                           </Tooltip>
                           <Tooltip title="Edit Teacher">
-                            <IconButton size="small" onClick={() => handleEditTeacher(teacher)}>
-                              <EditIcon fontSize="small" />
+                            <IconButton size="small" onClick={() => handleEditTeacher(teacher)} sx={{ minWidth: 36, minHeight: 36 }}>
+                              <EditIcon sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
                             </IconButton>
                           </Tooltip>
                           <Tooltip title={!teacher.user_id ? "No user account" : "Reset Password"}>
@@ -997,14 +998,15 @@ const TeacherProfilesSystem: React.FC = () => {
                                 color="primary"
                                 onClick={() => handleResetPassword(teacher)}
                                 disabled={!teacher.user_id}
+                                sx={{ minWidth: 36, minHeight: 36 }}
                               >
-                                <KeyIcon fontSize="small" />
+                                <KeyIcon sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
                               </IconButton>
                             </span>
                           </Tooltip>
                           <Tooltip title="Delete Teacher">
-                            <IconButton size="small" color="error" onClick={() => handleDeleteTeacher(teacher)}>
-                              <DeleteIcon fontSize="small" />
+                            <IconButton size="small" color="error" onClick={() => handleDeleteTeacher(teacher)} sx={{ minWidth: 36, minHeight: 36 }}>
+                              <DeleteIcon sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
                             </IconButton>
                           </Tooltip>
                         </Box>
@@ -1041,17 +1043,17 @@ const TeacherProfilesSystem: React.FC = () => {
           </Box>
         ) : (
           <Paper elevation={3} sx={{ p: 3 }}>
-            <TableContainer sx={{ maxHeight: { xs: '60vh', sm: '70vh' }, overflow: 'auto' }}>
-              <Table stickyHeader>
+            <TableContainer sx={{ maxHeight: { xs: '60vh', sm: '70vh' }, overflow: 'auto', overflowX: 'auto' }}>
+              <Table stickyHeader size="small">
                 <TableHead>
                   <TableRow>
-                    <TableCell>Teacher</TableCell>
-                    <TableCell>Employee ID</TableCell>
-                    <TableCell>Department</TableCell>
-                    <TableCell>Position</TableCell>
-                    <TableCell>Contact</TableCell>
-                    <TableCell>Status</TableCell>
-                    <TableCell>Actions</TableCell>
+                    <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, fontWeight: 600, minWidth: { xs: 140, sm: 180 } }}>Teacher</TableCell>
+                    <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, fontWeight: 600, display: { xs: 'none', sm: 'table-cell' } }}>Employee ID</TableCell>
+                    <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, fontWeight: 600, display: { xs: 'none', md: 'table-cell' } }}>Department</TableCell>
+                    <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, fontWeight: 600, display: { xs: 'none', md: 'table-cell' } }}>Position</TableCell>
+                    <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, fontWeight: 600, display: { xs: 'none', md: 'table-cell' } }}>Contact</TableCell>
+                    <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, fontWeight: 600 }}>Status</TableCell>
+                    <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, fontWeight: 600 }}>Actions</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -1066,52 +1068,52 @@ const TeacherProfilesSystem: React.FC = () => {
                   ) : (
                     filteredTeachers.filter(teacher => teacher.is_active).map((teacher) => (
                       <TableRow key={teacher.id}>
-                        <TableCell>
-                          <Box display="flex" alignItems="center" gap={2}>
+                        <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
+                          <Box display="flex" alignItems="center" gap={{ xs: 1, sm: 2 }}>
                             <Avatar
                               src={teacher.profile_picture_url || undefined}
-                              sx={{ bgcolor: 'primary.main' }}
+                              sx={{ bgcolor: 'primary.main', width: { xs: 32, sm: 40 }, height: { xs: 32, sm: 40 } }}
                             >
                               {!teacher.profile_picture_url && `${teacher.first_name[0]}${teacher.last_name[0]}`}
                             </Avatar>
                             <Box>
-                              <Typography variant="body2" fontWeight="bold">
+                              <Typography variant="body2" fontWeight="bold" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
                                 {teacher.first_name} {teacher.last_name}
                               </Typography>
-                              <Typography variant="caption" color="text.secondary">
+                              <Typography variant="caption" color="text.secondary" sx={{ fontSize: { xs: '0.65rem', sm: '0.75rem' } }}>
                                 {teacher.qualification_name || 'Not Specified'}
                               </Typography>
                             </Box>
                           </Box>
                         </TableCell>
-                        <TableCell>{teacher.employee_id}</TableCell>
-                        <TableCell>{teacher.department_name || teacher.department || 'Not Assigned'}</TableCell>
-                        <TableCell>{teacher.position_name || teacher.position || 'Not Assigned'}</TableCell>
-                        <TableCell>
+                        <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, display: { xs: 'none', sm: 'table-cell' } }}>{teacher.employee_id}</TableCell>
+                        <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, display: { xs: 'none', md: 'table-cell' } }}>{teacher.department_name || teacher.department || 'Not Assigned'}</TableCell>
+                        <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, display: { xs: 'none', md: 'table-cell' } }}>{teacher.position_name || teacher.position || 'Not Assigned'}</TableCell>
+                        <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, display: { xs: 'none', md: 'table-cell' } }}>
                           <Box display="flex" flexDirection="column" gap={0.5}>
                             <Box display="flex" alignItems="center" gap={1}>
-                              <PhoneIcon fontSize="small" color="action" />
-                              <Typography variant="caption">{teacher.phone}</Typography>
+                              <PhoneIcon sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }} color="action" />
+                              <Typography variant="caption" sx={{ fontSize: { xs: '0.65rem', sm: '0.75rem' } }}>{teacher.phone}</Typography>
                             </Box>
                             <Box display="flex" alignItems="center" gap={1}>
-                              <EmailIcon fontSize="small" color="action" />
-                              <Typography variant="caption">{teacher.email}</Typography>
+                              <EmailIcon sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }} color="action" />
+                              <Typography variant="caption" sx={{ fontSize: { xs: '0.65rem', sm: '0.75rem' } }}>{teacher.email}</Typography>
                             </Box>
                           </Box>
                         </TableCell>
-                        <TableCell>
-                          <Chip label="Active" color="success" size="small" />
+                        <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
+                          <Chip label="Active" color="success" size="small" sx={{ fontSize: { xs: '0.65rem', sm: '0.75rem' } }} />
                         </TableCell>
-                        <TableCell>
-                          <Box display="flex" gap={1}>
+                        <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
+                          <Box display="flex" gap={{ xs: 0.25, sm: 0.5 }} flexWrap="wrap">
                             <Tooltip title="View Details">
-                              <IconButton size="small" onClick={() => handleViewTeacher(teacher)}>
-                                <ViewIcon fontSize="small" />
+                              <IconButton size="small" onClick={() => handleViewTeacher(teacher)} sx={{ minWidth: 36, minHeight: 36 }}>
+                                <ViewIcon sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
                               </IconButton>
                             </Tooltip>
                             <Tooltip title="Edit Teacher">
-                              <IconButton size="small" color="primary" onClick={() => handleEditTeacher(teacher)}>
-                                <EditIcon fontSize="small" />
+                              <IconButton size="small" color="primary" onClick={() => handleEditTeacher(teacher)} sx={{ minWidth: 36, minHeight: 36 }}>
+                                <EditIcon sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
                               </IconButton>
                             </Tooltip>
                             <Tooltip title={!teacher.user_id ? "No user account" : "Reset Password"}>
@@ -1121,14 +1123,15 @@ const TeacherProfilesSystem: React.FC = () => {
                                   color="primary"
                                   onClick={() => handleResetPassword(teacher)}
                                   disabled={!teacher.user_id}
+                                  sx={{ minWidth: 36, minHeight: 36 }}
                                 >
-                                  <KeyIcon fontSize="small" />
+                                  <KeyIcon sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
                                 </IconButton>
                               </span>
                             </Tooltip>
                             <Tooltip title="Delete Teacher">
-                              <IconButton size="small" color="error" onClick={() => handleDeleteTeacher(teacher)}>
-                                <DeleteIcon fontSize="small" />
+                              <IconButton size="small" color="error" onClick={() => handleDeleteTeacher(teacher)} sx={{ minWidth: 36, minHeight: 36 }}>
+                                <DeleteIcon sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
                               </IconButton>
                             </Tooltip>
                           </Box>
@@ -1165,17 +1168,17 @@ const TeacherProfilesSystem: React.FC = () => {
           </Box>
         ) : (
           <Paper elevation={3} sx={{ p: 3 }}>
-            <TableContainer sx={{ maxHeight: { xs: '60vh', sm: '70vh' }, overflow: 'auto' }}>
-              <Table stickyHeader>
+            <TableContainer sx={{ maxHeight: { xs: '60vh', sm: '70vh' }, overflow: 'auto', overflowX: 'auto' }}>
+              <Table stickyHeader size="small">
                 <TableHead>
                   <TableRow>
-                    <TableCell>Teacher</TableCell>
-                    <TableCell>Employee ID</TableCell>
-                    <TableCell>Department</TableCell>
-                    <TableCell>Position</TableCell>
-                    <TableCell>Contact</TableCell>
-                    <TableCell>Status</TableCell>
-                    <TableCell>Actions</TableCell>
+                    <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, fontWeight: 600, minWidth: { xs: 140, sm: 180 } }}>Teacher</TableCell>
+                    <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, fontWeight: 600, display: { xs: 'none', sm: 'table-cell' } }}>Employee ID</TableCell>
+                    <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, fontWeight: 600, display: { xs: 'none', md: 'table-cell' } }}>Department</TableCell>
+                    <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, fontWeight: 600, display: { xs: 'none', md: 'table-cell' } }}>Position</TableCell>
+                    <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, fontWeight: 600, display: { xs: 'none', md: 'table-cell' } }}>Contact</TableCell>
+                    <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, fontWeight: 600 }}>Status</TableCell>
+                    <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, fontWeight: 600 }}>Actions</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -1190,49 +1193,49 @@ const TeacherProfilesSystem: React.FC = () => {
                   ) : (
                     filteredTeachers.filter(teacher => !teacher.is_active).map((teacher) => (
                       <TableRow key={teacher.id}>
-                        <TableCell>
-                          <Box display="flex" alignItems="center" gap={2}>
-                            <Avatar sx={{ bgcolor: 'grey.500' }}>
+                        <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
+                          <Box display="flex" alignItems="center" gap={{ xs: 1, sm: 2 }}>
+                            <Avatar sx={{ bgcolor: 'grey.500', width: { xs: 32, sm: 40 }, height: { xs: 32, sm: 40 } }}>
                               {teacher.first_name[0]}{teacher.last_name[0]}
                             </Avatar>
                             <Box>
-                              <Typography variant="body2" fontWeight="bold">
+                              <Typography variant="body2" fontWeight="bold" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
                                 {teacher.first_name} {teacher.last_name}
                               </Typography>
-                              <Typography variant="caption" color="text.secondary">
+                              <Typography variant="caption" color="text.secondary" sx={{ fontSize: { xs: '0.65rem', sm: '0.75rem' } }}>
                                 {teacher.qualification_name || 'Not Specified'}
                               </Typography>
                             </Box>
                           </Box>
                         </TableCell>
-                        <TableCell>{teacher.employee_id}</TableCell>
-                        <TableCell>{teacher.department_name || teacher.department || 'Not Assigned'}</TableCell>
-                        <TableCell>{teacher.position_name || teacher.position || 'Not Assigned'}</TableCell>
-                        <TableCell>
+                        <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, display: { xs: 'none', sm: 'table-cell' } }}>{teacher.employee_id}</TableCell>
+                        <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, display: { xs: 'none', md: 'table-cell' } }}>{teacher.department_name || teacher.department || 'Not Assigned'}</TableCell>
+                        <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, display: { xs: 'none', md: 'table-cell' } }}>{teacher.position_name || teacher.position || 'Not Assigned'}</TableCell>
+                        <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, display: { xs: 'none', md: 'table-cell' } }}>
                           <Box display="flex" flexDirection="column" gap={0.5}>
                             <Box display="flex" alignItems="center" gap={1}>
-                              <PhoneIcon fontSize="small" color="action" />
-                              <Typography variant="caption">{teacher.phone}</Typography>
+                              <PhoneIcon sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }} color="action" />
+                              <Typography variant="caption" sx={{ fontSize: { xs: '0.65rem', sm: '0.75rem' } }}>{teacher.phone}</Typography>
                             </Box>
                             <Box display="flex" alignItems="center" gap={1}>
-                              <EmailIcon fontSize="small" color="action" />
-                              <Typography variant="caption">{teacher.email}</Typography>
+                              <EmailIcon sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }} color="action" />
+                              <Typography variant="caption" sx={{ fontSize: { xs: '0.65rem', sm: '0.75rem' } }}>{teacher.email}</Typography>
                             </Box>
                           </Box>
                         </TableCell>
-                        <TableCell>
-                          <Chip label="Inactive" color="default" size="small" />
+                        <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
+                          <Chip label="Inactive" color="default" size="small" sx={{ fontSize: { xs: '0.65rem', sm: '0.75rem' } }} />
                         </TableCell>
-                        <TableCell>
-                          <Box display="flex" gap={1}>
+                        <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
+                          <Box display="flex" gap={{ xs: 0.25, sm: 0.5 }} flexWrap="wrap">
                             <Tooltip title="View Details">
-                              <IconButton size="small" onClick={() => handleViewTeacher(teacher)}>
-                                <ViewIcon fontSize="small" />
+                              <IconButton size="small" onClick={() => handleViewTeacher(teacher)} sx={{ minWidth: 36, minHeight: 36 }}>
+                                <ViewIcon sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
                               </IconButton>
                             </Tooltip>
                             <Tooltip title="Edit Teacher">
-                              <IconButton size="small" color="primary" onClick={() => handleEditTeacher(teacher)}>
-                                <EditIcon fontSize="small" />
+                              <IconButton size="small" color="primary" onClick={() => handleEditTeacher(teacher)} sx={{ minWidth: 36, minHeight: 36 }}>
+                                <EditIcon sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
                               </IconButton>
                             </Tooltip>
                             <Tooltip title={!teacher.user_id ? "No user account" : "Reset Password"}>
@@ -1242,14 +1245,15 @@ const TeacherProfilesSystem: React.FC = () => {
                                   color="primary"
                                   onClick={() => handleResetPassword(teacher)}
                                   disabled={!teacher.user_id}
+                                  sx={{ minWidth: 36, minHeight: 36 }}
                                 >
-                                  <KeyIcon fontSize="small" />
+                                  <KeyIcon sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
                                 </IconButton>
                               </span>
                             </Tooltip>
                             <Tooltip title="Delete Teacher">
-                              <IconButton size="small" color="error" onClick={() => handleDeleteTeacher(teacher)}>
-                                <DeleteIcon fontSize="small" />
+                              <IconButton size="small" color="error" onClick={() => handleDeleteTeacher(teacher)} sx={{ minWidth: 36, minHeight: 36 }}>
+                                <DeleteIcon sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
                               </IconButton>
                             </Tooltip>
                           </Box>

@@ -359,40 +359,41 @@ const AttendanceManagementSystem: React.FC = () => {
                 </Box>
               ) : (
                 <>
-                  <TableContainer>
-                    <Table size="small">
+                  <TableContainer sx={{ maxHeight: { xs: '60vh', sm: '70vh' }, overflow: 'auto', overflowX: 'auto' }}>
+                    <Table size="small" stickyHeader>
                       <TableHead>
                         <TableRow sx={{ backgroundColor: '#fff' }}>
-                          <TableCell>Date</TableCell>
-                          <TableCell>Student</TableCell>
-                          <TableCell>Class</TableCell>
-                          <TableCell>Period</TableCell>
-                          <TableCell>Status</TableCell>
-                          <TableCell>Remarks</TableCell>
-                          <TableCell>Actions</TableCell>
+                          <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, fontWeight: 600 }}>Date</TableCell>
+                          <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, fontWeight: 600, minWidth: { xs: 120, sm: 150 } }}>Student</TableCell>
+                          <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, fontWeight: 600, display: { xs: 'none', sm: 'table-cell' } }}>Class</TableCell>
+                          <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, fontWeight: 600, display: { xs: 'none', md: 'table-cell' } }}>Period</TableCell>
+                          <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, fontWeight: 600 }}>Status</TableCell>
+                          <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, fontWeight: 600, display: { xs: 'none', md: 'table-cell' } }}>Remarks</TableCell>
+                          <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, fontWeight: 600 }}>Actions</TableCell>
                         </TableRow>
                       </TableHead>
                       <TableBody>
                         {records.map((record) => (
                           <TableRow key={record.id}>
-                            <TableCell>{format(new Date(record.attendance_date), 'dd MMM yyyy')}</TableCell>
-                            <TableCell>{record.student_name || `Student ${record.student_id}`}</TableCell>
-                            <TableCell>{record.class_name}</TableCell>
-                            <TableCell>{record.attendance_period_name}</TableCell>
-                            <TableCell>
+                            <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>{format(new Date(record.attendance_date), 'dd MMM yyyy')}</TableCell>
+                            <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>{record.student_name || `Student ${record.student_id}`}</TableCell>
+                            <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, display: { xs: 'none', sm: 'table-cell' } }}>{record.class_name}</TableCell>
+                            <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, display: { xs: 'none', md: 'table-cell' } }}>{record.attendance_period_name}</TableCell>
+                            <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
                               <Chip
                                 label={record.attendance_status_description}
                                 size="small"
                                 sx={{
                                   backgroundColor: getStatusColor(record.attendance_status_color || ''),
-                                  color: '#fff'
+                                  color: '#fff',
+                                  fontSize: { xs: '0.65rem', sm: '0.75rem' }
                                 }}
                               />
                             </TableCell>
-                            <TableCell>{record.remarks || '-'}</TableCell>
-                            <TableCell>
-                              <IconButton size="small" color="error" onClick={() => handleDelete(record.id)}>
-                                <DeleteIcon fontSize="small" />
+                            <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, display: { xs: 'none', md: 'table-cell' } }}>{record.remarks || '-'}</TableCell>
+                            <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
+                              <IconButton size="small" color="error" onClick={() => handleDelete(record.id)} sx={{ minWidth: 40, minHeight: 40 }}>
+                                <DeleteIcon sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
                               </IconButton>
                             </TableCell>
                           </TableRow>
