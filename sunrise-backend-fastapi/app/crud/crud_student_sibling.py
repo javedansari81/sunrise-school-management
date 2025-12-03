@@ -26,27 +26,40 @@ class CRUDStudentSibling(CRUDBase[StudentSibling, StudentSiblingCreate, StudentS
         """
         Detect potential siblings based on matching father_name and father_phone.
         Returns list of students ordered by date_of_birth (eldest first).
+
+        Handles multi-word names with varying whitespace patterns by:
+        - Normalizing multiple spaces to single space
+        - Case-insensitive comparison
+        - Trimming leading/trailing whitespace
         """
         if not father_name or not father_phone:
             return []
-        
+
+        # Normalize the input father name: trim and collapse multiple spaces to single space
+        import re
+        normalized_father_name = re.sub(r'\s+', ' ', father_name.strip()).lower()
+        normalized_phone = father_phone.strip()
+
         # Build query to find students with matching father details
+        # Use REGEXP_REPLACE in PostgreSQL to normalize whitespace in database values
         query = select(Student).where(
             and_(
-                func.lower(Student.father_name) == func.lower(father_name.strip()),
-                Student.father_phone == father_phone.strip(),
+                func.lower(
+                    func.regexp_replace(Student.father_name, r'\s+', ' ', 'g')
+                ) == normalized_father_name,
+                Student.father_phone == normalized_phone,
                 Student.is_active == True,
                 or_(Student.is_deleted == False, Student.is_deleted.is_(None))
             )
         )
-        
+
         # Exclude the current student if provided
         if exclude_student_id:
             query = query.where(Student.id != exclude_student_id)
-        
+
         # Order by date of birth (eldest first)
         query = query.order_by(Student.date_of_birth.asc())
-        
+
         result = await db.execute(query)
         return result.scalars().all()
 
