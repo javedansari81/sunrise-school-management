@@ -15,8 +15,6 @@ import {
   InputLabel,
   Select,
   MenuItem,
-  Tabs,
-  Tab,
   Avatar,
   Chip,
   IconButton,
@@ -28,7 +26,8 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  Pagination
+  Pagination,
+  Grid
 } from '@mui/material';
 import { DEFAULT_PAGE_SIZE, PAGINATION_UI_CONFIG } from '../../config/pagination';
 import {
@@ -39,7 +38,6 @@ import {
   Search as SearchIcon,
   Phone as PhoneIcon,
   Email as EmailIcon,
-  FilterList,
   VpnKey as KeyIcon,
 } from '@mui/icons-material';
 
@@ -50,27 +48,6 @@ import { useErrorDialog } from '../../hooks/useErrorDialog';
 import ErrorDialog from '../common/ErrorDialog';
 import CollapsibleFilterSection from '../common/CollapsibleFilterSection';
 import ResetPasswordDialog from './ResetPasswordDialog';
-
-interface TabPanelProps {
-  children?: React.ReactNode;
-  index: number;
-  value: number;
-}
-
-function TabPanel(props: TabPanelProps) {
-  const { children, value, index, ...other } = props;
-  return (
-    <div
-      role="tabpanel"
-      hidden={value !== index}
-      id={`teacher-tabpanel-${index}`}
-      aria-labelledby={`teacher-tab-${index}`}
-      {...other}
-    >
-      {value === index && <>{children}</>}
-    </div>
-  );
-}
 
 // Teacher interface matching the backend structure
 interface Teacher {
@@ -158,9 +135,6 @@ interface TeacherFormData {
   is_active: boolean;
 }
 
-// Tab Panel Component
-
-
 const TeacherProfilesSystem: React.FC = () => {
   const { isAuthenticated } = useAuth();
   const {
@@ -178,7 +152,6 @@ const TeacherProfilesSystem: React.FC = () => {
   // State management
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [loading, setLoading] = useState(false);
-  const [tabValue, setTabValue] = useState(0);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
 
   // Pagination state
@@ -190,6 +163,7 @@ const TeacherProfilesSystem: React.FC = () => {
   // Search and filter states
   const [searchTerm, setSearchTerm] = useState('');
   const [filterDepartment, setFilterDepartment] = useState('all');
+  const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive'>('all');
 
   // Dialog states
   const [openDialog, setOpenDialog] = useState(false);
@@ -253,15 +227,13 @@ const TeacherProfilesSystem: React.FC = () => {
       if (searchTerm) params.append('search', searchTerm);
       if (filterDepartment !== 'all') params.append('department_filter', filterDepartment);
 
-      // Add is_active parameter based on tab selection
-      // Tab 0: All teachers (not supported with pagination - show active only)
-      // Tab 1: Active teachers only
-      // Tab 2: Inactive teachers only
-      if (tabValue === 0 || tabValue === 1) {
+      // Add is_active filter based on status filter
+      if (filterStatus === 'active') {
         params.append('is_active', 'true');
-      } else if (tabValue === 2) {
+      } else if (filterStatus === 'inactive') {
         params.append('is_active', 'false');
       }
+      // When 'all', don't add is_active filter to get both active and inactive
 
       const response = await teachersAPI.getTeachers(params.toString());
       setTeachers(response.data.teachers || []);
@@ -273,7 +245,7 @@ const TeacherProfilesSystem: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [configLoaded, isAuthenticated, searchTerm, filterDepartment, tabValue, page, perPage]);
+  }, [configLoaded, isAuthenticated, searchTerm, filterDepartment, filterStatus, page, perPage]);
 
   // Load teachers when dependencies change
   useEffect(() => {
@@ -281,12 +253,6 @@ const TeacherProfilesSystem: React.FC = () => {
       loadTeachers();
     }
   }, [configLoading, configLoaded, isAuthenticated, loadTeachers]);
-
-  // Handle tab change
-  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
-    setTabValue(newValue);
-    setPage(1); // Reset to first page when changing tabs
-  };
 
   // Handle filter changes - reset to page 1
   const handleSearchChange = (value: string) => {
@@ -296,6 +262,11 @@ const TeacherProfilesSystem: React.FC = () => {
 
   const handleDepartmentFilterChange = (value: string) => {
     setFilterDepartment(value);
+    setPage(1);
+  };
+
+  const handleStatusFilterChange = (value: string) => {
+    setFilterStatus(value as 'all' | 'active' | 'inactive');
     setPage(1);
   };
 
@@ -862,8 +833,8 @@ const TeacherProfilesSystem: React.FC = () => {
           </Button>
         }
       >
-        <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} gap={2} alignItems="center">
-          <Box flex={1} minWidth={{ xs: '100%', sm: '300px' }}>
+        <Grid container spacing={2} alignItems="center">
+          <Grid size={{ xs: 12, sm: 6, md: 4 }}>
             <TextField
               fullWidth
               label="Search Teachers"
@@ -878,8 +849,8 @@ const TeacherProfilesSystem: React.FC = () => {
               placeholder="Name, Employee ID, Email..."
               size="small"
             />
-          </Box>
-          <Box minWidth={{ xs: '100%', sm: '200px' }}>
+          </Grid>
+          <Grid size={{ xs: 12, sm: 6, md: 4 }}>
             <FormControl fullWidth size="small">
               <InputLabel>Department</InputLabel>
               <Select
@@ -895,402 +866,151 @@ const TeacherProfilesSystem: React.FC = () => {
                 ))}
               </Select>
             </FormControl>
-          </Box>
-        </Box>
+          </Grid>
+          <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Status</InputLabel>
+              <Select
+                value={filterStatus}
+                label="Status"
+                onChange={(e) => handleStatusFilterChange(e.target.value)}
+              >
+                <MenuItem value="all">All</MenuItem>
+                <MenuItem value="active">Active</MenuItem>
+                <MenuItem value="inactive">Inactive</MenuItem>
+              </Select>
+            </FormControl>
+          </Grid>
+        </Grid>
       </CollapsibleFilterSection>
 
-      {/* Tabs Section */}
-      <Paper sx={{ width: '100%', mb: { xs: 2, sm: 3 } }}>
-        <Tabs
-          value={tabValue}
-          onChange={handleTabChange}
-          aria-label="teacher profiles tabs"
-          variant="scrollable"
-          scrollButtons="auto"
-          allowScrollButtonsMobile
-        >
-          <Tab label="All Teachers" />
-          <Tab label="Active Teachers" />
-          <Tab label="Inactive Teachers" />
-        </Tabs>
-      </Paper>
-
-      {/* All Teachers Tab */}
-      <TabPanel value={tabValue} index={0}>
-        {loading ? (
-          <Box display="flex" justifyContent="center" p={{ xs: 2, sm: 4 }}>
-            <CircularProgress />
-          </Box>
-        ) : (
-          <Paper elevation={3} sx={{ p: 3 }}>
-            <TableContainer sx={{ maxHeight: { xs: '60vh', sm: '70vh' }, overflow: 'auto', overflowX: 'auto' }}>
-              <Table stickyHeader size="small">
-                <TableHead>
-                  <TableRow>
-                    <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, fontWeight: 600, minWidth: { xs: 140, sm: 180 } }}>Teacher</TableCell>
-                    <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, fontWeight: 600, display: { xs: 'none', sm: 'table-cell' } }}>Employee ID</TableCell>
-                    <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, fontWeight: 600, display: { xs: 'none', md: 'table-cell' } }}>Department</TableCell>
-                    <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, fontWeight: 600, display: { xs: 'none', md: 'table-cell' } }}>Position</TableCell>
-                    <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, fontWeight: 600, display: { xs: 'none', md: 'table-cell' } }}>Contact</TableCell>
-                    <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, fontWeight: 600 }}>Status</TableCell>
-                    <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, fontWeight: 600 }}>Actions</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {filteredTeachers.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={7} align="center">
-                        <Typography variant="body2" color="text.secondary">
-                          No teachers found
-                        </Typography>
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    filteredTeachers.map((teacher) => (
-                    <TableRow key={teacher.id}>
-                      <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
-                        <Box display="flex" alignItems="center" gap={{ xs: 1, sm: 2 }}>
-                          <Avatar
-                            src={teacher.profile_picture_url || undefined}
-                            sx={{ bgcolor: 'primary.main', width: { xs: 32, sm: 40 }, height: { xs: 32, sm: 40 } }}
-                          >
-                            {!teacher.profile_picture_url && `${teacher.first_name[0]}${teacher.last_name[0]}`}
-                          </Avatar>
-                          <Box>
-                            <Typography variant="body2" fontWeight="bold" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
-                              {teacher.first_name} {teacher.last_name}
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary" sx={{ fontSize: { xs: '0.65rem', sm: '0.75rem' } }}>
-                              {teacher.qualification_name || 'Not Specified'}
-                            </Typography>
-                          </Box>
+      {/* Teacher Table */}
+      <Paper elevation={3} sx={{ p: 3 }}>
+        <TableContainer sx={{ maxHeight: { xs: '60vh', sm: '70vh' }, overflow: 'auto', overflowX: 'auto' }}>
+          <Table stickyHeader size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell sx={{ backgroundColor: 'white', fontSize: { xs: '0.75rem', sm: '0.875rem' }, fontWeight: 600, minWidth: { xs: 140, sm: 180 } }}>Teacher</TableCell>
+                <TableCell sx={{ backgroundColor: 'white', fontSize: { xs: '0.75rem', sm: '0.875rem' }, fontWeight: 600, display: { xs: 'none', sm: 'table-cell' } }}>Employee ID</TableCell>
+                <TableCell sx={{ backgroundColor: 'white', fontSize: { xs: '0.75rem', sm: '0.875rem' }, fontWeight: 600, display: { xs: 'none', md: 'table-cell' } }}>Department</TableCell>
+                <TableCell sx={{ backgroundColor: 'white', fontSize: { xs: '0.75rem', sm: '0.875rem' }, fontWeight: 600, display: { xs: 'none', md: 'table-cell' } }}>Position</TableCell>
+                <TableCell sx={{ backgroundColor: 'white', fontSize: { xs: '0.75rem', sm: '0.875rem' }, fontWeight: 600, display: { xs: 'none', md: 'table-cell' } }}>Contact</TableCell>
+                <TableCell sx={{ backgroundColor: 'white', fontSize: { xs: '0.75rem', sm: '0.875rem' }, fontWeight: 600 }}>Status</TableCell>
+                <TableCell sx={{ backgroundColor: 'white', fontSize: { xs: '0.75rem', sm: '0.875rem' }, fontWeight: 600 }}>Actions</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={7} align="center">
+                    <CircularProgress />
+                  </TableCell>
+                </TableRow>
+              ) : filteredTeachers.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} align="center">
+                    <Typography variant="body2" color="text.secondary">
+                      No teachers found
+                    </Typography>
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filteredTeachers.map((teacher) => (
+                  <TableRow key={teacher.id}>
+                    <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
+                      <Box display="flex" alignItems="center" gap={{ xs: 1, sm: 2 }}>
+                        <Avatar
+                          src={teacher.profile_picture_url || undefined}
+                          sx={{ bgcolor: teacher.is_active ? 'primary.main' : 'grey.500', width: { xs: 32, sm: 40 }, height: { xs: 32, sm: 40 } }}
+                        >
+                          {!teacher.profile_picture_url && `${teacher.first_name[0]}${teacher.last_name[0]}`}
+                        </Avatar>
+                        <Box>
+                          <Typography variant="body2" fontWeight="bold" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
+                            {teacher.first_name} {teacher.last_name}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary" sx={{ fontSize: { xs: '0.65rem', sm: '0.75rem' } }}>
+                            {teacher.qualification_name || 'Not Specified'}
+                          </Typography>
                         </Box>
-                      </TableCell>
-                      <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, display: { xs: 'none', sm: 'table-cell' } }}>{teacher.employee_id}</TableCell>
-                      <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, display: { xs: 'none', md: 'table-cell' } }}>{teacher.department_description || teacher.department_name || teacher.department || 'Not Assigned'}</TableCell>
-                      <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, display: { xs: 'none', md: 'table-cell' } }}>{teacher.position_description || teacher.position_name || teacher.position || 'Not Assigned'}</TableCell>
-                      <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, display: { xs: 'none', md: 'table-cell' } }}>
-                        <Box display="flex" flexDirection="column" gap={0.5}>
-                          <Box display="flex" alignItems="center" gap={1}>
-                            <PhoneIcon sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }} color="action" />
-                            <Typography variant="caption" sx={{ fontSize: { xs: '0.65rem', sm: '0.75rem' } }}>{teacher.phone}</Typography>
-                          </Box>
-                          <Box display="flex" alignItems="center" gap={1}>
-                            <EmailIcon sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }} color="action" />
-                            <Typography variant="caption" sx={{ fontSize: { xs: '0.65rem', sm: '0.75rem' } }}>{teacher.email}</Typography>
-                          </Box>
+                      </Box>
+                    </TableCell>
+                    <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, display: { xs: 'none', sm: 'table-cell' } }}>{teacher.employee_id}</TableCell>
+                    <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, display: { xs: 'none', md: 'table-cell' } }}>{teacher.department_description || teacher.department_name || teacher.department || 'Not Assigned'}</TableCell>
+                    <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, display: { xs: 'none', md: 'table-cell' } }}>{teacher.position_description || teacher.position_name || teacher.position || 'Not Assigned'}</TableCell>
+                    <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, display: { xs: 'none', md: 'table-cell' } }}>
+                      <Box display="flex" flexDirection="column" gap={0.5}>
+                        <Box display="flex" alignItems="center" gap={1}>
+                          <PhoneIcon sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }} color="action" />
+                          <Typography variant="caption" sx={{ fontSize: { xs: '0.65rem', sm: '0.75rem' } }}>{teacher.phone}</Typography>
                         </Box>
-                      </TableCell>
-                      <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
-                        <Chip
-                          label={teacher.is_active ? 'Active' : 'Inactive'}
-                          color={teacher.is_active ? 'success' : 'default'}
-                          size="small"
-                          sx={{ fontSize: { xs: '0.65rem', sm: '0.75rem' } }}
-                        />
-                      </TableCell>
-                      <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
-                        <Box display="flex" gap={{ xs: 0.25, sm: 0.5 }} flexWrap="wrap">
-                          <Tooltip title="View Details">
-                            <IconButton size="small" onClick={() => handleViewTeacher(teacher)} sx={{ minWidth: 36, minHeight: 36 }}>
-                              <ViewIcon sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
-                            </IconButton>
-                          </Tooltip>
-                          <Tooltip title="Edit Teacher">
-                            <IconButton size="small" onClick={() => handleEditTeacher(teacher)} sx={{ minWidth: 36, minHeight: 36 }}>
-                              <EditIcon sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
-                            </IconButton>
-                          </Tooltip>
-                          <Tooltip title={!teacher.user_id ? "No user account" : "Reset Password"}>
-                            <span>
-                              <IconButton
-                                size="small"
-                                color="primary"
-                                onClick={() => handleResetPassword(teacher)}
-                                disabled={!teacher.user_id}
-                                sx={{ minWidth: 36, minHeight: 36 }}
-                              >
-                                <KeyIcon sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
-                              </IconButton>
-                            </span>
-                          </Tooltip>
-                          <Tooltip title="Delete Teacher">
-                            <IconButton size="small" color="error" onClick={() => handleDeleteTeacher(teacher)} sx={{ minWidth: 36, minHeight: 36 }}>
-                              <DeleteIcon sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
-                            </IconButton>
-                          </Tooltip>
+                        <Box display="flex" alignItems="center" gap={1}>
+                          <EmailIcon sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }} color="action" />
+                          <Typography variant="caption" sx={{ fontSize: { xs: '0.65rem', sm: '0.75rem' } }}>{teacher.email}</Typography>
                         </Box>
-                      </TableCell>
-                    </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </TableContainer>
-
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <Box display="flex" justifyContent="center" mt={3}>
-                <Pagination
-                  count={totalPages}
-                  page={page}
-                  onChange={(_, newPage) => setPage(newPage)}
-                  color={PAGINATION_UI_CONFIG.color}
-                  showFirstButton={PAGINATION_UI_CONFIG.showFirstLastButtons}
-                  showLastButton={PAGINATION_UI_CONFIG.showFirstLastButtons}
-                />
-              </Box>
-            )}
-          </Paper>
-        )}
-      </TabPanel>
-
-      {/* Active Teachers Tab */}
-      <TabPanel value={tabValue} index={1}>
-        {loading ? (
-          <Box display="flex" justifyContent="center" p={{ xs: 2, sm: 4 }}>
-            <CircularProgress />
-          </Box>
-        ) : (
-          <Paper elevation={3} sx={{ p: 3 }}>
-            <TableContainer sx={{ maxHeight: { xs: '60vh', sm: '70vh' }, overflow: 'auto', overflowX: 'auto' }}>
-              <Table stickyHeader size="small">
-                <TableHead>
-                  <TableRow>
-                    <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, fontWeight: 600, minWidth: { xs: 140, sm: 180 } }}>Teacher</TableCell>
-                    <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, fontWeight: 600, display: { xs: 'none', sm: 'table-cell' } }}>Employee ID</TableCell>
-                    <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, fontWeight: 600, display: { xs: 'none', md: 'table-cell' } }}>Department</TableCell>
-                    <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, fontWeight: 600, display: { xs: 'none', md: 'table-cell' } }}>Position</TableCell>
-                    <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, fontWeight: 600, display: { xs: 'none', md: 'table-cell' } }}>Contact</TableCell>
-                    <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, fontWeight: 600 }}>Status</TableCell>
-                    <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, fontWeight: 600 }}>Actions</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {filteredTeachers.filter(teacher => teacher.is_active).length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={7} align="center">
-                        <Typography variant="body2" color="text.secondary">
-                          No active teachers found
-                        </Typography>
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    filteredTeachers.filter(teacher => teacher.is_active).map((teacher) => (
-                      <TableRow key={teacher.id}>
-                        <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
-                          <Box display="flex" alignItems="center" gap={{ xs: 1, sm: 2 }}>
-                            <Avatar
-                              src={teacher.profile_picture_url || undefined}
-                              sx={{ bgcolor: 'primary.main', width: { xs: 32, sm: 40 }, height: { xs: 32, sm: 40 } }}
+                      </Box>
+                    </TableCell>
+                    <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
+                      <Chip
+                        label={teacher.is_active ? 'Active' : 'Inactive'}
+                        color={teacher.is_active ? 'success' : 'default'}
+                        size="small"
+                        sx={{ fontSize: { xs: '0.65rem', sm: '0.75rem' } }}
+                      />
+                    </TableCell>
+                    <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
+                      <Box display="flex" gap={{ xs: 0.25, sm: 0.5 }} flexWrap="wrap">
+                        <Tooltip title="View Details">
+                          <IconButton size="small" onClick={() => handleViewTeacher(teacher)} sx={{ minWidth: 36, minHeight: 36 }}>
+                            <ViewIcon sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Edit Teacher">
+                          <IconButton size="small" onClick={() => handleEditTeacher(teacher)} sx={{ minWidth: 36, minHeight: 36 }}>
+                            <EditIcon sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title={!teacher.user_id ? "No user account" : "Reset Password"}>
+                          <span>
+                            <IconButton
+                              size="small"
+                              color="primary"
+                              onClick={() => handleResetPassword(teacher)}
+                              disabled={!teacher.user_id}
+                              sx={{ minWidth: 36, minHeight: 36 }}
                             >
-                              {!teacher.profile_picture_url && `${teacher.first_name[0]}${teacher.last_name[0]}`}
-                            </Avatar>
-                            <Box>
-                              <Typography variant="body2" fontWeight="bold" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
-                                {teacher.first_name} {teacher.last_name}
-                              </Typography>
-                              <Typography variant="caption" color="text.secondary" sx={{ fontSize: { xs: '0.65rem', sm: '0.75rem' } }}>
-                                {teacher.qualification_name || 'Not Specified'}
-                              </Typography>
-                            </Box>
-                          </Box>
-                        </TableCell>
-                        <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, display: { xs: 'none', sm: 'table-cell' } }}>{teacher.employee_id}</TableCell>
-                        <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, display: { xs: 'none', md: 'table-cell' } }}>{teacher.department_description || teacher.department_name || teacher.department || 'Not Assigned'}</TableCell>
-                        <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, display: { xs: 'none', md: 'table-cell' } }}>{teacher.position_description || teacher.position_name || teacher.position || 'Not Assigned'}</TableCell>
-                        <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, display: { xs: 'none', md: 'table-cell' } }}>
-                          <Box display="flex" flexDirection="column" gap={0.5}>
-                            <Box display="flex" alignItems="center" gap={1}>
-                              <PhoneIcon sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }} color="action" />
-                              <Typography variant="caption" sx={{ fontSize: { xs: '0.65rem', sm: '0.75rem' } }}>{teacher.phone}</Typography>
-                            </Box>
-                            <Box display="flex" alignItems="center" gap={1}>
-                              <EmailIcon sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }} color="action" />
-                              <Typography variant="caption" sx={{ fontSize: { xs: '0.65rem', sm: '0.75rem' } }}>{teacher.email}</Typography>
-                            </Box>
-                          </Box>
-                        </TableCell>
-                        <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
-                          <Chip label="Active" color="success" size="small" sx={{ fontSize: { xs: '0.65rem', sm: '0.75rem' } }} />
-                        </TableCell>
-                        <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
-                          <Box display="flex" gap={{ xs: 0.25, sm: 0.5 }} flexWrap="wrap">
-                            <Tooltip title="View Details">
-                              <IconButton size="small" onClick={() => handleViewTeacher(teacher)} sx={{ minWidth: 36, minHeight: 36 }}>
-                                <ViewIcon sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
-                              </IconButton>
-                            </Tooltip>
-                            <Tooltip title="Edit Teacher">
-                              <IconButton size="small" color="primary" onClick={() => handleEditTeacher(teacher)} sx={{ minWidth: 36, minHeight: 36 }}>
-                                <EditIcon sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
-                              </IconButton>
-                            </Tooltip>
-                            <Tooltip title={!teacher.user_id ? "No user account" : "Reset Password"}>
-                              <span>
-                                <IconButton
-                                  size="small"
-                                  color="primary"
-                                  onClick={() => handleResetPassword(teacher)}
-                                  disabled={!teacher.user_id}
-                                  sx={{ minWidth: 36, minHeight: 36 }}
-                                >
-                                  <KeyIcon sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
-                                </IconButton>
-                              </span>
-                            </Tooltip>
-                            <Tooltip title="Delete Teacher">
-                              <IconButton size="small" color="error" onClick={() => handleDeleteTeacher(teacher)} sx={{ minWidth: 36, minHeight: 36 }}>
-                                <DeleteIcon sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
-                              </IconButton>
-                            </Tooltip>
-                          </Box>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </TableContainer>
-
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <Box display="flex" justifyContent="center" mt={3}>
-                <Pagination
-                  count={totalPages}
-                  page={page}
-                  onChange={(_, newPage) => setPage(newPage)}
-                  color={PAGINATION_UI_CONFIG.color}
-                  showFirstButton={PAGINATION_UI_CONFIG.showFirstLastButtons}
-                  showLastButton={PAGINATION_UI_CONFIG.showFirstLastButtons}
-                />
-              </Box>
-            )}
-          </Paper>
-        )}
-      </TabPanel>
-
-      {/* Inactive Teachers Tab */}
-      <TabPanel value={tabValue} index={2}>
-        {loading ? (
-          <Box display="flex" justifyContent="center" p={{ xs: 2, sm: 4 }}>
-            <CircularProgress />
-          </Box>
-        ) : (
-          <Paper elevation={3} sx={{ p: 3 }}>
-            <TableContainer sx={{ maxHeight: { xs: '60vh', sm: '70vh' }, overflow: 'auto', overflowX: 'auto' }}>
-              <Table stickyHeader size="small">
-                <TableHead>
-                  <TableRow>
-                    <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, fontWeight: 600, minWidth: { xs: 140, sm: 180 } }}>Teacher</TableCell>
-                    <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, fontWeight: 600, display: { xs: 'none', sm: 'table-cell' } }}>Employee ID</TableCell>
-                    <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, fontWeight: 600, display: { xs: 'none', md: 'table-cell' } }}>Department</TableCell>
-                    <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, fontWeight: 600, display: { xs: 'none', md: 'table-cell' } }}>Position</TableCell>
-                    <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, fontWeight: 600, display: { xs: 'none', md: 'table-cell' } }}>Contact</TableCell>
-                    <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, fontWeight: 600 }}>Status</TableCell>
-                    <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, fontWeight: 600 }}>Actions</TableCell>
+                              <KeyIcon sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
+                            </IconButton>
+                          </span>
+                        </Tooltip>
+                        <Tooltip title="Delete Teacher">
+                          <IconButton size="small" color="error" onClick={() => handleDeleteTeacher(teacher)} sx={{ minWidth: 36, minHeight: 36 }}>
+                            <DeleteIcon sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
+                          </IconButton>
+                        </Tooltip>
+                      </Box>
+                    </TableCell>
                   </TableRow>
-                </TableHead>
-                <TableBody>
-                  {filteredTeachers.filter(teacher => !teacher.is_active).length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={7} align="center">
-                        <Typography variant="body2" color="text.secondary">
-                          No inactive teachers found
-                        </Typography>
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    filteredTeachers.filter(teacher => !teacher.is_active).map((teacher) => (
-                      <TableRow key={teacher.id}>
-                        <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
-                          <Box display="flex" alignItems="center" gap={{ xs: 1, sm: 2 }}>
-                            <Avatar sx={{ bgcolor: 'grey.500', width: { xs: 32, sm: 40 }, height: { xs: 32, sm: 40 } }}>
-                              {teacher.first_name[0]}{teacher.last_name[0]}
-                            </Avatar>
-                            <Box>
-                              <Typography variant="body2" fontWeight="bold" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
-                                {teacher.first_name} {teacher.last_name}
-                              </Typography>
-                              <Typography variant="caption" color="text.secondary" sx={{ fontSize: { xs: '0.65rem', sm: '0.75rem' } }}>
-                                {teacher.qualification_name || 'Not Specified'}
-                              </Typography>
-                            </Box>
-                          </Box>
-                        </TableCell>
-                        <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, display: { xs: 'none', sm: 'table-cell' } }}>{teacher.employee_id}</TableCell>
-                        <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, display: { xs: 'none', md: 'table-cell' } }}>{teacher.department_description || teacher.department_name || teacher.department || 'Not Assigned'}</TableCell>
-                        <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, display: { xs: 'none', md: 'table-cell' } }}>{teacher.position_description || teacher.position_name || teacher.position || 'Not Assigned'}</TableCell>
-                        <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, display: { xs: 'none', md: 'table-cell' } }}>
-                          <Box display="flex" flexDirection="column" gap={0.5}>
-                            <Box display="flex" alignItems="center" gap={1}>
-                              <PhoneIcon sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }} color="action" />
-                              <Typography variant="caption" sx={{ fontSize: { xs: '0.65rem', sm: '0.75rem' } }}>{teacher.phone}</Typography>
-                            </Box>
-                            <Box display="flex" alignItems="center" gap={1}>
-                              <EmailIcon sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }} color="action" />
-                              <Typography variant="caption" sx={{ fontSize: { xs: '0.65rem', sm: '0.75rem' } }}>{teacher.email}</Typography>
-                            </Box>
-                          </Box>
-                        </TableCell>
-                        <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
-                          <Chip label="Inactive" color="default" size="small" sx={{ fontSize: { xs: '0.65rem', sm: '0.75rem' } }} />
-                        </TableCell>
-                        <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
-                          <Box display="flex" gap={{ xs: 0.25, sm: 0.5 }} flexWrap="wrap">
-                            <Tooltip title="View Details">
-                              <IconButton size="small" onClick={() => handleViewTeacher(teacher)} sx={{ minWidth: 36, minHeight: 36 }}>
-                                <ViewIcon sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
-                              </IconButton>
-                            </Tooltip>
-                            <Tooltip title="Edit Teacher">
-                              <IconButton size="small" color="primary" onClick={() => handleEditTeacher(teacher)} sx={{ minWidth: 36, minHeight: 36 }}>
-                                <EditIcon sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
-                              </IconButton>
-                            </Tooltip>
-                            <Tooltip title={!teacher.user_id ? "No user account" : "Reset Password"}>
-                              <span>
-                                <IconButton
-                                  size="small"
-                                  color="primary"
-                                  onClick={() => handleResetPassword(teacher)}
-                                  disabled={!teacher.user_id}
-                                  sx={{ minWidth: 36, minHeight: 36 }}
-                                >
-                                  <KeyIcon sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
-                                </IconButton>
-                              </span>
-                            </Tooltip>
-                            <Tooltip title="Delete Teacher">
-                              <IconButton size="small" color="error" onClick={() => handleDeleteTeacher(teacher)} sx={{ minWidth: 36, minHeight: 36 }}>
-                                <DeleteIcon sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
-                              </IconButton>
-                            </Tooltip>
-                          </Box>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </TableContainer>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </TableContainer>
 
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <Box display="flex" justifyContent="center" mt={3}>
-                <Pagination
-                  count={totalPages}
-                  page={page}
-                  onChange={(_, newPage) => setPage(newPage)}
-                  color={PAGINATION_UI_CONFIG.color}
-                  showFirstButton={PAGINATION_UI_CONFIG.showFirstLastButtons}
-                  showLastButton={PAGINATION_UI_CONFIG.showFirstLastButtons}
-                />
-              </Box>
-            )}
-          </Paper>
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <Box display="flex" justifyContent="center" mt={3}>
+            <Pagination
+              count={totalPages}
+              page={page}
+              onChange={(_, newPage) => setPage(newPage)}
+              color={PAGINATION_UI_CONFIG.color}
+              showFirstButton={PAGINATION_UI_CONFIG.showFirstLastButtons}
+              showLastButton={PAGINATION_UI_CONFIG.showFirstLastButtons}
+            />
+          </Box>
         )}
-      </TabPanel>
+      </Paper>
 
       {/* Add New Teacher Dialog */}
       <Dialog

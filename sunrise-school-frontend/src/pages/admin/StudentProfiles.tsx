@@ -3,8 +3,6 @@ import {
   Typography,
   Box,
   Grid,
-  Card,
-  CardContent,
   Button,
   Table,
   TableBody,
@@ -25,8 +23,6 @@ import {
   FormControl,
   InputLabel,
   Select,
-  Tabs,
-  Tab,
   CircularProgress,
   Alert,
   Snackbar,
@@ -49,12 +45,9 @@ import {
   Delete,
   Visibility,
   Person,
-  School,
   Phone,
   Email,
-  LocationOn,
   Search,
-  FilterList,
   VpnKey as KeyIcon,
 } from '@mui/icons-material';
 import AdminLayout from '../../components/Layout/AdminLayout';
@@ -62,27 +55,6 @@ import { studentsAPI, studentSiblingsAPI } from '../../services/api';
 import { useErrorDialog } from '../../hooks/useErrorDialog';
 import ErrorDialog from '../../components/common/ErrorDialog';
 import ResetPasswordDialog from '../../components/admin/ResetPasswordDialog';
-
-interface TabPanelProps {
-  children?: React.ReactNode;
-  index: number;
-  value: number;
-}
-
-function TabPanel(props: TabPanelProps) {
-  const { children, value, index, ...other } = props;
-  return (
-    <div
-      role="tabpanel"
-      hidden={value !== index}
-      id={`student-tabpanel-${index}`}
-      aria-labelledby={`student-tab-${index}`}
-      {...other}
-    >
-      {value === index && <Box sx={{ p: 3 }}>{children}</Box>}
-    </div>
-  );
-}
 
 interface Student {
   id: number;
@@ -133,13 +105,13 @@ interface Student {
 }
 
 const StudentProfilesContent: React.FC = () => {
-  const [tabValue, setTabValue] = useState(0);
   const [openDialog, setOpenDialog] = useState(false);
   const [dialogMode, setDialogMode] = useState<'view' | 'edit' | 'create'>('view');
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [filterClass, setFilterClass] = useState('all');
   const [filterSection, setFilterSection] = useState('all');
   const [filterSessionYear, setFilterSessionYear] = useState('all');
+  const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive'>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(false);
@@ -211,10 +183,10 @@ const StudentProfilesContent: React.FC = () => {
       if (filterSection !== 'all') params.append('section_filter', filterSection);
       if (searchTerm) params.append('search', searchTerm);
 
-      // Add is_active filter based on tab
-      if (tabValue === 1) {
+      // Add is_active filter based on status filter
+      if (filterStatus === 'active') {
         params.append('is_active', 'true');
-      } else if (tabValue === 2) {
+      } else if (filterStatus === 'inactive') {
         params.append('is_active', 'false');
       }
 
@@ -258,23 +230,19 @@ const StudentProfilesContent: React.FC = () => {
     }
   };
 
-  // Load students when page, filters, or tab changes
+  // Load students when page, filters, or status changes
   useEffect(() => {
     loadStudents();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, filterClass, filterSection, filterSessionYear, searchTerm, tabValue]);
-
-  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
-    setTabValue(newValue);
-    setPage(1); // Reset to first page when changing tabs
-  };
+  }, [page, filterClass, filterSection, filterSessionYear, searchTerm, filterStatus]);
 
   // Reset to page 1 when filters change
-  const handleFilterChange = (filterType: 'class' | 'section' | 'sessionYear', value: string) => {
+  const handleFilterChange = (filterType: 'class' | 'section' | 'sessionYear' | 'status', value: string) => {
     setPage(1);
     if (filterType === 'class') setFilterClass(value);
     else if (filterType === 'section') setFilterSection(value);
     else if (filterType === 'sessionYear') setFilterSessionYear(value);
+    else if (filterType === 'status') setFilterStatus(value as 'all' | 'active' | 'inactive');
   };
 
   // Reset to page 1 when search term changes (with debounce)
@@ -573,15 +541,6 @@ const StudentProfilesContent: React.FC = () => {
   const sections = ['A', 'B', 'C', 'D'];
   const bloodGroups = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
-  // Calculate stats from actual data (exclude soft deleted students)
-  const validStudents = students.filter(s => !s.is_deleted);
-  const studentStats = [
-    { title: 'Total Students', value: validStudents.length.toString(), icon: <Person />, color: 'primary' },
-    { title: 'Active Students', value: validStudents.filter(s => s.is_active).length.toString(), icon: <School />, color: 'success' },
-    { title: 'New Admissions', value: validStudents.filter(s => new Date(s.admission_date).getFullYear() === new Date().getFullYear()).length.toString(), icon: <LocationOn />, color: 'info' },
-    { title: 'Classes', value: new Set(validStudents.map(s => s.class_name)).size.toString(), icon: <Email />, color: 'warning' },
-  ];
-
   // Filter students based on search and filters
   const filteredStudents = students.filter(student => {
     // Exclude soft deleted students
@@ -599,7 +558,7 @@ const StudentProfilesContent: React.FC = () => {
     const matchesClass = filterClass === 'all' || student.class_id.toString() === filterClass.toString();
     const matchesSection = filterSection === 'all' || student.section === filterSection;
     const matchesSessionYear = filterSessionYear === 'all' || student.session_year_id.toString() === filterSessionYear.toString();
-    const matchesTab = tabValue === 0 || (tabValue === 1 && student.is_active) || (tabValue === 2 && !student.is_active);
+    const matchesStatus = filterStatus === 'all' || (filterStatus === 'active' && student.is_active) || (filterStatus === 'inactive' && !student.is_active);
 
     // Debug logging for first student
     if (student.id === students[0]?.id) {
@@ -610,29 +569,30 @@ const StudentProfilesContent: React.FC = () => {
         filterSection,
         filterSessionYear,
         filterSessionYearType: typeof filterSessionYear,
+        filterStatus,
         student_class_id: student.class_id,
         student_class_id_type: typeof student.class_id,
         student_section: student.section,
         student_session_year_id: student.session_year_id,
         student_session_year_id_type: typeof student.session_year_id,
+        student_is_active: student.is_active,
         matchesClass,
         matchesSection,
         matchesSessionYear,
         matchesSearch,
-        matchesTab,
-        finalResult: matchesSearch && matchesClass && matchesSection && matchesSessionYear && matchesTab
+        matchesStatus,
+        finalResult: matchesSearch && matchesClass && matchesSection && matchesSessionYear && matchesStatus
       });
     }
 
-    return matchesSearch && matchesClass && matchesSection && matchesSessionYear && matchesTab;
+    return matchesSearch && matchesClass && matchesSection && matchesSessionYear && matchesStatus;
   });
 
   // Debug filtered results
   console.log('🔍 Filter Results Debug:', {
     totalStudents: students.length,
-    validStudents: validStudents.length,
     filteredStudents: filteredStudents.length,
-    currentFilters: { filterClass, filterSection, filterSessionYear, searchTerm, tabValue }
+    currentFilters: { filterClass, filterSection, filterSessionYear, searchTerm, filterStatus }
   });
 
 
@@ -661,7 +621,7 @@ const StudentProfilesContent: React.FC = () => {
           }
         >
           <Grid container spacing={2} alignItems="center">
-            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+            <Grid size={{ xs: 12, sm: 6, md: 2.4 }}>
               <FilterDropdown
                 metadataType="sessionYears"
                 label="Session Year"
@@ -673,7 +633,7 @@ const StudentProfilesContent: React.FC = () => {
                 allLabel="All Session Years"
               />
             </Grid>
-            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+            <Grid size={{ xs: 12, sm: 6, md: 2.4 }}>
               <FilterDropdown
                 metadataType="classes"
                 label="Class"
@@ -685,7 +645,7 @@ const StudentProfilesContent: React.FC = () => {
                 allLabel="All Classes"
               />
             </Grid>
-            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+            <Grid size={{ xs: 12, sm: 6, md: 2.4 }}>
               <FormControl fullWidth>
                 <InputLabel>Section</InputLabel>
                 <Select
@@ -702,7 +662,21 @@ const StudentProfilesContent: React.FC = () => {
                 </Select>
               </FormControl>
             </Grid>
-            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+            <Grid size={{ xs: 12, sm: 6, md: 2.4 }}>
+              <FormControl fullWidth>
+                <InputLabel>Status</InputLabel>
+                <Select
+                  value={filterStatus}
+                  label="Status"
+                  onChange={(e) => handleFilterChange('status', e.target.value)}
+                >
+                  <MenuItem value="all">All</MenuItem>
+                  <MenuItem value="active">Active</MenuItem>
+                  <MenuItem value="inactive">Inactive</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6, md: 2.4 }}>
               <TextField
                 fullWidth
                 label="Search Students"
@@ -717,194 +691,88 @@ const StudentProfilesContent: React.FC = () => {
         </CollapsibleFilterSection>
 
         {/* Student Table */}
-        <Paper elevation={3}>
-          <Tabs value={tabValue} onChange={handleTabChange}>
-            <Tab label="All Students" />
-            <Tab label="Active Students" />
-            <Tab label="Inactive Students" />
-            <Tab label="Statistics" />
-          </Tabs>
-
-          <TabPanel value={tabValue} index={0}>
-            <TableContainer sx={{ maxHeight: { xs: '60vh', sm: '70vh' }, overflow: 'auto' }}>
-              <Table stickyHeader>
-                <TableHead>
+        <Paper elevation={3} sx={{ p: 3 }}>
+          <TableContainer sx={{ maxHeight: { xs: '60vh', sm: '70vh' }, overflow: 'auto' }}>
+            <Table stickyHeader>
+              <TableHead>
+                <TableRow>
+                  <TableCell sx={{ backgroundColor: 'white', fontWeight: 600 }}>Student</TableCell>
+                  <TableCell sx={{ backgroundColor: 'white', fontWeight: 600 }}>Roll Number</TableCell>
+                  <TableCell sx={{ backgroundColor: 'white', fontWeight: 600 }}>Class</TableCell>
+                  <TableCell sx={{ backgroundColor: 'white', fontWeight: 600 }}>Parent Contact</TableCell>
+                  <TableCell sx={{ backgroundColor: 'white', fontWeight: 600 }}>Email</TableCell>
+                  <TableCell sx={{ backgroundColor: 'white', fontWeight: 600 }}>Status</TableCell>
+                  <TableCell sx={{ backgroundColor: 'white', fontWeight: 600 }}>Actions</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {loading ? (
                   <TableRow>
-                    <TableCell sx={{ backgroundColor: 'white', fontWeight: 600 }}>Student</TableCell>
-                    <TableCell sx={{ backgroundColor: 'white', fontWeight: 600 }}>Roll Number</TableCell>
-                    <TableCell sx={{ backgroundColor: 'white', fontWeight: 600 }}>Class</TableCell>
-                    <TableCell sx={{ backgroundColor: 'white', fontWeight: 600 }}>Parent Contact</TableCell>
-                    <TableCell sx={{ backgroundColor: 'white', fontWeight: 600 }}>Login Info</TableCell>
-                    <TableCell sx={{ backgroundColor: 'white', fontWeight: 600 }}>Status</TableCell>
-                    <TableCell sx={{ backgroundColor: 'white', fontWeight: 600 }}>Actions</TableCell>
+                    <TableCell colSpan={7} align="center">
+                      <CircularProgress />
+                    </TableCell>
                   </TableRow>
-                </TableHead>
-                <TableBody>
-                  {loading ? (
-                    <TableRow>
-                      <TableCell colSpan={7} align="center">
-                        <CircularProgress />
+                ) : filteredStudents.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={7} align="center">
+                      <Typography variant="body2" color="text.secondary">
+                        No students found
+                      </Typography>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredStudents.map((student) => (
+                    <TableRow key={student.id}>
+                      <TableCell>
+                        <Box display="flex" alignItems="center" gap={2}>
+                          <Avatar
+                            src={student.profile_picture_url || undefined}
+                            sx={{ bgcolor: student.is_active ? 'primary.main' : 'grey.500' }}
+                          >
+                            {!student.profile_picture_url && `${student.first_name[0]}${student.last_name[0]}`}
+                          </Avatar>
+                          <Box>
+                            <Typography variant="body2" fontWeight="bold">
+                              {student.first_name} {student.last_name}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              DOB: {student.date_of_birth}
+                            </Typography>
+                          </Box>
+                        </Box>
                       </TableCell>
-                    </TableRow>
-                  ) : filteredStudents.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={7} align="center">
-                        <Typography variant="body2" color="text.secondary">
-                          No students found
+                      <TableCell>{student.roll_number || 'Not Assigned'}</TableCell>
+                      <TableCell>
+                        <Box>
+                          <Typography variant="body2">
+                            {student.class_name}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            {student.section ? `Section ${student.section}` : 'No Section'}
+                          </Typography>
+                        </Box>
+                      </TableCell>
+                      <TableCell>
+                        <Box>
+                          <Typography variant="body2">
+                            {student.father_name}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            {student.father_phone || student.phone || 'No Phone'}
+                          </Typography>
+                        </Box>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="body2">
+                          {student.email || 'No Email'}
                         </Typography>
                       </TableCell>
-                    </TableRow>
-                  ) : (
-                    filteredStudents.map((student) => (
-                      <TableRow key={student.id}>
-                        <TableCell>
-                          <Box display="flex" alignItems="center" gap={2}>
-                            <Avatar
-                              src={student.profile_picture_url || undefined}
-                              sx={{ bgcolor: 'primary.main' }}
-                            >
-                              {!student.profile_picture_url && `${student.first_name[0]}${student.last_name[0]}`}
-                            </Avatar>
-                            <Box>
-                              <Typography variant="body2" fontWeight="bold">
-                                {student.first_name} {student.last_name}
-                              </Typography>
-                              <Typography variant="caption" color="text.secondary">
-                                DOB: {student.date_of_birth}
-                              </Typography>
-                            </Box>
-                          </Box>
-                        </TableCell>
-                        <TableCell>{student.roll_number || 'Not Assigned'}</TableCell>
-                        <TableCell>
-                          <Box>
-                            <Typography variant="body2">
-                              {student.class_name}
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary">
-                              {student.section ? `Section ${student.section}` : 'No Section'}
-                            </Typography>
-                          </Box>
-                        </TableCell>
-                        <TableCell>
-                          <Box>
-                            <Typography variant="body2">
-                              {student.father_name}
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary">
-                              {student.father_phone || student.phone || 'No Phone'}
-                            </Typography>
-                          </Box>
-                        </TableCell>
-                        <TableCell>
-                          <Box>
-                            <Typography variant="body2" fontWeight="bold">
-                              {student.phone || student.email || 'No login'}
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary">
-                              Password: Sunrise@001
-                            </Typography>
-                          </Box>
-                        </TableCell>
-                        <TableCell>
-                          <Chip
-                            label={student.is_active ? 'Active' : 'Inactive'}
-                            color={student.is_active ? 'success' : 'default'}
-                            size="small"
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <IconButton size="small" onClick={() => handleOpenDialog('view', student)}>
-                            <Visibility />
-                          </IconButton>
-                          <IconButton size="small" onClick={() => handleOpenDialog('edit', student)}>
-                            <Edit />
-                          </IconButton>
-                          <IconButton
-                            size="small"
-                            color="primary"
-                            onClick={() => handleResetPassword(student)}
-                            disabled={!student.user_id}
-                            title={!student.user_id ? 'No user account' : 'Reset password'}
-                          >
-                            <KeyIcon />
-                          </IconButton>
-                          <IconButton size="small" color="error" onClick={() => handleDelete(student.id)}>
-                            <Delete />
-                          </IconButton>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </TableContainer>
-
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <Box display="flex" justifyContent="center" mt={3}>
-                <Pagination
-                  count={totalPages}
-                  page={page}
-                  onChange={(_, newPage) => setPage(newPage)}
-                  color={PAGINATION_UI_CONFIG.color}
-                  showFirstButton={PAGINATION_UI_CONFIG.showFirstLastButtons}
-                  showLastButton={PAGINATION_UI_CONFIG.showFirstLastButtons}
-                />
-              </Box>
-            )}
-          </TabPanel>
-
-          <TabPanel value={tabValue} index={1}>
-            <TableContainer sx={{ maxHeight: { xs: '60vh', sm: '70vh' }, overflow: 'auto' }}>
-              <Table stickyHeader>
-                <TableHead>
-                  <TableRow>
-                    <TableCell sx={{ backgroundColor: 'white', fontWeight: 600 }}>Student</TableCell>
-                    <TableCell sx={{ backgroundColor: 'white', fontWeight: 600 }}>Roll Number</TableCell>
-                    <TableCell sx={{ backgroundColor: 'white', fontWeight: 600 }}>Class</TableCell>
-                    <TableCell sx={{ backgroundColor: 'white', fontWeight: 600 }}>Parent Contact</TableCell>
-                    <TableCell sx={{ backgroundColor: 'white', fontWeight: 600 }}>Status</TableCell>
-                    <TableCell sx={{ backgroundColor: 'white', fontWeight: 600 }}>Actions</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {filteredStudents.filter(student => student.is_active).map((student) => (
-                    <TableRow key={student.id}>
                       <TableCell>
-                        <Box display="flex" alignItems="center" gap={2}>
-                          <Avatar
-                            src={student.profile_picture_url || undefined}
-                            sx={{ bgcolor: 'primary.main' }}
-                          >
-                            {!student.profile_picture_url && `${student.first_name[0]}${student.last_name[0]}`}
-                          </Avatar>
-                          <Box>
-                            <Typography variant="body2" fontWeight="bold">
-                              {student.first_name} {student.last_name}
-                            </Typography>
-                          </Box>
-                        </Box>
-                      </TableCell>
-                      <TableCell>{student.roll_number || 'Not Assigned'}</TableCell>
-                      <TableCell>
-                        <Box>
-                          <Typography variant="body2">{student.class_name}</Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            {student.section ? `Section ${student.section}` : 'No Section'}
-                          </Typography>
-                        </Box>
-                      </TableCell>
-                      <TableCell>
-                        <Box>
-                          <Typography variant="body2">{student.father_name}</Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            {student.father_phone || student.phone || 'No Phone'}
-                          </Typography>
-                        </Box>
-                      </TableCell>
-                      <TableCell>
-                        <Chip label="Active" color="success" size="small" />
+                        <Chip
+                          label={student.is_active ? 'Active' : 'Inactive'}
+                          color={student.is_active ? 'success' : 'default'}
+                          size="small"
+                        />
                       </TableCell>
                       <TableCell>
                         <IconButton size="small" onClick={() => handleOpenDialog('view', student)}>
@@ -927,157 +795,25 @@ const StudentProfilesContent: React.FC = () => {
                         </IconButton>
                       </TableCell>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
 
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <Box display="flex" justifyContent="center" mt={3}>
-                <Pagination
-                  count={totalPages}
-                  page={page}
-                  onChange={(_, newPage) => setPage(newPage)}
-                  color={PAGINATION_UI_CONFIG.color}
-                  showFirstButton={PAGINATION_UI_CONFIG.showFirstLastButtons}
-                  showLastButton={PAGINATION_UI_CONFIG.showFirstLastButtons}
-                />
-              </Box>
-            )}
-          </TabPanel>
-
-          <TabPanel value={tabValue} index={2}>
-            <TableContainer sx={{ maxHeight: { xs: '60vh', sm: '70vh' }, overflow: 'auto' }}>
-              <Table stickyHeader>
-                <TableHead>
-                  <TableRow>
-                    <TableCell sx={{ backgroundColor: 'white', fontWeight: 600 }}>Student</TableCell>
-                    <TableCell sx={{ backgroundColor: 'white', fontWeight: 600 }}>Roll Number</TableCell>
-                    <TableCell sx={{ backgroundColor: 'white', fontWeight: 600 }}>Class</TableCell>
-                    <TableCell sx={{ backgroundColor: 'white', fontWeight: 600 }}>Parent Contact</TableCell>
-                    <TableCell sx={{ backgroundColor: 'white', fontWeight: 600 }}>Status</TableCell>
-                    <TableCell sx={{ backgroundColor: 'white', fontWeight: 600 }}>Actions</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {filteredStudents.filter(student => !student.is_active).map((student) => (
-                    <TableRow key={student.id}>
-                      <TableCell>
-                        <Box display="flex" alignItems="center" gap={2}>
-                          <Avatar
-                            src={student.profile_picture_url || undefined}
-                            sx={{ bgcolor: 'grey.500' }}
-                          >
-                            {!student.profile_picture_url && `${student.first_name[0]}${student.last_name[0]}`}
-                          </Avatar>
-                          <Box>
-                            <Typography variant="body2" fontWeight="bold">
-                              {student.first_name} {student.last_name}
-                            </Typography>
-                          </Box>
-                        </Box>
-                      </TableCell>
-                      <TableCell>{student.roll_number || 'Not Assigned'}</TableCell>
-                      <TableCell>
-                        <Box>
-                          <Typography variant="body2">{student.class_name}</Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            {student.section ? `Section ${student.section}` : 'No Section'}
-                          </Typography>
-                        </Box>
-                      </TableCell>
-                      <TableCell>
-                        <Box>
-                          <Typography variant="body2">{student.father_name}</Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            {student.father_phone || student.phone || 'No Phone'}
-                          </Typography>
-                        </Box>
-                      </TableCell>
-                      <TableCell>
-                        <Chip label="Inactive" color="default" size="small" />
-                      </TableCell>
-                      <TableCell>
-                        <IconButton size="small" onClick={() => handleOpenDialog('view', student)}>
-                          <Visibility />
-                        </IconButton>
-                        <IconButton size="small" onClick={() => handleOpenDialog('edit', student)}>
-                          <Edit />
-                        </IconButton>
-                        <IconButton
-                          size="small"
-                          color="primary"
-                          onClick={() => handleResetPassword(student)}
-                          disabled={!student.user_id}
-                          title={!student.user_id ? 'No user account' : 'Reset password'}
-                        >
-                          <KeyIcon />
-                        </IconButton>
-                        <IconButton size="small" color="error" onClick={() => handleDelete(student.id)}>
-                          <Delete />
-                        </IconButton>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
-
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <Box display="flex" justifyContent="center" mt={3}>
-                <Pagination
-                  count={totalPages}
-                  page={page}
-                  onChange={(_, newPage) => setPage(newPage)}
-                  color={PAGINATION_UI_CONFIG.color}
-                  showFirstButton={PAGINATION_UI_CONFIG.showFirstLastButtons}
-                  showLastButton={PAGINATION_UI_CONFIG.showFirstLastButtons}
-                />
-              </Box>
-            )}
-          </TabPanel>
-
-          {/* Statistics Tab */}
-          <TabPanel value={tabValue} index={3}>
-            {loading ? (
-              <Box display="flex" justifyContent="center" p={3}>
-                <CircularProgress />
-              </Box>
-            ) : (
-              <Box sx={{ p: 3 }}>
-                <Typography variant="h6" gutterBottom>
-                  Student Statistics
-                </Typography>
-
-                {/* Statistics Cards */}
-                <Grid container spacing={3}>
-                  {studentStats.map((stat, index) => (
-                    <Grid key={index} size={{ xs: 12, sm: 6, md: 3 }}>
-                      <Card elevation={3}>
-                        <CardContent>
-                          <Box display="flex" alignItems="center" justifyContent="space-between">
-                            <Box>
-                              <Typography variant="h4" fontWeight="bold" color={`${stat.color}.main`}>
-                                {stat.value}
-                              </Typography>
-                              <Typography variant="body2" color="text.secondary">
-                                {stat.title}
-                              </Typography>
-                            </Box>
-                            <Box color={`${stat.color}.main`}>
-                              {React.cloneElement(stat.icon, { sx: { fontSize: 40 } })}
-                            </Box>
-                          </Box>
-                        </CardContent>
-                      </Card>
-                    </Grid>
-                  ))}
-                </Grid>
-              </Box>
-            )}
-          </TabPanel>
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <Box display="flex" justifyContent="center" mt={3}>
+              <Pagination
+                count={totalPages}
+                page={page}
+                onChange={(_, newPage) => setPage(newPage)}
+                color={PAGINATION_UI_CONFIG.color}
+                showFirstButton={PAGINATION_UI_CONFIG.showFirstLastButtons}
+                showLastButton={PAGINATION_UI_CONFIG.showFirstLastButtons}
+              />
+            </Box>
+          )}
         </Paper>
 
         {/* Student Form Dialog */}
