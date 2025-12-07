@@ -92,6 +92,7 @@ class TeacherBase(BaseModel):
     employee_id: str = Field(..., min_length=1, max_length=50)
     first_name: str = Field(..., min_length=1, max_length=100)
     last_name: str = Field(..., min_length=1, max_length=100)
+    father_name: Optional[str] = Field(None, max_length=200, description="Father's name")
     date_of_birth: Optional[Union[date, str]] = None
     gender_id: Optional[int] = Field(None, description="Foreign key to genders table")
     phone: str = Field(..., max_length=20)
@@ -163,6 +164,7 @@ class TeacherUpdate(BaseModel):
     employee_id: Optional[str] = Field(None, max_length=50)
     first_name: Optional[str] = Field(None, max_length=100)
     last_name: Optional[str] = Field(None, max_length=100)
+    father_name: Optional[str] = Field(None, max_length=200, description="Father's name")
     date_of_birth: Optional[date] = None
     gender_id: Optional[int] = None
     phone: Optional[str] = Field(None, max_length=20)
@@ -265,6 +267,7 @@ class Teacher(TeacherInDBBase):
             "employee_id": db_teacher.employee_id,
             "first_name": db_teacher.first_name,
             "last_name": db_teacher.last_name,
+            "father_name": db_teacher.father_name,
             "date_of_birth": db_teacher.date_of_birth,
             "gender_id": db_teacher.gender_id,
             "phone": db_teacher.phone,

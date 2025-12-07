@@ -14,6 +14,7 @@ CREATE TABLE teachers (
     employee_id VARCHAR(50) NOT NULL,
     first_name VARCHAR(100) NOT NULL,
     last_name VARCHAR(100) NOT NULL,
+    father_name VARCHAR(200),
     date_of_birth DATE,
     gender_id INTEGER,
     phone VARCHAR(20) NOT NULL,
@@ -76,6 +77,7 @@ CREATE INDEX IF NOT EXISTS idx_teachers_not_deleted ON teachers(is_deleted) WHER
 COMMENT ON TABLE teachers IS 'Teacher profile information';
 COMMENT ON COLUMN teachers.user_id IS 'Foreign key to users table';
 COMMENT ON COLUMN teachers.employee_id IS 'Unique employee ID (unique only for non-deleted teachers)';
+COMMENT ON COLUMN teachers.father_name IS 'Father name of the teacher';
 COMMENT ON COLUMN teachers.email IS 'Teacher email address (unique only for non-deleted teachers)';
 COMMENT ON COLUMN teachers.profile_picture_url IS 'Cloudinary URL for teacher profile picture';
 COMMENT ON COLUMN teachers.profile_picture_cloudinary_id IS 'Cloudinary public ID for profile picture management (deletion/replacement)';

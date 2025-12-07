@@ -65,6 +65,7 @@ class Teacher(Base):
     employee_id = Column(String(50), unique=True, index=True, nullable=False)
     first_name = Column(String(100), nullable=False)
     last_name = Column(String(100), nullable=False)
+    father_name = Column(String(200), nullable=True)
     date_of_birth = Column(Date, nullable=True)
 
     # Foreign key to metadata table

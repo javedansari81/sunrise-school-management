@@ -16,9 +16,6 @@ import {
   Alert,
   TextField,
   Grid,
-  Card,
-  CardContent,
-  Stack,
   InputAdornment,
   IconButton,
   Tooltip,
@@ -31,9 +28,7 @@ import {
   Visibility as ViewIcon,
   Edit as EditIcon,
   Search as SearchIcon,
-  FilterList as FilterListIcon,
   EventNote,
-  Schedule,
   CheckCircle,
   Cancel,
   Pending,
@@ -263,19 +258,6 @@ const TeacherLeaveManagement: React.FC = () => {
     }));
   };
 
-  // Get status statistics
-  const getStatusStats = () => {
-    const stats = {
-      total: leaveRequests.length,
-      pending: leaveRequests.filter(leave => leave.leave_status_name.toLowerCase() === 'pending').length,
-      approved: leaveRequests.filter(leave => leave.leave_status_name.toLowerCase() === 'approved').length,
-      rejected: leaveRequests.filter(leave => leave.leave_status_name.toLowerCase() === 'rejected').length,
-    };
-    return stats;
-  };
-
-  const statusStats = getStatusStats();
-
   if (configLoading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
@@ -328,107 +310,59 @@ const TeacherLeaveManagement: React.FC = () => {
       {/* Tab Content */}
       {currentTab === 0 ? (
         <>
-          {/* Status Summary Cards */}
-          <Grid container spacing={2} sx={{ mb: 3 }}>
-        <Grid size={{ xs: 6, sm: 3 }}>
-          <Card sx={{ textAlign: 'center', p: 2 }}>
-            <Typography variant="h6" color="primary">
-              {statusStats.total}
-            </Typography>
-            <Typography variant="body2" color="textSecondary">
-              Total Requests
-            </Typography>
-          </Card>
-        </Grid>
-        <Grid size={{ xs: 6, sm: 3 }}>
-          <Card sx={{ textAlign: 'center', p: 2 }}>
-            <Typography variant="h6" color="warning.main">
-              {statusStats.pending}
-            </Typography>
-            <Typography variant="body2" color="textSecondary">
-              Pending
-            </Typography>
-          </Card>
-        </Grid>
-        <Grid size={{ xs: 6, sm: 3 }}>
-          <Card sx={{ textAlign: 'center', p: 2 }}>
-            <Typography variant="h6" color="success.main">
-              {statusStats.approved}
-            </Typography>
-            <Typography variant="body2" color="textSecondary">
-              Approved
-            </Typography>
-          </Card>
-        </Grid>
-        <Grid size={{ xs: 6, sm: 3 }}>
-          <Card sx={{ textAlign: 'center', p: 2 }}>
-            <Typography variant="h6" color="error.main">
-              {statusStats.rejected}
-            </Typography>
-            <Typography variant="body2" color="textSecondary">
-              Rejected
-            </Typography>
-          </Card>
-        </Grid>
-      </Grid>
-
-      {/* Action Button and Filters */}
+          {/* Action Button and Filters */}
       <Paper sx={{ p: 2, mb: 3 }}>
-        <Stack spacing={2}>
-          {/* Add New Request Button */}
-          <Box display="flex" justifyContent="flex-start">
+        {/* Filters and Action Button Row */}
+        <Grid container spacing={2} alignItems="center">
+          <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+            <TextField
+              fullWidth
+              placeholder="Search by type, reason, or status..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon />
+                  </InputAdornment>
+                ),
+              }}
+              size="small"
+            />
+          </Grid>
+
+          <Grid size={{ xs: 6, sm: 3, md: 2 }}>
+            <FilterDropdown
+              metadataType="leaveStatuses"
+              label="Status"
+              value={filters.leave_status_id}
+              onChange={(value) => handleFilterChange('leave_status_id', value)}
+              size="small"
+              fullWidth
+            />
+          </Grid>
+
+          <Grid size={{ xs: 6, sm: 3, md: 2 }}>
+            <FilterDropdown
+              metadataType="leaveTypes"
+              label="Leave Type"
+              value={filters.leave_type_id}
+              onChange={(value) => handleFilterChange('leave_type_id', value)}
+              size="small"
+              fullWidth
+            />
+          </Grid>
+
+          <Grid size={{ xs: 12, sm: 12, md: 4 }} sx={{ display: 'flex', justifyContent: { xs: 'flex-start', md: 'flex-end' } }}>
             <Button
               variant="contained"
               startIcon={<AddIcon />}
               onClick={handleNewLeaveRequest}
-              sx={{ mb: 2 }}
             >
               New Leave Request
             </Button>
-          </Box>
-
-          {/* Filters Row */}
-          <Grid container spacing={2} alignItems="center">
-            <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-              <TextField
-                fullWidth
-                placeholder="Search by type, reason, or status..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <SearchIcon />
-                    </InputAdornment>
-                  ),
-                }}
-                size="small"
-              />
-            </Grid>
-
-            <Grid size={{ xs: 12, sm: 3, md: 2 }}>
-              <FilterDropdown
-                metadataType="leaveStatuses"
-                label="Status"
-                value={filters.leave_status_id}
-                onChange={(value) => handleFilterChange('leave_status_id', value)}
-                size="small"
-                fullWidth
-              />
-            </Grid>
-
-            <Grid size={{ xs: 12, sm: 3, md: 2 }}>
-              <FilterDropdown
-                metadataType="leaveTypes"
-                label="Leave Type"
-                value={filters.leave_type_id}
-                onChange={(value) => handleFilterChange('leave_type_id', value)}
-                size="small"
-                fullWidth
-              />
-            </Grid>
           </Grid>
-        </Stack>
+        </Grid>
       </Paper>
 
       {/* Leave Requests Table */}

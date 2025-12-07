@@ -807,6 +807,15 @@ const Profile: React.FC = () => {
             <Grid size={{ xs: 12, sm: 6 }}>
               <TextField
                 fullWidth
+                label="Father's Name"
+                value={profileData.teacher_profile.father_name || 'Not specified'}
+                disabled
+                variant="outlined"
+              />
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6 }}>
+              <TextField
+                fullWidth
                 label="Gender"
                 value={profileData.teacher_profile.gender_description || profileData.teacher_profile.gender_name || 'Not specified'}
                 disabled

@@ -6,7 +6,6 @@ import {
   DialogActions,
   Button,
   TextField,
-  Grid,
   Typography,
   FormControl,
   InputLabel,
@@ -15,26 +14,17 @@ import {
   FormControlLabel,
   Checkbox,
   Box,
-  IconButton,
   CircularProgress,
   Alert,
-  Divider,
   Chip
 } from '@mui/material';
 
-import {
-  Close as CloseIcon,
-  CalendarToday as CalendarIcon,
-  Person as PersonIcon,
-  Work as WorkIcon
-} from '@mui/icons-material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { useServiceConfiguration } from '../../contexts/ConfigurationContext';
 import { leaveAPI, teachersAPI } from '../../services/api';
 import { configurationService } from '../../services/configurationService';
-import { dialogStyles } from '../../styles/dialogTheme';
 import { formatDateForAPI } from '../../utils/dateUtils';
 
 interface TeacherLeaveRequestDialogProps {
@@ -236,82 +226,78 @@ const TeacherLeaveRequestDialog: React.FC<TeacherLeaveRequestDialogProps> = ({
         fullWidth
         slotProps={{
           paper: {
-            sx: dialogStyles.paper
+            sx: { maxHeight: '90vh' }
           }
         }}
       >
-        <DialogTitle sx={dialogStyles.title}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <CalendarIcon sx={{ fontSize: 28 }} />
-            <Typography sx={dialogStyles.titleText}>
-              {isViewMode ? 'Leave Request Details' : selectedLeave ? 'Edit Leave Request' : 'New Leave Request'}
-            </Typography>
-          </Box>
-          <IconButton onClick={handleClose} disabled={loading} sx={dialogStyles.closeButton}>
-            <CloseIcon />
-          </IconButton>
+        <DialogTitle>
+          <Typography variant="h6" fontWeight="bold">
+            {isViewMode ? 'Leave Request Details' : selectedLeave ? 'Edit Leave Request' : 'New Leave Request'}
+          </Typography>
         </DialogTitle>
+        <DialogContent dividers>
+          <Box sx={{ pt: 2 }}>
+            {error && (
+              <Alert severity="error" sx={{ mb: 2 }}>
+                {error}
+              </Alert>
+            )}
 
-        <DialogContent sx={dialogStyles.content} dividers>
-          {/* Teacher Info */}
-          {teacherProfile && (
-            <Box sx={{ mb: 3, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
-              <Box display="flex" alignItems="center" gap={1} mb={1}>
-                <PersonIcon color="primary" fontSize="small" />
-                <Typography variant="subtitle2" color="primary">
+            {/* Applicant Information Section */}
+            {teacherProfile && (
+              <>
+                <Typography variant="h6" color="primary" gutterBottom>
                   Applicant Information
                 </Typography>
+                <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} gap={2} mb={2}>
+                  <Box flex={1}>
+                    <Typography variant="body2" color="text.secondary">Name</Typography>
+                    <Typography variant="body1" fontWeight="medium">
+                      {teacherProfile.first_name} {teacherProfile.last_name}
+                    </Typography>
+                  </Box>
+                  <Box flex={1}>
+                    <Typography variant="body2" color="text.secondary">Employee ID</Typography>
+                    <Typography variant="body1">{teacherProfile.employee_id}</Typography>
+                  </Box>
+                </Box>
+              </>
+            )}
+
+            {/* Leave Details Section */}
+            <Typography variant="h6" color="primary" gutterBottom sx={{ mt: 3 }}>
+              Leave Details
+            </Typography>
+
+            <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} gap={2} mb={2}>
+              <Box flex={1}>
+                <FormControl fullWidth required disabled={isViewMode} size="small">
+                  <InputLabel>Leave Type</InputLabel>
+                  <Select
+                    value={formData.leave_type_id}
+                    onChange={(e) => handleFieldChange('leave_type_id', e.target.value)}
+                    label="Leave Type"
+                  >
+                    {configuration?.leave_types?.map((type: any) => (
+                      <MenuItem key={type.id} value={type.id.toString()}>
+                        {type.description || type.name}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
               </Box>
-              <Typography variant="body2">
-                <strong>{teacherProfile.first_name} {teacherProfile.last_name}</strong> ({teacherProfile.employee_id})
-              </Typography>
-              <Typography variant="body2" color="textSecondary">
-                {teacherProfile.position} - {teacherProfile.department}
-              </Typography>
-            </Box>
-          )}
-
-          {error && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {error}
-            </Alert>
-          )}
-
-          <Grid container spacing={3}>
-            {/* Leave Type */}
-            <Grid size={{ xs: 12, sm: 6 }}>
-              <FormControl fullWidth required disabled={isViewMode}>
-                <InputLabel>Leave Type</InputLabel>
-                <Select
-                  value={formData.leave_type_id}
-                  onChange={(e) => handleFieldChange('leave_type_id', e.target.value)}
-                  label="Leave Type"
-                >
-                  {configuration?.leave_types?.map((type: any) => (
-                    <MenuItem key={type.id} value={type.id.toString()}>
-                      {type.name}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
-
-            {/* Total Days Display */}
-            <Grid size={{ xs: 12, sm: 6 }}>
-              <Box sx={{ pt: 2 }}>
-                <Typography variant="body2" color="textSecondary" gutterBottom>
-                  Total Days
-                </Typography>
+              <Box flex={1}>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>Total Days</Typography>
                 <Chip
                   label={`${totalDays} day${totalDays !== 1 ? 's' : ''}`}
                   color={totalDays > 0 ? 'primary' : 'default'}
+                  size="small"
                   variant="outlined"
                 />
               </Box>
-            </Grid>
+            </Box>
 
-            {/* Start Date */}
-            <Grid size={{ xs: 12, sm: 6 }}>
+            <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} gap={2} mb={2}>
               <DatePicker
                 label="Start Date *"
                 value={formData.start_date}
@@ -320,14 +306,11 @@ const TeacherLeaveRequestDialog: React.FC<TeacherLeaveRequestDialogProps> = ({
                 slotProps={{
                   textField: {
                     fullWidth: true,
-                    required: true
+                    required: true,
+                    size: 'small'
                   }
                 }}
               />
-            </Grid>
-
-            {/* End Date */}
-            <Grid size={{ xs: 12, sm: 6 }}>
               <DatePicker
                 label="End Date *"
                 value={formData.end_date}
@@ -336,16 +319,17 @@ const TeacherLeaveRequestDialog: React.FC<TeacherLeaveRequestDialogProps> = ({
                 slotProps={{
                   textField: {
                     fullWidth: true,
-                    required: true
+                    required: true,
+                    size: 'small'
                   }
                 }}
               />
-            </Grid>
+            </Box>
 
-            {/* Reason */}
-            <Grid size={{ xs: 12 }}>
+            <Box mb={3}>
               <TextField
                 fullWidth
+                size="small"
                 label="Reason for Leave"
                 multiline
                 rows={3}
@@ -355,137 +339,126 @@ const TeacherLeaveRequestDialog: React.FC<TeacherLeaveRequestDialogProps> = ({
                 disabled={isViewMode}
                 placeholder="Please provide a detailed reason for your leave request..."
               />
-            </Grid>
+            </Box>
 
-            {/* Substitute Teacher */}
-            <Grid size={{ xs: 12, sm: 6 }}>
-              <FormControl fullWidth disabled={isViewMode || loadingTeachers}>
-                <InputLabel>Substitute Teacher</InputLabel>
-                <Select
-                  value={formData.substitute_teacher_id}
-                  onChange={(e) => handleFieldChange('substitute_teacher_id', e.target.value)}
-                  label="Substitute Teacher"
-                >
-                  <MenuItem value="">
-                    <em>None</em>
-                  </MenuItem>
-                  {teachers
-                    .filter(teacher => teacher.id !== teacherProfile?.id) // Exclude self
-                    .map((teacher: any) => (
-                    <MenuItem key={teacher.id} value={teacher.id.toString()}>
-                      {teacher.first_name} {teacher.last_name} ({teacher.employee_id})
+            {/* Substitute Information Section */}
+            <Typography variant="h6" color="primary" gutterBottom>
+              Substitute Information
+            </Typography>
+
+            <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} gap={2} mb={3}>
+              <Box flex={1}>
+                <FormControl fullWidth size="small" disabled={isViewMode || loadingTeachers}>
+                  <InputLabel>Substitute Teacher</InputLabel>
+                  <Select
+                    value={formData.substitute_teacher_id}
+                    onChange={(e) => handleFieldChange('substitute_teacher_id', e.target.value)}
+                    label="Substitute Teacher"
+                  >
+                    <MenuItem value="">
+                      <em>None</em>
                     </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
+                    {teachers
+                      .filter(teacher => teacher.id !== teacherProfile?.id)
+                      .map((teacher: any) => (
+                      <MenuItem key={teacher.id} value={teacher.id.toString()}>
+                        {teacher.first_name} {teacher.last_name} ({teacher.employee_id})
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Box>
+              <Box flex={1} display="flex" alignItems="center">
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={formData.substitute_arranged}
+                      onChange={(e) => handleFieldChange('substitute_arranged', e.target.checked)}
+                      disabled={isViewMode}
+                      size="small"
+                    />
+                  }
+                  label="Substitute arrangement confirmed"
+                />
+              </Box>
+            </Box>
 
-            {/* Substitute Arranged Checkbox */}
-            <Grid size={{ xs: 12, sm: 6 }}>
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={formData.substitute_arranged}
-                    onChange={(e) => handleFieldChange('substitute_arranged', e.target.checked)}
-                    disabled={isViewMode}
-                  />
-                }
-                label="Substitute arrangement confirmed"
-              />
-            </Grid>
+            {/* Supporting Documents Section */}
+            <Typography variant="h6" color="primary" gutterBottom>
+              Supporting Documents (Optional)
+            </Typography>
 
-            {/* Supporting Documents */}
-            <Grid size={{ xs: 12 }}>
-              <Divider sx={{ my: 2 }}>
-                <Typography variant="body2" color="textSecondary">
-                  Supporting Documents (Optional)
-                </Typography>
-              </Divider>
-            </Grid>
-
-            <Grid size={{ xs: 12, sm: 6 }}>
+            <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} gap={2} mb={2}>
               <TextField
                 fullWidth
+                size="small"
                 label="Medical Certificate URL"
                 value={formData.medical_certificate_url}
                 onChange={(e) => handleFieldChange('medical_certificate_url', e.target.value)}
                 disabled={isViewMode}
                 placeholder="https://..."
               />
-            </Grid>
-
-            <Grid size={{ xs: 12, sm: 6 }}>
               <TextField
                 fullWidth
+                size="small"
                 label="Supporting Document URL"
                 value={formData.supporting_document_url}
                 onChange={(e) => handleFieldChange('supporting_document_url', e.target.value)}
                 disabled={isViewMode}
                 placeholder="https://..."
               />
-            </Grid>
+            </Box>
 
-            {/* View Mode: Additional Details */}
+            {/* View Mode: Request Status Section */}
             {isViewMode && selectedLeave && (
               <>
-                <Grid size={{ xs: 12 }}>
-                  <Divider sx={{ my: 2 }}>
-                    <Typography variant="body2" color="textSecondary">
-                      Request Status
-                    </Typography>
-                  </Divider>
-                </Grid>
+                <Typography variant="h6" color="primary" gutterBottom sx={{ mt: 3 }}>
+                  Request Status
+                </Typography>
 
-                <Grid size={{ xs: 12, sm: 6 }}>
-                  <Typography variant="body2" color="textSecondary" gutterBottom>
-                    Status
-                  </Typography>
-                  <Chip
-                    label={selectedLeave.leave_status_name}
-                    color={
-                      selectedLeave.leave_status_name?.toLowerCase() === 'approved' ? 'success' :
-                      selectedLeave.leave_status_name?.toLowerCase() === 'rejected' ? 'error' : 'warning'
-                    }
-                    variant="outlined"
-                  />
-                </Grid>
+                <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} gap={2} mb={2}>
+                  <Box flex={1}>
+                    <Typography variant="body2" color="text.secondary">Status</Typography>
+                    <Chip
+                      label={selectedLeave.leave_status_name}
+                      color={
+                        selectedLeave.leave_status_name?.toLowerCase() === 'approved' ? 'success' :
+                        selectedLeave.leave_status_name?.toLowerCase() === 'rejected' ? 'error' : 'warning'
+                      }
+                      size="small"
+                      variant="outlined"
+                    />
+                  </Box>
+                  <Box flex={1}>
+                    <Typography variant="body2" color="text.secondary">Applied Date</Typography>
+                    <Typography variant="body1">
+                      {new Date(selectedLeave.created_at).toLocaleDateString()}
+                    </Typography>
+                  </Box>
+                </Box>
 
-                <Grid size={{ xs: 12, sm: 6 }}>
-                  <Typography variant="body2" color="textSecondary" gutterBottom>
-                    Applied Date
-                  </Typography>
-                  <Typography variant="body2">
-                    {new Date(selectedLeave.created_at).toLocaleDateString()}
-                  </Typography>
-                </Grid>
-
-                {selectedLeave.reviewer_name && (
-                  <Grid size={{ xs: 12, sm: 6 }}>
-                    <Typography variant="body2" color="textSecondary" gutterBottom>
-                      Reviewed By
-                    </Typography>
-                    <Typography variant="body2">
-                      {selectedLeave.reviewer_name}
-                    </Typography>
-                  </Grid>
-                )}
-
-                {selectedLeave.review_comments && (
-                  <Grid size={{ xs: 12 }}>
-                    <Typography variant="body2" color="textSecondary" gutterBottom>
-                      Review Comments
-                    </Typography>
-                    <Typography variant="body2">
-                      {selectedLeave.review_comments}
-                    </Typography>
-                  </Grid>
+                {(selectedLeave.reviewer_name || selectedLeave.review_comments) && (
+                  <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} gap={2} mb={2}>
+                    {selectedLeave.reviewer_name && (
+                      <Box flex={1}>
+                        <Typography variant="body2" color="text.secondary">Reviewed By</Typography>
+                        <Typography variant="body1">{selectedLeave.reviewer_name}</Typography>
+                      </Box>
+                    )}
+                    {selectedLeave.review_comments && (
+                      <Box flex={1}>
+                        <Typography variant="body2" color="text.secondary">Review Comments</Typography>
+                        <Typography variant="body1">{selectedLeave.review_comments}</Typography>
+                      </Box>
+                    )}
+                  </Box>
                 )}
               </>
             )}
-          </Grid>
+          </Box>
         </DialogContent>
 
-        <DialogActions sx={{ p: 2, gap: 1 }}>
+        <DialogActions sx={{ p: 2 }}>
           <Button onClick={handleClose} disabled={loading}>
             {isViewMode ? 'Close' : 'Cancel'}
           </Button>

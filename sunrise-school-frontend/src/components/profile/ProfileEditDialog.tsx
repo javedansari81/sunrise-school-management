@@ -6,7 +6,6 @@ import {
   DialogActions,
   Button,
   TextField,
-  Grid,
   Box,
   Typography,
   FormControl,
@@ -14,18 +13,11 @@ import {
   Select,
   MenuItem,
   CircularProgress,
-  Alert,
-  Divider,
-  IconButton
+  Alert
 } from '@mui/material';
-import {
-  Close as CloseIcon,
-  Save as SaveIcon
-} from '@mui/icons-material';
 import { ProfileData, ProfileUpdateData, ProfileConfiguration } from '../../types/profile';
 import { authAPI } from '../../services/api';
 import { configurationAPI } from '../../services/configurationService';
-import { dialogStyles } from '../../styles/dialogTheme';
 
 interface ProfileEditDialogProps {
   open: boolean;
@@ -89,11 +81,13 @@ const ProfileEditDialog: React.FC<ProfileEditDialogProps> = ({
     if (profileData.teacher_profile) {
       initialData.teacher_profile = {
         date_of_birth: profileData.teacher_profile.date_of_birth || '',
+        father_name: profileData.teacher_profile.father_name || '',
+        aadhar_no: profileData.teacher_profile.aadhar_no || '',
         phone: profileData.teacher_profile.phone || '',
         email: profileData.teacher_profile.email || '',
         address: profileData.teacher_profile.address || '',
         city: profileData.teacher_profile.city || '',
-        state: profileData.teacher_profile.state || '',
+        state: profileData.teacher_profile.state || 'Uttar Pradesh',
         postal_code: profileData.teacher_profile.postal_code || '',
         country: profileData.teacher_profile.country || 'India',
         gender_id: profileData.teacher_profile.gender_id || 0,
@@ -268,47 +262,39 @@ const ProfileEditDialog: React.FC<ProfileEditDialogProps> = ({
       fullWidth
       slotProps={{
         paper: {
-          sx: dialogStyles.paper
+          sx: { maxHeight: '90vh' }
         }
       }}
     >
-      <DialogTitle sx={dialogStyles.title}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <SaveIcon sx={{ fontSize: 28 }} />
-          <Typography sx={dialogStyles.titleText}>Edit Profile</Typography>
-        </Box>
-        <IconButton onClick={handleClose} disabled={saving} sx={dialogStyles.closeButton}>
-          <CloseIcon />
-        </IconButton>
+      <DialogTitle>
+        <Typography variant="h6" fontWeight="bold">Edit Profile</Typography>
       </DialogTitle>
-      
-      <DialogContent sx={dialogStyles.content} dividers>
-        {error && (
-          <Alert severity="error" sx={dialogStyles.alert}>
-            {error}
-          </Alert>
-        )}
+      <DialogContent dividers>
+        <Box sx={{ pt: 2 }}>
+          {error && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {error}
+            </Alert>
+          )}
 
-        {/* Common Fields */}
-        <Typography variant="h6" gutterBottom>
-          Personal Information
-        </Typography>
-        <Grid container spacing={2} sx={{ mb: 3 }}>
-          <Grid size={{ xs: 12, sm: 6 }}>
+          {/* Common Fields */}
+          <Typography variant="h6" color="primary" gutterBottom>
+            Personal Information
+          </Typography>
+          <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} gap={2} mb={2}>
             <TextField
               fullWidth
+              size="small"
               label="First Name"
               value={formData.first_name || ''}
               onChange={(e) => handleInputChange('first_name', e.target.value)}
               error={!!formErrors.first_name}
               helperText={formErrors.first_name}
               required
-              sx={dialogStyles.textField}
             />
-          </Grid>
-          <Grid size={{ xs: 12, sm: 6 }}>
             <TextField
               fullWidth
+              size="small"
               label="Last Name"
               value={formData.last_name || ''}
               onChange={(e) => handleInputChange('last_name', e.target.value)}
@@ -316,40 +302,160 @@ const ProfileEditDialog: React.FC<ProfileEditDialogProps> = ({
               helperText={formErrors.last_name}
               required
             />
-          </Grid>
-          <Grid size={{ xs: 12, sm: 6 }}>
+          </Box>
+          <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} gap={2} mb={3}>
             <TextField
               fullWidth
+              size="small"
               label="Phone Number"
               value={formData.phone || ''}
               onChange={(e) => handleInputChange('phone', e.target.value)}
               error={!!formErrors.phone}
               helperText={formErrors.phone}
             />
-          </Grid>
-        </Grid>
+            <Box flex={1} /> {/* Spacer */}
+          </Box>
 
-        {/* Role-specific fields will be added in the next part */}
-        <Alert severity="info">
-          Additional role-specific fields and full edit functionality will be completed in the next update.
-        </Alert>
+          {/* Teacher Profile Fields */}
+          {profileData.teacher_profile && (
+            <>
+              <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} gap={2} mb={2}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  label="Date of Birth"
+                  type="date"
+                  value={formData.teacher_profile?.date_of_birth || ''}
+                  onChange={(e) => handleInputChange('date_of_birth', e.target.value, 'teacher_profile')}
+                  slotProps={{
+                    inputLabel: { shrink: true }
+                  }}
+                />
+                <FormControl fullWidth size="small">
+                  <InputLabel>Gender</InputLabel>
+                  <Select
+                    value={formData.teacher_profile?.gender_id || ''}
+                    label="Gender"
+                    onChange={(e) => handleInputChange('gender_id', e.target.value, 'teacher_profile')}
+                  >
+                    {configuration?.genders?.map((gender: any) => (
+                      <MenuItem key={gender.id} value={gender.id}>
+                        {gender.description || gender.name}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Box>
+
+              <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} gap={2} mb={3}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  label="Aadhar Number"
+                  value={formData.teacher_profile?.aadhar_no || ''}
+                  onChange={(e) => handleInputChange('aadhar_no', e.target.value, 'teacher_profile')}
+                />
+                <TextField
+                  fullWidth
+                  size="small"
+                  label="Father's Name"
+                  value={formData.teacher_profile?.father_name || ''}
+                  onChange={(e) => handleInputChange('father_name', e.target.value, 'teacher_profile')}
+                />
+              </Box>
+
+              {/* Address Information Section */}
+              <Typography variant="h6" color="primary" gutterBottom>
+                Address Information
+              </Typography>
+              <Box mb={2}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  label="Address"
+                  value={formData.teacher_profile?.address || ''}
+                  onChange={(e) => handleInputChange('address', e.target.value, 'teacher_profile')}
+                  multiline
+                  rows={2}
+                />
+              </Box>
+              <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} gap={2} mb={2}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  label="City"
+                  value={formData.teacher_profile?.city || ''}
+                  onChange={(e) => handleInputChange('city', e.target.value, 'teacher_profile')}
+                />
+                <TextField
+                  fullWidth
+                  size="small"
+                  label="State"
+                  value={formData.teacher_profile?.state || 'Uttar Pradesh'}
+                  onChange={(e) => handleInputChange('state', e.target.value, 'teacher_profile')}
+                />
+              </Box>
+              <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} gap={2} mb={3}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  label="Postal Code"
+                  value={formData.teacher_profile?.postal_code || ''}
+                  onChange={(e) => handleInputChange('postal_code', e.target.value, 'teacher_profile')}
+                />
+                <TextField
+                  fullWidth
+                  size="small"
+                  label="Country"
+                  value={formData.teacher_profile?.country || 'India'}
+                  onChange={(e) => handleInputChange('country', e.target.value, 'teacher_profile')}
+                />
+              </Box>
+
+              {/* Emergency Contact Section */}
+              <Typography variant="h6" color="primary" gutterBottom>
+                Emergency Contact
+              </Typography>
+              <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} gap={2} mb={2}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  label="Emergency Contact Name"
+                  value={formData.teacher_profile?.emergency_contact_name || ''}
+                  onChange={(e) => handleInputChange('emergency_contact_name', e.target.value, 'teacher_profile')}
+                />
+                <TextField
+                  fullWidth
+                  size="small"
+                  label="Emergency Contact Phone"
+                  value={formData.teacher_profile?.emergency_contact_phone || ''}
+                  onChange={(e) => handleInputChange('emergency_contact_phone', e.target.value, 'teacher_profile')}
+                />
+              </Box>
+              <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} gap={2} mb={2}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  label="Emergency Contact Relation"
+                  value={formData.teacher_profile?.emergency_contact_relation || ''}
+                  onChange={(e) => handleInputChange('emergency_contact_relation', e.target.value, 'teacher_profile')}
+                />
+                <Box flex={1} /> {/* Spacer */}
+              </Box>
+            </>
+          )}
+        </Box>
       </DialogContent>
 
-      <DialogActions sx={dialogStyles.actions}>
-        <Button
-          onClick={handleClose}
-          disabled={saving}
-          variant="outlined"
-          sx={dialogStyles.secondaryButton}
-        >
+      <DialogActions sx={{ p: 2 }}>
+        <Button onClick={handleClose} disabled={saving}>
           Cancel
         </Button>
         <Button
           onClick={handleSave}
           variant="contained"
           disabled={saving}
-          startIcon={saving ? <CircularProgress size={20} /> : <SaveIcon />}
-          sx={dialogStyles.primaryButton}
+          startIcon={saving ? <CircularProgress size={16} /> : null}
         >
           {saving ? 'Saving...' : 'Save Changes'}
         </Button>

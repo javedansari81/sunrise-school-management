@@ -76,8 +76,9 @@ export interface TeacherProfile {
   employee_id: string;
   first_name: string;
   last_name: string;
+  father_name?: string;
   date_of_birth?: string;
-  
+
   // Contact Information
   phone?: string;
   email?: string;

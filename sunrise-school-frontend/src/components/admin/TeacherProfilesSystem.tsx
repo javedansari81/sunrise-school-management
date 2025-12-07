@@ -78,6 +78,7 @@ interface Teacher {
   employee_id: string;
   first_name: string;
   last_name: string;
+  father_name?: string;
   date_of_birth: string;
   gender_id: number;
   phone: string;
@@ -93,8 +94,10 @@ interface Teacher {
   emergency_contact_relation?: string;
   position_id?: number;
   position_name?: string;
+  position_description?: string;
   department_id?: number;
   department_name?: string;
+  department_description?: string;
   // Legacy fields for backward compatibility
   position?: string;
   department?: string;
@@ -110,6 +113,7 @@ interface Teacher {
   is_deleted?: boolean;
   // Metadata fields
   gender_name?: string;
+  gender_description?: string;
   qualification_name?: string;
   qualification_description?: string;
   employment_status_name?: string;
@@ -127,6 +131,7 @@ interface TeacherFormData {
   employee_id: string;
   first_name: string;
   last_name: string;
+  father_name: string;
   date_of_birth: string;
   gender_id: number | string;
   phone: string;
@@ -205,6 +210,7 @@ const TeacherProfilesSystem: React.FC = () => {
     employee_id: '',
     first_name: '',
     last_name: '',
+    father_name: '',
     date_of_birth: '',
     gender_id: '',
     phone: '',
@@ -212,7 +218,7 @@ const TeacherProfilesSystem: React.FC = () => {
     aadhar_no: '',
     address: '',
     city: '',
-    state: '',
+    state: 'Uttar Pradesh',
     postal_code: '',
     country: 'India',
     emergency_contact_name: '',
@@ -304,6 +310,7 @@ const TeacherProfilesSystem: React.FC = () => {
         employee_id: nextEmployeeId,
         first_name: '',
         last_name: '',
+        father_name: '',
         date_of_birth: '',
         gender_id: '',
         phone: '',
@@ -336,6 +343,7 @@ const TeacherProfilesSystem: React.FC = () => {
         employee_id: '',
         first_name: '',
         last_name: '',
+        father_name: '',
         date_of_birth: '',
         gender_id: '',
         phone: '',
@@ -373,6 +381,7 @@ const TeacherProfilesSystem: React.FC = () => {
       employee_id: '',
       first_name: '',
       last_name: '',
+      father_name: '',
       date_of_birth: '',
       gender_id: '',
       phone: '',
@@ -623,6 +632,7 @@ const TeacherProfilesSystem: React.FC = () => {
         employee_id: teacherData.employee_id || '',
         first_name: teacherData.first_name || '',
         last_name: teacherData.last_name || '',
+        father_name: teacherData.father_name || '',
         date_of_birth: teacherData.date_of_birth || '',
         gender_id: teacherData.gender_id || '',
         phone: teacherData.phone || '',
@@ -957,8 +967,8 @@ const TeacherProfilesSystem: React.FC = () => {
                         </Box>
                       </TableCell>
                       <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, display: { xs: 'none', sm: 'table-cell' } }}>{teacher.employee_id}</TableCell>
-                      <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, display: { xs: 'none', md: 'table-cell' } }}>{teacher.department_name || teacher.department || 'Not Assigned'}</TableCell>
-                      <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, display: { xs: 'none', md: 'table-cell' } }}>{teacher.position_name || teacher.position || 'Not Assigned'}</TableCell>
+                      <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, display: { xs: 'none', md: 'table-cell' } }}>{teacher.department_description || teacher.department_name || teacher.department || 'Not Assigned'}</TableCell>
+                      <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, display: { xs: 'none', md: 'table-cell' } }}>{teacher.position_description || teacher.position_name || teacher.position || 'Not Assigned'}</TableCell>
                       <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, display: { xs: 'none', md: 'table-cell' } }}>
                         <Box display="flex" flexDirection="column" gap={0.5}>
                           <Box display="flex" alignItems="center" gap={1}>
@@ -1087,8 +1097,8 @@ const TeacherProfilesSystem: React.FC = () => {
                           </Box>
                         </TableCell>
                         <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, display: { xs: 'none', sm: 'table-cell' } }}>{teacher.employee_id}</TableCell>
-                        <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, display: { xs: 'none', md: 'table-cell' } }}>{teacher.department_name || teacher.department || 'Not Assigned'}</TableCell>
-                        <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, display: { xs: 'none', md: 'table-cell' } }}>{teacher.position_name || teacher.position || 'Not Assigned'}</TableCell>
+                        <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, display: { xs: 'none', md: 'table-cell' } }}>{teacher.department_description || teacher.department_name || teacher.department || 'Not Assigned'}</TableCell>
+                        <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, display: { xs: 'none', md: 'table-cell' } }}>{teacher.position_description || teacher.position_name || teacher.position || 'Not Assigned'}</TableCell>
                         <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, display: { xs: 'none', md: 'table-cell' } }}>
                           <Box display="flex" flexDirection="column" gap={0.5}>
                             <Box display="flex" alignItems="center" gap={1}>
@@ -1209,8 +1219,8 @@ const TeacherProfilesSystem: React.FC = () => {
                           </Box>
                         </TableCell>
                         <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, display: { xs: 'none', sm: 'table-cell' } }}>{teacher.employee_id}</TableCell>
-                        <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, display: { xs: 'none', md: 'table-cell' } }}>{teacher.department_name || teacher.department || 'Not Assigned'}</TableCell>
-                        <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, display: { xs: 'none', md: 'table-cell' } }}>{teacher.position_name || teacher.position || 'Not Assigned'}</TableCell>
+                        <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, display: { xs: 'none', md: 'table-cell' } }}>{teacher.department_description || teacher.department_name || teacher.department || 'Not Assigned'}</TableCell>
+                        <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, display: { xs: 'none', md: 'table-cell' } }}>{teacher.position_description || teacher.position_name || teacher.position || 'Not Assigned'}</TableCell>
                         <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, display: { xs: 'none', md: 'table-cell' } }}>
                           <Box display="flex" flexDirection="column" gap={0.5}>
                             <Box display="flex" alignItems="center" gap={1}>
@@ -1318,23 +1328,7 @@ const TeacherProfilesSystem: React.FC = () => {
                   size="small"
                   required
                 />
-                <FormControl fullWidth size="small" error={!!formErrors.gender_id} required>
-                  <InputLabel>Gender</InputLabel>
-                  <Select
-                    value={formData.gender_id}
-                    label="Gender"
-                    onChange={(e) => handleFormChange('gender_id', e.target.value)}
-                  >
-                    <MenuItem value={1}>Male</MenuItem>
-                    <MenuItem value={2}>Female</MenuItem>
-                    <MenuItem value={3}>Other</MenuItem>
-                  </Select>
-                  {formErrors.gender_id && (
-                    <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 1.5 }}>
-                      {formErrors.gender_id}
-                    </Typography>
-                  )}
-                </FormControl>
+                <Box flex={1} /> {/* Spacer */}
               </Box>
 
               <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} gap={2}>
@@ -1375,16 +1369,25 @@ const TeacherProfilesSystem: React.FC = () => {
                   size="small"
                   required
                 />
-                <TextField
-                  fullWidth
-                  label="Phone Number"
-                  value={formData.phone}
-                  onChange={(e) => handleFormChange('phone', e.target.value)}
-                  error={!!formErrors.phone}
-                  helperText={formErrors.phone}
-                  size="small"
-                  required
-                />
+                <FormControl fullWidth size="small" error={!!formErrors.gender_id} required>
+                  <InputLabel>Gender</InputLabel>
+                  <Select
+                    value={formData.gender_id}
+                    label="Gender"
+                    onChange={(e) => handleFormChange('gender_id', e.target.value)}
+                  >
+                    {configuration?.genders?.map((gender: any) => (
+                      <MenuItem key={gender.id} value={gender.id}>
+                        {gender.description || gender.name}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                  {formErrors.gender_id && (
+                    <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 1.5 }}>
+                      {formErrors.gender_id}
+                    </Typography>
+                  )}
+                </FormControl>
               </Box>
 
               <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} gap={2}>
@@ -1395,6 +1398,77 @@ const TeacherProfilesSystem: React.FC = () => {
                   onChange={(e) => handleFormChange('aadhar_no', e.target.value)}
                   size="small"
                 />
+                <TextField
+                  fullWidth
+                  label="Father's Name"
+                  value={formData.father_name}
+                  onChange={(e) => handleFormChange('father_name', e.target.value)}
+                  size="small"
+                />
+              </Box>
+
+              <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} gap={2}>
+                <TextField
+                  fullWidth
+                  label="Phone Number"
+                  value={formData.phone}
+                  onChange={(e) => handleFormChange('phone', e.target.value)}
+                  error={!!formErrors.phone}
+                  helperText={formErrors.phone}
+                  size="small"
+                  required
+                />
+                <Box flex={1} /> {/* Spacer */}
+              </Box>
+            </Box>
+
+            {/* Address Information Section */}
+            <Typography variant="h6" color="primary" gutterBottom>
+              Address Information
+            </Typography>
+
+            <Box display="flex" flexDirection="column" gap={2}>
+              <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} gap={2}>
+                <TextField
+                  fullWidth
+                  label="Address"
+                  value={formData.address}
+                  onChange={(e) => handleFormChange('address', e.target.value)}
+                  size="small"
+                />
+                <TextField
+                  fullWidth
+                  label="City"
+                  value={formData.city}
+                  onChange={(e) => handleFormChange('city', e.target.value)}
+                  size="small"
+                />
+              </Box>
+              <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} gap={2}>
+                <TextField
+                  fullWidth
+                  label="State"
+                  value={formData.state || 'Uttar Pradesh'}
+                  onChange={(e) => handleFormChange('state', e.target.value)}
+                  size="small"
+                />
+                <TextField
+                  fullWidth
+                  label="Postal Code"
+                  value={formData.postal_code}
+                  onChange={(e) => handleFormChange('postal_code', e.target.value)}
+                  size="small"
+                />
+              </Box>
+              <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} gap={2}>
+                <TextField
+                  fullWidth
+                  label="Country"
+                  value={formData.country}
+                  onChange={(e) => handleFormChange('country', e.target.value)}
+                  size="small"
+                />
+                <Box flex={1} /> {/* Spacer */}
               </Box>
             </Box>
 
@@ -1614,7 +1688,18 @@ const TeacherProfilesSystem: React.FC = () => {
                 </Box>
                 <Box flex={1}>
                   <Typography variant="body2" color="text.secondary">Gender</Typography>
-                  <Typography variant="body1">{selectedTeacher.gender_name || 'Not specified'}</Typography>
+                  <Typography variant="body1">{selectedTeacher.gender_description || selectedTeacher.gender_name || 'Not specified'}</Typography>
+                </Box>
+              </Box>
+
+              <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} gap={2} mb={3}>
+                <Box flex={1}>
+                  <Typography variant="body2" color="text.secondary">Aadhar Number</Typography>
+                  <Typography variant="body1">{selectedTeacher.aadhar_no || 'Not specified'}</Typography>
+                </Box>
+                <Box flex={1}>
+                  <Typography variant="body2" color="text.secondary">Father's Name</Typography>
+                  <Typography variant="body1">{selectedTeacher.father_name || 'Not specified'}</Typography>
                 </Box>
               </Box>
 
@@ -1636,11 +1721,11 @@ const TeacherProfilesSystem: React.FC = () => {
               <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} gap={2} mb={3}>
                 <Box flex={1}>
                   <Typography variant="body2" color="text.secondary">Position</Typography>
-                  <Typography variant="body1" fontWeight="medium">{selectedTeacher.position_name || selectedTeacher.position || 'Not specified'}</Typography>
+                  <Typography variant="body1" fontWeight="medium">{selectedTeacher.position_description || selectedTeacher.position_name || selectedTeacher.position || 'Not specified'}</Typography>
                 </Box>
                 <Box flex={1}>
                   <Typography variant="body2" color="text.secondary">Department</Typography>
-                  <Typography variant="body1">{selectedTeacher.department_name || selectedTeacher.department || 'Not specified'}</Typography>
+                  <Typography variant="body1">{selectedTeacher.department_description || selectedTeacher.department_name || selectedTeacher.department || 'Not specified'}</Typography>
                 </Box>
               </Box>
 
@@ -1689,22 +1774,37 @@ const TeacherProfilesSystem: React.FC = () => {
                 <Box flex={1} /> {/* Spacer to balance the layout */}
               </Box>
 
-              {/* Additional Information */}
-              {(selectedTeacher.address || selectedTeacher.city || selectedTeacher.state) && (
-                <>
-                  <Typography variant="h6" color="primary" gutterBottom sx={{ mt: 3 }}>
-                    Address Information
-                  </Typography>
-                  <Box mb={2}>
-                    <Typography variant="body2" color="text.secondary">Address</Typography>
-                    <Typography variant="body1">
-                      {[selectedTeacher.address, selectedTeacher.city, selectedTeacher.state, selectedTeacher.country]
-                        .filter(Boolean)
-                        .join(', ') || 'Not specified'}
-                    </Typography>
-                  </Box>
-                </>
-              )}
+              {/* Address Information Section */}
+              <Typography variant="h6" color="primary" gutterBottom sx={{ mt: 3 }}>
+                Address Information
+              </Typography>
+              <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} gap={2} mb={3}>
+                <Box flex={1}>
+                  <Typography variant="body2" color="text.secondary">Address</Typography>
+                  <Typography variant="body1">{selectedTeacher.address || 'Not specified'}</Typography>
+                </Box>
+                <Box flex={1}>
+                  <Typography variant="body2" color="text.secondary">City</Typography>
+                  <Typography variant="body1">{selectedTeacher.city || 'Not specified'}</Typography>
+                </Box>
+              </Box>
+              <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} gap={2} mb={3}>
+                <Box flex={1}>
+                  <Typography variant="body2" color="text.secondary">State</Typography>
+                  <Typography variant="body1">{selectedTeacher.state || 'Not specified'}</Typography>
+                </Box>
+                <Box flex={1}>
+                  <Typography variant="body2" color="text.secondary">Postal Code</Typography>
+                  <Typography variant="body1">{selectedTeacher.postal_code || 'Not specified'}</Typography>
+                </Box>
+              </Box>
+              <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} gap={2} mb={3}>
+                <Box flex={1}>
+                  <Typography variant="body2" color="text.secondary">Country</Typography>
+                  <Typography variant="body1">{selectedTeacher.country || 'Not specified'}</Typography>
+                </Box>
+                <Box flex={1} /> {/* Spacer to balance the layout */}
+              </Box>
 
               {(selectedTeacher.emergency_contact_name || selectedTeacher.emergency_contact_phone) && (
                 <>
@@ -1767,6 +1867,7 @@ const TeacherProfilesSystem: React.FC = () => {
                 helperText={formErrors.employee_id}
                 required
               />
+              <Box flex={1} /> {/* Spacer */}
             </Box>
 
             <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} gap={2} mb={2}>
@@ -1816,7 +1917,7 @@ const TeacherProfilesSystem: React.FC = () => {
                 >
                   {configuration?.genders?.map((gender: any) => (
                     <MenuItem key={gender.id} value={gender.id}>
-                      {gender.name}
+                      {gender.description || gender.name}
                     </MenuItem>
                   ))}
                 </Select>
@@ -1826,6 +1927,23 @@ const TeacherProfilesSystem: React.FC = () => {
                   </Typography>
                 )}
               </FormControl>
+            </Box>
+
+            <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} gap={2} mb={2}>
+              <TextField
+                fullWidth
+                size="small"
+                label="Aadhar Number"
+                value={editFormData.aadhar_no || ''}
+                onChange={(e) => handleEditFormChange('aadhar_no', e.target.value)}
+              />
+              <TextField
+                fullWidth
+                size="small"
+                label="Father's Name"
+                value={editFormData.father_name || ''}
+                onChange={(e) => handleEditFormChange('father_name', e.target.value)}
+              />
             </Box>
 
             <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} gap={2} mb={3}>
@@ -1847,6 +1965,53 @@ const TeacherProfilesSystem: React.FC = () => {
                 value={editFormData.email || ''}
                 disabled={true}
               />
+            </Box>
+
+            {/* Address Information Section */}
+            <Typography variant="h6" color="primary" gutterBottom>
+              Address Information
+            </Typography>
+            <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} gap={2} mb={2}>
+              <TextField
+                fullWidth
+                size="small"
+                label="Address"
+                value={editFormData.address || ''}
+                onChange={(e) => handleEditFormChange('address', e.target.value)}
+              />
+              <TextField
+                fullWidth
+                size="small"
+                label="City"
+                value={editFormData.city || ''}
+                onChange={(e) => handleEditFormChange('city', e.target.value)}
+              />
+            </Box>
+            <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} gap={2} mb={2}>
+              <TextField
+                fullWidth
+                size="small"
+                label="State"
+                value={editFormData.state || 'Uttar Pradesh'}
+                onChange={(e) => handleEditFormChange('state', e.target.value)}
+              />
+              <TextField
+                fullWidth
+                size="small"
+                label="Postal Code"
+                value={editFormData.postal_code || ''}
+                onChange={(e) => handleEditFormChange('postal_code', e.target.value)}
+              />
+            </Box>
+            <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} gap={2} mb={3}>
+              <TextField
+                fullWidth
+                size="small"
+                label="Country"
+                value={editFormData.country || 'India'}
+                onChange={(e) => handleEditFormChange('country', e.target.value)}
+              />
+              <Box flex={1} /> {/* Spacer */}
             </Box>
 
             {/* Professional Information Section */}

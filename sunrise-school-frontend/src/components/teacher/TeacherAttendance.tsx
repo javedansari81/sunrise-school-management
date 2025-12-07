@@ -16,7 +16,6 @@ import {
   Paper,
   Typography,
   Grid,
-  Button,
   Chip,
   LinearProgress,
   Alert,
@@ -46,8 +45,6 @@ import {
   EventAvailable as ExcusedIcon,
   BeachAccess as HolidayIcon,
   EventBusy as LeaveIcon,
-  Save as SaveIcon,
-  CheckCircleOutline as MarkAllIcon,
 } from '@mui/icons-material';
 import { format } from 'date-fns';
 import { ClassDropdown } from '../common/MetadataDropdown';
@@ -83,7 +80,6 @@ const TeacherAttendance: React.FC = () => {
   // Data state
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
   const [focusedIndex, setFocusedIndex] = useState<number>(0);
 
   // UI state
@@ -310,52 +306,6 @@ const TeacherAttendance: React.FC = () => {
     }
   };
 
-  const markAllRemaining = async (statusId: number) => {
-    const unmarkedStudents = students.filter(s => !s.attendance_status_id);
-    if (unmarkedStudents.length === 0) {
-      setSnackbar({
-        open: true,
-        message: 'All students already marked',
-        severity: 'info',
-      });
-      return;
-    }
-
-    setSaving(true);
-    try {
-      const bulkData = {
-        class_id: parseInt(classId),
-        session_year_id: sessionYearId,
-        attendance_date: attendanceDate,
-        attendance_period_id: parseInt(periodId),
-        records: unmarkedStudents.map(s => ({
-          student_id: s.id,
-          attendance_status_id: statusId,
-        })),
-      };
-
-      await attendanceService.bulkCreateAttendance(bulkData);
-
-      // Reload students to get updated data
-      await loadStudents();
-
-      setSnackbar({
-        open: true,
-        message: `Marked ${unmarkedStudents.length} remaining students`,
-        severity: 'success',
-      });
-    } catch (error: any) {
-      console.error('Error bulk marking:', error);
-      setSnackbar({
-        open: true,
-        message: error.response?.data?.detail || 'Failed to bulk mark attendance',
-        severity: 'error',
-      });
-    } finally {
-      setSaving(false);
-    }
-  };
-
   const updateRemarks = (studentIndex: number, remarks: string) => {
     const updatedStudents = [...students];
     updatedStudents[studentIndex] = {
@@ -454,37 +404,6 @@ const TeacherAttendance: React.FC = () => {
         </Card>
       )}
 
-      {/* Bulk Actions */}
-      {students.length > 0 && markedCount < totalCount && (
-        <Paper sx={{ p: 2, mb: 3, backgroundColor: '#F8F9FA' }}>
-          <Typography variant="subtitle2" gutterBottom>
-            Quick Actions for Remaining Students:
-          </Typography>
-          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-            <Button
-              size="small"
-              variant="outlined"
-              startIcon={<MarkAllIcon />}
-              onClick={() => markAllRemaining(1)}
-              disabled={saving}
-              sx={{ color: '#28A745', borderColor: '#28A745' }}
-            >
-              Mark All Present
-            </Button>
-            <Button
-              size="small"
-              variant="outlined"
-              startIcon={<MarkAllIcon />}
-              onClick={() => markAllRemaining(2)}
-              disabled={saving}
-              sx={{ color: '#DC3545', borderColor: '#DC3545' }}
-            >
-              Mark All Absent
-            </Button>
-          </Box>
-        </Paper>
-      )}
-
       {/* Students Table */}
       {loading ? (
         <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
@@ -533,7 +452,7 @@ const TeacherAttendance: React.FC = () => {
                     </Typography>
                   </TableCell>
                   <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
-                    <Box sx={{ display: 'flex', gap: { xs: 0.25, sm: 0.5 }, flexWrap: 'wrap' }}>
+                    <Box sx={{ display: 'flex', gap: { xs: 0.5, sm: 0.75 }, flexWrap: 'wrap' }}>
                       <Tooltip title="Present (P)">
                         <IconButton
                           size="small"
@@ -542,11 +461,16 @@ const TeacherAttendance: React.FC = () => {
                           sx={{
                             color: student.attendance_status_id === 1 ? '#28A745' : 'inherit',
                             backgroundColor: student.attendance_status_id === 1 ? 'rgba(40, 167, 69, 0.1)' : 'transparent',
-                            minWidth: { xs: 36, sm: 40 },
-                            minHeight: { xs: 36, sm: 40 },
+                            minWidth: { xs: 40, sm: 44 },
+                            minHeight: { xs: 40, sm: 44 },
+                            transition: 'transform 0.2s ease-in-out, background-color 0.2s ease-in-out',
+                            '&:hover': {
+                              transform: 'scale(1.15)',
+                              backgroundColor: student.attendance_status_id === 1 ? 'rgba(40, 167, 69, 0.2)' : 'rgba(0, 0, 0, 0.04)',
+                            },
                           }}
                         >
-                          <PresentIcon sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
+                          <PresentIcon sx={{ fontSize: { xs: '1.25rem', sm: '1.5rem' } }} />
                         </IconButton>
                       </Tooltip>
                       <Tooltip title="Absent (A)">
@@ -557,11 +481,16 @@ const TeacherAttendance: React.FC = () => {
                           sx={{
                             color: student.attendance_status_id === 2 ? '#DC3545' : 'inherit',
                             backgroundColor: student.attendance_status_id === 2 ? 'rgba(220, 53, 69, 0.1)' : 'transparent',
-                            minWidth: { xs: 36, sm: 40 },
-                            minHeight: { xs: 36, sm: 40 },
+                            minWidth: { xs: 40, sm: 44 },
+                            minHeight: { xs: 40, sm: 44 },
+                            transition: 'transform 0.2s ease-in-out, background-color 0.2s ease-in-out',
+                            '&:hover': {
+                              transform: 'scale(1.15)',
+                              backgroundColor: student.attendance_status_id === 2 ? 'rgba(220, 53, 69, 0.2)' : 'rgba(0, 0, 0, 0.04)',
+                            },
                           }}
                         >
-                          <AbsentIcon sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
+                          <AbsentIcon sx={{ fontSize: { xs: '1.25rem', sm: '1.5rem' } }} />
                         </IconButton>
                       </Tooltip>
                       <Tooltip title="Late (L)">
@@ -572,11 +501,16 @@ const TeacherAttendance: React.FC = () => {
                           sx={{
                             color: student.attendance_status_id === 3 ? '#FFC107' : 'inherit',
                             backgroundColor: student.attendance_status_id === 3 ? 'rgba(255, 193, 7, 0.1)' : 'transparent',
-                            minWidth: { xs: 36, sm: 40 },
-                            minHeight: { xs: 36, sm: 40 },
+                            minWidth: { xs: 40, sm: 44 },
+                            minHeight: { xs: 40, sm: 44 },
+                            transition: 'transform 0.2s ease-in-out, background-color 0.2s ease-in-out',
+                            '&:hover': {
+                              transform: 'scale(1.15)',
+                              backgroundColor: student.attendance_status_id === 3 ? 'rgba(255, 193, 7, 0.2)' : 'rgba(0, 0, 0, 0.04)',
+                            },
                           }}
                         >
-                          <LateIcon sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
+                          <LateIcon sx={{ fontSize: { xs: '1.25rem', sm: '1.5rem' } }} />
                         </IconButton>
                       </Tooltip>
                       <Tooltip title="Half Day (H)">
@@ -587,11 +521,16 @@ const TeacherAttendance: React.FC = () => {
                           sx={{
                             color: student.attendance_status_id === 4 ? '#17A2B8' : 'inherit',
                             backgroundColor: student.attendance_status_id === 4 ? 'rgba(23, 162, 184, 0.1)' : 'transparent',
-                            minWidth: { xs: 36, sm: 40 },
-                            minHeight: { xs: 36, sm: 40 },
+                            minWidth: { xs: 40, sm: 44 },
+                            minHeight: { xs: 40, sm: 44 },
+                            transition: 'transform 0.2s ease-in-out, background-color 0.2s ease-in-out',
+                            '&:hover': {
+                              transform: 'scale(1.15)',
+                              backgroundColor: student.attendance_status_id === 4 ? 'rgba(23, 162, 184, 0.2)' : 'rgba(0, 0, 0, 0.04)',
+                            },
                           }}
                         >
-                          <HalfDayIcon sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
+                          <HalfDayIcon sx={{ fontSize: { xs: '1.25rem', sm: '1.5rem' } }} />
                         </IconButton>
                       </Tooltip>
                       <Tooltip title="Excused (E)">
@@ -602,11 +541,16 @@ const TeacherAttendance: React.FC = () => {
                           sx={{
                             color: student.attendance_status_id === 5 ? '#6C757D' : 'inherit',
                             backgroundColor: student.attendance_status_id === 5 ? 'rgba(108, 117, 125, 0.1)' : 'transparent',
-                            minWidth: { xs: 36, sm: 40 },
-                            minHeight: { xs: 36, sm: 40 },
+                            minWidth: { xs: 40, sm: 44 },
+                            minHeight: { xs: 40, sm: 44 },
+                            transition: 'transform 0.2s ease-in-out, background-color 0.2s ease-in-out',
+                            '&:hover': {
+                              transform: 'scale(1.15)',
+                              backgroundColor: student.attendance_status_id === 5 ? 'rgba(108, 117, 125, 0.2)' : 'rgba(0, 0, 0, 0.04)',
+                            },
                           }}
                         >
-                          <ExcusedIcon sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
+                          <ExcusedIcon sx={{ fontSize: { xs: '1.25rem', sm: '1.5rem' } }} />
                         </IconButton>
                       </Tooltip>
                     </Box>
