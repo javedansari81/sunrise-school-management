@@ -163,12 +163,16 @@ class CRUDReport:
         """
         Get fee tracking report data with fee and transport information
         Returns: (list of fee tracking data, total count, summary statistics)
+
+        Note: Uses subqueries to pre-aggregate fee and transport amounts separately
+        to prevent Cartesian product multiplication when students have multiple
+        monthly tracking records in both tables.
         """
-        # Build complex query with JOINs and aggregations
+        # Build complex query with JOINs and pre-aggregated subqueries
         # Using raw SQL for better performance with complex aggregations
-        
+
         base_query = """
-        SELECT 
+        SELECT
             s.id as student_id,
             s.admission_number,
             s.first_name,
@@ -178,30 +182,55 @@ class CRUDReport:
             s.section,
             s.session_year_id,
             sy.description as session_year_name,
-            
-            -- Fee aggregations
-            COALESCE(SUM(mft.monthly_amount), 0) as total_fee_amount,
-            COALESCE(SUM(mft.paid_amount), 0) as paid_fee_amount,
-            COALESCE(SUM(mft.balance_amount), 0) as pending_fee_amount,
+
+            -- Fee aggregations from subquery (prevents Cartesian product)
+            COALESCE(fee_agg.total_fee_amount, 0) as total_fee_amount,
+            COALESCE(fee_agg.paid_fee_amount, 0) as paid_fee_amount,
+            COALESCE(fee_agg.pending_fee_amount, 0) as pending_fee_amount,
 
             -- Transport information
             CASE WHEN ste.id IS NOT NULL THEN TRUE ELSE FALSE END as transport_opted,
             tt.description as transport_type,
             ste.monthly_fee as monthly_transport_fee,
-            COALESCE(SUM(tmt.monthly_amount), 0) as total_transport_amount,
-            COALESCE(SUM(tmt.paid_amount), 0) as paid_transport_amount,
-            COALESCE(SUM(tmt.balance_amount), 0) as pending_transport_amount
+
+            -- Transport aggregations from subquery (prevents Cartesian product)
+            COALESCE(transport_agg.total_transport_amount, 0) as total_transport_amount,
+            COALESCE(transport_agg.paid_transport_amount, 0) as paid_transport_amount,
+            COALESCE(transport_agg.pending_transport_amount, 0) as pending_transport_amount
 
         FROM students s
         LEFT JOIN classes c ON s.class_id = c.id
         LEFT JOIN session_years sy ON s.session_year_id = sy.id
-        LEFT JOIN monthly_fee_tracking mft ON s.id = mft.student_id AND mft.session_year_id = :session_year_id
+
+        -- Pre-aggregated fee amounts per student (subquery to avoid Cartesian product)
+        LEFT JOIN (
+            SELECT
+                mft.student_id,
+                mft.session_year_id,
+                SUM(mft.monthly_amount) as total_fee_amount,
+                SUM(mft.paid_amount) as paid_fee_amount,
+                SUM(mft.balance_amount) as pending_fee_amount
+            FROM monthly_fee_tracking mft
+            WHERE mft.session_year_id = :session_year_id
+            GROUP BY mft.student_id, mft.session_year_id
+        ) fee_agg ON s.id = fee_agg.student_id AND s.session_year_id = fee_agg.session_year_id
+
         LEFT JOIN student_transport_enrollment ste ON s.id = ste.student_id
             AND ste.session_year_id = :session_year_id
             AND ste.is_active = TRUE
         LEFT JOIN transport_types tt ON ste.transport_type_id = tt.id
-        LEFT JOIN transport_monthly_tracking tmt ON ste.id = tmt.enrollment_id
-        
+
+        -- Pre-aggregated transport amounts per enrollment (subquery to avoid Cartesian product)
+        LEFT JOIN (
+            SELECT
+                tmt.enrollment_id,
+                SUM(tmt.monthly_amount) as total_transport_amount,
+                SUM(tmt.paid_amount) as paid_transport_amount,
+                SUM(tmt.balance_amount) as pending_transport_amount
+            FROM transport_monthly_tracking tmt
+            GROUP BY tmt.enrollment_id
+        ) transport_agg ON ste.id = transport_agg.enrollment_id
+
         WHERE (s.is_deleted = FALSE OR s.is_deleted IS NULL)
             AND s.session_year_id = :session_year_id
         """
@@ -234,11 +263,13 @@ class CRUDReport:
         if additional_filters:
             base_query += " " + " ".join(additional_filters)
 
-        # Add GROUP BY
+        # Add GROUP BY (includes pre-aggregated subquery columns)
         base_query += """
         GROUP BY s.id, s.admission_number, s.first_name, s.last_name, s.class_id,
                  c.description, s.section, s.session_year_id, sy.description,
-                 ste.id, tt.description, ste.monthly_fee
+                 ste.id, tt.description, ste.monthly_fee,
+                 fee_agg.total_fee_amount, fee_agg.paid_fee_amount, fee_agg.pending_fee_amount,
+                 transport_agg.total_transport_amount, transport_agg.paid_transport_amount, transport_agg.pending_transport_amount
         """
 
         # Execute query to get all matching records (for filtering and summary)
