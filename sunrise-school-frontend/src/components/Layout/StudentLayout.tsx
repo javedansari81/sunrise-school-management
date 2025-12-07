@@ -30,10 +30,12 @@ import {
   ChevronLeft as ChevronLeftIcon,
   ChevronRight as ChevronRightIcon,
   Home as HomeIcon,
+  Notifications as NotificationsIcon,
 } from '@mui/icons-material';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import Footer from './Footer';
+import NotificationBell from '../alerts/NotificationBell';
 
 interface StudentLayoutProps {
   children: React.ReactNode;
@@ -59,6 +61,7 @@ const StudentLayout: React.FC<StudentLayoutProps> = ({ children }) => {
     { label: 'Leave Management', icon: <BeachAccessIcon />, path: '/student/leaves' },
     { label: 'Fee Management', icon: <AccountBalanceIcon />, path: '/student/fees' },
     { label: 'My Attendance', icon: <CalendarMonthIcon />, path: '/student/attendance' },
+    { label: 'Notifications', icon: <NotificationsIcon />, path: '/student/alerts' },
   ];
 
   const handleDrawerToggle = () => {
@@ -342,17 +345,20 @@ const StudentLayout: React.FC<StudentLayoutProps> = ({ children }) => {
               Sunrise School
             </Typography>
             {isAuthenticated && user && (
-              <IconButton
-                color="inherit"
-                onClick={handleUserMenuOpen}
-              >
-                <Avatar
-                  src={user.profile_picture_url || undefined}
-                  sx={{ width: 36, height: 36, bgcolor: 'secondary.main' }}
+              <>
+                <NotificationBell color="inherit" />
+                <IconButton
+                  color="inherit"
+                  onClick={handleUserMenuOpen}
                 >
-                  {!user.profile_picture_url && (user.first_name?.[0] || user.email?.[0] || 'S')}
-                </Avatar>
-              </IconButton>
+                  <Avatar
+                    src={user.profile_picture_url || undefined}
+                    sx={{ width: 36, height: 36, bgcolor: 'secondary.main' }}
+                  >
+                    {!user.profile_picture_url && (user.first_name?.[0] || user.email?.[0] || 'S')}
+                  </Avatar>
+                </IconButton>
+              </>
             )}
           </Toolbar>
         </AppBar>
@@ -446,17 +452,20 @@ const StudentLayout: React.FC<StudentLayoutProps> = ({ children }) => {
             </Typography>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               {isAuthenticated && user && (
-                <IconButton
-                  color="primary"
-                  onClick={handleUserMenuOpen}
-                >
-                  <Avatar
-                    src={user.profile_picture_url || undefined}
-                    sx={{ width: 36, height: 36, bgcolor: 'primary.main' }}
+                <>
+                  <NotificationBell color="primary" />
+                  <IconButton
+                    color="primary"
+                    onClick={handleUserMenuOpen}
                   >
-                    {!user.profile_picture_url && (user.first_name?.[0] || user.email?.[0] || 'S')}
-                  </Avatar>
-                </IconButton>
+                    <Avatar
+                      src={user.profile_picture_url || undefined}
+                      sx={{ width: 36, height: 36, bgcolor: 'primary.main' }}
+                    >
+                      {!user.profile_picture_url && (user.first_name?.[0] || user.email?.[0] || 'S')}
+                    </Avatar>
+                  </IconButton>
+                </>
               )}
             </Box>
           </Box>

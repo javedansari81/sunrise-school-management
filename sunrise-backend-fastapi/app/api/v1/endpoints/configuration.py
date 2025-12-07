@@ -69,6 +69,9 @@ SERVICE_METADATA_MAPPINGS = {
         "attendance_statuses", "attendance_periods",
         "session_years", "classes"
     ],
+    "alert-management": [
+        "alert_types", "alert_statuses"
+    ],
     "common": [
         "session_years", "user_types"
     ]
@@ -143,6 +146,10 @@ async def get_service_metadata_configuration(db: AsyncSession, service_name: str
                 configuration[metadata_type] = [{"id": item.id, "name": item.name, "description": item.description, "color_code": item.color_code, "is_active": item.is_active} for item in items]
             elif metadata_type == "attendance_periods":
                 configuration[metadata_type] = [{"id": item.id, "name": item.name, "description": item.description, "is_active": item.is_active} for item in items]
+            elif metadata_type == "alert_types":
+                configuration[metadata_type] = [{"id": item.id, "name": item.name, "description": item.description, "color_code": item.color_code, "priority_level": item.priority_level, "is_active": item.is_active} for item in items]
+            elif metadata_type == "alert_statuses":
+                configuration[metadata_type] = [{"id": item.id, "name": item.name, "description": item.description, "color_code": item.color_code, "is_final": item.is_final, "is_active": item.is_active} for item in items]
 
     # Add service-specific metadata
     configuration["metadata"] = {

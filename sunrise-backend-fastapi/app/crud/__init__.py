@@ -6,6 +6,7 @@ from .crud_fee import fee_structure_crud, fee_record_crud, fee_payment_crud
 from .crud_leave import leave_request_crud
 from .crud_expense import expense_crud
 from .crud_report import report_crud
+from .crud_alert import alert_crud
 from .metadata import (
     user_type_crud, session_year_crud, gender_crud, class_crud,
     payment_type_crud, payment_status_crud, payment_method_crud,
@@ -25,6 +26,7 @@ __all__ = [
     "fee_payment_crud",
     "leave_request_crud",
     "expense_crud",
+    "alert_crud",
     # Metadata CRUD
     "user_type_crud", "session_year_crud", "gender_crud", "class_crud",
     "payment_type_crud", "payment_status_crud", "payment_method_crud",

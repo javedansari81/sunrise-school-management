@@ -12,6 +12,7 @@ from .expense import Expense, Vendor, Budget, ExpenseReport
 from .gallery import GalleryCategory, GalleryImage
 from .inventory import InventoryItemType, InventorySizeType, InventoryPricing, InventoryPurchase, InventoryPurchaseItem
 from .attendance import AttendanceStatus, AttendancePeriod, AttendanceRecord
+from .alert import AlertType, AlertStatus, Alert
 
 __all__ = [
     # Metadata models
@@ -21,6 +22,7 @@ __all__ = [
     "ExpenseCategory", "ExpenseStatus",
     "EmploymentStatus", "Qualification",
     "AttendanceStatus", "AttendancePeriod",
+    "AlertType", "AlertStatus",
     # Main models
     "User",
     "Teacher",
@@ -45,5 +47,6 @@ __all__ = [
     "InventoryPricing",
     "InventoryPurchase",
     "InventoryPurchaseItem",
-    "AttendanceRecord"
+    "AttendanceRecord",
+    "Alert"
 ]

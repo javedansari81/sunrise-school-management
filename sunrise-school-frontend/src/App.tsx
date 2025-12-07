@@ -32,6 +32,7 @@ import StudentLeaveManagementPage from './pages/student/StudentLeaveManagementPa
 import StudentFeeManagementPage from './pages/student/StudentFeeManagementPage';
 import StudentAttendancePage from './pages/student/StudentAttendancePage';
 import ProfilePage from './pages/ProfilePage';
+import AlertsPage from './pages/AlertsPage';
 // import ConfigurationTest from './components/common/ConfigurationTest';
 
 import ProtectedRoute from './components/ProtectedRoute';
@@ -282,6 +283,28 @@ function App() {
           <Route path="/profile" element={
             <ProtectedRoute>
               <ProfilePage />
+            </ProtectedRoute>
+          } />
+
+          {/* Alerts Routes - Available for all authenticated users */}
+          <Route path="/alerts" element={
+            <ProtectedRoute>
+              <AlertsPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/student/alerts" element={
+            <ProtectedRoute requiredRole="STUDENT">
+              <AlertsPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/teacher/alerts" element={
+            <ProtectedRoute requiredRole="TEACHER">
+              <AlertsPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/alerts" element={
+            <ProtectedRoute requiredRole="ADMIN">
+              <AlertsPage />
             </ProtectedRoute>
           } />
 

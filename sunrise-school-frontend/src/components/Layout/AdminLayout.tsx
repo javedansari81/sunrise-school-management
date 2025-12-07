@@ -42,10 +42,12 @@ import {
   Settings as SettingsIcon,
   ShoppingBag as ShoppingBagIcon,
   EventAvailable as AttendanceIcon,
+  Notifications as NotificationsIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import Footer from './Footer';
+import NotificationBell from '../alerts/NotificationBell';
 
 interface MenuItem {
   label: string;
@@ -118,6 +120,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
         { label: 'Leave Management', icon: <BeachAccess />, path: '/admin/leaves' },
         { label: 'Attendance Management', icon: <AttendanceIcon />, path: '/admin/attendance' },
         { label: 'Gallery Management', icon: <PhotoLibraryIcon />, path: '/admin/gallery-management' },
+        { label: 'Notifications', icon: <NotificationsIcon />, path: '/admin/alerts' },
       ],
     },
 
@@ -571,18 +574,21 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
               Admin Dashboard
             </Typography>
             {isAuthenticated && user && (
-              <IconButton
-                color="inherit"
-                onClick={handleUserMenuOpen}
-                sx={{ ml: 1 }}
-              >
-                <Avatar
-                  src={user.profile_picture_url || undefined}
-                  sx={{ width: 36, height: 36, bgcolor: 'secondary.main' }}
+              <>
+                <NotificationBell color="inherit" />
+                <IconButton
+                  color="inherit"
+                  onClick={handleUserMenuOpen}
+                  sx={{ ml: 1 }}
                 >
-                  {!user.profile_picture_url && (user.first_name?.[0] || user.email?.[0] || 'A')}
-                </Avatar>
-              </IconButton>
+                  <Avatar
+                    src={user.profile_picture_url || undefined}
+                    sx={{ width: 36, height: 36, bgcolor: 'secondary.main' }}
+                  >
+                    {!user.profile_picture_url && (user.first_name?.[0] || user.email?.[0] || 'A')}
+                  </Avatar>
+                </IconButton>
+              </>
             )}
           </Toolbar>
         </AppBar>
@@ -663,17 +669,20 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
             </Typography>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               {isAuthenticated && user && (
-                <IconButton
-                  color="primary"
-                  onClick={handleUserMenuOpen}
-                >
-                  <Avatar
-                    src={user.profile_picture_url || undefined}
-                    sx={{ width: 36, height: 36, bgcolor: 'primary.main' }}
+                <>
+                  <NotificationBell color="primary" />
+                  <IconButton
+                    color="primary"
+                    onClick={handleUserMenuOpen}
                   >
-                    {!user.profile_picture_url && (user.first_name?.[0] || user.email?.[0] || 'A')}
-                  </Avatar>
-                </IconButton>
+                    <Avatar
+                      src={user.profile_picture_url || undefined}
+                      sx={{ width: 36, height: 36, bgcolor: 'primary.main' }}
+                    >
+                      {!user.profile_picture_url && (user.first_name?.[0] || user.email?.[0] || 'A')}
+                    </Avatar>
+                  </IconButton>
+                </>
               )}
             </Box>
           </Box>

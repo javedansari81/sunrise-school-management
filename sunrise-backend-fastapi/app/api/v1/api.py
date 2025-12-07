@@ -2,7 +2,8 @@ from fastapi import APIRouter
 
 from app.api.v1.endpoints import (
     auth, teachers, students, leaves, expenses, fees, configuration,
-    public, database, transport, dashboard, gallery, reports, inventory, student_siblings, users, attendance
+    public, database, transport, dashboard, gallery, reports, inventory,
+    student_siblings, users, attendance, alerts
 )
 
 api_router = APIRouter()
@@ -29,3 +30,4 @@ api_router.include_router(transport.router, prefix="/transport", tags=["transpor
 api_router.include_router(attendance.router, prefix="/attendance", tags=["attendance"])
 api_router.include_router(gallery.router, prefix="/gallery", tags=["gallery"])
 api_router.include_router(reports.router, prefix="/reports", tags=["reports"])
+api_router.include_router(alerts.router, prefix="/alerts", tags=["alerts"])

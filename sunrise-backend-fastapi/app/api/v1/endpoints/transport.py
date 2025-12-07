@@ -16,6 +16,8 @@ from app.models.transport import TransportType, TransportDistanceSlab
 from app.crud.crud_transport import (
     transport_enrollment_crud, transport_monthly_tracking_crud, transport_payment_crud
 )
+from app.crud import student_crud
+from app.crud.metadata import payment_method_crud
 from app.schemas.transport import (
     TransportTypeResponse, TransportDistanceSlabResponse,
     StudentTransportEnrollmentCreate, StudentTransportEnrollmentResponse,
@@ -26,6 +28,7 @@ from app.schemas.transport import (
     TransportPaymentResponse, TransportPaymentAllocationResponse
 )
 from sqlalchemy import select
+from app.services.alert_service import alert_service
 
 router = APIRouter()
 
@@ -373,7 +376,39 @@ async def pay_monthly_transport(
                 })
 
         await db.commit()
-        
+
+        # Generate alert for transport fee payment
+        try:
+            # Get student info
+            student = await student_crud.get(db, id=student_id)
+            if student:
+                # Get payment method description
+                payment_method = await payment_method_crud.get_by_id_async(db, id=payment_data.payment_method_id)
+                payment_method_desc = payment_method.description if payment_method else "Cash"
+
+                # Get current user name
+                actor_name = f"{current_user.first_name} {current_user.last_name}" if current_user.first_name else "Admin"
+
+                # Build months paid string
+                months_paid_str = ", ".join([m["month"] for m in months_paid]) if months_paid else None
+
+                await alert_service.create_fee_payment_alert(
+                    db,
+                    payment_id=payment.id,
+                    student_id=student.id,
+                    student_name=f"{student.first_name} {student.last_name}",
+                    class_name=student.class_ref.description if student.class_ref else "Unknown",
+                    amount=float(payment_data.amount),
+                    payment_method=payment_method_desc,
+                    fee_type='TRANSPORT',
+                    months_paid=months_paid_str,
+                    actor_user_id=current_user.id,
+                    actor_name=actor_name
+                )
+        except Exception as e:
+            # Log error but don't fail the payment
+            print(f"Failed to create transport fee payment alert: {e}")
+
         return {
             "success": True,
             "message": "Payment processed successfully",
@@ -381,7 +416,7 @@ async def pay_monthly_transport(
             "months_paid": months_paid,
             "remaining_amount": float(remaining_amount)
         }
-    
+
     except HTTPException:
         raise
     except Exception as e:
@@ -529,6 +564,37 @@ async def reverse_transport_payment_full(
             user_id=current_user.id
         )
 
+        # Generate alert for transport payment reversal
+        try:
+            from app.crud.metadata import reversal_reason_crud
+            # Get student info from the result
+            student_id = result.get("student_id")
+            if student_id:
+                student = await student_crud.get(db, id=student_id)
+                if student:
+                    # Get reversal reason description
+                    reversal_reason = await reversal_reason_crud.get_by_id_async(db, id=reversal_data.reason_id)
+                    reversal_reason_desc = reversal_reason.description if reversal_reason else "Unknown"
+
+                    # Get current user name
+                    actor_name = f"{current_user.first_name} {current_user.last_name}" if current_user.first_name else "Admin"
+
+                    await alert_service.create_payment_reversal_alert(
+                        db,
+                        reversal_payment_id=result.get("reversal_payment_id"),
+                        original_payment_id=payment_id,
+                        student_name=f"{student.first_name} {student.last_name}",
+                        class_name=student.class_ref.description if student.class_ref else "Unknown",
+                        amount=result.get("reversal_amount", 0),
+                        reversal_reason=reversal_reason_desc,
+                        fee_type='TRANSPORT',
+                        actor_user_id=current_user.id,
+                        actor_name=actor_name
+                    )
+        except Exception as e:
+            # Log error but don't fail the reversal
+            print(f"Failed to create transport payment reversal alert: {e}")
+
         return TransportPaymentReversalResponse(**result)
 
     except ValueError as e:
@@ -569,6 +635,37 @@ async def reverse_transport_payment_partial(
             details=reversal_data.details,
             user_id=current_user.id
         )
+
+        # Generate alert for partial transport payment reversal
+        try:
+            from app.crud.metadata import reversal_reason_crud
+            # Get student info from the result
+            student_id = result.get("student_id")
+            if student_id:
+                student = await student_crud.get(db, id=student_id)
+                if student:
+                    # Get reversal reason description
+                    reversal_reason = await reversal_reason_crud.get_by_id_async(db, id=reversal_data.reason_id)
+                    reversal_reason_desc = reversal_reason.description if reversal_reason else "Unknown"
+
+                    # Get current user name
+                    actor_name = f"{current_user.first_name} {current_user.last_name}" if current_user.first_name else "Admin"
+
+                    await alert_service.create_payment_reversal_alert(
+                        db,
+                        reversal_payment_id=result.get("reversal_payment_id"),
+                        original_payment_id=payment_id,
+                        student_name=f"{student.first_name} {student.last_name}",
+                        class_name=student.class_ref.description if student.class_ref else "Unknown",
+                        amount=result.get("reversal_amount", 0),
+                        reversal_reason=reversal_reason_desc,
+                        fee_type='TRANSPORT',
+                        actor_user_id=current_user.id,
+                        actor_name=actor_name
+                    )
+        except Exception as e:
+            # Log error but don't fail the reversal
+            print(f"Failed to create partial transport payment reversal alert: {e}")
 
         return TransportPaymentReversalResponse(**result)
 

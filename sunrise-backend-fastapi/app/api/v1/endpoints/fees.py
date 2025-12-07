@@ -10,6 +10,7 @@ import calendar
 from app.core.database import get_db
 from app.crud import fee_structure_crud, fee_record_crud, fee_payment_crud, student_crud, teacher_crud
 from app.crud.crud_monthly_fee import monthly_fee_tracking_crud, monthly_payment_allocation_crud
+from app.crud.metadata import payment_method_crud
 from app.schemas.fee import (
     FeeStructure, FeeStructureCreate, FeeStructureUpdate,
     FeeRecord, FeeRecordCreate, FeeRecordUpdate, FeeRecordWithStudent,
@@ -26,6 +27,7 @@ from app.models.student import Student
 from app.models.teacher import Teacher
 from app.models.expense import Expense as ExpenseModel
 from app.models.fee import FeeRecord as FeeRecordModel, FeePayment as FeePaymentModel, MonthlyFeeTracking as MonthlyFeeTrackingModel, MonthlyPaymentAllocation
+from app.services.alert_service import alert_service
 
 router = APIRouter()
 
@@ -401,6 +403,39 @@ async def reverse_payment_full(
             details=reversal_request.details,
             user_id=current_user.id
         )
+
+        # Generate alert for payment reversal
+        try:
+            # Get the original payment to get student info
+            from app.crud.metadata import reversal_reason_crud
+            original_payment = await fee_payment_crud.get(db, id=payment_id)
+            if original_payment and original_payment.fee_record:
+                fee_record = original_payment.fee_record
+                student = await student_crud.get(db, id=fee_record.student_id)
+                if student:
+                    # Get reversal reason description
+                    reversal_reason = await reversal_reason_crud.get_by_id_async(db, id=reversal_request.reason_id)
+                    reversal_reason_desc = reversal_reason.description if reversal_reason else "Unknown"
+
+                    # Get current user name
+                    actor_name = f"{current_user.first_name} {current_user.last_name}" if current_user.first_name else "Admin"
+
+                    await alert_service.create_payment_reversal_alert(
+                        db,
+                        reversal_payment_id=result.get("reversal_payment_id"),
+                        original_payment_id=payment_id,
+                        student_name=f"{student.first_name} {student.last_name}",
+                        class_name=student.class_ref.description if student.class_ref else "Unknown",
+                        amount=result.get("reversal_amount", 0),
+                        reversal_reason=reversal_reason_desc,
+                        fee_type='TUITION',
+                        actor_user_id=current_user.id,
+                        actor_name=actor_name
+                    )
+        except Exception as e:
+            # Log error but don't fail the reversal
+            print(f"Failed to create payment reversal alert: {e}")
+
         return result
     except ValueError as e:
         raise HTTPException(
@@ -469,6 +504,38 @@ async def reverse_payment_partial(
             details=reversal_request.details,
             user_id=current_user.id
         )
+
+        # Generate alert for partial payment reversal
+        try:
+            from app.crud.metadata import reversal_reason_crud
+            original_payment = await fee_payment_crud.get(db, id=payment_id)
+            if original_payment and original_payment.fee_record:
+                fee_record = original_payment.fee_record
+                student = await student_crud.get(db, id=fee_record.student_id)
+                if student:
+                    # Get reversal reason description
+                    reversal_reason = await reversal_reason_crud.get_by_id_async(db, id=reversal_request.reason_id)
+                    reversal_reason_desc = reversal_reason.description if reversal_reason else "Unknown"
+
+                    # Get current user name
+                    actor_name = f"{current_user.first_name} {current_user.last_name}" if current_user.first_name else "Admin"
+
+                    await alert_service.create_payment_reversal_alert(
+                        db,
+                        reversal_payment_id=result.get("reversal_payment_id"),
+                        original_payment_id=payment_id,
+                        student_name=f"{student.first_name} {student.last_name}",
+                        class_name=student.class_ref.description if student.class_ref else "Unknown",
+                        amount=result.get("reversal_amount", 0),
+                        reversal_reason=reversal_reason_desc,
+                        fee_type='TUITION',
+                        actor_user_id=current_user.id,
+                        actor_name=actor_name
+                    )
+        except Exception as e:
+            # Log error but don't fail the reversal
+            print(f"Failed to create partial payment reversal alert: {e}")
+
         return result
     except ValueError as e:
         raise HTTPException(
@@ -2317,6 +2384,40 @@ async def pay_monthly_enhanced(
 
     # Calculate any remaining amount that couldn't be processed
     remaining_unprocessed = amount - actual_amount_to_process
+
+    # Generate alert for fee payment
+    try:
+        # Get payment method description
+        payment_method = await payment_method_crud.get_by_id_async(db, id=payment_method_id)
+        payment_method_desc = payment_method.description if payment_method else "Cash"
+
+        # Get current user name
+        actor_name = f"{current_user.first_name} {current_user.last_name}" if current_user.first_name else "Admin"
+
+        # Build months paid string
+        months_paid_list = [str(m["month"]) for m in payment_breakdown]
+        months_paid_str = ", ".join(months_paid_list) if months_paid_list else None
+
+        print(f"Creating fee payment alert for student {student.id}, payment {payment.id}")
+        await alert_service.create_fee_payment_alert(
+            db,
+            payment_id=payment.id,
+            student_id=student.id,
+            student_name=f"{student.first_name} {student.last_name}",
+            class_name=student.class_ref.description if student.class_ref else "Unknown",
+            amount=float(actual_amount_to_process),
+            payment_method=payment_method_desc,
+            fee_type='TUITION',
+            months_paid=months_paid_str,
+            actor_user_id=current_user.id,
+            actor_name=actor_name
+        )
+        print(f"Fee payment alert created successfully")
+    except Exception as e:
+        # Log error but don't fail the payment
+        import traceback
+        print(f"Failed to create fee payment alert: {e}")
+        traceback.print_exc()
 
     return {
         "success": True,

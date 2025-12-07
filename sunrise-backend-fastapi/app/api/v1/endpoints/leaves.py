@@ -7,6 +7,7 @@ import math
 from app.core.database import get_db
 from app.crud.crud_leave import leave_request_crud, leave_balance_crud, leave_policy_crud
 from app.crud import student_crud, teacher_crud
+from app.crud.metadata import leave_type_crud
 from app.schemas.leave import (
     LeaveRequest, LeaveRequestCreate, LeaveRequestUpdate, LeaveRequestWithDetails,
     LeaveApproval, LeaveFilters, LeaveListResponse, LeaveReport,
@@ -18,6 +19,7 @@ from app.utils.identifier_helpers import (
 from app.api.deps import get_current_active_user
 from app.models.user import User
 from app.schemas.user import UserTypeEnum
+from app.services.alert_service import alert_service
 
 router = APIRouter()
 
@@ -162,6 +164,42 @@ async def create_leave_request(
     }
 
     leave_request = await leave_request_crud.create(db, obj_in=leave_dict)
+
+    # Generate alert for leave request creation
+    try:
+        # Get leave type name
+        leave_type = await leave_type_crud.get_by_id_async(db, id=leave_data.leave_type_id)
+        leave_type_name = leave_type.description if leave_type else "Leave"
+
+        # Get applicant name and class info
+        if leave_data.applicant_type == ApplicantTypeEnum.STUDENT:
+            applicant_name = f"{applicant.first_name} {applicant.last_name}"
+            class_info = applicant.class_ref.description if hasattr(applicant, 'class_ref') and applicant.class_ref else None
+        else:
+            applicant_name = f"{applicant.first_name} {applicant.last_name}"
+            class_info = None
+
+        print(f"Creating leave request alert for: {applicant_name}, leave_request_id: {leave_request.id}")
+
+        alert = await alert_service.create_leave_request_alert(
+            db,
+            leave_request_id=leave_request.id,
+            applicant_name=applicant_name,
+            applicant_type=leave_data.applicant_type.value,
+            leave_type=leave_type_name,
+            start_date=str(leave_data.start_date),
+            end_date=str(leave_data.end_date),
+            total_days=leave_data.total_days,
+            actor_user_id=current_user.id,
+            class_info=class_info
+        )
+        print(f"Leave request alert created successfully with id: {alert.id}")
+    except Exception as e:
+        # Log error with full traceback but don't fail the leave request creation
+        import traceback
+        print(f"Failed to create leave request alert: {e}")
+        traceback.print_exc()
+
     return leave_request
 
 
@@ -519,5 +557,58 @@ async def approve_leave_request(
         leave_status_id=approval_data.leave_status_id,
         review_comments=approval_data.approval_comments
     )
+
+    # Generate alert for leave approval/rejection
+    try:
+        # Determine status (2 = Approved, 3 = Rejected)
+        status_str = "APPROVED" if approval_data.leave_status_id == 2 else "REJECTED"
+
+        # Get leave type name
+        leave_type = await leave_type_crud.get_by_id_async(db, id=leave_request.leave_type_id)
+        leave_type_name = leave_type.description if leave_type else "Leave"
+
+        # Get applicant name and user_id based on applicant_type
+        applicant_type = leave_request.applicant_type  # 'student' or 'teacher'
+        applicant_user_id = None
+        if applicant_type == 'student':
+            applicant = await student_crud.get(db, id=leave_request.applicant_id)
+            if applicant:
+                applicant_name = f"{applicant.first_name} {applicant.last_name}"
+                applicant_user_id = applicant.user_id
+            else:
+                applicant_name = "Unknown Student"
+        else:
+            applicant = await teacher_crud.get(db, id=leave_request.applicant_id)
+            if applicant:
+                applicant_name = f"{applicant.first_name} {applicant.last_name}"
+                applicant_user_id = applicant.user_id
+            else:
+                applicant_name = "Unknown Teacher"
+
+        # Get reviewer name
+        reviewer_name = f"{current_user.first_name} {current_user.last_name}" if current_user.first_name else current_user.email
+
+        print(f"Creating leave {status_str.lower()} alert for: {applicant_name}, leave_request_id: {leave_request.id}, target_user_id: {applicant_user_id}")
+
+        alert = await alert_service.create_leave_status_alert(
+            db,
+            leave_request_id=leave_request.id,
+            applicant_name=applicant_name,
+            applicant_type=applicant_type,
+            applicant_user_id=applicant_user_id,
+            leave_type=leave_type_name,
+            status=status_str,
+            start_date=str(leave_request.start_date),
+            end_date=str(leave_request.end_date),
+            reviewer_name=reviewer_name,
+            reviewer_user_id=current_user.id,
+            comments=approval_data.approval_comments
+        )
+        print(f"Leave {status_str.lower()} alert created successfully with id: {alert.id}")
+    except Exception as e:
+        # Log error with full traceback but don't fail the approval/rejection
+        import traceback
+        print(f"Failed to create leave {status_str.lower()} alert: {e}")
+        traceback.print_exc()
 
     return updated_leave

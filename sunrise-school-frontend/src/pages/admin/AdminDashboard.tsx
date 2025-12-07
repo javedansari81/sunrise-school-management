@@ -4,7 +4,6 @@ import {
   Card,
   CardContent,
   Typography,
-  Button,
   Alert,
   CircularProgress,
   Chip,
@@ -17,13 +16,15 @@ import {
   Payment,
   EventNote,
   AccountBalance,
-  Visibility,
   DirectionsBus,
   ExpandMore,
+  Notifications as NotificationsIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import AdminLayout from '../../components/Layout/AdminLayout';
-import { leaveAPI, enhancedFeesAPI } from '../../services/api';
+import { enhancedFeesAPI } from '../../services/api';
+import { alertAPI } from '../../services/alertService';
+import { AlertStats } from '../../types/alert';
 import {
   BarChart,
   Bar,
@@ -163,7 +164,7 @@ const AdminDashboard: React.FC = () => {
   const navigate = useNavigate();
   const [dashboardStats, setDashboardStats] = useState<DashboardStats | null>(null);
   const [enhancedStats, setEnhancedStats] = useState<EnhancedDashboardStats | null>(null);
-  const [pendingLeaves, setPendingLeaves] = useState<any[]>([]);
+  const [alertStats, setAlertStats] = useState<AlertStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   // Initialize all cards as expanded by default
@@ -174,6 +175,7 @@ const AdminDashboard: React.FC = () => {
     leaves: true,
     expenses: true,
     transport: true,
+    notifications: true,
   });
 
   useEffect(() => {
@@ -183,17 +185,17 @@ const AdminDashboard: React.FC = () => {
   const loadDashboardData = async () => {
     try {
       setLoading(true);
-      const [statsResponse, enhancedResponse, pendingResponse] = await Promise.all([
+      const [statsResponse, enhancedResponse, alertStatsResponse] = await Promise.all([
         enhancedFeesAPI.getAdminDashboardStats(4), // 2025-26 session year
         enhancedFeesAPI.getAdminDashboardEnhancedStats(4), // Enhanced stats
-        leaveAPI.getPendingLeaves()
+        alertAPI.getStats()
       ]);
 
       console.log('Enhanced Stats Response:', enhancedResponse.data);
 
       setDashboardStats(statsResponse.data);
       setEnhancedStats(enhancedResponse.data);
-      setPendingLeaves(Array.isArray(pendingResponse) ? pendingResponse : []);
+      setAlertStats(alertStatsResponse);
       setError(null);
     } catch (err: any) {
       console.error('Error loading dashboard data:', err);
@@ -201,7 +203,7 @@ const AdminDashboard: React.FC = () => {
       setError('Failed to load dashboard data. Please try again.');
       setDashboardStats(null);
       setEnhancedStats(null);
-      setPendingLeaves([]);
+      setAlertStats(null);
     } finally {
       setLoading(false);
     }
@@ -277,6 +279,16 @@ const AdminDashboard: React.FC = () => {
           clickable: false,
           onClick: undefined,
         },
+        {
+          key: 'notifications',
+          title: 'Notifications',
+          value: '0',
+          icon: <NotificationsIcon fontSize="large" />,
+          color: '#9c27b0',
+          change: 'Loading...',
+          clickable: false,
+          onClick: undefined,
+        },
       ];
     }
 
@@ -346,6 +358,17 @@ const AdminDashboard: React.FC = () => {
         clickable: true,
         onClick: () => navigate('/admin/transport'),
         details: enhancedStats.transport_service,
+      },
+      {
+        key: 'notifications',
+        title: 'Notifications',
+        value: (alertStats?.total_alerts || 0).toString(),
+        icon: <NotificationsIcon fontSize="large" />,
+        color: '#9c27b0',
+        change: `${alertStats?.unread_count || 0} Unread • ${alertStats?.recent_count || 0} Last 24h`,
+        clickable: true,
+        onClick: () => navigate('/admin/alerts'),
+        details: alertStats,
       },
     ];
   };
@@ -533,6 +556,93 @@ const AdminDashboard: React.FC = () => {
           </Box>
         );
 
+      case 'notifications':
+        // Prepare data for charts
+        const categoryData = card.details.by_category
+          ? Object.entries(card.details.by_category).map(([key, value]) => ({
+              name: key.replace('_', ' '),
+              value: value as number
+            }))
+          : [];
+
+        const priorityData = [
+          { name: 'Critical', value: card.details.by_priority?.['4'] || 0, color: '#d32f2f' },
+          { name: 'High', value: card.details.by_priority?.['3'] || 0, color: '#f57c00' },
+          { name: 'Normal', value: card.details.by_priority?.['2'] || 0, color: '#1976d2' },
+          { name: 'Low', value: card.details.by_priority?.['1'] || 0, color: '#4caf50' },
+        ].filter(item => item.value > 0);
+
+        return (
+          <Box sx={{ mt: 1.5, pt: 1.5, borderTop: '1px solid #e0e0e0' }}>
+            {/* Category Distribution */}
+            <Typography variant="subtitle2" fontWeight="bold" gutterBottom sx={{ mb: 1, fontSize: '0.875rem' }}>
+              By Category
+            </Typography>
+            {categoryData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={140}>
+                <PieChart>
+                  <Pie
+                    data={categoryData}
+                    dataKey="value"
+                    nameKey="name"
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={50}
+                    label={(entry) => `${entry.name}: ${entry.value}`}
+                    labelLine={{ stroke: '#666', strokeWidth: 1 }}
+                    style={{ fontSize: '0.7rem' }}
+                  >
+                    {categoryData.map((_, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip contentStyle={{ fontSize: '0.75rem' }} />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8rem' }}>No category data available</Typography>
+            )}
+
+            {/* Priority Distribution */}
+            <Typography variant="subtitle2" fontWeight="bold" gutterBottom sx={{ mt: 1.5, mb: 1, fontSize: '0.875rem' }}>
+              By Priority Level
+            </Typography>
+            {priorityData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={120}>
+                <BarChart data={priorityData} layout="vertical" margin={{ top: 5, right: 20, left: 50, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                  <XAxis type="number" style={{ fontSize: '0.7rem' }} />
+                  <YAxis dataKey="name" type="category" style={{ fontSize: '0.7rem' }} width={50} />
+                  <Tooltip contentStyle={{ fontSize: '0.75rem' }} />
+                  <Bar dataKey="value" name="Count" radius={[0, 4, 4, 0]}>
+                    {priorityData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8rem' }}>No priority data available</Typography>
+            )}
+
+            {/* Summary chips */}
+            <Box sx={{ mt: 1.5, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+              <Chip
+                label={`Unread: ${card.details.unread_count || 0}`}
+                size="small"
+                color={card.details.unread_count > 0 ? 'error' : 'default'}
+                sx={{ height: 24, fontSize: '0.7rem' }}
+              />
+              <Chip
+                label={`Last 24h: ${card.details.recent_count || 0}`}
+                size="small"
+                color="warning"
+                sx={{ height: 24, fontSize: '0.7rem' }}
+              />
+            </Box>
+          </Box>
+        );
+
       default:
         return null;
     }
@@ -675,128 +785,6 @@ const AdminDashboard: React.FC = () => {
           ))}
           </Box>
         )}
-
-        {/* Pending Leave Requests Section - Mobile Responsive */}
-        {!loading && pendingLeaves.length > 0 && (
-          <Card sx={{ mb: { xs: 2, sm: 3 } }}>
-            <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
-              <Box
-                sx={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: { xs: 'flex-start', sm: 'center' },
-                  flexDirection: { xs: 'column', sm: 'row' },
-                  gap: { xs: 1, sm: 0 },
-                  mb: { xs: 2, sm: 2 }
-                }}
-              >
-                <Typography
-                  variant="h6"
-                  fontWeight="bold"
-                  sx={{
-                    fontSize: { xs: '1rem', sm: '1.125rem', md: '1.25rem' }
-                  }}
-                >
-                  Pending Leave Requests ({pendingLeaves.length})
-                </Typography>
-                <Button
-                  variant="outlined"
-                  startIcon={<Visibility />}
-                  onClick={() => navigate('/admin/leaves')}
-                  sx={{
-                    fontSize: { xs: '0.75rem', sm: '0.875rem' },
-                    padding: { xs: '4px 8px', sm: '6px 12px' },
-                    alignSelf: { xs: 'flex-end', sm: 'auto' }
-                  }}
-                >
-                  View All
-                </Button>
-              </Box>
-
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: { xs: 1.5, sm: 2 } }}>
-                {pendingLeaves.slice(0, 5).map((leave) => (
-                  <Box
-                    key={leave.id}
-                    sx={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: { xs: 'flex-start', sm: 'center' },
-                      flexDirection: { xs: 'column', sm: 'row' },
-                      gap: { xs: 1.5, sm: 1 },
-                      p: { xs: 1.5, sm: 2 },
-                      border: '1px solid #e0e0e0',
-                      borderRadius: { xs: 1, sm: 1.5 },
-                      '&:hover': {
-                        backgroundColor: '#f5f5f5',
-                      },
-                    }}
-                  >
-                    <Box sx={{ flex: 1 }}>
-                      <Typography
-                        variant="subtitle1"
-                        fontWeight="bold"
-                        sx={{
-                          fontSize: { xs: '0.875rem', sm: '1rem' },
-                          mb: { xs: 0.5, sm: 0 }
-                        }}
-                      >
-                        {leave.applicant_name}
-                      </Typography>
-                      <Typography
-                        variant="body2"
-                        color="textSecondary"
-                        sx={{
-                          fontSize: { xs: '0.75rem', sm: '0.875rem' },
-                          mb: { xs: 0.25, sm: 0 }
-                        }}
-                      >
-                        {leave.applicant_details} • {leave.leave_type_name}
-                      </Typography>
-                      <Typography
-                        variant="body2"
-                        color="textSecondary"
-                        sx={{
-                          fontSize: { xs: '0.75rem', sm: '0.875rem' }
-                        }}
-                      >
-                        {leave.start_date} to {leave.end_date} ({leave.total_days} days)
-                      </Typography>
-                    </Box>
-                    <Box
-                      sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: { xs: 1, sm: 1.5 },
-                        flexDirection: { xs: 'row', sm: 'row' },
-                        alignSelf: { xs: 'flex-end', sm: 'center' }
-                      }}
-                    >
-                      <Chip
-                        label={leave.leave_status_name}
-                        color="warning"
-                        size="small"
-                        sx={{
-                          fontSize: { xs: '0.6rem', sm: '0.75rem' },
-                          height: { xs: '24px', sm: '32px' }
-                        }}
-                      />
-                      <Button
-                        variant="outlined"
-                        onClick={() => navigate('/admin/leaves')}
-                        sx={{
-                          fontSize: { xs: '0.7rem', sm: '0.8rem' },
-                          padding: { xs: '4px 8px', sm: '6px 12px' }
-                        }}
-                      >
-                        Review
-                      </Button>
-                  </Box>
-                </Box>
-              ))}
-            </Box>
-          </CardContent>
-        </Card>
-      )}
     </AdminLayout>
   );
 };
