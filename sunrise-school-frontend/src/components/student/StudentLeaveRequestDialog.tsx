@@ -12,24 +12,18 @@ import {
   MenuItem,
   Box,
   Typography,
-  IconButton,
   Alert,
-  Grid,
   FormControlLabel,
   Checkbox,
+  CircularProgress,
+  Chip
 } from '@mui/material';
-import {
-  Close as CloseIcon,
-  CalendarToday as CalendarIcon,
-  Person as PersonIcon
-} from '@mui/icons-material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { useServiceConfiguration } from '../../contexts/ConfigurationContext';
 import { studentLeaveAPI } from '../../services/api';
 import { configurationService } from '../../services/configurationService';
-import { dialogStyles } from '../../styles/dialogTheme';
 import { formatDateForAPI } from '../../utils/dateUtils';
 
 interface StudentLeaveRequestDialogProps {
@@ -190,98 +184,86 @@ const StudentLeaveRequestDialog: React.FC<StudentLeaveRequestDialogProps> = ({
         fullWidth
         slotProps={{
           paper: {
-            sx: dialogStyles.paper
+            sx: { maxHeight: '90vh' }
           }
         }}
       >
-        <DialogTitle sx={dialogStyles.title}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <CalendarIcon sx={{ fontSize: 28 }} />
-            <Typography sx={dialogStyles.titleText}>
-              {isViewMode ? 'Leave Request Details' : 'New Leave Request'}
-            </Typography>
-          </Box>
-          <IconButton onClick={handleClose} disabled={loading} sx={dialogStyles.closeButton}>
-            <CloseIcon />
-          </IconButton>
+        <DialogTitle>
+          <Typography variant="h6" fontWeight="bold">
+            {isViewMode ? 'Leave Request Details' : 'New Leave Request'}
+          </Typography>
         </DialogTitle>
+        <DialogContent dividers>
+          <Box sx={{ pt: 2 }}>
+            {error && (
+              <Alert severity="error" sx={{ mb: 2 }}>
+                {error}
+              </Alert>
+            )}
 
-        <DialogContent sx={dialogStyles.content} dividers>
-          {/* Student Info */}
-          {studentProfile && (
-            <Box sx={{ mb: 3, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
-              <Box display="flex" alignItems="center" gap={1} mb={1}>
-                <PersonIcon color="primary" fontSize="small" />
-                <Typography variant="subtitle2" color="primary">
-                  Student Information
+            {/* Applicant Information Section */}
+            {studentProfile && (
+              <>
+                <Typography variant="h6" color="primary" gutterBottom>
+                  Applicant Information
                 </Typography>
-              </Box>
-              <Typography variant="body2">
-                <strong>{studentProfile.first_name} {studentProfile.last_name}</strong> (Roll: {studentProfile.roll_number})
-              </Typography>
-              <Typography variant="body2" color="textSecondary">
-                Class: {studentProfile.current_class} {studentProfile.section && `- ${studentProfile.section}`}
-              </Typography>
-              <Typography variant="body2" color="textSecondary">
-                Admission No: {studentProfile.admission_number}
-              </Typography>
-            </Box>
-          )}
+                <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} gap={2} mb={2}>
+                  <Box flex={1}>
+                    <Typography variant="body2" color="text.secondary">Name</Typography>
+                    <Typography variant="body1" fontWeight="medium">
+                      {studentProfile.first_name} {studentProfile.last_name} (Roll No: {studentProfile.roll_number})
+                    </Typography>
+                  </Box>
+                  <Box flex={1}>
+                    <Typography variant="body2" color="text.secondary">Class</Typography>
+                    <Typography variant="body1">
+                      {studentProfile.class_name}{studentProfile.section ? ` - ${studentProfile.section}` : ''}
+                    </Typography>
+                  </Box>
+                </Box>
+                <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} gap={2} mb={2}>
+                  <Box flex={1}>
+                    <Typography variant="body2" color="text.secondary">Admission No</Typography>
+                    <Typography variant="body1">{studentProfile.admission_number}</Typography>
+                  </Box>
+                </Box>
+              </>
+            )}
 
-          {error && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {error}
-            </Alert>
-          )}
+            {/* Leave Details Section */}
+            <Typography variant="h6" color="primary" gutterBottom sx={{ mt: 3 }}>
+              Leave Details
+            </Typography>
 
-          <Grid container spacing={3}>
-            {/* Leave Type */}
-            <Grid size={{ xs: 12, sm: 6 }}>
-              <FormControl fullWidth required disabled={isViewMode}>
-                <InputLabel>Leave Type</InputLabel>
-                <Select
-                  value={formData.leave_type_id}
-                  onChange={(e) => handleFieldChange('leave_type_id', e.target.value)}
-                  label="Leave Type"
-                >
-                  {configuration?.leave_types?.map((type: any) => (
-                    <MenuItem key={type.id} value={type.id.toString()}>
-                      {type.name}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
-
-            {/* Half Day Option */}
-            <Grid size={{ xs: 12, sm: 6 }}>
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={formData.is_half_day}
-                    onChange={(e) => handleFieldChange('is_half_day', e.target.checked)}
-                    disabled={isViewMode}
-                  />
-                }
-                label="Half Day Leave"
-              />
-              {formData.is_half_day && (
-                <FormControl fullWidth sx={{ mt: 1 }} disabled={isViewMode}>
-                  <InputLabel>Period</InputLabel>
+            <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} gap={2} mb={2}>
+              <Box flex={1}>
+                <FormControl fullWidth required disabled={isViewMode} size="small">
+                  <InputLabel>Leave Type</InputLabel>
                   <Select
-                    value={formData.half_day_period}
-                    onChange={(e) => handleFieldChange('half_day_period', e.target.value)}
-                    label="Period"
+                    value={formData.leave_type_id}
+                    onChange={(e) => handleFieldChange('leave_type_id', e.target.value)}
+                    label="Leave Type"
                   >
-                    <MenuItem value="Morning">Morning</MenuItem>
-                    <MenuItem value="Afternoon">Afternoon</MenuItem>
+                    {configuration?.leave_types?.map((type: any) => (
+                      <MenuItem key={type.id} value={type.id.toString()}>
+                        {type.description || type.name}
+                      </MenuItem>
+                    ))}
                   </Select>
                 </FormControl>
-              )}
-            </Grid>
+              </Box>
+              <Box flex={1}>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>Total Days</Typography>
+                <Chip
+                  label={`${totalDays} day${totalDays !== 1 ? 's' : ''}`}
+                  color={totalDays > 0 ? 'primary' : 'default'}
+                  size="small"
+                  variant="outlined"
+                />
+              </Box>
+            </Box>
 
-            {/* Start Date */}
-            <Grid size={{ xs: 12, sm: 6 }}>
+            <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} gap={2} mb={2}>
               <DatePicker
                 label="Start Date *"
                 value={formData.start_date}
@@ -290,14 +272,11 @@ const StudentLeaveRequestDialog: React.FC<StudentLeaveRequestDialogProps> = ({
                 slotProps={{
                   textField: {
                     fullWidth: true,
-                    required: true
+                    required: true,
+                    size: 'small'
                   }
                 }}
               />
-            </Grid>
-
-            {/* End Date */}
-            <Grid size={{ xs: 12, sm: 6 }}>
               <DatePicker
                 label="End Date *"
                 value={formData.end_date}
@@ -306,25 +285,49 @@ const StudentLeaveRequestDialog: React.FC<StudentLeaveRequestDialogProps> = ({
                 slotProps={{
                   textField: {
                     fullWidth: true,
-                    required: true
+                    required: true,
+                    size: 'small'
                   }
                 }}
               />
-            </Grid>
+            </Box>
 
-            {/* Total Days Display */}
-            {totalDays > 0 && (
-              <Grid size={{ xs: 12 }}>
-                <Alert severity="info">
-                  Total Days: {totalDays} {totalDays === 1 ? 'day' : 'days'}
-                </Alert>
-              </Grid>
-            )}
+            {/* Half Day Option */}
+            <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} gap={2} mb={2}>
+              <Box flex={1} display="flex" alignItems="center">
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={formData.is_half_day}
+                      onChange={(e) => handleFieldChange('is_half_day', e.target.checked)}
+                      disabled={isViewMode}
+                      size="small"
+                    />
+                  }
+                  label="Half Day Leave"
+                />
+              </Box>
+              {formData.is_half_day && (
+                <Box flex={1}>
+                  <FormControl fullWidth size="small" disabled={isViewMode}>
+                    <InputLabel>Period</InputLabel>
+                    <Select
+                      value={formData.half_day_period}
+                      onChange={(e) => handleFieldChange('half_day_period', e.target.value)}
+                      label="Period"
+                    >
+                      <MenuItem value="Morning">Morning</MenuItem>
+                      <MenuItem value="Afternoon">Afternoon</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Box>
+              )}
+            </Box>
 
-            {/* Reason */}
-            <Grid size={{ xs: 12 }}>
+            <Box mb={3}>
               <TextField
                 fullWidth
+                size="small"
                 label="Reason for Leave"
                 multiline
                 rows={3}
@@ -334,80 +337,109 @@ const StudentLeaveRequestDialog: React.FC<StudentLeaveRequestDialogProps> = ({
                 disabled={isViewMode}
                 placeholder="Please provide a detailed reason for your leave request..."
               />
-            </Grid>
+            </Box>
 
-            {/* Parent Consent */}
-            <Grid size={{ xs: 12 }}>
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={formData.parent_consent}
-                    onChange={(e) => handleFieldChange('parent_consent', e.target.checked)}
-                    disabled={isViewMode}
-                  />
-                }
-                label="Parent/Guardian consent obtained"
-              />
-            </Grid>
+            {/* Parent/Guardian Information Section */}
+            <Typography variant="h6" color="primary" gutterBottom>
+              Parent/Guardian Information
+            </Typography>
 
-            {/* Emergency Contact */}
-            <Grid size={{ xs: 12, sm: 6 }}>
+            <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} gap={2} mb={2}>
+              <Box flex={1} display="flex" alignItems="center">
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={formData.parent_consent}
+                      onChange={(e) => handleFieldChange('parent_consent', e.target.checked)}
+                      disabled={isViewMode}
+                      size="small"
+                    />
+                  }
+                  label="Parent/Guardian consent obtained"
+                />
+              </Box>
+            </Box>
+
+            <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} gap={2} mb={3}>
               <TextField
                 fullWidth
+                size="small"
                 label="Emergency Contact Name"
                 value={formData.emergency_contact_name}
                 onChange={(e) => handleFieldChange('emergency_contact_name', e.target.value)}
                 disabled={isViewMode}
                 placeholder="Parent/Guardian name"
               />
-            </Grid>
-
-            <Grid size={{ xs: 12, sm: 6 }}>
               <TextField
                 fullWidth
+                size="small"
                 label="Emergency Contact Phone"
                 value={formData.emergency_contact_phone}
                 onChange={(e) => handleFieldChange('emergency_contact_phone', e.target.value)}
                 disabled={isViewMode}
                 placeholder="Parent/Guardian phone number"
               />
-            </Grid>
+            </Box>
 
-            {/* View Mode Additional Info */}
+            {/* View Mode: Request Status Section */}
             {isViewMode && selectedLeave && (
               <>
-                <Grid size={{ xs: 12 }}>
-                  <Typography variant="subtitle2" color="primary" gutterBottom>
-                    Request Status
-                  </Typography>
-                  <Typography variant="body2">
-                    Status: <strong>{selectedLeave.leave_status_name}</strong>
-                  </Typography>
-                  {selectedLeave.reviewer_name && (
-                    <Typography variant="body2">
-                      Reviewed by: {selectedLeave.reviewer_name}
+                <Typography variant="h6" color="primary" gutterBottom sx={{ mt: 3 }}>
+                  Request Status
+                </Typography>
+
+                <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} gap={2} mb={2}>
+                  <Box flex={1}>
+                    <Typography variant="body2" color="text.secondary">Status</Typography>
+                    <Chip
+                      label={selectedLeave.leave_status_name}
+                      color={
+                        selectedLeave.leave_status_name?.toLowerCase() === 'approved' ? 'success' :
+                        selectedLeave.leave_status_name?.toLowerCase() === 'rejected' ? 'error' : 'warning'
+                      }
+                      size="small"
+                      variant="outlined"
+                    />
+                  </Box>
+                  <Box flex={1}>
+                    <Typography variant="body2" color="text.secondary">Applied Date</Typography>
+                    <Typography variant="body1">
+                      {new Date(selectedLeave.created_at).toLocaleDateString()}
                     </Typography>
-                  )}
-                  {selectedLeave.review_comments && (
-                    <Typography variant="body2">
-                      Comments: {selectedLeave.review_comments}
-                    </Typography>
-                  )}
-                </Grid>
+                  </Box>
+                </Box>
+
+                {(selectedLeave.reviewer_name || selectedLeave.review_comments) && (
+                  <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} gap={2} mb={2}>
+                    {selectedLeave.reviewer_name && (
+                      <Box flex={1}>
+                        <Typography variant="body2" color="text.secondary">Reviewed By</Typography>
+                        <Typography variant="body1">{selectedLeave.reviewer_name}</Typography>
+                      </Box>
+                    )}
+                    {selectedLeave.review_comments && (
+                      <Box flex={1}>
+                        <Typography variant="body2" color="text.secondary">Review Comments</Typography>
+                        <Typography variant="body1">{selectedLeave.review_comments}</Typography>
+                      </Box>
+                    )}
+                  </Box>
+                )}
               </>
             )}
-          </Grid>
+          </Box>
         </DialogContent>
 
-        <DialogActions>
+        <DialogActions sx={{ p: 2 }}>
           <Button onClick={handleClose} disabled={loading}>
             {isViewMode ? 'Close' : 'Cancel'}
           </Button>
           {!isViewMode && (
-            <Button 
-              onClick={handleSubmit} 
-              variant="contained" 
+            <Button
+              variant="contained"
+              onClick={handleSubmit}
               disabled={loading}
+              startIcon={loading ? <CircularProgress size={16} /> : null}
             >
               {loading ? 'Submitting...' : 'Submit Request'}
             </Button>

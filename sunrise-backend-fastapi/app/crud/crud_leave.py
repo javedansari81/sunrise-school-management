@@ -53,7 +53,7 @@ class CRUDLeaveRequest(CRUDBase[LeaveRequest, LeaveRequestCreate, LeaveRequestUp
             COALESCE(
                 CASE
                     WHEN lr.applicant_type = 'student' AND s.id IS NOT NULL THEN
-                        'Roll ' || LPAD(COALESCE(s.roll_number::text, '000'), 3, '0') || ': ' || s.first_name || ' ' || s.last_name
+                        s.first_name || ' ' || s.last_name || ' (Roll No: ' || COALESCE(s.roll_number::text, 'N/A') || ')'
                     WHEN lr.applicant_type = 'teacher' AND t.id IS NOT NULL THEN
                         t.first_name || ' ' || t.last_name || ' (' || t.employee_id || ')'
                     ELSE 'Unknown Applicant (ID: ' || lr.applicant_id || ')'
@@ -172,7 +172,7 @@ class CRUDLeaveRequest(CRUDBase[LeaveRequest, LeaveRequestCreate, LeaveRequestUp
             COALESCE(
                 CASE
                     WHEN lr.applicant_type = 'student' AND s.id IS NOT NULL THEN
-                        'Roll ' || LPAD(COALESCE(s.roll_number::text, '000'), 3, '0') || ': ' || s.first_name || ' ' || s.last_name
+                        s.first_name || ' ' || s.last_name || ' (Roll No: ' || COALESCE(s.roll_number::text, 'N/A') || ')'
                     WHEN lr.applicant_type = 'teacher' AND t.id IS NOT NULL THEN
                         t.first_name || ' ' || t.last_name || ' (' || t.employee_id || ')'
                     ELSE 'Unknown Applicant (ID: ' || lr.applicant_id || ')'
@@ -323,7 +323,7 @@ class CRUDLeaveRequest(CRUDBase[LeaveRequest, LeaveRequestCreate, LeaveRequestUp
             COALESCE(
                 CASE
                     WHEN lr.applicant_type = 'student' AND s.id IS NOT NULL THEN
-                        'Roll ' || LPAD(COALESCE(s.roll_number::text, '000'), 3, '0') || ': ' || s.first_name || ' ' || s.last_name
+                        s.first_name || ' ' || s.last_name || ' (Roll No: ' || COALESCE(s.roll_number::text, 'N/A') || ')'
                     WHEN lr.applicant_type = 'teacher' AND t.id IS NOT NULL THEN
                         t.first_name || ' ' || t.last_name || ' (' || t.employee_id || ')'
                     ELSE 'Unknown Applicant (ID: ' || lr.applicant_id || ')'
@@ -421,7 +421,7 @@ class CRUDLeaveRequest(CRUDBase[LeaveRequest, LeaveRequestCreate, LeaveRequestUp
         main_query = f"""
         SELECT
             lr.*,
-            'Roll ' || LPAD(COALESCE(s.roll_number::text, '000'), 3, '0') || ': ' || s.first_name || ' ' || s.last_name as applicant_name,
+            s.first_name || ' ' || s.last_name || ' (Roll No: ' || COALESCE(s.roll_number::text, 'N/A') || ')' as applicant_name,
             COALESCE(c.name, 'N/A') as applicant_details,
             s.roll_number as applicant_roll_number,
             c.id as applicant_class_id,
