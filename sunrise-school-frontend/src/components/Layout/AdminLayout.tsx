@@ -43,6 +43,7 @@ import {
   ShoppingBag as ShoppingBagIcon,
   EventAvailable as AttendanceIcon,
   Notifications as NotificationsIcon,
+  LocalShipping as LocalShippingIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -119,6 +120,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
       children: [
         { label: 'Leave Management', icon: <BeachAccess />, path: '/admin/leaves' },
         { label: 'Attendance Management', icon: <AttendanceIcon />, path: '/admin/attendance' },
+        { label: 'Stock Procurement', icon: <LocalShippingIcon />, path: '/admin/stock-procurement' },
         { label: 'Gallery Management', icon: <PhotoLibraryIcon />, path: '/admin/gallery-management' },
         { label: 'Notifications', icon: <NotificationsIcon />, path: '/admin/alerts' },
       ],

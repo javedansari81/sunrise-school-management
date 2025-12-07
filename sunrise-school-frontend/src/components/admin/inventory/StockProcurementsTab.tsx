@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
   Box,
-  Button,
   Paper,
   Table,
   TableBody,
@@ -14,14 +13,11 @@ import {
   Chip,
   IconButton,
   CircularProgress,
-  TextField,
-  MenuItem,
   Tooltip,
   useMediaQuery,
   useTheme
 } from '@mui/material';
 import {
-  Add as AddIcon,
   Visibility as VisibilityIcon
 } from '@mui/icons-material';
 import {
@@ -37,12 +33,22 @@ interface StockProcurementsTabProps {
   configuration: any;
   onError: (message: string) => void;
   onSuccess: (message: string) => void;
+  // Filters passed from parent
+  fromDate?: string;
+  toDate?: string;
+  // Dialog control from parent
+  dialogOpen?: boolean;
+  onDialogClose?: () => void;
 }
 
 const StockProcurementsTab: React.FC<StockProcurementsTabProps> = ({
   configuration,
   onError,
-  onSuccess
+  onSuccess,
+  fromDate: parentFromDate,
+  toDate: parentToDate,
+  dialogOpen: parentDialogOpen,
+  onDialogClose: parentOnDialogClose
 }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -57,14 +63,20 @@ const StockProcurementsTab: React.FC<StockProcurementsTabProps> = ({
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
   const [selectedProcurement, setSelectedProcurement] = useState<InventoryStockProcurement | null>(null);
 
-  // Filters
-  const [vendorFilter, setVendorFilter] = useState<number | ''>('');
-  const [fromDate, setFromDate] = useState<string>('');
-  const [toDate, setToDate] = useState<string>('');
+  // Use parent filters if provided
+  const fromDate = parentFromDate ?? '';
+  const toDate = parentToDate ?? '';
+
+  // Handle parent dialog control
+  useEffect(() => {
+    if (parentDialogOpen !== undefined) {
+      setProcurementDialogOpen(parentDialogOpen);
+    }
+  }, [parentDialogOpen]);
 
   useEffect(() => {
     fetchProcurements();
-  }, [page, rowsPerPage, vendorFilter, fromDate, toDate]);
+  }, [page, rowsPerPage, fromDate, toDate]);
 
   const fetchProcurements = async () => {
     setLoading(true);
@@ -74,7 +86,6 @@ const StockProcurementsTab: React.FC<StockProcurementsTabProps> = ({
         per_page: rowsPerPage
       };
 
-      if (vendorFilter) params.vendor_id = vendorFilter;
       if (fromDate) params.from_date = fromDate;
       if (toDate) params.to_date = toDate;
 
@@ -106,6 +117,17 @@ const StockProcurementsTab: React.FC<StockProcurementsTabProps> = ({
   const handleProcurementSuccess = () => {
     onSuccess('Stock procurement created successfully');
     fetchProcurements();
+    // Notify parent to close dialog if controlled
+    if (parentOnDialogClose) {
+      parentOnDialogClose();
+    }
+  };
+
+  const handleDialogClose = () => {
+    setProcurementDialogOpen(false);
+    if (parentOnDialogClose) {
+      parentOnDialogClose();
+    }
   };
 
   const formatDate = (dateString: string): string => {
@@ -120,48 +142,8 @@ const StockProcurementsTab: React.FC<StockProcurementsTabProps> = ({
     return `₹${amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
-  // Get unique vendors from configuration or procurements
-  const vendors = configuration?.vendors || [];
-
   return (
     <Box>
-      {/* Header with New Procurement Button */}
-      <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
-        <Typography variant="h6" sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }}>
-          Stock Procurements
-        </Typography>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={() => setProcurementDialogOpen(true)}
-          size={isMobile ? 'small' : 'medium'}
-        >
-          New Procurement
-        </Button>
-      </Box>
-
-      {/* Filters */}
-      <Box sx={{ mb: 2, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-        <TextField
-          label="From Date"
-          type="date"
-          value={fromDate}
-          onChange={(e) => setFromDate(e.target.value)}
-          InputLabelProps={{ shrink: true }}
-          size="small"
-          sx={{ minWidth: 150 }}
-        />
-
-        <TextField
-          label="To Date"
-          type="date"
-          value={toDate}
-          onChange={(e) => setToDate(e.target.value)}
-          InputLabelProps={{ shrink: true }}
-          size="small"
-          sx={{ minWidth: 150 }}
-        />
-      </Box>
 
       {/* Procurements Table */}
       {loading ? (
@@ -270,7 +252,7 @@ const StockProcurementsTab: React.FC<StockProcurementsTabProps> = ({
       {/* New Procurement Dialog */}
       <StockProcurementDialog
         open={procurementDialogOpen}
-        onClose={() => setProcurementDialogOpen(false)}
+        onClose={handleDialogClose}
         configuration={configuration}
         onSuccess={handleProcurementSuccess}
         onError={onError}

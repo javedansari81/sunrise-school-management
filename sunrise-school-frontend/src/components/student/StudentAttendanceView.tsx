@@ -41,6 +41,7 @@ import {
 } from '@mui/icons-material';
 import { useServiceConfiguration, useConfiguration } from '../../contexts/ConfigurationContext';
 import { attendanceService } from '../../services/attendanceService';
+import { configurationService } from '../../services/configurationService';
 import { SessionYearDropdown } from '../common/MetadataDropdown';
 
 // Types - Use types from attendanceService
@@ -69,22 +70,14 @@ const StudentAttendanceView: React.FC = () => {
     severity: 'success' as 'success' | 'error'
   });
 
-  // Initialize session year from configuration (default to 2025-26 session)
+  // Initialize session year from centralized configuration service
   useEffect(() => {
-    if (isLoaded && configuration?.session_years) {
-      // Default to Academic Year 2025-26 (ID = 4)
-      const defaultSessionYear = configuration.session_years.find((sy: any) => sy.id === 4);
-      if (defaultSessionYear) {
-        setSessionYearId(defaultSessionYear.id);
-      } else {
-        // Fallback to is_current if 2025-26 is not available
-        const currentSessionYear = configuration.session_years.find((sy: any) => sy.is_current);
-        if (currentSessionYear) {
-          setSessionYearId(currentSessionYear.id);
-        }
-      }
+    if (isLoaded) {
+      // Use centralized session year service
+      const currentSessionYearId = configurationService.getCurrentSessionYearId();
+      setSessionYearId(currentSessionYearId);
     }
-  }, [isLoaded, configuration]);
+  }, [isLoaded]);
 
   // Load attendance data when month/year/session changes
   useEffect(() => {

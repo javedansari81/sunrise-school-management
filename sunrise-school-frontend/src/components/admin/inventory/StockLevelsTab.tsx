@@ -13,8 +13,6 @@ import {
   Chip,
   IconButton,
   CircularProgress,
-  TextField,
-  MenuItem,
   Avatar,
   Tooltip,
   useMediaQuery,
@@ -32,9 +30,19 @@ import StockThresholdDialog from './StockThresholdDialog';
 interface StockLevelsTabProps {
   configuration: any;
   onError: (message: string) => void;
+  // Filters passed from parent
+  itemTypeId?: number | null;
+  sizeTypeId?: number | null;
+  stockStatus?: string;
 }
 
-const StockLevelsTab: React.FC<StockLevelsTabProps> = ({ configuration, onError }) => {
+const StockLevelsTab: React.FC<StockLevelsTabProps> = ({
+  configuration,
+  onError,
+  itemTypeId: parentItemTypeId,
+  sizeTypeId: parentSizeTypeId,
+  stockStatus: parentStockStatus
+}) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
@@ -46,10 +54,10 @@ const StockLevelsTab: React.FC<StockLevelsTabProps> = ({ configuration, onError 
   const [selectedStock, setSelectedStock] = useState<InventoryStock | null>(null);
   const [thresholdDialogOpen, setThresholdDialogOpen] = useState(false);
 
-  // Filters
-  const [itemTypeFilter, setItemTypeFilter] = useState<number | ''>('');
-  const [sizeTypeFilter, setSizeTypeFilter] = useState<number | ''>('');
-  const [lowStockFilter, setLowStockFilter] = useState<string>('all');
+  // Use parent filters if provided
+  const itemTypeFilter = parentItemTypeId ?? '';
+  const sizeTypeFilter = parentSizeTypeId ?? '';
+  const lowStockFilter = parentStockStatus ?? 'all';
 
   useEffect(() => {
     fetchStocks();
@@ -152,53 +160,6 @@ const StockLevelsTab: React.FC<StockLevelsTabProps> = ({ configuration, onError 
 
   return (
     <Box>
-      {/* Filters */}
-      <Box sx={{ mb: 2, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-        <TextField
-          select
-          label="Item Type"
-          value={itemTypeFilter}
-          onChange={(e) => setItemTypeFilter(e.target.value === '' ? '' : Number(e.target.value))}
-          size="small"
-          sx={{ minWidth: 200 }}
-        >
-          <MenuItem value="">All Items</MenuItem>
-          {configuration?.inventory_item_types?.map((item: any) => (
-            <MenuItem key={item.id} value={item.id}>
-              {item.description}
-            </MenuItem>
-          ))}
-        </TextField>
-
-        <TextField
-          select
-          label="Size"
-          value={sizeTypeFilter}
-          onChange={(e) => setSizeTypeFilter(e.target.value === '' ? '' : Number(e.target.value))}
-          size="small"
-          sx={{ minWidth: 150 }}
-        >
-          <MenuItem value="">All Sizes</MenuItem>
-          {configuration?.inventory_size_types?.map((size: any) => (
-            <MenuItem key={size.id} value={size.id}>
-              {size.name}
-            </MenuItem>
-          ))}
-        </TextField>
-
-        <TextField
-          select
-          label="Stock Status"
-          value={lowStockFilter}
-          onChange={(e) => setLowStockFilter(e.target.value)}
-          size="small"
-          sx={{ minWidth: 150 }}
-        >
-          <MenuItem value="all">All Stock</MenuItem>
-          <MenuItem value="low">Low Stock Only</MenuItem>
-        </TextField>
-      </Box>
-
       {/* Stock Table */}
       {loading ? (
         <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>

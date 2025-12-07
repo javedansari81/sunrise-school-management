@@ -18,6 +18,7 @@ import ExpenseManagement from './pages/admin/ExpenseManagement';
 import TransportManagement from './pages/admin/TransportManagement';
 import GalleryManagement from './pages/admin/GalleryManagement';
 import InventoryManagement from './pages/admin/InventoryManagement';
+import StockProcurementManagement from './pages/admin/StockProcurementManagement';
 import AttendanceManagement from './pages/admin/AttendanceManagement';
 import StudentProfiles from './pages/admin/StudentProfiles';
 import TeacherProfiles from './pages/admin/TeacherProfiles';
@@ -337,6 +338,11 @@ function App() {
           <Route path="/admin/inventory" element={
             <ProtectedRoute requiredRole="ADMIN">
               <InventoryManagement />
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/stock-procurement" element={
+            <ProtectedRoute requiredRole="ADMIN">
+              <StockProcurementManagement />
             </ProtectedRoute>
           } />
           <Route path="/admin/attendance" element={

@@ -158,9 +158,12 @@ const ExpenseManagement: React.FC = () => {
   const paymentMethods = serviceConfig?.payment_methods || [];
   const sessionYears = serviceConfig?.session_years || [];
 
-  // Get current session year from the configuration
+  // Get current session year ID from centralized configuration service
+  const currentSessionYearId = configurationService.getCurrentSessionYearId();
+
+  // Get current session year object (for backward compatibility)
   const getCurrentSessionYear = () => {
-    return sessionYears.find((year: any) => year.is_current) || sessionYears[0];
+    return sessionYears.find((year: any) => year.id === currentSessionYearId) || sessionYears[0];
   };
 
   // State management

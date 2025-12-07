@@ -445,6 +445,16 @@ class ConfigurationService {
   }
 
   /**
+   * Get current session year ID (service-aware)
+   * Returns the ID of the session year where is_current = true
+   * Falls back to 4 (2025-26) if no current session year is found
+   */
+  public getCurrentSessionYearId(): number {
+    const currentSessionYear = this.getCurrentSessionYear();
+    return currentSessionYear?.id || 4; // Default to 4 (2025-26) if not found
+  }
+
+  /**
    * Get genders as dropdown options (service-aware)
    */
   public getGenders(): DropdownOption[] {

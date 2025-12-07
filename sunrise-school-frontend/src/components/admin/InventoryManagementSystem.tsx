@@ -33,18 +33,14 @@ import {
 import CollapsibleFilterSection from '../common/CollapsibleFilterSection';
 import NewPurchaseDialog from './inventory/NewPurchaseDialog';
 import PurchaseDetailsDialog from './inventory/PurchaseDetailsDialog';
-import PricingDialog from './inventory/PricingDialog';
-import StockLevelsTab from './inventory/StockLevelsTab';
-import StockProcurementsTab from './inventory/StockProcurementsTab';
 import {
   getPurchases,
   getStatistics,
-  getPricing,
   InventoryPurchase,
   InventoryPurchaseListResponse,
-  InventoryStatistics,
-  InventoryPricing
+  InventoryStatistics
 } from '../../services/inventoryService';
+import { configurationService } from '../../services/configurationService';
 import { DEFAULT_PAGE_SIZE } from '../../config/pagination';
 
 interface InventoryManagementSystemProps {
@@ -63,8 +59,8 @@ const InventoryManagementSystem: React.FC<InventoryManagementSystemProps> = ({ c
   const [rowsPerPage, setRowsPerPage] = useState(DEFAULT_PAGE_SIZE);
   const [activeTab, setActiveTab] = useState(0);
 
-  // Filters
-  const [sessionYearId, setSessionYearId] = useState<number>(4); // Default to current session
+  // Filters - use centralized session year service
+  const [sessionYearId, setSessionYearId] = useState<number>(configurationService.getCurrentSessionYearId());
   const [classId, setClassId] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [fromDate, setFromDate] = useState<string>('');
@@ -73,19 +69,10 @@ const InventoryManagementSystem: React.FC<InventoryManagementSystemProps> = ({ c
   // Statistics
   const [statistics, setStatistics] = useState<InventoryStatistics | null>(null);
 
-  // Pricing
-  const [pricingList, setPricingList] = useState<InventoryPricing[]>([]);
-  const [pricingFilters, setPricingFilters] = useState({
-    item_type_id: null as number | null,
-    is_active: true,
-  });
-
   // Dialogs
   const [newPurchaseDialogOpen, setNewPurchaseDialogOpen] = useState(false);
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
   const [selectedPurchase, setSelectedPurchase] = useState<InventoryPurchase | null>(null);
-  const [pricingDialogOpen, setPricingDialogOpen] = useState(false);
-  const [selectedPricing, setSelectedPricing] = useState<InventoryPricing | null>(null);
 
   // Snackbar
   const [snackbar, setSnackbar] = useState<{
@@ -137,26 +124,6 @@ const InventoryManagementSystem: React.FC<InventoryManagementSystemProps> = ({ c
     }
   }, [sessionYearId, fromDate, toDate]);
 
-  const loadPricing = useCallback(async () => {
-    try {
-      setLoading(true);
-      const params: any = {
-        session_year_id: sessionYearId,
-        is_active: pricingFilters.is_active,
-      };
-      if (pricingFilters.item_type_id) {
-        params.item_type_id = pricingFilters.item_type_id;
-      }
-      const data = await getPricing(params);
-      setPricingList(data);
-    } catch (err) {
-      console.error('Error loading pricing:', err);
-      showSnackbar('Failed to load pricing', 'error');
-    } finally {
-      setLoading(false);
-    }
-  }, [sessionYearId, pricingFilters.is_active, pricingFilters.item_type_id]);
-
   // Load purchases
   useEffect(() => {
     if (activeTab === 0) {
@@ -170,15 +137,6 @@ const InventoryManagementSystem: React.FC<InventoryManagementSystemProps> = ({ c
       loadStatistics();
     }
   }, [activeTab, loadStatistics]);
-
-  // Load pricing
-  useEffect(() => {
-    if (activeTab === 3) {
-      loadPricing();
-    }
-  }, [activeTab, loadPricing]);
-
-
 
   const handleViewDetails = (purchase: InventoryPurchase) => {
     setSelectedPurchase(purchase);
@@ -214,16 +172,6 @@ const InventoryManagementSystem: React.FC<InventoryManagementSystemProps> = ({ c
   const handleTabChange = (_: React.SyntheticEvent, newValue: number) => {
     setActiveTab(newValue);
     setPage(0);
-  };
-
-  const handleEditPricing = (pricing: InventoryPricing) => {
-    setSelectedPricing(pricing);
-    setPricingDialogOpen(true);
-  };
-
-  const handlePricingSuccess = () => {
-    showSnackbar('Pricing saved successfully', 'success');
-    loadPricing();
   };
 
   const formatDate = (dateString: string): string => {
@@ -351,9 +299,6 @@ const InventoryManagementSystem: React.FC<InventoryManagementSystemProps> = ({ c
           <Tab label="All Purchases" />
           <Tab label="Recent (30 Days)" />
           <Tab label="Statistics" />
-          <Tab label="Pricing" />
-          <Tab label="Stock Levels" />
-          <Tab label="Procurements" />
         </Tabs>
       </Box>
 
@@ -1101,298 +1046,6 @@ const InventoryManagementSystem: React.FC<InventoryManagementSystemProps> = ({ c
         </Box>
       )}
 
-      {/* Pricing Tab */}
-      {activeTab === 3 && (
-        <Box>
-          {/* Pricing Filters and Actions */}
-          <Box sx={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: { xs: 'stretch', sm: 'center' },
-            mb: 2,
-            flexDirection: { xs: 'column', sm: 'row' },
-            gap: { xs: 1.5, sm: 2 }
-          }}>
-            <Box sx={{
-              display: 'flex',
-              gap: { xs: 1.5, sm: 2 },
-              flexDirection: { xs: 'column', sm: 'row' }
-            }}>
-              <TextField
-                select
-                label="Item Type"
-                value={pricingFilters.item_type_id || ''}
-                onChange={(e) => setPricingFilters({ ...pricingFilters, item_type_id: e.target.value ? Number(e.target.value) : null })}
-                sx={{ minWidth: { xs: '100%', sm: 200 } }}
-                size="small"
-                fullWidth={isMobile}
-              >
-                <MenuItem value="">All Items</MenuItem>
-                {configuration?.inventory_item_types?.map((item: any) => (
-                  <MenuItem key={item.id} value={item.id}>
-                    {item.description}
-                  </MenuItem>
-                ))}
-              </TextField>
-
-              <TextField
-                select
-                label="Status"
-                value={pricingFilters.is_active ? 'active' : 'inactive'}
-                onChange={(e) => setPricingFilters({ ...pricingFilters, is_active: e.target.value === 'active' })}
-                sx={{ minWidth: { xs: '100%', sm: 150 } }}
-                size="small"
-                fullWidth={isMobile}
-              >
-                <MenuItem value="active">Active</MenuItem>
-                <MenuItem value="inactive">Inactive</MenuItem>
-              </TextField>
-            </Box>
-
-            <Button
-              variant="contained"
-              startIcon={!isMobile && <AddIcon />}
-              onClick={() => {
-                setSelectedPricing(null);
-                setPricingDialogOpen(true);
-              }}
-              fullWidth={isMobile}
-              sx={{ fontSize: { xs: '0.8125rem', sm: '0.875rem' } }}
-            >
-              Add New Price
-            </Button>
-          </Box>
-
-          {/* Pricing Table */}
-          <Paper sx={{ overflow: 'hidden' }}>
-            <TableContainer sx={{
-              maxHeight: { xs: '60vh', sm: '70vh' },
-              overflowX: 'auto'
-            }}>
-              <Table size={isMobile ? 'small' : 'medium'} stickyHeader>
-                <TableHead>
-                  <TableRow sx={{ bgcolor: 'white' }}>
-                    <TableCell sx={{
-                      fontSize: { xs: '0.75rem', sm: '0.875rem' },
-                      py: { xs: 1, sm: 1.5 },
-                      minWidth: { xs: 50, sm: 60 }
-                    }}>
-                      Image
-                    </TableCell>
-                    <TableCell sx={{
-                      fontSize: { xs: '0.75rem', sm: '0.875rem' },
-                      py: { xs: 1, sm: 1.5 },
-                      minWidth: { xs: 100, sm: 120 }
-                    }}>
-                      Item
-                    </TableCell>
-                    <TableCell sx={{
-                      fontSize: { xs: '0.75rem', sm: '0.875rem' },
-                      py: { xs: 1, sm: 1.5 },
-                      minWidth: { xs: 60, sm: 80 }
-                    }}>
-                      Size
-                    </TableCell>
-                    <TableCell sx={{
-                      fontSize: { xs: '0.75rem', sm: '0.875rem' },
-                      py: { xs: 1, sm: 1.5 },
-                      minWidth: { xs: 60, sm: 80 }
-                    }}>
-                      Class
-                    </TableCell>
-                    <TableCell
-                      align="right"
-                      sx={{
-                        fontSize: { xs: '0.75rem', sm: '0.875rem' },
-                        py: { xs: 1, sm: 1.5 },
-                        minWidth: { xs: 80, sm: 100 }
-                      }}
-                    >
-                      Price
-                    </TableCell>
-                    <TableCell sx={{
-                      fontSize: { xs: '0.75rem', sm: '0.875rem' },
-                      py: { xs: 1, sm: 1.5 },
-                      minWidth: { xs: 100, sm: 120 }
-                    }}>
-                      Effective From
-                    </TableCell>
-                    <TableCell sx={{
-                      fontSize: { xs: '0.75rem', sm: '0.875rem' },
-                      py: { xs: 1, sm: 1.5 },
-                      minWidth: { xs: 100, sm: 120 }
-                    }}>
-                      Effective To
-                    </TableCell>
-                    <TableCell sx={{
-                      fontSize: { xs: '0.75rem', sm: '0.875rem' },
-                      py: { xs: 1, sm: 1.5 },
-                      minWidth: { xs: 70, sm: 80 }
-                    }}>
-                      Status
-                    </TableCell>
-                    <TableCell
-                      align="center"
-                      sx={{
-                        fontSize: { xs: '0.75rem', sm: '0.875rem' },
-                        py: { xs: 1, sm: 1.5 },
-                        minWidth: { xs: 60, sm: 80 }
-                      }}
-                    >
-                      Actions
-                    </TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {loading ? (
-                    <TableRow>
-                      <TableCell colSpan={9} align="center">
-                        <CircularProgress size={40} />
-                      </TableCell>
-                    </TableRow>
-                  ) : pricingList.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={9} align="center">
-                        <Typography
-                          color="text.secondary"
-                          sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }}
-                        >
-                          No pricing records found
-                        </Typography>
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    pricingList.map((pricing) => (
-                      <TableRow key={pricing.id} hover>
-                        <TableCell sx={{ py: { xs: 0.5, sm: 1 } }}>
-                          {pricing.item_image_url ? (
-                            <Box
-                              component="img"
-                              src={pricing.item_image_url}
-                              alt={pricing.item_type_description}
-                              sx={{
-                                width: { xs: 40, sm: 50 },
-                                height: { xs: 40, sm: 50 },
-                                objectFit: 'cover',
-                                borderRadius: 1,
-                              }}
-                            />
-                          ) : (
-                            <Box
-                              sx={{
-                                width: { xs: 40, sm: 50 },
-                                height: { xs: 40, sm: 50 },
-                                bgcolor: 'grey.200',
-                                borderRadius: 1,
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                              }}
-                            >
-                              <Typography
-                                variant="caption"
-                                color="text.secondary"
-                                sx={{ fontSize: { xs: '0.65rem', sm: '0.75rem' } }}
-                              >
-                                No Image
-                              </Typography>
-                            </Box>
-                          )}
-                        </TableCell>
-                        <TableCell sx={{
-                          py: { xs: 0.75, sm: 1.5 },
-                          fontSize: { xs: '0.75rem', sm: '0.875rem' }
-                        }}>
-                          {pricing.item_type_description}
-                        </TableCell>
-                        <TableCell sx={{
-                          py: { xs: 0.75, sm: 1.5 },
-                          fontSize: { xs: '0.75rem', sm: '0.875rem' }
-                        }}>
-                          {pricing.size_name || 'All'}
-                        </TableCell>
-                        <TableCell sx={{
-                          py: { xs: 0.75, sm: 1.5 },
-                          fontSize: { xs: '0.75rem', sm: '0.875rem' }
-                        }}>
-                          {pricing.class_name || 'All'}
-                        </TableCell>
-                        <TableCell
-                          align="right"
-                          sx={{
-                            py: { xs: 0.75, sm: 1.5 },
-                            fontSize: { xs: '0.75rem', sm: '0.875rem' }
-                          }}
-                        >
-                          ₹{pricing.unit_price}
-                        </TableCell>
-                        <TableCell sx={{
-                          py: { xs: 0.75, sm: 1.5 },
-                          fontSize: { xs: '0.75rem', sm: '0.875rem' }
-                        }}>
-                          {pricing.effective_from ? new Date(pricing.effective_from).toLocaleDateString() : '-'}
-                        </TableCell>
-                        <TableCell sx={{
-                          py: { xs: 0.75, sm: 1.5 },
-                          fontSize: { xs: '0.75rem', sm: '0.875rem' }
-                        }}>
-                          {pricing.effective_to ? new Date(pricing.effective_to).toLocaleDateString() : '-'}
-                        </TableCell>
-                        <TableCell sx={{ py: { xs: 0.75, sm: 1.5 } }}>
-                          <Chip
-                            label={pricing.is_active ? 'Active' : 'Inactive'}
-                            color={pricing.is_active ? 'success' : 'default'}
-                            size="small"
-                            sx={{
-                              fontSize: { xs: '0.65rem', sm: '0.75rem' },
-                              height: { xs: 20, sm: 24 }
-                            }}
-                          />
-                        </TableCell>
-                        <TableCell
-                          align="center"
-                          sx={{ py: { xs: 0.75, sm: 1.5 } }}
-                        >
-                          <IconButton
-                            size="small"
-                            onClick={() => handleEditPricing(pricing)}
-                            title="Edit"
-                            sx={{
-                              p: { xs: 0.5, sm: 1 },
-                              minWidth: { xs: 36, sm: 40 },
-                              minHeight: { xs: 36, sm: 40 }
-                            }}
-                          >
-                            <VisibilityIcon fontSize="small" />
-                          </IconButton>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          </Paper>
-        </Box>
-      )}
-
-      {/* Tab 4: Stock Levels */}
-      {activeTab === 4 && (
-        <StockLevelsTab
-          configuration={configuration}
-          onError={(message) => setSnackbar({ open: true, message, severity: 'error' })}
-        />
-      )}
-
-      {/* Tab 5: Stock Procurements */}
-      {activeTab === 5 && (
-        <StockProcurementsTab
-          configuration={configuration}
-          onError={(message) => setSnackbar({ open: true, message, severity: 'error' })}
-          onSuccess={(message) => setSnackbar({ open: true, message, severity: 'success' })}
-        />
-      )}
-
       {/* Dialogs */}
       <NewPurchaseDialog
         open={newPurchaseDialogOpen}
@@ -1406,17 +1059,6 @@ const InventoryManagementSystem: React.FC<InventoryManagementSystemProps> = ({ c
         open={detailsDialogOpen}
         onClose={() => setDetailsDialogOpen(false)}
         purchase={selectedPurchase}
-      />
-
-      <PricingDialog
-        open={pricingDialogOpen}
-        onClose={() => {
-          setPricingDialogOpen(false);
-          setSelectedPricing(null);
-        }}
-        onSuccess={handlePricingSuccess}
-        pricing={selectedPricing}
-        configuration={configuration}
       />
 
       {/* Snackbar */}
