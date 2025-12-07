@@ -269,6 +269,7 @@ const StudentLeaveRequestDialog: React.FC<StudentLeaveRequestDialogProps> = ({
                 value={formData.start_date}
                 onChange={(date) => handleFieldChange('start_date', date)}
                 disabled={isViewMode}
+                format="dd/MM/yyyy"
                 slotProps={{
                   textField: {
                     fullWidth: true,
@@ -282,6 +283,7 @@ const StudentLeaveRequestDialog: React.FC<StudentLeaveRequestDialogProps> = ({
                 value={formData.end_date}
                 onChange={(date) => handleFieldChange('end_date', date)}
                 disabled={isViewMode}
+                format="dd/MM/yyyy"
                 slotProps={{
                   textField: {
                     fullWidth: true,

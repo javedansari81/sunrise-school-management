@@ -303,6 +303,7 @@ const TeacherLeaveRequestDialog: React.FC<TeacherLeaveRequestDialogProps> = ({
                 value={formData.start_date}
                 onChange={(date) => handleFieldChange('start_date', date)}
                 disabled={isViewMode}
+                format="dd/MM/yyyy"
                 slotProps={{
                   textField: {
                     fullWidth: true,
@@ -316,6 +317,7 @@ const TeacherLeaveRequestDialog: React.FC<TeacherLeaveRequestDialogProps> = ({
                 value={formData.end_date}
                 onChange={(date) => handleFieldChange('end_date', date)}
                 disabled={isViewMode}
+                format="dd/MM/yyyy"
                 slotProps={{
                   textField: {
                     fullWidth: true,
