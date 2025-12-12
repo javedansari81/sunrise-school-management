@@ -30,6 +30,8 @@ from app.schemas.inventory import (
 )
 from app.crud.crud_inventory import crud_inventory_pricing, crud_inventory_purchase
 from app.crud.crud_inventory_stock import crud_inventory_stock, crud_inventory_stock_procurement
+from app.crud.metadata import payment_method_crud
+from app.services.alert_service import alert_service
 
 router = APIRouter()
 
@@ -405,9 +407,45 @@ async def create_purchase(
     # Load nested relationships
     for item in purchase.items:
         await db.refresh(item, ['item_type', 'size_type'])
-    
+
     await db.refresh(purchase.student, ['class_ref'])
-    
+
+    # Generate alert for inventory purchase
+    try:
+        # Build items summary string
+        items_list = []
+        for item in purchase.items:
+            size_info = f" (Size {item.size_type.name})" if item.size_type else ""
+            items_list.append(f"{item.quantity}x {item.item_type.description}{size_info}")
+        items_summary = ", ".join(items_list)
+
+        # Get payment method description
+        payment_method = await payment_method_crud.get_by_id_async(db, id=purchase.payment_method_id)
+        payment_method_desc = payment_method.description if payment_method else "Cash"
+
+        # Get current user name
+        actor_name = f"{current_user.first_name} {current_user.last_name}" if current_user.first_name else "Admin"
+
+        # Get student info
+        student_name = f"{purchase.student.first_name} {purchase.student.last_name}"
+        class_name = purchase.student.class_ref.description if purchase.student.class_ref else "Unknown"
+
+        await alert_service.create_inventory_purchase_alert(
+            db,
+            purchase_id=purchase.id,
+            student_id=purchase.student_id,
+            student_name=student_name,
+            class_name=class_name,
+            total_amount=float(purchase.total_amount),
+            payment_method=payment_method_desc,
+            items_summary=items_summary,
+            actor_user_id=current_user.id,
+            actor_name=actor_name
+        )
+    except Exception as e:
+        # Log error but don't fail the purchase
+        print(f"Failed to create inventory purchase alert: {e}")
+
     items_response = [
         {
             "id": item.id,
@@ -809,6 +847,34 @@ async def create_stock_procurement(
         procurement_data=procurement_data,
         created_by=current_user.id
     )
+
+    # Generate alert for stock procurement
+    try:
+        # Build items summary string
+        items_list = []
+        for item in procurement.items:
+            size_info = f" (Size {item.size_type.name})" if item.size_type else ""
+            items_list.append(f"{item.quantity}x {item.item_type.description}{size_info}")
+        items_summary = ", ".join(items_list)
+
+        # Get vendor name if available
+        vendor_name = procurement.vendor.vendor_name if procurement.vendor else None
+
+        # Get current user name
+        actor_name = f"{current_user.first_name} {current_user.last_name}" if current_user.first_name else "Admin"
+
+        await alert_service.create_inventory_stock_procurement_alert(
+            db,
+            procurement_id=procurement.id,
+            total_amount=float(procurement.total_amount),
+            vendor_name=vendor_name,
+            items_summary=items_summary,
+            actor_user_id=current_user.id,
+            actor_name=actor_name
+        )
+    except Exception as e:
+        # Log error but don't fail the procurement
+        print(f"Failed to create inventory stock procurement alert: {e}")
 
     # Build response
     items = []

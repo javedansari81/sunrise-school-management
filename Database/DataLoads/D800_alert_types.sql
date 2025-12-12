@@ -101,10 +101,28 @@ ON CONFLICT (id) DO UPDATE SET
     requires_acknowledgment = EXCLUDED.requires_acknowledgment,
     updated_at = NOW();
 
--- Inventory Alerts (50-59) - Future
+-- Inventory Alerts (50-59)
 INSERT INTO alert_types (id, name, description, category, icon, color_code, priority_level, default_expiry_days, requires_acknowledgment) VALUES
 (50, 'INVENTORY_LOW_STOCK', 'Inventory item low stock', 'ADMINISTRATIVE', 'Inventory', '#FF9800', 3, 7, TRUE),
-(51, 'INVENTORY_PURCHASE', 'Inventory purchase recorded', 'ADMINISTRATIVE', 'ShoppingCart', '#4CAF50', 1, 30, FALSE)
+(51, 'INVENTORY_PURCHASE_CREATED', 'Inventory purchase recorded', 'ADMINISTRATIVE', 'ShoppingCart', '#4CAF50', 2, 30, FALSE),
+(52, 'INVENTORY_STOCK_PROCURED', 'Inventory stock procured', 'ADMINISTRATIVE', 'LocalShipping', '#2196F3', 2, 30, FALSE)
+ON CONFLICT (id) DO UPDATE SET
+    name = EXCLUDED.name,
+    description = EXCLUDED.description,
+    category = EXCLUDED.category,
+    icon = EXCLUDED.icon,
+    color_code = EXCLUDED.color_code,
+    priority_level = EXCLUDED.priority_level,
+    default_expiry_days = EXCLUDED.default_expiry_days,
+    requires_acknowledgment = EXCLUDED.requires_acknowledgment,
+    updated_at = NOW();
+
+-- Expense Management Alerts (60-69)
+INSERT INTO alert_types (id, name, description, category, icon, color_code, priority_level, default_expiry_days, requires_acknowledgment) VALUES
+(60, 'EXPENSE_CREATED', 'New expense created', 'FINANCIAL', 'Receipt', '#2196F3', 2, 30, FALSE),
+(61, 'EXPENSE_APPROVED', 'Expense approved', 'FINANCIAL', 'CheckCircle', '#4CAF50', 2, 30, FALSE),
+(62, 'EXPENSE_REJECTED', 'Expense rejected', 'FINANCIAL', 'Cancel', '#F44336', 3, 30, FALSE),
+(63, 'EXPENSE_PAID', 'Expense marked as paid', 'FINANCIAL', 'AccountBalanceWallet', '#4CAF50', 2, 30, FALSE)
 ON CONFLICT (id) DO UPDATE SET
     name = EXCLUDED.name,
     description = EXCLUDED.description,

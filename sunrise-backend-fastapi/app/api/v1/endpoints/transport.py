@@ -585,7 +585,7 @@ async def reverse_transport_payment_full(
                         original_payment_id=payment_id,
                         student_name=f"{student.first_name} {student.last_name}",
                         class_name=student.class_ref.description if student.class_ref else "Unknown",
-                        amount=result.get("reversal_amount", 0),
+                        amount=result.get("reversed_amount", 0),  # Use "reversed_amount"
                         reversal_reason=reversal_reason_desc,
                         fee_type='TRANSPORT',
                         actor_user_id=current_user.id,
@@ -657,7 +657,7 @@ async def reverse_transport_payment_partial(
                         original_payment_id=payment_id,
                         student_name=f"{student.first_name} {student.last_name}",
                         class_name=student.class_ref.description if student.class_ref else "Unknown",
-                        amount=result.get("reversal_amount", 0),
+                        amount=result.get("reversed_amount", 0),  # Use "reversed_amount"
                         reversal_reason=reversal_reason_desc,
                         fee_type='TRANSPORT',
                         actor_user_id=current_user.id,

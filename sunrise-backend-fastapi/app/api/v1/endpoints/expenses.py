@@ -15,6 +15,7 @@ from app.schemas.expense import (
 )
 from app.api.deps import get_current_active_user
 from app.models.user import User
+from app.services.alert_service import alert_service
 
 router = APIRouter()
 
@@ -117,6 +118,33 @@ async def create_expense(
         expense = await expense_crud.create(
             db, obj_in=expense_data, requested_by=current_user.id
         )
+
+        # Generate alert for expense creation
+        try:
+            # Refresh to load relationships
+            await db.refresh(expense, ['expense_category'])
+
+            # Get expense category name
+            expense_category_name = expense.expense_category.description if expense.expense_category else "Unknown"
+
+            # Get requester name
+            requester_name = f"{current_user.first_name} {current_user.last_name}" if current_user.first_name else "Admin"
+
+            await alert_service.create_expense_alert(
+                db,
+                expense_id=expense.id,
+                expense_category=expense_category_name,
+                description=expense.description,
+                amount=float(expense.total_amount),
+                vendor_name=expense.vendor_name,
+                requester_name=requester_name,
+                requester_user_id=current_user.id,
+                priority=expense.priority or "Medium"
+            )
+        except Exception as e:
+            # Log error but don't fail the expense creation
+            print(f"Failed to create expense alert: {e}")
+
         return expense
 
     except HTTPException:
@@ -311,6 +339,9 @@ async def approve_expense(
             detail="Expense is not pending"
         )
 
+    # Store old status for notification
+    old_status_id = expense.expense_status_id
+
     updated_expense = await expense_crud.approve_expense(
         db,
         expense=expense,
@@ -318,6 +349,35 @@ async def approve_expense(
         expense_status_id=approval_data.expense_status_id,
         approval_comments=approval_data.approval_comments
     )
+
+    # Generate alert for expense status change
+    try:
+        # Refresh to load relationships
+        await db.refresh(updated_expense, ['expense_status'])
+
+        # Map status IDs to names
+        status_map = {1: 'PENDING', 2: 'APPROVED', 3: 'REJECTED', 4: 'PAID'}
+        old_status = status_map.get(old_status_id, 'UNKNOWN')
+        new_status = status_map.get(approval_data.expense_status_id, 'UNKNOWN')
+
+        # Get reviewer name
+        reviewer_name = f"{current_user.first_name} {current_user.last_name}" if current_user.first_name else "Admin"
+
+        await alert_service.create_expense_status_change_alert(
+            db,
+            expense_id=updated_expense.id,
+            description=updated_expense.description,
+            amount=float(updated_expense.total_amount),
+            old_status=old_status,
+            new_status=new_status,
+            reviewer_name=reviewer_name,
+            reviewer_user_id=current_user.id,
+            requester_user_id=updated_expense.requested_by,
+            comments=approval_data.approval_comments
+        )
+    except Exception as e:
+        # Log error but don't fail the approval
+        print(f"Failed to create expense status change alert: {e}")
 
     return updated_expense
 

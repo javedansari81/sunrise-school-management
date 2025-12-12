@@ -527,6 +527,7 @@ class CRUDTransportPayment:
             "reversal_payment_id": reversal_payment.id,
             "reversed_amount": float(original_payment.amount),
             "reversal_type": "FULL",
+            "student_id": original_payment.student_id,  # Add student_id for alert creation
             "affected_months": affected_months
         }
 
@@ -689,6 +690,7 @@ class CRUDTransportPayment:
             "reversal_payment_id": reversal_payment.id,
             "reversed_amount": float(total_reversal_amount),
             "reversal_type": "PARTIAL",
+            "student_id": original_payment.student_id,  # Add student_id for alert creation
             "affected_months": affected_months
         }
 

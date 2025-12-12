@@ -31,28 +31,35 @@ class AlertService:
         LEAVE_REQUEST_CREATED = 1
         LEAVE_REQUEST_APPROVED = 2
         LEAVE_REQUEST_REJECTED = 3
-        
+
         # Fee Management
         FEE_PAYMENT_RECEIVED = 10
         FEE_PAYMENT_REVERSED = 11
         FEE_OVERDUE = 12
-        
+
         # Transport Fee Management
         TRANSPORT_PAYMENT_RECEIVED = 20
         TRANSPORT_PAYMENT_REVERSED = 21
-        
+
         # Student Management
         STUDENT_ENROLLED = 30
         STUDENT_PROMOTED = 31
-        
+
         # Attendance
         ATTENDANCE_MARKED = 40
         ATTENDANCE_LOW = 41
-        
+
         # Inventory
         INVENTORY_LOW_STOCK = 50
-        INVENTORY_PURCHASE = 51
-        
+        INVENTORY_PURCHASE_CREATED = 51
+        INVENTORY_STOCK_PROCURED = 52
+
+        # Expense Management
+        EXPENSE_CREATED = 60
+        EXPENSE_APPROVED = 61
+        EXPENSE_REJECTED = 62
+        EXPENSE_PAID = 63
+
         # System
         SYSTEM_ANNOUNCEMENT = 100
 
@@ -258,6 +265,186 @@ class AlertService:
             },
             priority_level=2 if status == 'APPROVED' else 3,
             expires_at=datetime.utcnow() + timedelta(days=7)
+        )
+
+    @staticmethod
+    async def create_inventory_purchase_alert(
+        db: AsyncSession,
+        *,
+        purchase_id: int,
+        student_id: int,
+        student_name: str,
+        class_name: str,
+        total_amount: float,
+        payment_method: str,
+        items_summary: str,  # e.g., "2x Shirt (Size 32), 1x Trouser (Size 34)"
+        actor_user_id: int,
+        actor_name: str
+    ) -> Alert:
+        """Create alert when an inventory purchase is made"""
+        title = f"Inventory Purchase: ₹{total_amount:,.2f}"
+        message = f"{actor_name} processed inventory purchase of ₹{total_amount:,.2f} for {student_name} ({class_name}). Items: {items_summary}. Payment via {payment_method}."
+
+        return await alert_crud.create_alert(
+            db,
+            alert_type_id=AlertService.AlertTypes.INVENTORY_PURCHASE_CREATED,
+            title=title,
+            message=message,
+            entity_type="INVENTORY_PURCHASE",
+            entity_id=purchase_id,
+            entity_display_name=student_name,
+            actor_user_id=actor_user_id,
+            actor_type="ADMIN",
+            actor_name=actor_name,
+            target_role="ADMIN",  # Visible to all admins
+            alert_metadata={
+                "student_id": student_id,
+                "student_name": student_name,
+                "class_name": class_name,
+                "total_amount": total_amount,
+                "payment_method": payment_method,
+                "items_summary": items_summary
+            },
+            priority_level=2,
+            expires_at=datetime.utcnow() + timedelta(days=30)
+        )
+
+    @staticmethod
+    async def create_inventory_stock_procurement_alert(
+        db: AsyncSession,
+        *,
+        procurement_id: int,
+        total_amount: float,
+        vendor_name: Optional[str],
+        items_summary: str,  # e.g., "50x Shirt (Size 32), 30x Trouser (Size 34)"
+        actor_user_id: int,
+        actor_name: str
+    ) -> Alert:
+        """Create alert when inventory stock is procured"""
+        vendor_info = f" from {vendor_name}" if vendor_name else ""
+        title = f"Stock Procured: ₹{total_amount:,.2f}"
+        message = f"{actor_name} procured inventory stock worth ₹{total_amount:,.2f}{vendor_info}. Items: {items_summary}."
+
+        return await alert_crud.create_alert(
+            db,
+            alert_type_id=AlertService.AlertTypes.INVENTORY_STOCK_PROCURED,
+            title=title,
+            message=message,
+            entity_type="INVENTORY_PROCUREMENT",
+            entity_id=procurement_id,
+            entity_display_name=f"Procurement #{procurement_id}",
+            actor_user_id=actor_user_id,
+            actor_type="ADMIN",
+            actor_name=actor_name,
+            target_role="ADMIN",  # Visible to all admins
+            alert_metadata={
+                "total_amount": total_amount,
+                "vendor_name": vendor_name,
+                "items_summary": items_summary
+            },
+            priority_level=2,
+            expires_at=datetime.utcnow() + timedelta(days=30)
+        )
+
+    @staticmethod
+    async def create_expense_alert(
+        db: AsyncSession,
+        *,
+        expense_id: int,
+        expense_category: str,
+        description: str,
+        amount: float,
+        vendor_name: Optional[str],
+        requester_name: str,
+        requester_user_id: int,
+        priority: str = "Medium"
+    ) -> Alert:
+        """Create alert when a new expense is created"""
+        vendor_info = f" to {vendor_name}" if vendor_name else ""
+        title = f"New Expense: ₹{amount:,.2f}"
+        message = f"{requester_name} created a {priority.lower()} priority expense of ₹{amount:,.2f} for {expense_category}{vendor_info}. Description: {description}"
+
+        return await alert_crud.create_alert(
+            db,
+            alert_type_id=AlertService.AlertTypes.EXPENSE_CREATED,
+            title=title,
+            message=message,
+            entity_type="EXPENSE",
+            entity_id=expense_id,
+            entity_display_name=description[:50],  # Truncate long descriptions
+            actor_user_id=requester_user_id,
+            actor_type="ADMIN",
+            actor_name=requester_name,
+            target_role="ADMIN",  # Visible to all admins
+            alert_metadata={
+                "expense_category": expense_category,
+                "description": description,
+                "amount": amount,
+                "vendor_name": vendor_name,
+                "priority": priority
+            },
+            priority_level=3 if priority in ['High', 'Urgent'] else 2,
+            expires_at=datetime.utcnow() + timedelta(days=30)
+        )
+
+    @staticmethod
+    async def create_expense_status_change_alert(
+        db: AsyncSession,
+        *,
+        expense_id: int,
+        description: str,
+        amount: float,
+        old_status: str,
+        new_status: str,  # 'APPROVED', 'REJECTED', or 'PAID'
+        reviewer_name: str,
+        reviewer_user_id: int,
+        requester_user_id: Optional[int] = None,
+        comments: Optional[str] = None
+    ) -> Alert:
+        """Create alert when expense status changes (approved/rejected/paid)"""
+        # Determine alert type based on new status
+        if new_status == 'APPROVED':
+            alert_type_id = AlertService.AlertTypes.EXPENSE_APPROVED
+            status_text = "approved"
+        elif new_status == 'REJECTED':
+            alert_type_id = AlertService.AlertTypes.EXPENSE_REJECTED
+            status_text = "rejected"
+        elif new_status == 'PAID':
+            alert_type_id = AlertService.AlertTypes.EXPENSE_PAID
+            status_text = "marked as paid"
+        else:
+            alert_type_id = AlertService.AlertTypes.EXPENSE_APPROVED
+            status_text = f"updated to {new_status}"
+
+        title = f"Expense {status_text.title()}: ₹{amount:,.2f}"
+        message = f"{reviewer_name} {status_text} expense of ₹{amount:,.2f} ({description})."
+
+        if comments:
+            message += f" Comments: {comments}"
+
+        return await alert_crud.create_alert(
+            db,
+            alert_type_id=alert_type_id,
+            title=title,
+            message=message,
+            entity_type="EXPENSE",
+            entity_id=expense_id,
+            entity_display_name=description[:50],
+            actor_user_id=reviewer_user_id,
+            actor_type="ADMIN",
+            actor_name=reviewer_name,
+            target_role="ADMIN",  # Visible to all admins
+            target_user_id=requester_user_id,  # Notify the requester specifically
+            alert_metadata={
+                "description": description,
+                "amount": amount,
+                "old_status": old_status,
+                "new_status": new_status,
+                "reviewer_name": reviewer_name,
+                "comments": comments
+            },
+            priority_level=3 if new_status == 'REJECTED' else 2,
+            expires_at=datetime.utcnow() + timedelta(days=30)
         )
 
 

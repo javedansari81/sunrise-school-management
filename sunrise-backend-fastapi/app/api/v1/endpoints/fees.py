@@ -406,12 +406,11 @@ async def reverse_payment_full(
 
         # Generate alert for payment reversal
         try:
-            # Get the original payment to get student info
+            # Get student info using student_id from result
             from app.crud.metadata import reversal_reason_crud
-            original_payment = await fee_payment_crud.get(db, id=payment_id)
-            if original_payment and original_payment.fee_record:
-                fee_record = original_payment.fee_record
-                student = await student_crud.get(db, id=fee_record.student_id)
+            student_id = result.get("student_id")
+            if student_id:
+                student = await student_crud.get(db, id=student_id)
                 if student:
                     # Get reversal reason description
                     reversal_reason = await reversal_reason_crud.get_by_id_async(db, id=reversal_request.reason_id)
@@ -507,11 +506,11 @@ async def reverse_payment_partial(
 
         # Generate alert for partial payment reversal
         try:
+            # Get student info using student_id from result
             from app.crud.metadata import reversal_reason_crud
-            original_payment = await fee_payment_crud.get(db, id=payment_id)
-            if original_payment and original_payment.fee_record:
-                fee_record = original_payment.fee_record
-                student = await student_crud.get(db, id=fee_record.student_id)
+            student_id = result.get("student_id")
+            if student_id:
+                student = await student_crud.get(db, id=student_id)
                 if student:
                     # Get reversal reason description
                     reversal_reason = await reversal_reason_crud.get_by_id_async(db, id=reversal_request.reason_id)
@@ -2394,8 +2393,8 @@ async def pay_monthly_enhanced(
         # Get current user name
         actor_name = f"{current_user.first_name} {current_user.last_name}" if current_user.first_name else "Admin"
 
-        # Build months paid string
-        months_paid_list = [str(m["month"]) for m in payment_breakdown]
+        # Build months paid string using month names
+        months_paid_list = [m["month_name"] for m in payment_breakdown]
         months_paid_str = ", ".join(months_paid_list) if months_paid_list else None
 
         print(f"Creating fee payment alert for student {student.id}, payment {payment.id}")

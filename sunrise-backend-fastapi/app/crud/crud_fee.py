@@ -506,6 +506,7 @@ class CRUDFeePayment(CRUDBase[FeePayment, FeePaymentCreate, FeePaymentUpdate]):
             "reversal_payment_id": reversal_payment.id,
             "reversal_amount": float(original_payment.amount),
             "reversal_type": "FULL",
+            "student_id": fee_record.student_id,  # Add student_id for alert creation
             "affected_months": affected_months,
             "fee_record_updated": {
                 "id": fee_record.id,
@@ -709,6 +710,7 @@ class CRUDFeePayment(CRUDBase[FeePayment, FeePaymentCreate, FeePaymentUpdate]):
             "reversal_payment_id": reversal_payment.id,
             "reversal_amount": float(total_reversal_amount),
             "reversal_type": "PARTIAL",
+            "student_id": fee_record.student_id,  # Add student_id for alert creation
             "affected_months": affected_months,
             "fee_record_updated": {
                 "id": fee_record.id,
