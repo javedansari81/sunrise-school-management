@@ -217,11 +217,26 @@ const TeacherAttendance: React.FC = () => {
       });
     } catch (error: any) {
       console.error('Error loading students:', error);
+
+      // Handle validation errors from backend
+      let errorMessage = 'Failed to load students';
+      if (error.response?.data?.detail) {
+        if (Array.isArray(error.response.data.detail)) {
+          // Pydantic validation errors
+          errorMessage = error.response.data.detail.map((err: any) => err.msg).join(', ');
+        } else if (typeof error.response.data.detail === 'string') {
+          errorMessage = error.response.data.detail;
+        }
+      }
+
       setSnackbar({
         open: true,
-        message: error.response?.data?.detail || 'Failed to load students',
+        message: errorMessage,
         severity: 'error',
       });
+
+      // Clear students on error
+      setStudents([]);
     } finally {
       setLoading(false);
     }
@@ -298,9 +313,20 @@ const TeacherAttendance: React.FC = () => {
       };
       setStudents(updatedStudents);
 
+      // Handle validation errors from backend
+      let errorMessage = 'Failed to mark attendance';
+      if (error.response?.data?.detail) {
+        if (Array.isArray(error.response.data.detail)) {
+          // Pydantic validation errors
+          errorMessage = error.response.data.detail.map((err: any) => err.msg).join(', ');
+        } else if (typeof error.response.data.detail === 'string') {
+          errorMessage = error.response.data.detail;
+        }
+      }
+
       setSnackbar({
         open: true,
-        message: error.response?.data?.detail || 'Failed to mark attendance',
+        message: errorMessage,
         severity: 'error',
       });
     }

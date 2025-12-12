@@ -101,13 +101,18 @@ const AttendanceManagementSystem: React.FC = () => {
   const loadAttendance = async () => {
     setLoading(true);
     try {
+      // Parse classId - handle "all" value by treating it as undefined
+      const parsedClassId = classId && classId !== 'all' ? parseInt(classId) : undefined;
+      const parsedStatusId = statusId && statusId !== 'all' ? parseInt(statusId) : undefined;
+      const parsedPeriodId = periodId && periodId !== 'all' ? parseInt(periodId) : undefined;
+
       const filterParams: AttendanceFilters = {
         ...filters,
         from_date: fromDate ? format(fromDate, 'yyyy-MM-dd') : undefined,
         to_date: toDate ? format(toDate, 'yyyy-MM-dd') : undefined,
-        class_id: classId ? parseInt(classId) : undefined,
-        attendance_status_id: statusId ? parseInt(statusId) : undefined,
-        attendance_period_id: periodId ? parseInt(periodId) : undefined,
+        class_id: parsedClassId,
+        attendance_status_id: parsedStatusId,
+        attendance_period_id: parsedPeriodId,
         search: searchInput || undefined,
         page,
         per_page: DEFAULT_PAGE_SIZE
@@ -118,11 +123,29 @@ const AttendanceManagementSystem: React.FC = () => {
       setTotalRecords(response.total);
       setTotalPages(response.total_pages);
     } catch (error: any) {
+      console.error('Error loading attendance records:', error);
+
+      // Handle validation errors from backend
+      let errorMessage = 'Failed to load attendance records';
+      if (error.response?.data?.detail) {
+        if (Array.isArray(error.response.data.detail)) {
+          // Pydantic validation errors
+          errorMessage = error.response.data.detail.map((err: any) => err.msg).join(', ');
+        } else if (typeof error.response.data.detail === 'string') {
+          errorMessage = error.response.data.detail;
+        }
+      }
+
       setSnackbar({
         open: true,
-        message: error.response?.data?.detail || 'Failed to load attendance records',
+        message: errorMessage,
         severity: 'error'
       });
+
+      // Clear records on error
+      setRecords([]);
+      setTotalRecords(0);
+      setTotalPages(1);
     } finally {
       setLoading(false);
     }
@@ -131,15 +154,33 @@ const AttendanceManagementSystem: React.FC = () => {
   // Load statistics
   const loadStatistics = async () => {
     try {
+      // Parse classId - handle "all" value by treating it as undefined
+      const parsedClassId = classId && classId !== 'all' ? parseInt(classId) : undefined;
+
       const stats = await attendanceService.getStatistics(
-        classId ? parseInt(classId) : undefined,
+        parsedClassId,
         fromDate ? format(fromDate, 'yyyy-MM-dd') : undefined,
         toDate ? format(toDate, 'yyyy-MM-dd') : undefined,
         filters.session_year_id
       );
       setStatistics(stats);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to load statistics:', error);
+
+      // Handle validation errors from backend
+      let errorMessage = 'Failed to load statistics';
+      if (error.response?.data?.detail) {
+        if (Array.isArray(error.response.data.detail)) {
+          // Pydantic validation errors
+          errorMessage = error.response.data.detail.map((err: any) => err.msg).join(', ');
+        } else if (typeof error.response.data.detail === 'string') {
+          errorMessage = error.response.data.detail;
+        }
+      }
+
+      // Don't show snackbar for statistics errors, just log them
+      console.warn('Statistics error:', errorMessage);
+      setStatistics(null);
     }
   };
 

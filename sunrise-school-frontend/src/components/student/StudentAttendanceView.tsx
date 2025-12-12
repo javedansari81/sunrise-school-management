@@ -107,9 +107,22 @@ const StudentAttendanceView: React.FC = () => {
 
       setAttendanceRecords(response.records || []);
     } catch (error: any) {
+      console.error('Error loading attendance records:', error);
+
+      // Handle validation errors from backend
+      let errorMessage = 'Error loading attendance records';
+      if (error.response?.data?.detail) {
+        if (Array.isArray(error.response.data.detail)) {
+          // Pydantic validation errors
+          errorMessage = error.response.data.detail.map((err: any) => err.msg).join(', ');
+        } else if (typeof error.response.data.detail === 'string') {
+          errorMessage = error.response.data.detail;
+        }
+      }
+
       setSnackbar({
         open: true,
-        message: error.response?.data?.detail || 'Error loading attendance records',
+        message: errorMessage,
         severity: 'error'
       });
       setAttendanceRecords([]);
