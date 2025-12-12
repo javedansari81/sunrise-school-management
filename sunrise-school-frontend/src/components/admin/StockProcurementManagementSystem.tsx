@@ -188,7 +188,7 @@ const StockProcurementManagementSystem: React.FC<StockProcurementManagementSyste
   };
 
   return (
-    <Box sx={{ p: { xs: 1.5, sm: 3 } }}>
+    <Box sx={{ width: '100%' }}>
       {/* Collapsible Filter Section */}
       <CollapsibleFilterSection
         title="Filters"
