@@ -970,7 +970,7 @@ const FeeManagementComponent: React.FC = () => {
             minWidth: { xs: 'auto', sm: 650 }
           }
         }}>
-          <Table size="small">
+          <Table size="small" stickyHeader>
             <TableHead>
               <TableRow sx={{
                 bgcolor: 'white',
@@ -982,7 +982,9 @@ const FeeManagementComponent: React.FC = () => {
                   fontSize: { xs: '0.75rem', sm: '0.875rem' },
                   textTransform: 'uppercase',
                   letterSpacing: '0.5px',
-                  py: 2
+                  py: 2,
+                  bgcolor: 'white',
+                  zIndex: 1
                 }
               }}>
                 <TableCell
@@ -1238,17 +1240,19 @@ const FeeManagementComponent: React.FC = () => {
                                 fontWeight: 'bold'
                               }}
                             />
-                            <Chip
-                              size="small"
-                              label={`${student.overdue_months}O`}
-                              color="error"
-                              sx={{
-                                minWidth: 45,
-                                height: 24,
-                                fontSize: '0.75rem',
-                                fontWeight: 'bold'
-                              }}
-                            />
+                            {student.overdue_months > 0 && (
+                              <Chip
+                                size="small"
+                                label={`${student.overdue_months}O`}
+                                color="error"
+                                sx={{
+                                  minWidth: 45,
+                                  height: 24,
+                                  fontSize: '0.75rem',
+                                  fontWeight: 'bold'
+                                }}
+                              />
+                            )}
                           </Stack>
                         </Tooltip>
                       ) : (
@@ -1375,7 +1379,7 @@ const FeeManagementComponent: React.FC = () => {
         </TableContainer>
 
         {/* Pagination */}
-        {totalPages > 1 && (
+        {totalRecords > 0 && (
           <Box display="flex" justifyContent="center" mt={3} pb={2}>
             <Pagination
               count={totalPages}
@@ -1384,6 +1388,8 @@ const FeeManagementComponent: React.FC = () => {
               color={PAGINATION_UI_CONFIG.color}
               showFirstButton={PAGINATION_UI_CONFIG.showFirstLastButtons}
               showLastButton={PAGINATION_UI_CONFIG.showFirstLastButtons}
+              siblingCount={1}
+              boundaryCount={1}
             />
           </Box>
         )}
