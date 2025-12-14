@@ -2,8 +2,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Paper,
-  Tabs,
-  Tab,
   Button,
   TextField,
   MenuItem,
@@ -16,28 +14,23 @@ import {
   TablePagination,
   IconButton,
   Chip,
-  Typography,
   FormControl,
   InputLabel,
   Select,
   CircularProgress,
   Alert,
-  Tooltip,
-  Grid
+  Tooltip
 } from '@mui/material';
 import {
   Add as AddIcon,
   History as HistoryIcon,
   Payment as PaymentIcon,
-  DirectionsBus as BusIcon,
-  Cancel as CancelIcon,
-  FilterList
+  Cancel as CancelIcon
 } from '@mui/icons-material';
 import { useAuth } from '../../contexts/AuthContext';
 import transportService, {
   EnhancedStudentTransportSummary,
-  TransportType,
-  TransportDistanceSlab
+  TransportType
 } from '../../services/transportService';
 import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS } from '../../config/pagination';
 import CollapsibleFilterSection from '../common/CollapsibleFilterSection';
@@ -45,34 +38,12 @@ import EnrollDialog from './transport/EnrollDialog';
 import PaymentDialog from './transport/PaymentDialog';
 import HistoryDialog from './transport/HistoryDialog';
 
-interface TabPanelProps {
-  children?: React.ReactNode;
-  index: number;
-  value: number;
-}
-
-function TabPanel(props: TabPanelProps) {
-  const { children, value, index, ...other } = props;
-  return (
-    <div
-      role="tabpanel"
-      hidden={value !== index}
-      id={`transport-tabpanel-${index}`}
-      aria-labelledby={`transport-tab-${index}`}
-      {...other}
-    >
-      {value === index && <>{children}</>}
-    </div>
-  );
-}
-
 const TransportManagementSystem: React.FC = () => {
   const { user } = useAuth();
   const [configuration, setConfiguration] = useState<any>(null);
   const [configLoading, setConfigLoading] = useState(false);
 
   // State
-  const [activeTab, setActiveTab] = useState(0);
   const [students, setStudents] = useState<EnhancedStudentTransportSummary[]>([]);
   const [filteredStudents, setFilteredStudents] = useState<EnhancedStudentTransportSummary[]>([]);
   const [loading, setLoading] = useState(false);
@@ -83,6 +54,7 @@ const TransportManagementSystem: React.FC = () => {
   const [sessionYear, setSessionYear] = useState<string>('2025-26');
   const [sessionYearId, setSessionYearId] = useState<number | null>(null);
   const [classFilter, setClassFilter] = useState<string | number>('all');
+  const [enrollmentFilter, setEnrollmentFilter] = useState<string>('all'); // 'all', 'yes', 'no'
   const [nameSearch, setNameSearch] = useState<string>('');
 
   // Pagination
@@ -126,10 +98,10 @@ const TransportManagementSystem: React.FC = () => {
     }
   }, [user, sessionYear, classFilter]);
 
-  // Filter students based on active tab and name search (client-side)
+  // Filter students based on enrollment filter and name search (client-side)
   useEffect(() => {
     filterStudents();
-  }, [students, activeTab, nameSearch]);
+  }, [students, enrollmentFilter, nameSearch]);
 
   // Auto-open payment dialog if coming from Fee Management
   useEffect(() => {
@@ -212,12 +184,10 @@ const TransportManagementSystem: React.FC = () => {
   const filterStudents = useCallback(() => {
     let filtered = [...students];
 
-    // Filter by tab
-    if (activeTab === 1) {
-      // Enrolled
+    // Filter by enrollment status
+    if (enrollmentFilter === 'yes') {
       filtered = filtered.filter(s => s.is_enrolled);
-    } else if (activeTab === 2) {
-      // Not Enrolled
+    } else if (enrollmentFilter === 'no') {
       filtered = filtered.filter(s => !s.is_enrolled);
     }
 
@@ -234,11 +204,7 @@ const TransportManagementSystem: React.FC = () => {
 
     setFilteredStudents(filtered);
     setPage(0); // Reset to first page when filters change
-  }, [students, activeTab, nameSearch]);
-
-  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
-    setActiveTab(newValue);
-  };
+  }, [students, enrollmentFilter, nameSearch]);
 
   const handleEnrollClick = (student: EnhancedStudentTransportSummary) => {
     setSelectedStudent(student);
@@ -280,7 +246,7 @@ const TransportManagementSystem: React.FC = () => {
     }
   };
 
-  const handleChangePage = (event: unknown, newPage: number) => {
+  const handleChangePage = (_event: unknown, newPage: number) => {
     setPage(newPage);
   };
 
@@ -326,7 +292,7 @@ const TransportManagementSystem: React.FC = () => {
         </Alert>
       )}
 
-      {/* Filters Section - Above Tabs */}
+      {/* Filters Section */}
       <CollapsibleFilterSection
         title="Filters"
         defaultExpanded={true}
@@ -388,6 +354,25 @@ const TransportManagementSystem: React.FC = () => {
             </Select>
           </FormControl>
 
+          <FormControl
+            size="small"
+            sx={{
+              flex: { xs: '1 1 100%', sm: '1 1 auto' },
+              minWidth: { xs: '100%', sm: 'auto' }
+            }}
+          >
+            <InputLabel>Is Enrolled</InputLabel>
+            <Select
+              value={enrollmentFilter}
+              label="Is Enrolled"
+              onChange={(e) => setEnrollmentFilter(e.target.value)}
+            >
+              <MenuItem value="all">All</MenuItem>
+              <MenuItem value="yes">Yes</MenuItem>
+              <MenuItem value="no">No</MenuItem>
+            </Select>
+          </FormControl>
+
           <TextField
             size="small"
             label="Search by Name or Admission Number"
@@ -402,381 +387,108 @@ const TransportManagementSystem: React.FC = () => {
         </Box>
       </CollapsibleFilterSection>
 
-      {/* Tabs Section */}
-      <Paper sx={{ width: '100%', mb: { xs: 2, sm: 3 } }}>
-        <Tabs
-          value={activeTab}
-          onChange={handleTabChange}
-          variant="scrollable"
-          scrollButtons="auto"
-          allowScrollButtonsMobile
-          sx={{
-            '& .MuiTab-root': {
-              fontSize: { xs: '0.75rem', sm: '0.875rem' },
-              minHeight: { xs: 40, sm: 48 },
-              minWidth: { xs: 80, sm: 120 },
-              textTransform: 'none',
-              fontWeight: 500,
-            },
-            '& .Mui-selected': {
-              fontWeight: 600,
-            }
-          }}
-        >
-          <Tab label="All Students" />
-          <Tab label="Enrolled" />
-          <Tab label="Not Enrolled" />
-          <Tab label="Statistics" />
-        </Tabs>
-
-        {/* All Students / Enrolled / Not Enrolled Tabs */}
-        {[0, 1, 2].includes(activeTab) && (
-          <TabPanel value={activeTab} index={activeTab}>
-            {loading ? (
-              <Box display="flex" justifyContent="center" p={{ xs: 2, sm: 4 }}>
-                <CircularProgress />
-              </Box>
-            ) : (
-              <Paper elevation={3} sx={{ p: 3 }}>
-                <TableContainer
-                  sx={{
-                    maxHeight: { xs: '60vh', sm: '70vh' },
-                    overflow: 'auto'
-                  }}
-                >
-                  <Table
-                    stickyHeader
-                    size="small"
-                    sx={{
-                      '& .MuiTableCell-root': {
-                        fontSize: { xs: '0.75rem', sm: '0.875rem' },
-                        padding: { xs: '8px 12px', sm: '12px 16px' },
-                        borderBottom: '1px solid rgba(224, 224, 224, 1)'
-                      },
-                      '& .MuiTableHead-root .MuiTableCell-root': {
-                        backgroundColor: 'white',
-                        fontWeight: 600,
-                        fontSize: { xs: '0.75rem', sm: '0.875rem' }
-                      }
-                    }}
-                  >
-                    <TableHead>
-                      <TableRow>
-                        <TableCell>Admission No</TableCell>
-                        <TableCell>Student Name</TableCell>
-                        <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>Class</TableCell>
-                        <TableCell>Status</TableCell>
-                        <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>Transport Type</TableCell>
-                        <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>Monthly Fee</TableCell>
-                        <TableCell sx={{ display: { xs: 'none', lg: 'table-cell' } }}>Distance (KM)</TableCell>
-                        <TableCell align="right">Balance</TableCell>
-                        <TableCell align="center">Actions</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {paginatedStudents.map((student) => (
-                        <TableRow key={student.student_id} hover>
-                          <TableCell>{student.admission_number}</TableCell>
-                          <TableCell>{student.student_name}</TableCell>
-                          <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>{student.class_name}</TableCell>
-                          <TableCell>{getStatusChip(student)}</TableCell>
-                          <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>{student.transport_type_name || '-'}</TableCell>
-                          <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>₹{student.monthly_fee ? Number(student.monthly_fee).toFixed(2) : '-'}</TableCell>
-                          <TableCell sx={{ display: { xs: 'none', lg: 'table-cell' } }}>{student.distance_km || '-'}</TableCell>
-                          <TableCell align="right">
-                            {student.is_enrolled ? `₹${Number(student.total_balance || 0).toFixed(2)}` : '-'}
-                          </TableCell>
-                          <TableCell align="center">
-                            {student.is_enrolled ? (
-                              <Box sx={{ display: 'flex', gap: { xs: 0.25, sm: 0.5 }, justifyContent: 'center', flexWrap: 'wrap' }}>
-                                <Tooltip title="Make Payment">
-                                  <IconButton size="small" onClick={() => handlePaymentClick(student)} sx={{ minWidth: 36, minHeight: 36 }}>
-                                    <PaymentIcon sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
-                                  </IconButton>
-                                </Tooltip>
-                                <Tooltip title="View History">
-                                  <IconButton size="small" onClick={() => handleHistoryClick(student)} sx={{ minWidth: 36, minHeight: 36 }}>
-                                    <HistoryIcon sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
-                                  </IconButton>
-                                </Tooltip>
-                                <Tooltip title="Discontinue">
-                                  <IconButton size="small" onClick={() => handleDiscontinue(student)} color="error" sx={{ minWidth: 36, minHeight: 36 }}>
-                                    <CancelIcon sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
-                                  </IconButton>
-                                </Tooltip>
-                              </Box>
-                            ) : (
-                              <Button
-                                size="small"
-                                variant="outlined"
-                                startIcon={<AddIcon />}
-                                onClick={() => handleEnrollClick(student)}
-                                sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}
-                              >
-                                Enroll
-                              </Button>
-                            )}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-                <TablePagination
-                  rowsPerPageOptions={PAGE_SIZE_OPTIONS}
-                  component="div"
-                  count={filteredStudents.length}
-                  rowsPerPage={rowsPerPage}
-                  page={page}
-                  onPageChange={handleChangePage}
-                  onRowsPerPageChange={handleChangeRowsPerPage}
-                />
-              </Paper>
-            )}
-          </TabPanel>
-        )}
-
-        {/* Statistics Tab */}
-        <TabPanel value={activeTab} index={3}>
-          {loading ? (
-            <Box display="flex" justifyContent="center" p={{ xs: 2, sm: 4 }}>
-              <CircularProgress />
-            </Box>
-          ) : (
-            <Paper elevation={3} sx={{ p: 3 }}>
-              <Box>
-              <Typography variant="h6" gutterBottom>
-                Transport Statistics - {sessionYear}
-              </Typography>
-
-              {/* Summary Cards */}
-              <Grid container spacing={3} sx={{ mb: 4 }}>
-                {/* Total Students */}
-                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                  <Paper sx={{ p: 3, textAlign: 'center', bgcolor: 'primary.light', color: 'white' }}>
-                    <Typography variant="h3" fontWeight="bold">
-                      {students.length}
-                    </Typography>
-                    <Typography variant="body1">Total Students</Typography>
-                  </Paper>
-                </Grid>
-
-                {/* Enrolled Students */}
-                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                  <Paper sx={{ p: 3, textAlign: 'center', bgcolor: 'success.light', color: 'white' }}>
-                    <Typography variant="h3" fontWeight="bold">
-                      {students.filter(s => s.is_enrolled).length}
-                    </Typography>
-                    <Typography variant="body1">Enrolled Students</Typography>
-                  </Paper>
-                </Grid>
-
-                {/* Not Enrolled Students */}
-                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                  <Paper sx={{ p: 3, textAlign: 'center', bgcolor: 'grey.400', color: 'white' }}>
-                    <Typography variant="h3" fontWeight="bold">
-                      {students.filter(s => !s.is_enrolled).length}
-                    </Typography>
-                    <Typography variant="body1">Not Enrolled</Typography>
-                  </Paper>
-                </Grid>
-
-                {/* Enrollment Rate */}
-                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                  <Paper sx={{ p: 3, textAlign: 'center', bgcolor: 'info.light', color: 'white' }}>
-                    <Typography variant="h3" fontWeight="bold">
-                      {students.length > 0
-                        ? ((students.filter(s => s.is_enrolled).length / students.length) * 100).toFixed(1)
-                        : '0.0'}%
-                    </Typography>
-                    <Typography variant="body1">Enrollment Rate</Typography>
-                  </Paper>
-                </Grid>
-              </Grid>
-
-              {/* Financial Summary */}
-              <Typography variant="h6" gutterBottom sx={{ mt: 4 }}>
-                Financial Summary
-              </Typography>
-              <Grid container spacing={3} sx={{ mb: 4 }}>
-                {/* Total Expected Amount */}
-                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                  <Paper sx={{ p: 3, textAlign: 'center' }}>
-                    <Typography variant="h4" fontWeight="bold" color="primary">
-                      ₹{students
-                        .filter(s => s.is_enrolled)
-                        .reduce((sum, s) => sum + Number(s.total_amount || 0), 0)
-                        .toFixed(2)}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Total Expected
-                    </Typography>
-                  </Paper>
-                </Grid>
-
-                {/* Total Collected */}
-                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                  <Paper sx={{ p: 3, textAlign: 'center' }}>
-                    <Typography variant="h4" fontWeight="bold" color="success.main">
-                      ₹{students
-                        .filter(s => s.is_enrolled)
-                        .reduce((sum, s) => sum + Number(s.total_paid || 0), 0)
-                        .toFixed(2)}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Total Collected
-                    </Typography>
-                  </Paper>
-                </Grid>
-
-                {/* Total Pending */}
-                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                  <Paper sx={{ p: 3, textAlign: 'center' }}>
-                    <Typography variant="h4" fontWeight="bold" color="error.main">
-                      ₹{students
-                        .filter(s => s.is_enrolled)
-                        .reduce((sum, s) => sum + Number(s.total_balance || 0), 0)
-                        .toFixed(2)}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Total Pending
-                    </Typography>
-                  </Paper>
-                </Grid>
-
-                {/* Collection Rate */}
-                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                  <Paper sx={{ p: 3, textAlign: 'center' }}>
-                    <Typography variant="h4" fontWeight="bold" color="info.main">
-                      {(() => {
-                        const totalExpected = students
-                          .filter(s => s.is_enrolled)
-                          .reduce((sum, s) => sum + Number(s.total_amount || 0), 0);
-                        const totalCollected = students
-                          .filter(s => s.is_enrolled)
-                          .reduce((sum, s) => sum + Number(s.total_paid || 0), 0);
-                        return totalExpected > 0
-                          ? ((totalCollected / totalExpected) * 100).toFixed(1)
-                          : '0.0';
-                      })()}%
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Collection Rate
-                    </Typography>
-                  </Paper>
-                </Grid>
-              </Grid>
-
-              {/* Transport Type Breakdown */}
-              <Typography variant="h6" gutterBottom sx={{ mt: 4 }}>
-                Transport Type Breakdown
-              </Typography>
-              <TableContainer component={Paper} sx={{ mb: 4 }}>
-                <Table size="small">
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Transport Type</TableCell>
-                      <TableCell align="center">Students</TableCell>
-                      <TableCell align="right">Total Expected</TableCell>
-                      <TableCell align="right">Total Collected</TableCell>
-                      <TableCell align="right">Total Pending</TableCell>
-                      <TableCell align="center">Collection %</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {(() => {
-                      const typeBreakdown = students
-                        .filter(s => s.is_enrolled && s.transport_type_name)
-                        .reduce((acc, student) => {
-                          const typeName = student.transport_type_name || 'Unknown';
-                          if (!acc[typeName]) {
-                            acc[typeName] = {
-                              count: 0,
-                              totalExpected: 0,
-                              totalCollected: 0,
-                              totalPending: 0
-                            };
-                          }
-                          acc[typeName].count += 1;
-                          acc[typeName].totalExpected += Number(student.total_amount || 0);
-                          acc[typeName].totalCollected += Number(student.total_paid || 0);
-                          acc[typeName].totalPending += Number(student.total_balance || 0);
-                          return acc;
-                        }, {} as Record<string, { count: number; totalExpected: number; totalCollected: number; totalPending: number }>);
-
-                      return Object.entries(typeBreakdown).map(([typeName, data]) => (
-                        <TableRow key={typeName}>
-                          <TableCell>{typeName}</TableCell>
-                          <TableCell align="center">{data.count}</TableCell>
-                          <TableCell align="right">₹{data.totalExpected.toFixed(2)}</TableCell>
-                          <TableCell align="right">₹{data.totalCollected.toFixed(2)}</TableCell>
-                          <TableCell align="right">₹{data.totalPending.toFixed(2)}</TableCell>
-                          <TableCell align="center">
-                            {data.totalExpected > 0
-                              ? ((data.totalCollected / data.totalExpected) * 100).toFixed(1)
-                              : '0.0'}%
-                          </TableCell>
-                        </TableRow>
-                      ));
-                    })()}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-
-              {/* Payment Status Summary */}
-              <Typography variant="h6" gutterBottom sx={{ mt: 4 }}>
-                Payment Status Summary
-              </Typography>
-              <Grid container spacing={3}>
-                {/* Fully Paid Students */}
-                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                  <Paper sx={{ p: 3, textAlign: 'center', bgcolor: 'success.light', color: 'white' }}>
-                    <Typography variant="h3" fontWeight="bold">
-                      {students.filter(s => s.is_enrolled && Number(s.total_balance || 0) === 0).length}
-                    </Typography>
-                    <Typography variant="body1">Fully Paid</Typography>
-                  </Paper>
-                </Grid>
-
-                {/* Partially Paid Students */}
-                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                  <Paper sx={{ p: 3, textAlign: 'center', bgcolor: 'warning.light', color: 'white' }}>
-                    <Typography variant="h3" fontWeight="bold">
-                      {students.filter(s =>
-                        s.is_enrolled &&
-                        Number(s.total_paid || 0) > 0 &&
-                        Number(s.total_balance || 0) > 0
-                      ).length}
-                    </Typography>
-                    <Typography variant="body1">Partially Paid</Typography>
-                  </Paper>
-                </Grid>
-
-                {/* No Payment Students */}
-                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                  <Paper sx={{ p: 3, textAlign: 'center', bgcolor: 'error.light', color: 'white' }}>
-                    <Typography variant="h3" fontWeight="bold">
-                      {students.filter(s => s.is_enrolled && Number(s.total_paid || 0) === 0).length}
-                    </Typography>
-                    <Typography variant="body1">No Payment</Typography>
-                  </Paper>
-                </Grid>
-
-                {/* Students with Overdue */}
-                <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-                  <Paper sx={{ p: 3, textAlign: 'center', bgcolor: 'error.dark', color: 'white' }}>
-                    <Typography variant="h3" fontWeight="bold">
-                      {students.filter(s => s.is_enrolled && (s.overdue_months || 0) > 0).length}
-                    </Typography>
-                    <Typography variant="body1">With Overdue</Typography>
-                  </Paper>
-                </Grid>
-              </Grid>
-              </Box>
-            </Paper>
-          )}
-        </TabPanel>
-      </Paper>
+      {/* Students Table */}
+      {loading ? (
+        <Box display="flex" justifyContent="center" p={{ xs: 2, sm: 4 }}>
+          <CircularProgress />
+        </Box>
+      ) : (
+        <Paper elevation={3} sx={{ p: 3 }}>
+          <TableContainer
+            sx={{
+              maxHeight: { xs: '60vh', sm: '70vh' },
+              overflow: 'auto'
+            }}
+          >
+            <Table
+              stickyHeader
+              size="small"
+              sx={{
+                '& .MuiTableCell-root': {
+                  fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                  padding: { xs: '8px 12px', sm: '12px 16px' },
+                  borderBottom: '1px solid rgba(224, 224, 224, 1)'
+                },
+                '& .MuiTableHead-root .MuiTableCell-root': {
+                  backgroundColor: 'white',
+                  fontWeight: 600,
+                  fontSize: { xs: '0.75rem', sm: '0.875rem' }
+                }
+              }}
+            >
+              <TableHead>
+                <TableRow>
+                  <TableCell>Admission No</TableCell>
+                  <TableCell>Student Name</TableCell>
+                  <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>Class</TableCell>
+                  <TableCell>Status</TableCell>
+                  <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>Transport Type</TableCell>
+                  <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>Monthly Fee</TableCell>
+                  <TableCell sx={{ display: { xs: 'none', lg: 'table-cell' } }}>Distance (KM)</TableCell>
+                  <TableCell align="right">Balance</TableCell>
+                  <TableCell align="center">Actions</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {paginatedStudents.map((student) => (
+                  <TableRow key={student.student_id} hover>
+                    <TableCell>{student.admission_number}</TableCell>
+                    <TableCell>{student.student_name}</TableCell>
+                    <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>{student.class_name}</TableCell>
+                    <TableCell>{getStatusChip(student)}</TableCell>
+                    <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>{student.transport_type_name || '-'}</TableCell>
+                    <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>₹{student.monthly_fee ? Number(student.monthly_fee).toFixed(2) : '-'}</TableCell>
+                    <TableCell sx={{ display: { xs: 'none', lg: 'table-cell' } }}>{student.distance_km || '-'}</TableCell>
+                    <TableCell align="right">
+                      {student.is_enrolled ? `₹${Number(student.total_balance || 0).toFixed(2)}` : '-'}
+                    </TableCell>
+                    <TableCell align="center">
+                      {student.is_enrolled ? (
+                        <Box sx={{ display: 'flex', gap: { xs: 0.25, sm: 0.5 }, justifyContent: 'center', flexWrap: 'wrap' }}>
+                          <Tooltip title="Make Payment">
+                            <IconButton size="small" onClick={() => handlePaymentClick(student)} sx={{ minWidth: 36, minHeight: 36 }}>
+                              <PaymentIcon sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="View History">
+                            <IconButton size="small" onClick={() => handleHistoryClick(student)} sx={{ minWidth: 36, minHeight: 36 }}>
+                              <HistoryIcon sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="Discontinue">
+                            <IconButton size="small" onClick={() => handleDiscontinue(student)} color="error" sx={{ minWidth: 36, minHeight: 36 }}>
+                              <CancelIcon sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
+                            </IconButton>
+                          </Tooltip>
+                        </Box>
+                      ) : (
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          startIcon={<AddIcon />}
+                          onClick={() => handleEnrollClick(student)}
+                          sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}
+                        >
+                          Enroll
+                        </Button>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+          <TablePagination
+            rowsPerPageOptions={PAGE_SIZE_OPTIONS}
+            component="div"
+            count={filteredStudents.length}
+            rowsPerPage={rowsPerPage}
+            page={page}
+            onPageChange={handleChangePage}
+            onRowsPerPageChange={handleChangeRowsPerPage}
+          />
+        </Paper>
+      )}
 
       {/* Enroll Dialog */}
       <EnrollDialog
