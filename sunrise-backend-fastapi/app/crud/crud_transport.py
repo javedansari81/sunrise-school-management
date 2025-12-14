@@ -123,6 +123,7 @@ class CRUDTransportEnrollment:
             SELECT
                 s.id AS student_id,
                 s.admission_number,
+                s.roll_number,
                 CONCAT(s.first_name, ' ', s.last_name) AS student_name,
                 c.description AS class_name,
                 sy.name AS session_year,
@@ -202,6 +203,7 @@ class CRUDTransportEnrollment:
             summary = EnhancedStudentTransportSummary(
                 student_id=row.student_id,
                 admission_number=row.admission_number,
+                roll_number=row.roll_number,
                 student_name=row.student_name,
                 class_name=row.class_name,
                 session_year=row.session_year,

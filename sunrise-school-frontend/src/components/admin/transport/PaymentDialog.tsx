@@ -59,7 +59,6 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
     new Date().toISOString().split('T')[0]
   );
   const [transactionId, setTransactionId] = useState<string>('');
-  const [receiptNumber, setReceiptNumber] = useState<string>('');
   const [notes, setNotes] = useState<string>('');
 
   // Reset form state when dialog opens
@@ -70,7 +69,6 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
       setPaymentMethodId(0);
       setPaymentDate(new Date().toISOString().split('T')[0]);
       setTransactionId('');
-      setReceiptNumber('');
       setNotes('');
       setSelectedMonths([]);
       setMonthlyHistory(null);
@@ -164,7 +162,6 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
       setPaymentMethodId(0);
       setPaymentDate(new Date().toISOString().split('T')[0]);
       setTransactionId('');
-      setReceiptNumber('');
       setNotes('');
       setSelectedMonths([]);
       setMonthlyHistory(null);
@@ -191,7 +188,6 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
       setPaymentMethodId(0);
       setPaymentDate(new Date().toISOString().split('T')[0]);
       setTransactionId('');
-      setReceiptNumber('');
       setNotes('');
       setSelectedMonths([]);
       setMonthlyHistory(null);
@@ -409,17 +405,6 @@ const PaymentDialog: React.FC<PaymentDialogProps> = ({
               </Grid>
 
               <Grid size={{ xs: 12, sm: 6 }}>
-                <TextField
-                  fullWidth
-                  label="Receipt Number"
-                  value={receiptNumber}
-                  onChange={(e) => setReceiptNumber(e.target.value)}
-                  disabled={loading}
-                  placeholder="Optional"
-                />
-              </Grid>
-
-              <Grid size={{ xs: 12 }}>
                 <TextField
                   fullWidth
                   multiline

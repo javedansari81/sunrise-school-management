@@ -59,6 +59,7 @@ export interface StudentTransportEnrollment {
 export interface EnhancedStudentTransportSummary {
   student_id: number;
   admission_number: string;
+  roll_number?: string;
   student_name: string;
   class_name: string;
   session_year: string;

@@ -218,6 +218,11 @@ class TransportPaymentResponse(TransportPaymentBase):
     # Override amount to allow negative values for reversal payments
     amount: Decimal = Field(..., description="Payment amount (negative for reversals)")
 
+    # Receipt Details (Phase 1: Receipt Generation)
+    receipt_url: Optional[str] = None
+    receipt_cloudinary_public_id: Optional[str] = None
+    receipt_generated_at: Optional[datetime] = None
+
     # Reversal fields
     is_reversal: bool = False
     reverses_payment_id: Optional[int] = None
@@ -275,10 +280,11 @@ class EnhancedStudentTransportSummary(BaseModel):
     """Enhanced summary for transport management UI"""
     student_id: int
     admission_number: str
+    roll_number: Optional[str] = None
     student_name: str
     class_name: str
     session_year: str
-    
+
     # Enrollment Info
     enrollment_id: Optional[int] = None
     transport_type_id: Optional[int] = None
@@ -290,7 +296,7 @@ class EnhancedStudentTransportSummary(BaseModel):
     monthly_fee: Optional[Decimal] = None
     pickup_location: Optional[str] = None
     drop_location: Optional[str] = None
-    
+
     # Monthly Tracking Statistics
     total_months_tracked: int = 0
     enabled_months: int = 0

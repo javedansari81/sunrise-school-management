@@ -17,6 +17,7 @@ interface ReceiptViewerDialogProps {
   receiptUrl: string;
   receiptNumber: string;
   studentName?: string;
+  receiptType?: 'fee' | 'transport';
 }
 
 const ReceiptViewerDialog: React.FC<ReceiptViewerDialogProps> = ({
@@ -24,7 +25,8 @@ const ReceiptViewerDialog: React.FC<ReceiptViewerDialogProps> = ({
   onClose,
   receiptUrl,
   receiptNumber,
-  studentName
+  studentName,
+  receiptType = 'fee'
 }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -88,7 +90,7 @@ const ReceiptViewerDialog: React.FC<ReceiptViewerDialogProps> = ({
       >
         <Box>
           <Typography variant="h6" sx={{ fontWeight: 600 }}>
-            Fee Receipt
+            {receiptType === 'transport' ? 'Transport Receipt' : 'Fee Receipt'}
           </Typography>
           {studentName && (
             <Typography variant="caption" color="text.secondary">

@@ -26,6 +26,7 @@ import {
   Alert
 } from '@mui/material';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
+import VisibilityIcon from '@mui/icons-material/Visibility';
 import transportService, {
   EnhancedStudentTransportSummary,
   StudentTransportMonthlyHistory,
@@ -34,6 +35,7 @@ import transportService, {
 import { configurationService } from '../../../services/configurationService';
 import TransportPaymentReversalDialog from './TransportPaymentReversalDialog';
 import TransportPartialReversalDialog from './TransportPartialReversalDialog';
+import ReceiptViewerDialog from '../../fees/ReceiptViewerDialog';
 
 interface HistoryDialogProps {
   open: boolean;
@@ -62,6 +64,14 @@ const HistoryDialog: React.FC<HistoryDialogProps> = ({
   const [partialReversalDialogOpen, setPartialReversalDialogOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string>('');
   const [errorMessage, setErrorMessage] = useState<string>('');
+
+  // Receipt viewer state
+  const [receiptViewerOpen, setReceiptViewerOpen] = useState(false);
+  const [selectedReceipt, setSelectedReceipt] = useState<{
+    url: string;
+    number: string;
+    studentName: string;
+  } | null>(null);
 
   // Load configuration and data when dialog opens
   useEffect(() => {
@@ -147,6 +157,13 @@ const HistoryDialog: React.FC<HistoryDialogProps> = ({
     setTimeout(() => setErrorMessage(''), 5000);
   };
 
+  const handleViewReceipt = (receiptUrl: string, receiptNumber: string, studentName: string) => {
+    if (receiptUrl) {
+      setSelectedReceipt({ url: receiptUrl, number: receiptNumber, studentName });
+      setReceiptViewerOpen(true);
+    }
+  };
+
   const getPaymentStatusChip = (record: TransportMonthlyTracking) => {
     if (!record.is_service_enabled) {
       return <Chip label="Disabled" size="small" color="default" />;
@@ -196,7 +213,7 @@ const HistoryDialog: React.FC<HistoryDialogProps> = ({
               Student Details
             </Typography>
             <Typography variant="body1">
-              <strong>{student.student_name}</strong> (Roll: {student.admission_number})
+              <strong>{student.student_name}</strong> (Roll No: {student.roll_number || 'N/A'})
             </Typography>
             <Typography variant="body2" color="text.secondary">
               Class: {student.class_name} | Transport: {student.transport_type_name}
@@ -388,8 +405,9 @@ const HistoryDialog: React.FC<HistoryDialogProps> = ({
                       <TableCell sx={{ bgcolor: 'background.paper', fontWeight: 600 }}>Amount</TableCell>
                       <TableCell sx={{ bgcolor: 'background.paper', fontWeight: 600 }}>Method</TableCell>
                       <TableCell sx={{ bgcolor: 'background.paper', fontWeight: 600 }}>Status</TableCell>
+                      <TableCell sx={{ bgcolor: 'background.paper', fontWeight: 600 }}>Receipt</TableCell>
                       <TableCell sx={{ bgcolor: 'background.paper', fontWeight: 600 }}>Months</TableCell>
-                      <TableCell align="center" sx={{ bgcolor: 'background.paper', fontWeight: 600, width: 60 }}>Actions</TableCell>
+                      <TableCell align="center" sx={{ bgcolor: 'background.paper', fontWeight: 600, width: 100 }}>Actions</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -424,19 +442,51 @@ const HistoryDialog: React.FC<HistoryDialogProps> = ({
                           )}
                         </TableCell>
                         <TableCell>
+                          {payment.receipt_url && payment.receipt_number ? (
+                            <Chip
+                              label={payment.receipt_number}
+                              size="small"
+                              color="success"
+                              variant="outlined"
+                            />
+                          ) : (
+                            <Chip
+                              label="Pending"
+                              size="small"
+                              color="default"
+                            />
+                          )}
+                        </TableCell>
+                        <TableCell>
                           <Typography variant="body2">
                             {payment.allocations?.length || 0} month(s)
                           </Typography>
                         </TableCell>
                         <TableCell align="center">
-                          {payment.can_be_reversed && !payment.is_reversal && (
-                            <IconButton
-                              size="small"
-                              onClick={(e) => handleMenuOpen(e, payment)}
-                            >
-                              <MoreVertIcon fontSize="small" />
-                            </IconButton>
-                          )}
+                          <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'center' }}>
+                            {payment.receipt_url && (
+                              <IconButton
+                                size="small"
+                                onClick={() => handleViewReceipt(
+                                  payment.receipt_url,
+                                  payment.receipt_number,
+                                  student?.student_name || 'Student'
+                                )}
+                                title="View Receipt"
+                              >
+                                <VisibilityIcon fontSize="small" />
+                              </IconButton>
+                            )}
+                            {payment.can_be_reversed && !payment.is_reversal && (
+                              <IconButton
+                                size="small"
+                                onClick={(e) => handleMenuOpen(e, payment)}
+                                title="Reverse Payment"
+                              >
+                                <MoreVertIcon fontSize="small" />
+                              </IconButton>
+                            )}
+                          </Box>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -487,6 +537,19 @@ const HistoryDialog: React.FC<HistoryDialogProps> = ({
             payment={selectedPayment}
             onSuccess={handleReversalSuccess}
             onError={handleReversalError}
+          />
+
+          {/* Receipt Viewer Dialog */}
+          <ReceiptViewerDialog
+            open={receiptViewerOpen}
+            onClose={() => {
+              setReceiptViewerOpen(false);
+              setSelectedReceipt(null);
+            }}
+            receiptUrl={selectedReceipt?.url || ''}
+            receiptNumber={selectedReceipt?.number || ''}
+            studentName={selectedReceipt?.studentName || ''}
+            receiptType="transport"
           />
         </>
       )}

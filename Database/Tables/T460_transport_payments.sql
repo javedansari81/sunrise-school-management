@@ -30,6 +30,11 @@ CREATE TABLE transport_payments (
     remarks TEXT,
     receipt_number VARCHAR(50),
 
+    -- Receipt Details (Phase 1: Receipt Generation)
+    receipt_url TEXT,
+    receipt_cloudinary_public_id VARCHAR(255),
+    receipt_generated_at TIMESTAMP WITH TIME ZONE,
+
     -- Audit
     created_by INTEGER,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -67,4 +72,7 @@ COMMENT ON COLUMN transport_payments.reversal_reason_id IS 'Foreign key to rever
 COMMENT ON COLUMN transport_payments.reversal_type IS 'Type of reversal: FULL or PARTIAL';
 COMMENT ON COLUMN transport_payments.created_by IS 'User who created this payment record';
 COMMENT ON COLUMN transport_payments.receipt_number IS 'Receipt number for this payment';
+COMMENT ON COLUMN transport_payments.receipt_url IS 'Cloudinary URL for the receipt PDF';
+COMMENT ON COLUMN transport_payments.receipt_cloudinary_public_id IS 'Cloudinary public ID for receipt management';
+COMMENT ON COLUMN transport_payments.receipt_generated_at IS 'Timestamp when receipt was generated';
 

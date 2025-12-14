@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import date, datetime
 from decimal import Decimal
 import calendar
+import logging
 
 from app.core.database import get_db
 from app.api.deps import get_current_active_user
@@ -27,7 +28,11 @@ from app.schemas.transport import (
     TransportPartialReversalRequest, TransportPaymentReversalResponse,
     TransportPaymentResponse, TransportPaymentAllocationResponse
 )
-from sqlalchemy import select
+from sqlalchemy import select, func
+from app.services.transport_receipt_generator import TransportReceiptGenerator
+from app.services.cloudinary_transport_receipt_service import CloudinaryTransportReceiptService
+
+logger = logging.getLogger(__name__)
 from app.services.alert_service import alert_service
 
 router = APIRouter()
@@ -262,11 +267,21 @@ async def pay_monthly_transport(
     Similar to fee payment system - distributes payment across selected months
     """
     try:
-        # Get active enrollment
-        enrollment = await transport_enrollment_crud.get_active_enrollment(
-            db, student_id, session_year_id
+        # Get active enrollment with eager loading of transport_type relationship
+        from app.models.transport import StudentTransportEnrollment, TransportType
+        from sqlalchemy.orm import selectinload
+
+        result = await db.execute(
+            select(StudentTransportEnrollment)
+            .options(selectinload(StudentTransportEnrollment.transport_type))
+            .where(
+                StudentTransportEnrollment.student_id == student_id,
+                StudentTransportEnrollment.session_year_id == session_year_id,
+                StudentTransportEnrollment.is_active == True
+            )
         )
-        
+        enrollment = result.scalar_one_or_none()
+
         if not enrollment:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -375,16 +390,135 @@ async def pay_monthly_transport(
                     "amount_paid": float(payment_for_month)
                 })
 
+        # Load all data needed for receipt generation BEFORE commit
+        # This avoids lazy loading issues after commit in async SQLAlchemy
+
+        # Get student info with class relationship
+        from app.models.student import Student
+        from app.models.metadata import Class
+        from sqlalchemy.orm import selectinload
+
+        student_result = await db.execute(
+            select(Student)
+            .options(selectinload(Student.class_ref))
+            .where(Student.id == student_id)
+        )
+        student = student_result.scalar_one_or_none()
+
+        # Get payment method description
+        payment_method = await payment_method_crud.get_by_id_async(db, id=payment_data.payment_method_id)
+        payment_method_desc = payment_method.description if payment_method else "Cash"
+
+        # Extract transport data from enrollment (already eagerly loaded)
+        transport_type_name = enrollment.transport_type.name if enrollment.transport_type else 'N/A'
+        distance_km = enrollment.distance_km or 0
+        monthly_fee = enrollment.monthly_fee or 0
+
+        # Now commit the payment transaction (this persists the updated paid_amount values)
         await db.commit()
+
+        # Calculate total paid and balance AFTER commit so we get the updated values
+        from app.models.transport import TransportMonthlyTracking
+
+        tracking_result = await db.execute(
+            select(
+                func.sum(TransportMonthlyTracking.paid_amount).label('total_paid'),
+                func.sum(TransportMonthlyTracking.monthly_amount - TransportMonthlyTracking.paid_amount).label('total_balance')
+            ).where(TransportMonthlyTracking.enrollment_id == enrollment.id)
+        )
+        tracking_summary = tracking_result.first()
+        total_paid = float(tracking_summary.total_paid or 0) if tracking_summary else 0
+        total_balance = float(tracking_summary.total_balance or 0) if tracking_summary else 0
+
+        # Generate receipt PDF and upload to Cloudinary
+        receipt_url = None
+        receipt_number = None
+        try:
+            if student:
+                logger.info(f"Generating transport receipt for payment {payment.id}")
+
+                # Generate receipt number
+                receipt_number = f"TRANSPORT-{payment.id:06d}"
+
+                # Prepare payment data for receipt
+                payment_receipt_data = {
+                    'id': payment.id,
+                    'amount': float(payment.amount),
+                    'payment_method': payment_method_desc,
+                    'payment_date': payment.payment_date,
+                    'transaction_id': payment.transaction_id or 'N/A',
+                    'receipt_number': receipt_number
+                }
+
+                # Prepare student data for receipt
+                student_receipt_data = {
+                    'name': f"{student.first_name} {student.last_name}",
+                    'admission_number': student.admission_number,
+                    'class_name': student.class_ref.description if student.class_ref else 'N/A',
+                    'roll_number': student.roll_number or 'N/A',
+                    'father_name': student.father_name
+                }
+
+                # Prepare transport data for receipt (using pre-loaded data)
+                transport_receipt_data = {
+                    'transport_type': transport_type_name,
+                    'distance': float(distance_km),
+                    'monthly_fee': float(monthly_fee),
+                    'total_paid': total_paid,
+                    'balance': total_balance
+                }
+
+                # Prepare month breakdown for receipt
+                month_breakdown_receipt = []
+                for month_data in months_paid:
+                    month_breakdown_receipt.append({
+                        'month_name': month_data['month'],
+                        'academic_year': month_data['year'],
+                        'allocated_amount': month_data['amount_paid']
+                    })
+
+                # Generate receipt PDF
+                receipt_generator = TransportReceiptGenerator()
+                pdf_buffer = receipt_generator.generate_receipt(
+                    payment_data=payment_receipt_data,
+                    student_data=student_receipt_data,
+                    transport_data=transport_receipt_data,
+                    month_breakdown=month_breakdown_receipt
+                )
+
+                # Upload to Cloudinary
+                cloudinary_service = CloudinaryTransportReceiptService()
+                receipt_url, cloudinary_public_id = cloudinary_service.upload_receipt(
+                    pdf_buffer=pdf_buffer,
+                    payment_id=payment.id,
+                    receipt_number=receipt_number
+                )
+
+                # Update payment record with receipt information
+                payment.receipt_number = receipt_number
+                payment.receipt_url = receipt_url
+                payment.receipt_cloudinary_public_id = cloudinary_public_id
+                payment.receipt_generated_at = datetime.now()
+
+                await db.commit()
+                await db.refresh(payment)
+
+                logger.info(f"Transport receipt generated and uploaded successfully: {receipt_url}")
+
+        except Exception as e:
+            # Log error but don't fail the payment
+            logger.error(f"Failed to generate/upload transport receipt: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            # Continue with payment response even if receipt generation fails
 
         # Generate alert for transport fee payment
         try:
-            # Get student info
-            student = await student_crud.get(db, id=student_id)
             if student:
-                # Get payment method description
-                payment_method = await payment_method_crud.get_by_id_async(db, id=payment_data.payment_method_id)
-                payment_method_desc = payment_method.description if payment_method else "Cash"
+                # Get payment method description (reuse if already fetched)
+                if 'payment_method_desc' not in locals():
+                    payment_method = await payment_method_crud.get_by_id_async(db, id=payment_data.payment_method_id)
+                    payment_method_desc = payment_method.description if payment_method else "Cash"
 
                 # Get current user name
                 actor_name = f"{current_user.first_name} {current_user.last_name}" if current_user.first_name else "Admin"
@@ -407,7 +541,7 @@ async def pay_monthly_transport(
                 )
         except Exception as e:
             # Log error but don't fail the payment
-            print(f"Failed to create transport fee payment alert: {e}")
+            logger.error(f"Failed to create transport fee payment alert: {e}")
 
         return {
             "success": True,
@@ -515,6 +649,9 @@ async def get_transport_payment_history(
                 transaction_id=payment.transaction_id,
                 remarks=payment.remarks,
                 receipt_number=payment.receipt_number,
+                receipt_url=payment.receipt_url,
+                receipt_cloudinary_public_id=payment.receipt_cloudinary_public_id,
+                receipt_generated_at=payment.receipt_generated_at,
                 created_at=payment.created_at,
                 is_reversal=payment.is_reversal,
                 reverses_payment_id=payment.reverses_payment_id,

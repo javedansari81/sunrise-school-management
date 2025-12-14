@@ -140,6 +140,11 @@ class TransportPayment(Base):
     remarks = Column(Text, nullable=True)
     receipt_number = Column(String(50), nullable=True)
 
+    # Receipt Details (Phase 1: Receipt Generation)
+    receipt_url = Column(Text, nullable=True)
+    receipt_cloudinary_public_id = Column(String(255), nullable=True)
+    receipt_generated_at = Column(DateTime(timezone=True), nullable=True)
+
     # Reversal Fields
     is_reversal = Column(Boolean, default=False, nullable=False)
     reverses_payment_id = Column(Integer, ForeignKey("transport_payments.id"), nullable=True)
