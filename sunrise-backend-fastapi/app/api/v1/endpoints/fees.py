@@ -2787,6 +2787,7 @@ async def get_monthly_payment_history(
 async def get_enhanced_students_summary(
     session_year_id: int = Query(..., description="Session year ID"),
     class_id: Optional[int] = Query(None, description="Filter by class ID"),
+    payment_status_id: Optional[int] = Query(None, description="Filter by payment status ID"),
     search: Optional[str] = Query(None, description="Search by student name or admission number"),
     page: int = Query(1, ge=1, description="Page number"),
     per_page: int = Query(25, ge=1, le=100, description="Items per page"),
@@ -2803,6 +2804,7 @@ async def get_enhanced_students_summary(
         db=db,
         session_year_id=session_year_id,
         class_id=class_id,
+        payment_status_id=payment_status_id,
         search=search,
         limit=per_page,
         offset=offset

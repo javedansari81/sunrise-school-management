@@ -188,11 +188,12 @@ class CRUDMonthlyFeeTracking(CRUDBase[MonthlyFeeTracking, MonthlyFeeTrackingCrea
         db: AsyncSession,
         session_year_id: int,
         class_id: Optional[int] = None,
+        payment_status_id: Optional[int] = None,
         search: Optional[str] = None,
         limit: int = 20,
         offset: int = 0
     ) -> List[EnhancedStudentFeeSummary]:
-        """Get enhanced student fee summary by querying underlying tables with direct class_id filtering"""
+        """Get enhanced student fee summary by querying underlying tables with direct class_id and payment_status_id filtering"""
 
         # Build the query by joining underlying tables directly
         base_query = """
@@ -265,6 +266,11 @@ class CRUDMonthlyFeeTracking(CRUDBase[MonthlyFeeTracking, MonthlyFeeTrackingCrea
         if class_id:
             base_query += " AND s.class_id = :class_id"
             params["class_id"] = class_id
+
+        # Add payment status filter if provided - filter by fee_records payment_status_id
+        if payment_status_id:
+            base_query += " AND fr.payment_status_id = :payment_status_id"
+            params["payment_status_id"] = payment_status_id
 
         # Add search filter if provided
         if search:

@@ -34,23 +34,19 @@ import {
   ListItemText,
   Checkbox,
   FormHelperText,
-  Tabs,
-  Tab,
   Divider,
+  Pagination,
 } from '@mui/material';
 import {
   Search,
   Visibility,
   History,
   Settings,
-  CheckCircle,
-  Schedule,
   Close as CloseIcon,
   Payment,
   Warning,
   Add as AddIcon,
   School as SchoolIcon,
-  Assessment as AssessmentIcon,
   DirectionsBus,
   FilterList,
   Undo as UndoIcon,
@@ -75,6 +71,7 @@ import {
 import PaymentReversalDialog from './PaymentReversalDialog';
 import PartialReversalDialog from './PartialReversalDialog';
 import { Menu } from '@mui/material';
+import { DEFAULT_PAGE_SIZE, PAGINATION_UI_CONFIG } from '../../config/pagination';
 
 // White header dialog styles (matching Transport Service design)
 const whiteDialogStyles = {
@@ -209,19 +206,31 @@ const FeeManagementComponent: React.FC = () => {
     return config?.payment_methods || [];
   };
 
+  // Get payment statuses from configuration
+  const getPaymentStatuses = () => {
+    if (!configLoaded) return [];
+    const config = configurationService.getServiceConfiguration('fee-management');
+    return config?.payment_statuses || [];
+  };
+
   const [loading, setLoading] = useState(false);
   const [dialogLoading, setDialogLoading] = useState(false);
   const [paymentHistoryLoading, setPaymentHistoryLoading] = useState(false);
   const [students, setStudents] = useState<EnhancedStudentFeeSummary[]>([]);
-  const [allStudents, setAllStudents] = useState<EnhancedStudentFeeSummary[]>([]); // Store all students for filtering
   const [selectedStudent, setSelectedStudent] = useState<StudentMonthlyFeeHistory | null>(null);
   const [paymentHistory, setPaymentHistory] = useState<any>(null);
   const [filters, setFilters] = useState({
     session_year_id: DEFAULT_SESSION_YEAR_ID, // Default to 2025-26
     class_id: 'all',
+    payment_status_id: 'all',
     search: '',
   });
-  const [tabValue, setTabValue] = useState(0); // 0: All, 1: Pending, 2: Paid, 3: Statistics
+
+  // Pagination state
+  const [page, setPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(DEFAULT_PAGE_SIZE);
+  const [totalRecords, setTotalRecords] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [paymentHistoryDialogOpen, setPaymentHistoryDialogOpen] = useState(false);
   const [enableTrackingDialog, setEnableTrackingDialog] = useState(false);
@@ -294,28 +303,9 @@ const FeeManagementComponent: React.FC = () => {
     return className;
   };
 
-  // Filter students based on tab selection
-  const filterStudentsByTab = (students: EnhancedStudentFeeSummary[], tab: number) => {
-    switch (tab) {
-      case 0: // All Students
-        return students;
-      case 1: // Pending Payments
-        return students.filter(s =>
-          s.has_monthly_tracking &&
-          (s.pending_months > 0 || s.overdue_months > 0)
-        );
-      case 2: // Paid in Full
-        return students.filter(s =>
-          s.has_monthly_tracking &&
-          s.pending_months === 0 &&
-          s.overdue_months === 0 &&
-          s.paid_months > 0
-        );
-      case 3: // Statistics (show all for now)
-        return students;
-      default:
-        return students;
-    }
+  // Pagination handlers
+  const handlePageChange = (_event: React.ChangeEvent<unknown>, newPage: number) => {
+    setPage(newPage);
   };
 
   // Fetch enhanced student summary
@@ -337,12 +327,16 @@ const FeeManagementComponent: React.FC = () => {
     try {
       const params: any = {
         session_year_id: filters.session_year_id,
-        page: 1,
-        per_page: 50
+        page: page,
+        per_page: rowsPerPage
       };
 
       if (filters.class_id && filters.class_id !== 'all') {
         params.class_id = filters.class_id;
+      }
+
+      if (filters.payment_status_id && filters.payment_status_id !== 'all') {
+        params.payment_status_id = filters.payment_status_id;
       }
 
       if (filters.search) {
@@ -369,8 +363,11 @@ const FeeManagementComponent: React.FC = () => {
         has_monthly_tracking: s.has_monthly_tracking,
         fee_record_id: s.fee_record_id
       })));
-      setAllStudents(students); // Store all students
-      setStudents(students); // Display all initially
+      setStudents(students);
+
+      // Update pagination state
+      setTotalRecords(response.data.total || 0);
+      setTotalPages(response.data.total_pages || 1);
     } catch (error: any) {
       console.error('❌ API Error:', error);
       console.error('❌ Error details:', {
@@ -389,13 +386,12 @@ const FeeManagementComponent: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [filters.session_year_id, filters.class_id, filters.search, isAuthenticated, user]);
+  }, [filters.session_year_id, filters.class_id, filters.payment_status_id, filters.search, page, rowsPerPage, isAuthenticated, user]);
 
-  // Apply filters and tab selection
+  // Reset page to 1 when filters change
   useEffect(() => {
-    const filtered = filterStudentsByTab(allStudents, tabValue);
-    setStudents(filtered);
-  }, [tabValue, allStudents]);
+    setPage(1);
+  }, [filters.session_year_id, filters.class_id, filters.payment_status_id, filters.search]);
 
   // Real-time search with debounce (only for search field)
   // Fixed: Added fetchStudentsSummary to dependencies since it's now memoized with useCallback
@@ -916,6 +912,7 @@ const FeeManagementComponent: React.FC = () => {
               }}
               required
               fullWidth
+              size="small"
             />
           </Box>
           <Box sx={{ flex: { xs: '1 1 100%', sm: '1 1 auto' }, minWidth: { xs: '100%', sm: 'auto' } }}>
@@ -925,10 +922,29 @@ const FeeManagementComponent: React.FC = () => {
               includeAll={true}
               allLabel="ALL"
               fullWidth
+              size="small"
             />
           </Box>
           <Box sx={{ flex: { xs: '1 1 100%', sm: '1 1 auto' }, minWidth: { xs: '100%', sm: 'auto' } }}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Payment Status</InputLabel>
+              <Select
+                value={filters.payment_status_id}
+                onChange={(e) => setFilters(prev => ({ ...prev, payment_status_id: e.target.value as string }))}
+                label="Payment Status"
+              >
+                <MenuItem value="all">ALL</MenuItem>
+                {getPaymentStatuses().map((status) => (
+                  <MenuItem key={status.id} value={status.id}>
+                    {status.description || status.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Box>
+          <Box sx={{ flex: { xs: '1 1 100%', sm: '1 1 auto' }, minWidth: { xs: '100%', sm: 'auto' } }}>
             <TextField
+              size="small"
               fullWidth
               placeholder="Search by name or admission number..."
               value={filters.search}
@@ -938,148 +954,13 @@ const FeeManagementComponent: React.FC = () => {
                   startAdornment: <Search sx={{ mr: 1, color: 'action.active' }} />,
                 }
               }}
-              sx={{
-                '& .MuiInputBase-input': {
-                  fontSize: { xs: '0.875rem', sm: '1rem' }
-                }
-              }}
             />
           </Box>
         </Box>
       </CollapsibleFilterSection>
 
-      {/* Tabs for filtering */}
-      <Paper sx={{ mb: { xs: 2, sm: 3 } }}>
-        <Tabs
-          value={tabValue}
-          onChange={(_, newValue) => setTabValue(newValue)}
-          variant="scrollable"
-          scrollButtons="auto"
-          sx={{
-            borderBottom: 1,
-            borderColor: 'divider',
-            '& .MuiTab-root': {
-              textTransform: 'none',
-              fontWeight: 500,
-              fontSize: { xs: '0.875rem', sm: '1rem' },
-              minHeight: { xs: 48, sm: 56 },
-            }
-          }}
-        >
-          <Tab
-            label="All Students"
-            icon={<SchoolIcon />}
-            iconPosition="start"
-          />
-          <Tab
-            label="Pending Payments"
-            icon={<Schedule />}
-            iconPosition="start"
-          />
-          <Tab
-            label="Paid in Full"
-            icon={<CheckCircle />}
-            iconPosition="start"
-          />
-          <Tab
-            label="Statistics"
-            icon={<AssessmentIcon />}
-            iconPosition="start"
-          />
-        </Tabs>
-      </Paper>
-
-
-
-      {/* Statistics Tab Content */}
-      {tabValue === 3 ? (
-        <Paper sx={{ p: 3 }}>
-          <Typography variant="h5" fontWeight="bold" gutterBottom>
-            Fee Collection Statistics
-          </Typography>
-          <Grid container spacing={3} sx={{ mt: 2 }}>
-            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-              <Card sx={{ p: 2.5, textAlign: 'center', border: '1px solid #e0e0e0' }}>
-                <Typography variant="body2" color="textSecondary" gutterBottom>
-                  Total Students
-                </Typography>
-                <Typography variant="h4" fontWeight="bold" color="primary.main">
-                  {allStudents.length}
-                </Typography>
-              </Card>
-            </Grid>
-            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-              <Card sx={{ p: 2.5, textAlign: 'center', border: '1px solid #e0e0e0' }}>
-                <Typography variant="body2" color="textSecondary" gutterBottom>
-                  With Tracking Enabled
-                </Typography>
-                <Typography variant="h4" fontWeight="bold" color="success.main">
-                  {allStudents.filter(s => s.has_monthly_tracking).length}
-                </Typography>
-              </Card>
-            </Grid>
-            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-              <Card sx={{ p: 2.5, textAlign: 'center', border: '1px solid #e0e0e0' }}>
-                <Typography variant="body2" color="textSecondary" gutterBottom>
-                  Pending Payments
-                </Typography>
-                <Typography variant="h4" fontWeight="bold" color="warning.main">
-                  {filterStudentsByTab(allStudents, 1).length}
-                </Typography>
-              </Card>
-            </Grid>
-            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-              <Card sx={{ p: 2.5, textAlign: 'center', border: '1px solid #e0e0e0' }}>
-                <Typography variant="body2" color="textSecondary" gutterBottom>
-                  Paid in Full
-                </Typography>
-                <Typography variant="h4" fontWeight="bold" color="success.main">
-                  {filterStudentsByTab(allStudents, 2).length}
-                </Typography>
-              </Card>
-            </Grid>
-            <Grid size={{ xs: 12 }}>
-              <Card sx={{ p: 3, border: '1px solid #e0e0e0' }}>
-                <Typography variant="h6" fontWeight="bold" gutterBottom>
-                  Collection Overview
-                </Typography>
-                <Box sx={{ mt: 2 }}>
-                  <Typography variant="body2" color="textSecondary" gutterBottom>
-                    Average Collection Rate
-                  </Typography>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 1 }}>
-                    <LinearProgress
-                      variant="determinate"
-                      value={
-                        allStudents.length > 0
-                          ? allStudents.reduce((sum, s) => sum + s.collection_percentage, 0) / allStudents.length
-                          : 0
-                      }
-                      sx={{
-                        flexGrow: 1,
-                        height: 12,
-                        borderRadius: 2,
-                        bgcolor: 'grey.200',
-                        '& .MuiLinearProgress-bar': {
-                          bgcolor: 'primary.main',
-                          borderRadius: 2
-                        }
-                      }}
-                    />
-                    <Typography variant="h6" fontWeight="bold" color="primary.main">
-                      {allStudents.length > 0
-                        ? (allStudents.reduce((sum, s) => sum + s.collection_percentage, 0) / allStudents.length).toFixed(1)
-                        : 0}%
-                    </Typography>
-                  </Box>
-                </Box>
-              </Card>
-            </Grid>
-          </Grid>
-        </Paper>
-      ) : (
-        /* Students Table - Mobile Responsive */
-        <Paper sx={{ overflow: 'hidden' }}>
+      {/* Students Table - Mobile Responsive */}
+      <Paper sx={{ overflow: 'hidden' }}>
         <TableContainer sx={{
           maxHeight: { xs: '70vh', sm: '80vh' },
           '& .MuiTable-root': {
@@ -1398,8 +1279,21 @@ const FeeManagementComponent: React.FC = () => {
             </TableBody>
           </Table>
         </TableContainer>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <Box display="flex" justifyContent="center" mt={3} pb={2}>
+            <Pagination
+              count={totalPages}
+              page={page}
+              onChange={handlePageChange}
+              color={PAGINATION_UI_CONFIG.color}
+              showFirstButton={PAGINATION_UI_CONFIG.showFirstLastButtons}
+              showLastButton={PAGINATION_UI_CONFIG.showFirstLastButtons}
+            />
+          </Box>
+        )}
       </Paper>
-      )}
 
       {/* Enable Monthly Tracking Dialog */}
       <Dialog
