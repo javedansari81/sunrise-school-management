@@ -29,6 +29,10 @@ CREATE TABLE fee_payments (
     remarks TEXT,
     receipt_number VARCHAR(50),
 
+    -- Receipt Details (Phase 1: Receipt Generation)
+    receipt_cloudinary_url TEXT,
+    receipt_cloudinary_id VARCHAR(255),
+
     -- Audit
     created_by INTEGER,
 
@@ -86,4 +90,6 @@ COMMENT ON COLUMN fee_payments.reversal_reason_id IS 'Foreign key to reversal_re
 COMMENT ON COLUMN fee_payments.reversal_type IS 'Type of reversal: FULL (entire payment) or PARTIAL (specific months only)';
 COMMENT ON COLUMN fee_payments.created_by IS 'User who created this payment record';
 COMMENT ON COLUMN fee_payments.receipt_number IS 'Receipt number for this payment';
+COMMENT ON COLUMN fee_payments.receipt_cloudinary_url IS 'Cloudinary URL for the receipt PDF';
+COMMENT ON COLUMN fee_payments.receipt_cloudinary_id IS 'Cloudinary public ID for receipt management';
 

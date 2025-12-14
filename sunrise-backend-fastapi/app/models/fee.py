@@ -167,6 +167,10 @@ class FeePayment(Base):
     remarks = Column(Text, nullable=True)
     receipt_number = Column(String(50), nullable=True)
 
+    # Receipt Details (Phase 1: Receipt Generation)
+    receipt_cloudinary_url = Column(Text, nullable=True)
+    receipt_cloudinary_id = Column(String(255), nullable=True)
+
     # Reversal Fields
     is_reversal = Column(Boolean, default=False, nullable=False)
     reverses_payment_id = Column(Integer, ForeignKey("fee_payments.id"), nullable=True)

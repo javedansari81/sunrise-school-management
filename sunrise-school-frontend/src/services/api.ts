@@ -122,6 +122,10 @@ export const enhancedFeesAPI = {
     api.get('/dashboard/admin-dashboard-enhanced-stats', {
       params: { session_year_id: sessionYearId || 4 }
     }),
+
+  // Receipt Management APIs (Phase 2: WhatsApp integration will be added later)
+  // resendReceiptWhatsApp: (paymentId: number) =>
+  //   api.post(`/fees/receipts/resend-whatsapp/${paymentId}`),
 };
 
 // Users API - REMOVED: These endpoints are not used anywhere in the frontend

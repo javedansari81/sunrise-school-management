@@ -78,6 +78,11 @@ python-dotenv==1.0.0                # Load environment variables from .env file
 pillow==11.0.0                      # Python Imaging Library (PIL Fork)
 
 # =====================================================
+# PDF Generation
+# =====================================================
+reportlab==4.0.9                    # PDF generation library for receipts
+
+# =====================================================
 # Cloud Storage and Media Management
 # =====================================================
 cloudinary==1.41.0                  # Cloudinary SDK for image/video management

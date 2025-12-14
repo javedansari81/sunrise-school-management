@@ -51,6 +51,7 @@ import {
   FilterList,
   Undo as UndoIcon,
   MoreVert as MoreVertIcon,
+  Visibility as VisibilityIcon,
 } from '@mui/icons-material';
 import {
   SessionYearDropdown,
@@ -70,6 +71,7 @@ import {
 } from '../../utils/sessionYearUtils';
 import PaymentReversalDialog from './PaymentReversalDialog';
 import PartialReversalDialog from './PartialReversalDialog';
+import ReceiptViewerDialog from './ReceiptViewerDialog';
 import { Menu } from '@mui/material';
 import { DEFAULT_PAGE_SIZE, PAGINATION_UI_CONFIG } from '../../config/pagination';
 
@@ -271,6 +273,14 @@ const FeeManagementComponent: React.FC = () => {
   const [selectedPaymentForReversal, setSelectedPaymentForReversal] = useState<any>(null);
   const [paymentAllocations, setPaymentAllocations] = useState<any[]>([]);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+
+  // Receipt viewer dialog state
+  const [receiptViewerOpen, setReceiptViewerOpen] = useState(false);
+  const [selectedReceipt, setSelectedReceipt] = useState<{
+    url: string;
+    number: string;
+    studentName: string;
+  } | null>(null);
 
   // Auto-calculate payment amount when months are selected
   useEffect(() => {
@@ -767,6 +777,18 @@ const FeeManagementComponent: React.FC = () => {
       message,
       severity: 'error'
     });
+  };
+
+  // Handle view receipt - opens receipt viewer dialog
+  const handleViewReceipt = (receiptUrl: string, receiptNumber: string, studentName: string) => {
+    if (receiptUrl) {
+      setSelectedReceipt({
+        url: receiptUrl,
+        number: receiptNumber,
+        studentName: studentName
+      });
+      setReceiptViewerOpen(true);
+    }
   };
 
   // Enable monthly tracking for selected students
@@ -1932,7 +1954,8 @@ const FeeManagementComponent: React.FC = () => {
                         <TableCell sx={{ fontWeight: 'bold' }}>Payment Date</TableCell>
                         <TableCell align="right" sx={{ fontWeight: 'bold' }}>Amount</TableCell>
                         <TableCell sx={{ fontWeight: 'bold' }}>Method</TableCell>
-                        <TableCell sx={{ fontWeight: 'bold' }}>Transaction ID</TableCell>
+                        <TableCell sx={{ fontWeight: 'bold' }}>Months Covered</TableCell>
+                        <TableCell sx={{ fontWeight: 'bold' }}>Receipt</TableCell>
                         <TableCell sx={{ fontWeight: 'bold' }}>Status</TableCell>
                         <TableCell align="center" sx={{ fontWeight: 'bold' }}>Actions</TableCell>
                       </TableRow>
@@ -1953,7 +1976,7 @@ const FeeManagementComponent: React.FC = () => {
                         if (allPayments.length === 0) {
                           return (
                             <TableRow>
-                              <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
+                              <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
                                 <Typography variant="body2" color="text.secondary">
                                   No payments recorded yet
                                 </Typography>
@@ -1970,7 +1993,6 @@ const FeeManagementComponent: React.FC = () => {
                             year: 'numeric'
                           });
 
-                          const transactionId = payment.transaction_id || 'N/A';
                           const isReversal = payment.is_reversal || false;
                           const isReversed = payment.is_reversed || payment.reversed_by_payment_id != null;
                           const canBeReversed = payment.can_be_reversed !== false && !isReversal && !isReversed;
@@ -2011,17 +2033,33 @@ const FeeManagementComponent: React.FC = () => {
                                   variant="outlined"
                                 />
                               </TableCell>
+                              {/* Months Covered Column */}
                               <TableCell>
-                                <Typography
-                                  variant="body2"
-                                  color="text.secondary"
-                                  sx={{
-                                    fontFamily: 'monospace',
-                                    textDecoration: isReversed ? 'line-through' : 'none'
-                                  }}
-                                >
-                                  {transactionId}
+                                <Typography variant="body2" color="text.secondary">
+                                  {payment.months_covered || 0} {payment.months_covered === 1 ? 'month' : 'months'}
                                 </Typography>
+                              </TableCell>
+                              {/* Receipt Column */}
+                              <TableCell>
+                                {payment.receipt?.available ? (
+                                  <Box>
+                                    <Chip
+                                      size="small"
+                                      label={payment.receipt.receipt_number || 'Available'}
+                                      color="success"
+                                      variant="outlined"
+                                      sx={{ fontSize: '0.7rem' }}
+                                    />
+                                  </Box>
+                                ) : (
+                                  <Chip
+                                    size="small"
+                                    label="Pending"
+                                    color="default"
+                                    variant="outlined"
+                                    sx={{ fontSize: '0.7rem' }}
+                                  />
+                                )}
                               </TableCell>
                               <TableCell>
                                 {isReversal && (
@@ -2050,24 +2088,43 @@ const FeeManagementComponent: React.FC = () => {
                                 )}
                               </TableCell>
                               <TableCell align="center">
-                                {canBeReversed && (
-                                  <Tooltip title="Reverse Payment">
-                                    <IconButton
-                                      size="small"
-                                      onClick={(e) => handleReversalMenuOpen(e, payment)}
-                                      color="error"
-                                    >
-                                      <MoreVertIcon fontSize="small" />
-                                    </IconButton>
-                                  </Tooltip>
-                                )}
-                                {(isReversed || isReversal) && (
-                                  <Tooltip title={isReversal ? "This is a reversal payment" : "This payment has been reversed"}>
-                                    <IconButton size="small" disabled>
-                                      <UndoIcon fontSize="small" />
-                                    </IconButton>
-                                  </Tooltip>
-                                )}
+                                <Stack direction="row" spacing={0.5} justifyContent="center">
+                                  {/* View Receipt Button */}
+                                  {payment.receipt?.available && (
+                                    <Tooltip title="View Receipt">
+                                      <IconButton
+                                        size="small"
+                                        onClick={() => handleViewReceipt(
+                                          payment.receipt.receipt_url,
+                                          payment.receipt.receipt_number,
+                                          paymentHistory?.student_name || 'Student'
+                                        )}
+                                        color="primary"
+                                      >
+                                        <VisibilityIcon fontSize="small" />
+                                      </IconButton>
+                                    </Tooltip>
+                                  )}
+                                  {/* Reversal Button */}
+                                  {canBeReversed && (
+                                    <Tooltip title="Reverse Payment">
+                                      <IconButton
+                                        size="small"
+                                        onClick={(e) => handleReversalMenuOpen(e, payment)}
+                                        color="error"
+                                      >
+                                        <MoreVertIcon fontSize="small" />
+                                      </IconButton>
+                                    </Tooltip>
+                                  )}
+                                  {(isReversed || isReversal) && (
+                                    <Tooltip title={isReversal ? "This is a reversal payment" : "This payment has been reversed"}>
+                                      <IconButton size="small" disabled>
+                                        <UndoIcon fontSize="small" />
+                                      </IconButton>
+                                    </Tooltip>
+                                  )}
+                                </Stack>
                               </TableCell>
                             </TableRow>
                           );
@@ -2362,6 +2419,18 @@ const FeeManagementComponent: React.FC = () => {
         allocations={paymentAllocations}
         onSuccess={handleReversalSuccess}
         onError={handleReversalError}
+      />
+
+      {/* Receipt Viewer Dialog */}
+      <ReceiptViewerDialog
+        open={receiptViewerOpen}
+        onClose={() => {
+          setReceiptViewerOpen(false);
+          setSelectedReceipt(null);
+        }}
+        receiptUrl={selectedReceipt?.url || ''}
+        receiptNumber={selectedReceipt?.number || ''}
+        studentName={selectedReceipt?.studentName || ''}
       />
 
       {/* Snackbar for notifications */}

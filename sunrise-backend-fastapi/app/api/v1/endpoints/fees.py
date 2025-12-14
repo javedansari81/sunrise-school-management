@@ -6,6 +6,7 @@ from sqlalchemy.orm import joinedload, selectinload
 from datetime import date
 import math
 import calendar
+import logging
 
 from app.core.database import get_db
 from app.crud import fee_structure_crud, fee_record_crud, fee_payment_crud, student_crud, teacher_crud
@@ -28,8 +29,11 @@ from app.models.teacher import Teacher
 from app.models.expense import Expense as ExpenseModel
 from app.models.fee import FeeRecord as FeeRecordModel, FeePayment as FeePaymentModel, MonthlyFeeTracking as MonthlyFeeTrackingModel, MonthlyPaymentAllocation
 from app.services.alert_service import alert_service
+from app.services.receipt_generator import ReceiptGenerator
+from app.services.cloudinary_receipt_service import CloudinaryReceiptService
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 @router.get("/", response_model=FeeListResponse)
@@ -1124,6 +1128,7 @@ async def get_payment_history(
 ):
     """
     Get comprehensive payment history for a student with record-wise details
+    Enhanced with receipt and WhatsApp metadata for Fee Receipt History feature
     """
     # Verify student exists
     student = await student_crud.get(db, id=student_id)
@@ -1139,6 +1144,9 @@ async def get_payment_history(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You can only view payment history for your own account"
         )
+
+    # Get parent phone for WhatsApp resend capability
+    parent_phone = student.phone or student.father_phone or student.mother_phone
 
     # Get all fee records for the student in the specified session
     fee_records = await fee_record_crud.get_by_student(
@@ -1212,6 +1220,29 @@ async def get_payment_history(
                         "is_reversal": alloc.is_reversal
                     })
 
+            # Calculate months covered count
+            months_covered = len(allocations_list)
+
+            # Build receipt metadata
+            receipt_available = bool(payment.receipt_cloudinary_url)
+            receipt_metadata = {
+                "available": receipt_available,
+                "receipt_number": payment.receipt_number or f"FEE-{payment.id:06d}",
+                "receipt_url": payment.receipt_cloudinary_url,
+                "generated_at": payment.created_at.isoformat() if payment.created_at else None
+            }
+
+            # Build WhatsApp metadata
+            # Check if receipt exists and parent phone is available for resend capability
+            can_resend = receipt_available and bool(parent_phone) and not payment.is_reversal and not payment.is_reversed
+
+            whatsapp_metadata = {
+                "sent": getattr(payment, 'whatsapp_sent', False) or False,
+                "sent_at": getattr(payment, 'whatsapp_sent_at', None).isoformat() if getattr(payment, 'whatsapp_sent_at', None) else None,
+                "status": getattr(payment, 'whatsapp_status', None),
+                "can_resend": can_resend
+            }
+
             payment_detail = {
                 "payment_id": payment.id,
                 "amount": payment.amount,
@@ -1225,7 +1256,10 @@ async def get_payment_history(
                 "is_reversed": payment.is_reversed,
                 "can_be_reversed": payment.can_be_reversed,
                 "reversed_by_payment_id": payment.reversed_by_payment_id,
-                "allocations": allocations_list
+                "allocations": allocations_list,
+                "months_covered": months_covered,  # NEW: Count of months covered
+                "receipt": receipt_metadata,  # NEW: Receipt metadata
+                "whatsapp": whatsapp_metadata  # NEW: WhatsApp metadata
             }
             record_info["payments"].append(payment_detail)
             individual_payments_total += float(payment.amount)  # Add to individual total
@@ -1259,6 +1293,7 @@ async def get_payment_history(
         "roll_number": student.roll_number,
         "class": student.class_ref.name if student.class_ref else "",
         "session_year": session_year.value,
+        "parent_phone": parent_phone,  # NEW: For resend functionality
         "summary": {
             "total_amount": total_annual_fee,
             "total_paid": individual_payments_total,  # Use sum of individual payments for consistency
@@ -1337,6 +1372,132 @@ async def get_payment_receipt(
             "phone": "School Phone",
             "email": "school@sunrise.com"
         }
+    }
+
+
+@router.post("/receipts/resend-whatsapp/{payment_id}")
+async def resend_receipt_whatsapp(
+    payment_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Resend receipt via WhatsApp
+    Restricted to admin users only
+
+    This endpoint allows administrators to resend fee receipts to parents via WhatsApp.
+    Useful when parents lose the original message or need a copy of the receipt.
+
+    **Authorization:** Admin only (user_type_id = 1)
+
+    **Requirements:**
+    - Receipt must be generated and uploaded to Cloudinary
+    - Parent phone number must be available
+    - Payment must not be reversed or a reversal payment
+
+    **Returns:**
+    - success: Boolean indicating if message was sent
+    - message: User-friendly message
+    - message_sid: Twilio message SID (for tracking)
+    - sent_at: Timestamp when message was sent
+    """
+    # Permission check: Only admin can resend
+    if current_user.user_type_id not in [1]:  # 1 = admin
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only administrators can resend receipts"
+        )
+
+    # Get payment with receipt
+    payment = await fee_payment_crud.get(db, id=payment_id)
+    if not payment:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Payment not found"
+        )
+
+    # Check if payment is reversed or a reversal
+    if payment.is_reversal:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot resend receipt for reversal payments"
+        )
+
+    if payment.is_reversed:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot resend receipt for reversed payments"
+        )
+
+    # Check if receipt exists
+    if not payment.receipt_cloudinary_url:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Receipt not available for this payment. Please generate the receipt first."
+        )
+
+    # Get student and parent phone
+    fee_record = await fee_record_crud.get_with_student(db, id=payment.fee_record_id)
+    if not fee_record:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Associated fee record not found"
+        )
+
+    student = fee_record.student
+    parent_phone = student.phone or student.father_phone or student.mother_phone
+
+    if not parent_phone:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No parent phone number available for this student"
+        )
+
+    # TODO: Send WhatsApp notification when WhatsApp service is implemented
+    # For now, return a placeholder response indicating the feature is ready
+    # but WhatsApp service needs to be configured
+
+    # Placeholder response (will be replaced with actual WhatsApp sending logic)
+    from datetime import datetime
+
+    logger.info(f"WhatsApp resend requested for payment {payment_id} by admin {current_user.id}")
+    logger.info(f"Receipt URL: {payment.receipt_cloudinary_url}")
+    logger.info(f"Parent phone: {parent_phone}")
+
+    # When WhatsApp service is implemented, uncomment this:
+    # try:
+    #     from app.services.whatsapp_service import whatsapp_service
+    #
+    #     whatsapp_result = await whatsapp_service.send_fee_receipt_notification(
+    #         phone_number=parent_phone,
+    #         student_name=f"{student.first_name} {student.last_name}",
+    #         amount=float(payment.amount),
+    #         payment_date=payment.payment_date.strftime("%d %B %Y"),
+    #         receipt_number=payment.receipt_number or f"FEE-{payment.id:06d}",
+    #         receipt_url=payment.receipt_cloudinary_url,
+    #         payment_id=payment.id
+    #     )
+    #
+    #     return {
+    #         "success": True,
+    #         "message": f"Receipt sent successfully to {parent_phone}",
+    #         "message_sid": whatsapp_result['message_sid'],
+    #         "sent_at": whatsapp_result['sent_at']
+    #     }
+    # except Exception as e:
+    #     logger.error(f"Failed to resend WhatsApp for payment {payment_id}: {str(e)}")
+    #     raise HTTPException(
+    #         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+    #         detail=f"Failed to send WhatsApp: {str(e)}"
+    #     )
+
+    # Placeholder response until WhatsApp service is implemented
+    return {
+        "success": True,
+        "message": f"Receipt resend feature is ready. WhatsApp service will be configured in Task 2. Receipt URL: {payment.receipt_cloudinary_url}",
+        "message_sid": "PLACEHOLDER_SID",
+        "sent_at": datetime.now().isoformat(),
+        "note": "This is a placeholder response. Actual WhatsApp sending will be implemented in Task 2."
     }
 
 
@@ -2384,6 +2545,79 @@ async def pay_monthly_enhanced(
     # Calculate any remaining amount that couldn't be processed
     remaining_unprocessed = amount - actual_amount_to_process
 
+    # Generate receipt PDF and upload to Cloudinary
+    receipt_url = None
+    receipt_number = None
+    try:
+        logger.info(f"Generating receipt for payment {payment.id}")
+
+        # Get payment method description
+        payment_method = await payment_method_crud.get_by_id_async(db, id=payment_method_id)
+        payment_method_desc = payment_method.description if payment_method else "Cash"
+
+        # Generate receipt number
+        receipt_number = f"FEE-{payment.id:06d}"
+
+        # Prepare payment data for receipt
+        payment_data = {
+            'id': payment.id,
+            'amount': float(payment.amount),
+            'payment_method': payment_method_desc,
+            'payment_date': payment.payment_date,
+            'transaction_id': payment.transaction_id or 'N/A',
+            'receipt_number': receipt_number
+        }
+
+        # Prepare student data for receipt
+        student_data = {
+            'name': f"{student.first_name} {student.last_name}",
+            'admission_number': student.admission_number,
+            'class_name': student.class_ref.description if student.class_ref else 'N/A',
+            'roll_number': student.roll_number or 'N/A',
+            'father_name': student.father_name
+        }
+
+        # Prepare fee summary
+        fee_summary = {
+            'total_annual_fee': float(fee_record.total_amount),
+            'total_paid': float(fee_record.paid_amount),
+            'balance_remaining': float(fee_record.balance_amount)
+        }
+
+        # Generate receipt PDF
+        receipt_generator = ReceiptGenerator()
+        pdf_buffer = receipt_generator.generate_receipt(
+            payment_data=payment_data,
+            student_data=student_data,
+            month_breakdown=payment_breakdown,
+            fee_summary=fee_summary
+        )
+
+        # Upload to Cloudinary
+        cloudinary_service = CloudinaryReceiptService()
+        receipt_url, cloudinary_public_id = cloudinary_service.upload_receipt(
+            pdf_buffer=pdf_buffer,
+            payment_id=payment.id,
+            receipt_number=receipt_number
+        )
+
+        # Update payment record with receipt information
+        payment.receipt_number = receipt_number
+        payment.receipt_cloudinary_url = receipt_url
+        payment.receipt_cloudinary_id = cloudinary_public_id
+
+        await db.commit()
+        await db.refresh(payment)
+
+        logger.info(f"Receipt generated and uploaded successfully: {receipt_url}")
+
+    except Exception as e:
+        # Log error but don't fail the payment
+        logger.error(f"Failed to generate/upload receipt: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        # Continue with payment response even if receipt generation fails
+
     # Generate alert for fee payment
     try:
         # Get payment method description
@@ -2425,6 +2659,11 @@ async def pay_monthly_enhanced(
         "original_amount": amount,
         "processed_amount": actual_amount_to_process,
         "remaining_unprocessed": remaining_unprocessed,
+        "receipt": {
+            "available": receipt_url is not None,
+            "receipt_number": receipt_number,
+            "receipt_url": receipt_url
+        },
         "student": {
             "id": student.id,
             "name": f"{student.first_name} {student.last_name}",
