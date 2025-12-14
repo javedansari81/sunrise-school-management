@@ -106,6 +106,9 @@ interface EnhancedStudentFeeSummary {
   student_id: number;
   admission_number: string;
   student_name: string;
+  roll_number?: string;
+  father_name?: string;
+  mobile_number?: string;
   class_name: string;
   session_year: string;
   fee_record_id?: number;  // Added missing property
@@ -1077,14 +1080,105 @@ const FeeManagementComponent: React.FC = () => {
                       />
                     </TableCell>
                     <TableCell>
-                      <Box>
-                        <Typography variant="body2" fontWeight="bold" color="primary.main">
-                          {student.student_name}
-                        </Typography>
-                        <Typography variant="caption" color="textSecondary">
-                          Roll: {student.admission_number}
-                        </Typography>
-                      </Box>
+                      <Tooltip
+                        title={
+                          <Box sx={{ p: 1.5, minWidth: 250 }}>
+                            <Typography variant="subtitle2" fontWeight="bold" sx={{ mb: 1.5, color: 'primary.light' }}>
+                              Student Information
+                            </Typography>
+                            <Stack spacing={1}>
+                              <Box>
+                                <Typography variant="caption" sx={{ color: 'grey.400', display: 'block' }}>
+                                  Name
+                                </Typography>
+                                <Typography variant="body2" fontWeight="medium">
+                                  {student.student_name}
+                                </Typography>
+                              </Box>
+                              <Box>
+                                <Typography variant="caption" sx={{ color: 'grey.400', display: 'block' }}>
+                                  Admission Number
+                                </Typography>
+                                <Typography variant="body2" fontWeight="medium">
+                                  {student.admission_number}
+                                </Typography>
+                              </Box>
+                              {student.roll_number && (
+                                <Box>
+                                  <Typography variant="caption" sx={{ color: 'grey.400', display: 'block' }}>
+                                    Roll Number
+                                  </Typography>
+                                  <Typography variant="body2" fontWeight="medium">
+                                    {student.roll_number}
+                                  </Typography>
+                                </Box>
+                              )}
+                              <Box>
+                                <Typography variant="caption" sx={{ color: 'grey.400', display: 'block' }}>
+                                  Class
+                                </Typography>
+                                <Typography variant="body2" fontWeight="medium">
+                                  {getClassDisplayName(student.class_name)}
+                                </Typography>
+                              </Box>
+                              {student.father_name && (
+                                <Box>
+                                  <Typography variant="caption" sx={{ color: 'grey.400', display: 'block' }}>
+                                    Father's Name
+                                  </Typography>
+                                  <Typography variant="body2" fontWeight="medium">
+                                    {student.father_name}
+                                  </Typography>
+                                </Box>
+                              )}
+                              {student.mobile_number && (
+                                <Box>
+                                  <Typography variant="caption" sx={{ color: 'grey.400', display: 'block' }}>
+                                    Mobile Number
+                                  </Typography>
+                                  <Typography variant="body2" fontWeight="medium">
+                                    {student.mobile_number}
+                                  </Typography>
+                                </Box>
+                              )}
+                              <Box>
+                                <Typography variant="caption" sx={{ color: 'grey.400', display: 'block' }}>
+                                  Session Year
+                                </Typography>
+                                <Typography variant="body2" fontWeight="medium">
+                                  {student.session_year}
+                                </Typography>
+                              </Box>
+                            </Stack>
+                          </Box>
+                        }
+                        arrow
+                        placement="right"
+                        enterDelay={300}
+                        leaveDelay={200}
+                        slotProps={{
+                          tooltip: {
+                            sx: {
+                              bgcolor: 'rgba(33, 33, 33, 0.95)',
+                              '& .MuiTooltip-arrow': {
+                                color: 'rgba(33, 33, 33, 0.95)',
+                              },
+                              boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
+                              borderRadius: 2,
+                              maxWidth: 350,
+                            }
+                          }
+                        }}
+                      >
+                        <Box sx={{ cursor: 'pointer' }}>
+                          <Typography variant="body2" fontWeight="bold" color="primary.main">
+                            {student.student_name}
+                          </Typography>
+                          <Typography variant="caption" color="textSecondary">
+                            Roll: {student.admission_number}
+                          </Typography>
+                        </Box>
+                      </Tooltip>
                     </TableCell>
                     <TableCell>
                       <Typography variant="body2">

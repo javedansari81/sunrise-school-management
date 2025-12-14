@@ -451,6 +451,9 @@ class EnhancedStudentFeeSummary(BaseModel):
     student_id: int
     admission_number: str
     student_name: str
+    roll_number: Optional[str] = None
+    father_name: Optional[str] = None
+    mobile_number: Optional[str] = None
     class_name: str
     session_year: str
 
