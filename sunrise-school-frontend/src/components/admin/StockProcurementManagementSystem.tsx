@@ -5,7 +5,6 @@ import {
   Alert,
   Tabs,
   Tab,
-  Button,
   Paper,
   Table,
   TableBody,
@@ -20,7 +19,8 @@ import {
   CircularProgress,
   Typography,
   useMediaQuery,
-  useTheme
+  useTheme,
+  Fab,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -141,156 +141,9 @@ const StockProcurementManagementSystem: React.FC<StockProcurementManagementSyste
     loadPricing();
   };
 
-  // Get action buttons based on active tab
-  const getActionButtons = () => {
-    const buttons = [];
-
-    if (activeTab === 0) {
-      buttons.push(
-        <Button
-          key="new-procurement"
-          variant="contained"
-          startIcon={!isMobile && <AddIcon />}
-          onClick={() => setProcurementDialogOpen(true)}
-          size="small"
-          fullWidth={isMobile}
-          sx={{ fontSize: { xs: '0.8125rem', sm: '0.875rem' } }}
-        >
-          New Procurement
-        </Button>
-      );
-    }
-
-    if (activeTab === 1) {
-      buttons.push(
-        <Button
-          key="add-price"
-          variant="contained"
-          startIcon={!isMobile && <AddIcon />}
-          onClick={() => {
-            setSelectedPricing(null);
-            setPricingDialogOpen(true);
-          }}
-          size="small"
-          fullWidth={isMobile}
-          sx={{ fontSize: { xs: '0.8125rem', sm: '0.875rem' } }}
-        >
-          Add New Price
-        </Button>
-      );
-    }
-
-    return buttons.length > 0 ? (
-      <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-        {buttons}
-      </Box>
-    ) : null;
-  };
-
   return (
     <Box sx={{ width: '100%' }}>
-      {/* Collapsible Filter Section */}
-      <CollapsibleFilterSection
-        title="Filters"
-        defaultExpanded={true}
-        persistKey="stock-procurement"
-        actionButtons={getActionButtons()}
-      >
-        <Box sx={{
-          display: 'flex',
-          gap: { xs: 1.5, sm: 2 },
-          flexWrap: 'wrap',
-          flexDirection: { xs: 'column', sm: 'row' }
-        }}>
-          <TextField
-            select
-            label="Item Type"
-            value={itemTypeId || ''}
-            onChange={(e) => setItemTypeId(e.target.value ? Number(e.target.value) : null)}
-            sx={{ minWidth: { xs: '100%', sm: 200 } }}
-            size="small"
-            fullWidth={isMobile}
-          >
-            <MenuItem value="">All Items</MenuItem>
-            {configuration?.inventory_item_types?.map((item: any) => (
-              <MenuItem key={item.id} value={item.id}>
-                {item.description}
-              </MenuItem>
-            ))}
-          </TextField>
-
-          <TextField
-            select
-            label="Size"
-            value={sizeTypeId || ''}
-            onChange={(e) => setSizeTypeId(e.target.value ? Number(e.target.value) : null)}
-            sx={{ minWidth: { xs: '100%', sm: 150 } }}
-            size="small"
-            fullWidth={isMobile}
-          >
-            <MenuItem value="">All Sizes</MenuItem>
-            {configuration?.inventory_size_types?.map((size: any) => (
-              <MenuItem key={size.id} value={size.id}>
-                {size.name}
-              </MenuItem>
-            ))}
-          </TextField>
-
-          <TextField
-            type="date"
-            label="From Date"
-            value={fromDate}
-            onChange={(e) => setFromDate(e.target.value)}
-            slotProps={{ inputLabel: { shrink: true } }}
-            size="small"
-            fullWidth={isMobile}
-          />
-
-          <TextField
-            type="date"
-            label="To Date"
-            value={toDate}
-            onChange={(e) => setToDate(e.target.value)}
-            slotProps={{ inputLabel: { shrink: true } }}
-            size="small"
-            fullWidth={isMobile}
-          />
-
-          {/* Stock Status filter - only for Stock Levels tab */}
-          {activeTab === 2 && (
-            <TextField
-              select
-              label="Stock Status"
-              value={stockStatus}
-              onChange={(e) => setStockStatus(e.target.value)}
-              sx={{ minWidth: { xs: '100%', sm: 150 } }}
-              size="small"
-              fullWidth={isMobile}
-            >
-              <MenuItem value="all">All Stock</MenuItem>
-              <MenuItem value="low">Low Stock Only</MenuItem>
-            </TextField>
-          )}
-
-          {/* Pricing Status filter - only for Pricing tab */}
-          {activeTab === 1 && (
-            <TextField
-              select
-              label="Status"
-              value={pricingStatus ? 'active' : 'inactive'}
-              onChange={(e) => setPricingStatus(e.target.value === 'active')}
-              sx={{ minWidth: { xs: '100%', sm: 150 } }}
-              size="small"
-              fullWidth={isMobile}
-            >
-              <MenuItem value="active">Active</MenuItem>
-              <MenuItem value="inactive">Inactive</MenuItem>
-            </TextField>
-          )}
-        </Box>
-      </CollapsibleFilterSection>
-
-      {/* Tabs */}
+      {/* Tabs - Moved to top */}
       <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
         <Tabs
           value={activeTab}
@@ -311,6 +164,134 @@ const StockProcurementManagementSystem: React.FC<StockProcurementManagementSyste
           <Tab label="Stock Levels" />
         </Tabs>
       </Box>
+
+      {/* Collapsible Filter Section - Moved below tabs */}
+      <CollapsibleFilterSection
+        title="Filters"
+        defaultExpanded={true}
+        persistKey="stock-procurement"
+      >
+        <Box sx={{
+          display: 'flex',
+          gap: { xs: 1.5, sm: 2 },
+          flexWrap: 'wrap',
+          flexDirection: { xs: 'column', sm: 'row' }
+        }}>
+          {/* Tab 0: Procurements - Show Date Filters */}
+          {activeTab === 0 && (
+            <>
+              <TextField
+                type="date"
+                label="From Date"
+                value={fromDate}
+                onChange={(e) => setFromDate(e.target.value)}
+                slotProps={{ inputLabel: { shrink: true } }}
+                size="small"
+                sx={{ minWidth: { xs: '100%', sm: 200 } }}
+                fullWidth={isMobile}
+              />
+
+              <TextField
+                type="date"
+                label="To Date"
+                value={toDate}
+                onChange={(e) => setToDate(e.target.value)}
+                slotProps={{ inputLabel: { shrink: true } }}
+                size="small"
+                sx={{ minWidth: { xs: '100%', sm: 200 } }}
+                fullWidth={isMobile}
+              />
+            </>
+          )}
+
+          {/* Tab 1: Pricing - Show Item Type and Status Filters */}
+          {activeTab === 1 && (
+            <>
+              <TextField
+                select
+                label="Item Type"
+                value={itemTypeId || ''}
+                onChange={(e) => setItemTypeId(e.target.value ? Number(e.target.value) : null)}
+                sx={{ minWidth: { xs: '100%', sm: 200 } }}
+                size="small"
+                fullWidth={isMobile}
+              >
+                <MenuItem value="">All Items</MenuItem>
+                {configuration?.inventory_item_types?.map((item: any) => (
+                  <MenuItem key={item.id} value={item.id}>
+                    {item.description}
+                  </MenuItem>
+                ))}
+              </TextField>
+
+              <TextField
+                select
+                label="Status"
+                value={pricingStatus ? 'active' : 'inactive'}
+                onChange={(e) => setPricingStatus(e.target.value === 'active')}
+                sx={{ minWidth: { xs: '100%', sm: 150 } }}
+                size="small"
+                fullWidth={isMobile}
+              >
+                <MenuItem value="active">Active</MenuItem>
+                <MenuItem value="inactive">Inactive</MenuItem>
+              </TextField>
+            </>
+          )}
+
+          {/* Tab 2: Stock Levels - Show Item Type, Size, and Stock Status Filters */}
+          {activeTab === 2 && (
+            <>
+              <TextField
+                select
+                label="Item Type"
+                value={itemTypeId || ''}
+                onChange={(e) => setItemTypeId(e.target.value ? Number(e.target.value) : null)}
+                sx={{ minWidth: { xs: '100%', sm: 200 } }}
+                size="small"
+                fullWidth={isMobile}
+              >
+                <MenuItem value="">All Items</MenuItem>
+                {configuration?.inventory_item_types?.map((item: any) => (
+                  <MenuItem key={item.id} value={item.id}>
+                    {item.description}
+                  </MenuItem>
+                ))}
+              </TextField>
+
+              <TextField
+                select
+                label="Size"
+                value={sizeTypeId || ''}
+                onChange={(e) => setSizeTypeId(e.target.value ? Number(e.target.value) : null)}
+                sx={{ minWidth: { xs: '100%', sm: 150 } }}
+                size="small"
+                fullWidth={isMobile}
+              >
+                <MenuItem value="">All Sizes</MenuItem>
+                {configuration?.inventory_size_types?.map((size: any) => (
+                  <MenuItem key={size.id} value={size.id}>
+                    {size.name}
+                  </MenuItem>
+                ))}
+              </TextField>
+
+              <TextField
+                select
+                label="Stock Status"
+                value={stockStatus}
+                onChange={(e) => setStockStatus(e.target.value)}
+                sx={{ minWidth: { xs: '100%', sm: 150 } }}
+                size="small"
+                fullWidth={isMobile}
+              >
+                <MenuItem value="all">All Stock</MenuItem>
+                <MenuItem value="low">Low Stock Only</MenuItem>
+              </TextField>
+            </>
+          )}
+        </Box>
+      </CollapsibleFilterSection>
 
       {/* Tab 0: Stock Procurements */}
       {activeTab === 0 && (
@@ -575,6 +556,156 @@ const StockProcurementManagementSystem: React.FC<StockProcurementManagementSyste
           {snackbar.message}
         </Alert>
       </Snackbar>
+
+      {/* Floating Action Button - Conditional based on active tab */}
+      {/* Tab 0: Procurements - Show "New Procurement" FAB */}
+      {activeTab === 0 && (
+        <Fab
+          color="primary"
+          aria-label="add procurement"
+          variant="extended"
+          onClick={() => setProcurementDialogOpen(true)}
+          sx={{
+            position: 'fixed',
+            bottom: { xs: 16, sm: 24 },
+            right: { xs: 16, sm: 24 },
+            zIndex: 1000,
+            minWidth: { xs: '48px', sm: '56px' },
+            width: { xs: '48px', sm: '56px' },
+            height: { xs: '48px', sm: '56px' },
+            borderRadius: { xs: '24px', sm: '28px' },
+            padding: { xs: '0 12px', sm: '0 16px' },
+            transition: 'all 0.3s ease-in-out',
+            overflow: 'hidden',
+            boxShadow: 3,
+            '& .MuiSvgIcon-root': {
+              transition: 'margin 0.3s ease-in-out',
+              marginRight: 0,
+              fontSize: { xs: '1.25rem', sm: '1.5rem' },
+            },
+            '& .fab-text': {
+              opacity: 0,
+              width: 0,
+              whiteSpace: 'nowrap',
+              transition: 'opacity 0.3s ease-in-out, width 0.3s ease-in-out',
+              overflow: 'hidden',
+              fontSize: '0.875rem',
+              fontWeight: 500,
+              display: { xs: 'none', sm: 'inline' },
+            },
+            '@media (hover: hover) and (pointer: fine)': {
+              '&:hover': {
+                width: 'auto',
+                minWidth: '180px',
+                paddingRight: '20px',
+                paddingLeft: '16px',
+                boxShadow: 6,
+                '& .MuiSvgIcon-root': {
+                  marginRight: '8px',
+                },
+                '& .fab-text': {
+                  opacity: 1,
+                  width: 'auto',
+                },
+              },
+            },
+            '&:active': {
+              boxShadow: 6,
+              transform: 'scale(0.95)',
+            },
+            '@media (max-width: 360px)': {
+              bottom: '12px',
+              right: '12px',
+              minWidth: '44px',
+              width: '44px',
+              height: '44px',
+              borderRadius: '22px',
+            },
+          }}
+        >
+          <AddIcon />
+          <Box component="span" className="fab-text">
+            New Procurement
+          </Box>
+        </Fab>
+      )}
+
+      {/* Tab 1: Pricing - Show "Add New Price" FAB */}
+      {activeTab === 1 && (
+        <Fab
+          color="primary"
+          aria-label="add price"
+          variant="extended"
+          onClick={() => {
+            setSelectedPricing(null);
+            setPricingDialogOpen(true);
+          }}
+          sx={{
+            position: 'fixed',
+            bottom: { xs: 16, sm: 24 },
+            right: { xs: 16, sm: 24 },
+            zIndex: 1000,
+            minWidth: { xs: '48px', sm: '56px' },
+            width: { xs: '48px', sm: '56px' },
+            height: { xs: '48px', sm: '56px' },
+            borderRadius: { xs: '24px', sm: '28px' },
+            padding: { xs: '0 12px', sm: '0 16px' },
+            transition: 'all 0.3s ease-in-out',
+            overflow: 'hidden',
+            boxShadow: 3,
+            '& .MuiSvgIcon-root': {
+              transition: 'margin 0.3s ease-in-out',
+              marginRight: 0,
+              fontSize: { xs: '1.25rem', sm: '1.5rem' },
+            },
+            '& .fab-text': {
+              opacity: 0,
+              width: 0,
+              whiteSpace: 'nowrap',
+              transition: 'opacity 0.3s ease-in-out, width 0.3s ease-in-out',
+              overflow: 'hidden',
+              fontSize: '0.875rem',
+              fontWeight: 500,
+              display: { xs: 'none', sm: 'inline' },
+            },
+            '@media (hover: hover) and (pointer: fine)': {
+              '&:hover': {
+                width: 'auto',
+                minWidth: '170px',
+                paddingRight: '20px',
+                paddingLeft: '16px',
+                boxShadow: 6,
+                '& .MuiSvgIcon-root': {
+                  marginRight: '8px',
+                },
+                '& .fab-text': {
+                  opacity: 1,
+                  width: 'auto',
+                },
+              },
+            },
+            '&:active': {
+              boxShadow: 6,
+              transform: 'scale(0.95)',
+            },
+            '@media (max-width: 360px)': {
+              bottom: '12px',
+              right: '12px',
+              minWidth: '44px',
+              width: '44px',
+              height: '44px',
+              borderRadius: '22px',
+            },
+          }}
+        >
+          <AddIcon />
+          <Box component="span" className="fab-text">
+            Add New Price
+          </Box>
+        </Fab>
+      )}
+
+      {/* Tab 2: Stock Levels - No FAB (view-only tab) */}
     </Box>
   );
 };
