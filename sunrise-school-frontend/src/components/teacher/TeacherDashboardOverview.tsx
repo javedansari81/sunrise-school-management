@@ -185,6 +185,7 @@ const TeacherDashboardOverview: React.FC = () => {
         <Paper
           sx={{
             p: { xs: 2, sm: 3 },
+            mt: { xs: 1, sm: 0 },
             mb: 2,
             background: 'linear-gradient(135deg, #1976d2 0%, #1565c0 100%)',
             color: 'white',
