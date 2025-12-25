@@ -9,7 +9,6 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Button,
   Chip,
   CircularProgress,
   Snackbar,
@@ -20,7 +19,8 @@ import {
   IconButton,
   Tooltip,
   Tabs,
-  Tab
+  Tab,
+  Fab
 } from '@mui/material';
 
 import {
@@ -342,7 +342,7 @@ const TeacherLeaveManagement: React.FC = () => {
             />
           </Grid>
 
-          <Grid size={{ xs: 6, sm: 3, md: 2 }}>
+          <Grid size={{ xs: 12, sm: 6, md: 4 }}>
             <FilterDropdown
               metadataType="leaveTypes"
               label="Leave Type"
@@ -351,16 +351,6 @@ const TeacherLeaveManagement: React.FC = () => {
               size="small"
               fullWidth
             />
-          </Grid>
-
-          <Grid size={{ xs: 12, sm: 12, md: 4 }} sx={{ display: 'flex', justifyContent: { xs: 'flex-start', md: 'flex-end' } }}>
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              onClick={handleNewLeaveRequest}
-            >
-              New Leave Request
-            </Button>
           </Grid>
         </Grid>
       </Paper>
@@ -503,6 +493,63 @@ const TeacherLeaveManagement: React.FC = () => {
           isViewMode={isViewMode}
           teacherProfile={teacherProfile}
         />
+
+        {/* Floating Action Button for New Leave Request - Only on "My Requests" tab */}
+        <Fab
+          color="primary"
+          aria-label="add leave request"
+          variant="extended"
+          onClick={handleNewLeaveRequest}
+          sx={{
+            position: 'fixed',
+            bottom: { xs: 16, sm: 24 },
+            right: { xs: 16, sm: 24 },
+            zIndex: 1000,
+            minWidth: { xs: '48px', sm: '56px' },
+            width: { xs: '48px', sm: '56px' },
+            height: { xs: '48px', sm: '56px' },
+            borderRadius: { xs: '24px', sm: '28px' },
+            padding: { xs: '0 12px', sm: '0 16px' },
+            transition: 'all 0.3s ease-in-out',
+            overflow: 'hidden',
+            boxShadow: 3,
+            '& .MuiSvgIcon-root': {
+              transition: 'margin 0.3s ease-in-out',
+              marginRight: 0,
+              fontSize: { xs: '1.25rem', sm: '1.5rem' },
+            },
+            '& .fab-text': {
+              opacity: 0,
+              width: 0,
+              marginLeft: 0,
+              whiteSpace: 'nowrap',
+              transition: 'opacity 0.3s ease-in-out, width 0.3s ease-in-out, margin 0.3s ease-in-out',
+              display: { xs: 'none', sm: 'inline' },
+            },
+            '@media (hover: hover) and (pointer: fine)': {
+              '&:hover': {
+                width: 'auto',
+                minWidth: '180px',
+                '& .MuiSvgIcon-root': {
+                  marginRight: '8px',
+                },
+                '& .fab-text': {
+                  opacity: 1,
+                  width: 'auto',
+                  marginLeft: '4px',
+                },
+              },
+            },
+            '&:active': {
+              transform: 'scale(0.95)',
+            },
+          }}
+        >
+          <AddIcon />
+          <Box component="span" className="fab-text">
+            New Leave Request
+          </Box>
+        </Fab>
       </>
       ) : (
         /* Class Student Leaves Tab */

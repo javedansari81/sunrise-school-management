@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import {
   Box,
   Typography,
-  Button,
   Paper,
   Table,
   TableBody,
@@ -19,7 +18,8 @@ import {
   Stack,
   TextField,
   InputAdornment,
-  Grid
+  Grid,
+  Fab
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -237,7 +237,7 @@ const StudentLeaveManagement: React.FC = () => {
           </Grid>
 
           {/* Leave Type Filter */}
-          <Grid size={{ xs: 12, sm: 3, md: 2 }}>
+          <Grid size={{ xs: 12, sm: 6, md: 4 }}>
             <FilterDropdown
               metadataType="leaveTypes"
               label="Leave Type"
@@ -246,18 +246,6 @@ const StudentLeaveManagement: React.FC = () => {
               size="small"
               fullWidth
             />
-          </Grid>
-
-          {/* New Leave Request Button */}
-          <Grid size={{ xs: 12, sm: 12, md: 4 }} sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              onClick={() => handleOpenDialog()}
-              sx={{ width: { xs: '100%', md: 'auto' } }}
-            >
-              New Leave Request
-            </Button>
           </Grid>
         </Grid>
       </Paper>
@@ -386,6 +374,63 @@ const StudentLeaveManagement: React.FC = () => {
           {snackbar.message}
         </Alert>
       </Snackbar>
+
+      {/* Floating Action Button for New Leave Request */}
+      <Fab
+        color="primary"
+        aria-label="add leave request"
+        variant="extended"
+        onClick={() => handleOpenDialog()}
+        sx={{
+          position: 'fixed',
+          bottom: { xs: 16, sm: 24 },
+          right: { xs: 16, sm: 24 },
+          zIndex: 1000,
+          minWidth: { xs: '48px', sm: '56px' },
+          width: { xs: '48px', sm: '56px' },
+          height: { xs: '48px', sm: '56px' },
+          borderRadius: { xs: '24px', sm: '28px' },
+          padding: { xs: '0 12px', sm: '0 16px' },
+          transition: 'all 0.3s ease-in-out',
+          overflow: 'hidden',
+          boxShadow: 3,
+          '& .MuiSvgIcon-root': {
+            transition: 'margin 0.3s ease-in-out',
+            marginRight: 0,
+            fontSize: { xs: '1.25rem', sm: '1.5rem' },
+          },
+          '& .fab-text': {
+            opacity: 0,
+            width: 0,
+            marginLeft: 0,
+            whiteSpace: 'nowrap',
+            transition: 'opacity 0.3s ease-in-out, width 0.3s ease-in-out, margin 0.3s ease-in-out',
+            display: { xs: 'none', sm: 'inline' },
+          },
+          '@media (hover: hover) and (pointer: fine)': {
+            '&:hover': {
+              width: 'auto',
+              minWidth: '180px',
+              '& .MuiSvgIcon-root': {
+                marginRight: '8px',
+              },
+              '& .fab-text': {
+                opacity: 1,
+                width: 'auto',
+                marginLeft: '4px',
+              },
+            },
+          },
+          '&:active': {
+            transform: 'scale(0.95)',
+          },
+        }}
+      >
+        <AddIcon />
+        <Box component="span" className="fab-text">
+          New Leave Request
+        </Box>
+      </Fab>
     </Box>
   );
 };

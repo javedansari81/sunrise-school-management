@@ -3,21 +3,14 @@ import {
   Box,
   Typography,
   Card,
-  CardContent,
   Button,
   Alert,
   CircularProgress,
-  Chip,
   Paper,
-  List,
-  ListItem,
-  ListItemText,
-  ListItemIcon,
-  Divider,
+  Avatar,
 } from '@mui/material';
 import {
   EventNote,
-  Schedule,
   CheckCircle,
   Cancel,
   Pending,
@@ -28,10 +21,27 @@ import {
   CalendarToday,
   School,
   Badge,
+  AccessTime,
+  TrendingUp,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../contexts/AuthContext';
 import { leaveAPI, teachersAPI } from '../../services/api';
+import {
+  PieChart,
+  Pie,
+  Cell,
+  ResponsiveContainer,
+  Tooltip,
+  Legend,
+} from 'recharts';
+
+// Chart colors
+const CHART_COLORS = {
+  pending: '#f57c00',
+  approved: '#388e3c',
+  rejected: '#d32f2f',
+  primary: '#1976d2',
+};
 
 interface LeaveRequest {
   id: number;
@@ -79,7 +89,6 @@ interface DashboardStats {
 
 const TeacherDashboardOverview: React.FC = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [recentLeaves, setRecentLeaves] = useState<LeaveRequest[]>([]);
@@ -93,7 +102,6 @@ const TeacherDashboardOverview: React.FC = () => {
     try {
       setLoading(true);
 
-      // Load dashboard stats and recent leave requests
       const [statsResponse, leavesResponse] = await Promise.all([
         teachersAPI.getMyDashboardStats(),
         leaveAPI.getMyLeaveRequests()
@@ -101,9 +109,8 @@ const TeacherDashboardOverview: React.FC = () => {
 
       setDashboardStats(statsResponse.data);
 
-      // Process leave requests
       const leaves = Array.isArray(leavesResponse) ? leavesResponse : [];
-      setRecentLeaves(leaves.slice(0, 5)); // Show only recent 5
+      setRecentLeaves(leaves.slice(0, 5));
 
       setError(null);
     } catch (err: any) {
@@ -114,56 +121,44 @@ const TeacherDashboardOverview: React.FC = () => {
     }
   };
 
-  const getStatusIcon = (statusId: number) => {
+  const getStatusColor = (statusId: number): string => {
     switch (statusId) {
-      case 1: return <Pending color="warning" />;
-      case 2: return <CheckCircle color="success" />;
-      case 3: return <Cancel color="error" />;
-      default: return <Schedule />;
+      case 1: return CHART_COLORS.pending;
+      case 2: return CHART_COLORS.approved;
+      case 3: return CHART_COLORS.rejected;
+      default: return '#9e9e9e';
     }
   };
 
-  const getStatusColor = (statusId: number) => {
+  const getStatusIcon = (statusId: number) => {
     switch (statusId) {
-      case 1: return 'warning';
-      case 2: return 'success';
-      case 3: return 'error';
-      default: return 'default';
+      case 1: return <Pending sx={{ color: CHART_COLORS.pending }} />;
+      case 2: return <CheckCircle sx={{ color: CHART_COLORS.approved }} />;
+      case 3: return <Cancel sx={{ color: CHART_COLORS.rejected }} />;
+      default: return <AccessTime sx={{ color: '#9e9e9e' }} />;
     }
+  };
+
+  // Prepare chart data for leave status distribution
+  const getLeaveChartData = () => {
+    if (!dashboardStats) return [];
+    const { leave_stats } = dashboardStats;
+    return [
+      { name: 'Pending', value: leave_stats.pending, color: CHART_COLORS.pending },
+      { name: 'Approved', value: leave_stats.approved, color: CHART_COLORS.approved },
+      { name: 'Rejected', value: leave_stats.rejected, color: CHART_COLORS.rejected },
+    ].filter(item => item.value > 0);
   };
 
   const getDashboardCards = () => {
     if (!dashboardStats) return [];
+    const { leave_stats } = dashboardStats;
 
     return [
-      {
-        title: 'Total Leave Requests',
-        value: dashboardStats.leave_stats.total.toString(),
-        icon: <EventNote fontSize="large" />,
-        color: '#1976d2',
-        subtitle: 'All time requests',
-      },
-      {
-        title: 'Pending Approval',
-        value: dashboardStats.leave_stats.pending.toString(),
-        icon: <Pending fontSize="large" />,
-        color: '#f57c00',
-        subtitle: 'Awaiting review',
-      },
-      {
-        title: 'Approved Leaves',
-        value: dashboardStats.leave_stats.approved.toString(),
-        icon: <CheckCircle fontSize="large" />,
-        color: '#388e3c',
-        subtitle: 'Successfully approved',
-      },
-      {
-        title: 'Rejected Leaves',
-        value: dashboardStats.leave_stats.rejected.toString(),
-        icon: <Cancel fontSize="large" />,
-        color: '#d32f2f',
-        subtitle: 'Not approved',
-      },
+      { title: 'Total', value: leave_stats.total, icon: <EventNote />, color: CHART_COLORS.primary },
+      { title: 'Pending', value: leave_stats.pending, icon: <Pending />, color: CHART_COLORS.pending },
+      { title: 'Approved', value: leave_stats.approved, icon: <CheckCircle />, color: CHART_COLORS.approved },
+      { title: 'Rejected', value: leave_stats.rejected, icon: <Cancel />, color: CHART_COLORS.rejected },
     ];
   };
 
@@ -175,6 +170,8 @@ const TeacherDashboardOverview: React.FC = () => {
     );
   }
 
+  const leaveChartData = getLeaveChartData();
+
   return (
     <Box sx={{ width: '100%' }}>
       {error && (
@@ -183,295 +180,290 @@ const TeacherDashboardOverview: React.FC = () => {
         </Alert>
       )}
 
-      {/* Welcome Message */}
+      {/* Welcome Header */}
       {dashboardStats && (
-        <Box mb={3}>
-          <Typography variant="h5" fontWeight="bold" gutterBottom>
-            Welcome back, {dashboardStats.professional_info.first_name} {dashboardStats.professional_info.last_name}!
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            {dashboardStats.professional_info.position} • {dashboardStats.professional_info.department}
-          </Typography>
-        </Box>
+        <Paper
+          sx={{
+            p: 3,
+            mb: 3,
+            background: 'linear-gradient(135deg, #1976d2 0%, #1565c0 100%)',
+            color: 'white',
+            borderRadius: 2,
+          }}
+        >
+          <Box display="flex" alignItems="center" gap={2}>
+            <Avatar
+              sx={{
+                width: 56,
+                height: 56,
+                bgcolor: 'rgba(255,255,255,0.2)',
+                fontSize: '1.5rem',
+              }}
+            >
+              {dashboardStats.professional_info.first_name[0]}{dashboardStats.professional_info.last_name[0]}
+            </Avatar>
+            <Box>
+              <Typography variant="h5" fontWeight="bold">
+                Welcome, {dashboardStats.professional_info.first_name}!
+              </Typography>
+              <Typography variant="body2" sx={{ opacity: 0.9 }}>
+                {dashboardStats.professional_info.position} • {dashboardStats.professional_info.department}
+              </Typography>
+            </Box>
+          </Box>
+        </Paper>
       )}
 
-      {/* Dashboard Statistics Cards */}
+      {/* Stats Cards & Leave Chart */}
       <Box
         sx={{
           display: 'grid',
-          gridTemplateColumns: {
-            xs: '1fr',
-            sm: 'repeat(2, 1fr)',
-            lg: 'repeat(4, 1fr)',
-          },
-          gap: 2,
-          mb: 4,
+          gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' },
+          gap: 3,
+          mb: 3,
         }}
       >
-        {getDashboardCards().map((card, index) => (
-          <Card
-            key={index}
-            sx={{
-              background: `linear-gradient(135deg, ${card.color} 0%, ${card.color}dd 100%)`,
-              color: 'white',
-              transition: 'transform 0.2s, box-shadow 0.2s',
-              '&:hover': {
-                transform: 'translateY(-4px)',
-                boxShadow: 6,
-              },
-            }}
-          >
-            <CardContent>
-              <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={1}>
-                <Box>
-                  <Typography variant="h4" fontWeight="bold" gutterBottom>
-                    {card.value}
-                  </Typography>
-                  <Typography variant="body2" sx={{ opacity: 0.9 }}>
-                    {card.title}
-                  </Typography>
-                </Box>
-                <Box sx={{ opacity: 0.8 }}>
-                  {card.icon}
-                </Box>
-              </Box>
-              <Typography variant="caption" sx={{ opacity: 0.8 }}>
-                {card.subtitle}
-              </Typography>
-            </CardContent>
-          </Card>
-        ))}
-      </Box>
-
-      {/* Professional Information Section */}
-      {dashboardStats && (
-        <Paper sx={{ p: { xs: 2, md: 3 }, mb: 3 }}>
-          <Typography variant="h6" fontWeight="bold" mb={3}>
-            Professional Information
+        {/* Leave Stats Cards */}
+        <Paper sx={{ p: 2.5, borderRadius: 2 }}>
+          <Typography variant="subtitle1" fontWeight="bold" mb={2} display="flex" alignItems="center" gap={1}>
+            <TrendingUp fontSize="small" color="primary" />
+            Leave Overview
           </Typography>
           <Box
             sx={{
               display: 'grid',
-              gridTemplateColumns: {
-                xs: '1fr',
-                sm: 'repeat(2, 1fr)',
-                md: 'repeat(3, 1fr)',
-              },
+              gridTemplateColumns: 'repeat(2, 1fr)',
               gap: 2,
             }}
           >
-            <Box display="flex" alignItems="center" gap={1}>
-              <Badge color="primary" />
-              <Box>
-                <Typography variant="caption" color="text.secondary">
-                  Employee ID
-                </Typography>
-                <Typography variant="body1" fontWeight="medium">
-                  {dashboardStats.professional_info.employee_id}
-                </Typography>
-              </Box>
-            </Box>
-            <Box display="flex" alignItems="center" gap={1}>
-              <Work color="primary" />
-              <Box>
-                <Typography variant="caption" color="text.secondary">
-                  Department
-                </Typography>
-                <Typography variant="body1" fontWeight="medium">
-                  {dashboardStats.professional_info.department || 'N/A'}
-                </Typography>
-              </Box>
-            </Box>
-            <Box display="flex" alignItems="center" gap={1}>
-              <Person color="primary" />
-              <Box>
-                <Typography variant="caption" color="text.secondary">
-                  Position
-                </Typography>
-                <Typography variant="body1" fontWeight="medium">
-                  {dashboardStats.professional_info.position || 'N/A'}
-                </Typography>
-              </Box>
-            </Box>
-            <Box display="flex" alignItems="center" gap={1}>
-              <School color="primary" />
-              <Box>
-                <Typography variant="caption" color="text.secondary">
-                  Qualification
-                </Typography>
-                <Typography variant="body1" fontWeight="medium">
-                  {dashboardStats.professional_info.qualification || 'N/A'}
-                </Typography>
-              </Box>
-            </Box>
-            <Box display="flex" alignItems="center" gap={1}>
-              <CalendarToday color="primary" />
-              <Box>
-                <Typography variant="caption" color="text.secondary">
-                  Joining Date
-                </Typography>
-                <Typography variant="body1" fontWeight="medium">
-                  {dashboardStats.professional_info.joining_date
-                    ? new Date(dashboardStats.professional_info.joining_date).toLocaleDateString()
-                    : 'N/A'}
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  Tenure: {dashboardStats.professional_info.tenure}
-                </Typography>
-              </Box>
-            </Box>
-            <Box display="flex" alignItems="center" gap={1}>
-              <EventNote color="primary" />
-              <Box>
-                <Typography variant="caption" color="text.secondary">
-                  Experience
-                </Typography>
-                <Typography variant="body1" fontWeight="medium">
-                  {dashboardStats.professional_info.experience_years} years
-                </Typography>
-              </Box>
-            </Box>
-            {dashboardStats.professional_info.class_teacher_of && (
-              <Box display="flex" alignItems="center" gap={1}>
-                <School color="primary" />
-                <Box>
-                  <Typography variant="caption" color="text.secondary">
-                    Class Teacher Of
-                  </Typography>
-                  <Typography variant="body1" fontWeight="medium">
-                    {dashboardStats.professional_info.class_teacher_of}
-                  </Typography>
+            {getDashboardCards().map((card, index) => (
+              <Card
+                key={index}
+                elevation={0}
+                sx={{
+                  p: 2,
+                  bgcolor: `${card.color}10`,
+                  border: `1px solid ${card.color}30`,
+                  borderRadius: 2,
+                  transition: 'transform 0.2s',
+                  '&:hover': { transform: 'scale(1.02)' },
+                }}
+              >
+                <Box display="flex" alignItems="center" gap={1.5}>
+                  <Avatar sx={{ bgcolor: card.color, width: 40, height: 40 }}>
+                    {card.icon}
+                  </Avatar>
+                  <Box>
+                    <Typography variant="h5" fontWeight="bold" color={card.color}>
+                      {card.value}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {card.title}
+                    </Typography>
+                  </Box>
                 </Box>
-              </Box>
-            )}
-            <Box display="flex" alignItems="center" gap={1}>
-              <Email color="primary" />
-              <Box sx={{ minWidth: 0 }}>
-                <Typography variant="caption" color="text.secondary">
-                  Email
-                </Typography>
-                <Typography
-                  variant="body1"
-                  fontWeight="medium"
-                  sx={{
-                    wordBreak: 'break-word',
-                    fontSize: { xs: '0.875rem', sm: '1rem' }
-                  }}
-                >
-                  {dashboardStats.professional_info.email}
-                </Typography>
-              </Box>
-            </Box>
-            <Box display="flex" alignItems="center" gap={1}>
-              <Phone color="primary" />
-              <Box>
-                <Typography variant="caption" color="text.secondary">
-                  Phone
-                </Typography>
-                <Typography variant="body1" fontWeight="medium">
-                  {dashboardStats.professional_info.phone}
-                </Typography>
-              </Box>
-            </Box>
+              </Card>
+            ))}
           </Box>
         </Paper>
-      )}
 
-      {/* Recent Leave Requests and Quick Actions */}
-      <Box
-        sx={{
-          display: 'grid',
-          gridTemplateColumns: {
-            xs: '1fr',
-            md: '2fr 1fr',
-          },
-          gap: 2,
-        }}
-      >
-        <Box>
-          <Paper sx={{ p: { xs: 2, md: 3 } }}>
-            <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-              <Typography variant="h6" fontWeight="bold">
-                Recent Leave Requests
-              </Typography>
-              <Button
-                variant="contained"
-                onClick={() => navigate('/teacher/leaves')}
-                size="small"
-              >
-                View All
-              </Button>
-            </Box>
-            
-            {recentLeaves.length === 0 ? (
-              <Typography color="text.secondary" textAlign="center" py={4}>
-                No leave requests found. Click "View All" to create your first request.
-              </Typography>
-            ) : (
-              <List>
-                {recentLeaves.map((leave, index) => (
-                  <React.Fragment key={leave.id}>
-                    <ListItem>
-                      <ListItemIcon>
-                        {getStatusIcon(leave.leave_status_id)}
-                      </ListItemIcon>
-                      <ListItemText
-                        primary={
-                          <Box display="flex" alignItems="center" gap={1}>
-                            <Typography variant="body1" fontWeight="medium">
-                              {leave.leave_type_name}
-                            </Typography>
-                            <Chip
-                              label={leave.leave_status_name}
-                              size="small"
-                              color={getStatusColor(leave.leave_status_id) as any}
-                            />
-                          </Box>
-                        }
-                        secondary={
-                          <Box>
-                            <Typography variant="body2" color="text.secondary">
-                              {new Date(leave.start_date).toLocaleDateString()} - {new Date(leave.end_date).toLocaleDateString()} ({leave.total_days} days)
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary" noWrap>
-                              {leave.reason}
-                            </Typography>
-                          </Box>
-                        }
-                      />
-                    </ListItem>
-                    {index < recentLeaves.length - 1 && <Divider />}
-                  </React.Fragment>
-                ))}
-              </List>
-            )}
-          </Paper>
-        </Box>
-
-        <Paper sx={{ p: { xs: 2, md: 3 } }}>
-          <Typography variant="h6" fontWeight="bold" mb={2}>
-            Quick Actions
+        {/* Leave Distribution Chart */}
+        <Paper sx={{ p: 2.5, borderRadius: 2 }}>
+          <Typography variant="subtitle1" fontWeight="bold" mb={1} display="flex" alignItems="center" gap={1}>
+            <EventNote fontSize="small" color="primary" />
+            Leave Distribution
           </Typography>
-          <Box display="flex" flexDirection="column" gap={2}>
-            <Button
-              variant="contained"
-              startIcon={<EventNote />}
-              onClick={() => navigate('/teacher/leaves')}
-              fullWidth
-            >
-              Manage Leave Requests
-            </Button>
-            <Button
-              variant="outlined"
-              startIcon={<Person />}
-              onClick={() => navigate('/profile')}
-              fullWidth
-            >
-              View Profile
-            </Button>
-          </Box>
+          {leaveChartData.length > 0 ? (
+            <ResponsiveContainer width="100%" height={200}>
+              <PieChart>
+                <Pie
+                  data={leaveChartData}
+                  dataKey="value"
+                  nameKey="name"
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={50}
+                  outerRadius={80}
+                  paddingAngle={3}
+                >
+                  {leaveChartData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip
+                  formatter={(value: number, name: string) => [`${value} requests`, name]}
+                  contentStyle={{ borderRadius: 8, fontSize: '0.875rem' }}
+                />
+                <Legend
+                  iconType="circle"
+                  iconSize={10}
+                  wrapperStyle={{ fontSize: '0.8rem' }}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          ) : (
+            <Box display="flex" justifyContent="center" alignItems="center" height={200}>
+              <Typography color="text.secondary">No leave data to display</Typography>
+            </Box>
+          )}
         </Paper>
       </Box>
+
+      {/* Professional Info & Quick Actions Row */}
+      {dashboardStats && (
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: { xs: '1fr', lg: '2fr 1fr' },
+            gap: 3,
+            mb: 3,
+          }}
+        >
+          {/* Professional Info - Compact Grid */}
+          <Paper sx={{ p: 2.5, borderRadius: 2 }}>
+            <Typography variant="subtitle1" fontWeight="bold" mb={2} display="flex" alignItems="center" gap={1}>
+              <Person fontSize="small" color="primary" />
+              Professional Info
+            </Typography>
+            <Box
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: { xs: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)' },
+                gap: 2,
+              }}
+            >
+              {[
+                { icon: <Badge fontSize="small" />, label: 'ID', value: dashboardStats.professional_info.employee_id },
+                { icon: <Work fontSize="small" />, label: 'Dept', value: dashboardStats.professional_info.department || 'N/A' },
+                { icon: <School fontSize="small" />, label: 'Qual', value: dashboardStats.professional_info.qualification || 'N/A' },
+                { icon: <CalendarToday fontSize="small" />, label: 'Joined', value: dashboardStats.professional_info.joining_date ? new Date(dashboardStats.professional_info.joining_date).toLocaleDateString() : 'N/A' },
+                { icon: <AccessTime fontSize="small" />, label: 'Exp', value: `${dashboardStats.professional_info.experience_years} yrs` },
+                ...(dashboardStats.professional_info.class_teacher_of ? [{ icon: <School fontSize="small" />, label: 'Class', value: dashboardStats.professional_info.class_teacher_of }] : []),
+              ].map((item, index) => (
+                <Box key={index} display="flex" alignItems="center" gap={1}>
+                  <Box sx={{ color: 'primary.main' }}>{item.icon}</Box>
+                  <Box>
+                    <Typography variant="caption" color="text.secondary">{item.label}</Typography>
+                    <Typography variant="body2" fontWeight="medium">{item.value}</Typography>
+                  </Box>
+                </Box>
+              ))}
+            </Box>
+            {/* Contact Info */}
+            <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid', borderColor: 'divider', display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+              <Box display="flex" alignItems="center" gap={1}>
+                <Email fontSize="small" color="primary" />
+                <Typography variant="body2" sx={{ wordBreak: 'break-all' }}>{dashboardStats.professional_info.email}</Typography>
+              </Box>
+              <Box display="flex" alignItems="center" gap={1}>
+                <Phone fontSize="small" color="primary" />
+                <Typography variant="body2">{dashboardStats.professional_info.phone}</Typography>
+              </Box>
+            </Box>
+          </Paper>
+
+          {/* Quick Actions */}
+          <Paper sx={{ p: 2.5, borderRadius: 2 }}>
+            <Typography variant="subtitle1" fontWeight="bold" mb={2}>
+              Quick Actions
+            </Typography>
+            <Box display="flex" flexDirection="column" gap={1.5}>
+              <Button
+                variant="contained"
+                startIcon={<EventNote />}
+                onClick={() => navigate('/teacher/leaves')}
+                fullWidth
+                sx={{ py: 1.2 }}
+              >
+                Manage Leaves
+              </Button>
+              <Button
+                variant="outlined"
+                startIcon={<Person />}
+                onClick={() => navigate('/profile')}
+                fullWidth
+                sx={{ py: 1.2 }}
+              >
+                View Profile
+              </Button>
+            </Box>
+          </Paper>
+        </Box>
+      )}
+
+      {/* Recent Leave Requests - Timeline Style */}
+      <Paper sx={{ p: 2.5, borderRadius: 2 }}>
+        <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+          <Typography variant="subtitle1" fontWeight="bold" display="flex" alignItems="center" gap={1}>
+            <AccessTime fontSize="small" color="primary" />
+            Recent Leave Requests
+          </Typography>
+          <Button
+            variant="text"
+            size="small"
+            onClick={() => navigate('/teacher/leaves')}
+            sx={{ textTransform: 'none' }}
+          >
+            View All →
+          </Button>
+        </Box>
+
+        {recentLeaves.length === 0 ? (
+          <Box textAlign="center" py={4}>
+            <EventNote sx={{ fontSize: 48, color: 'text.disabled', mb: 1 }} />
+            <Typography color="text.secondary">No leave requests yet</Typography>
+          </Box>
+        ) : (
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+            {recentLeaves.map((leave) => (
+              <Card
+                key={leave.id}
+                elevation={0}
+                sx={{
+                  p: 2,
+                  bgcolor: 'grey.50',
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  borderRadius: 2,
+                  borderLeft: `4px solid ${getStatusColor(leave.leave_status_id)}`,
+                  transition: 'transform 0.2s, box-shadow 0.2s',
+                  '&:hover': {
+                    transform: 'translateX(4px)',
+                    boxShadow: 1,
+                  },
+                }}
+              >
+                <Box display="flex" justifyContent="space-between" alignItems="flex-start" flexWrap="wrap" gap={1}>
+                  <Box display="flex" alignItems="center" gap={1}>
+                    {getStatusIcon(leave.leave_status_id)}
+                    <Box>
+                      <Typography variant="body2" fontWeight="bold">
+                        {leave.leave_type_name}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {new Date(leave.start_date).toLocaleDateString()} - {new Date(leave.end_date).toLocaleDateString()} • {leave.total_days} day{leave.total_days > 1 ? 's' : ''}
+                      </Typography>
+                    </Box>
+                  </Box>
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      px: 1.5,
+                      py: 0.5,
+                      borderRadius: 1,
+                      bgcolor: `${getStatusColor(leave.leave_status_id)}15`,
+                      color: getStatusColor(leave.leave_status_id),
+                      fontWeight: 'bold',
+                    }}
+                  >
+                    {leave.leave_status_name}
+                  </Typography>
+                </Box>
+              </Card>
+            ))}
+          </Box>
+        )}
+      </Paper>
     </Box>
   );
 };
