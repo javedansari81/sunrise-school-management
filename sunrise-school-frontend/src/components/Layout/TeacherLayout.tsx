@@ -431,8 +431,8 @@ const TeacherLayout: React.FC<TeacherLayoutProps> = ({ children }) => {
           },
         }}
       >
-        {/* Mobile Toolbar Spacer */}
-        {isMobile && <Toolbar />}
+        {/* Mobile Toolbar Spacer - matches AppBar height of 72px */}
+        {isMobile && <Box sx={{ height: 72 }} />}
 
         {/* Desktop Header */}
         {!isMobile && (

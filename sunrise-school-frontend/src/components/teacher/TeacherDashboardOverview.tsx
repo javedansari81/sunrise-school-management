@@ -173,9 +173,9 @@ const TeacherDashboardOverview: React.FC = () => {
   const leaveChartData = getLeaveChartData();
 
   return (
-    <Box sx={{ width: '100%' }}>
+    <Box sx={{ width: '100%', maxWidth: '100%', overflowX: 'hidden' }}>
       {error && (
-        <Alert severity="error" sx={{ mb: 3 }}>
+        <Alert severity="error" sx={{ mb: 2 }}>
           {error}
         </Alert>
       )}
@@ -184,8 +184,8 @@ const TeacherDashboardOverview: React.FC = () => {
       {dashboardStats && (
         <Paper
           sx={{
-            p: 3,
-            mb: 3,
+            p: { xs: 2, sm: 3 },
+            mb: 2,
             background: 'linear-gradient(135deg, #1976d2 0%, #1565c0 100%)',
             color: 'white',
             borderRadius: 2,
@@ -194,19 +194,19 @@ const TeacherDashboardOverview: React.FC = () => {
           <Box display="flex" alignItems="center" gap={2}>
             <Avatar
               sx={{
-                width: 56,
-                height: 56,
+                width: { xs: 48, sm: 56 },
+                height: { xs: 48, sm: 56 },
                 bgcolor: 'rgba(255,255,255,0.2)',
-                fontSize: '1.5rem',
+                fontSize: { xs: '1.2rem', sm: '1.5rem' },
               }}
             >
               {dashboardStats.professional_info.first_name[0]}{dashboardStats.professional_info.last_name[0]}
             </Avatar>
             <Box>
-              <Typography variant="h5" fontWeight="bold">
+              <Typography variant="h6" fontWeight="bold" sx={{ fontSize: { xs: '1.1rem', sm: '1.25rem' } }}>
                 Welcome, {dashboardStats.professional_info.first_name}!
               </Typography>
-              <Typography variant="body2" sx={{ opacity: 0.9 }}>
+              <Typography variant="body2" sx={{ opacity: 0.9, fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
                 {dashboardStats.professional_info.position} • {dashboardStats.professional_info.department}
               </Typography>
             </Box>
@@ -219,12 +219,12 @@ const TeacherDashboardOverview: React.FC = () => {
         sx={{
           display: 'grid',
           gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' },
-          gap: 3,
-          mb: 3,
+          gap: 2,
+          mb: 2,
         }}
       >
         {/* Leave Stats Cards */}
-        <Paper sx={{ p: 2.5, borderRadius: 2 }}>
+        <Paper sx={{ p: { xs: 2, sm: 2.5 }, borderRadius: 2 }}>
           <Typography variant="subtitle1" fontWeight="bold" mb={2} display="flex" alignItems="center" gap={1}>
             <TrendingUp fontSize="small" color="primary" />
             Leave Overview
@@ -233,7 +233,7 @@ const TeacherDashboardOverview: React.FC = () => {
             sx={{
               display: 'grid',
               gridTemplateColumns: 'repeat(2, 1fr)',
-              gap: 2,
+              gap: { xs: 1.5, sm: 2 },
             }}
           >
             {getDashboardCards().map((card, index) => (
@@ -241,7 +241,7 @@ const TeacherDashboardOverview: React.FC = () => {
                 key={index}
                 elevation={0}
                 sx={{
-                  p: 2,
+                  p: { xs: 1.5, sm: 2 },
                   bgcolor: `${card.color}10`,
                   border: `1px solid ${card.color}30`,
                   borderRadius: 2,
@@ -249,15 +249,15 @@ const TeacherDashboardOverview: React.FC = () => {
                   '&:hover': { transform: 'scale(1.02)' },
                 }}
               >
-                <Box display="flex" alignItems="center" gap={1.5}>
-                  <Avatar sx={{ bgcolor: card.color, width: 40, height: 40 }}>
+                <Box display="flex" alignItems="center" gap={1}>
+                  <Avatar sx={{ bgcolor: card.color, width: { xs: 36, sm: 40 }, height: { xs: 36, sm: 40 } }}>
                     {card.icon}
                   </Avatar>
                   <Box>
-                    <Typography variant="h5" fontWeight="bold" color={card.color}>
+                    <Typography variant="h5" fontWeight="bold" color={card.color} sx={{ fontSize: { xs: '1.25rem', sm: '1.5rem' } }}>
                       {card.value}
                     </Typography>
-                    <Typography variant="caption" color="text.secondary">
+                    <Typography variant="caption" color="text.secondary" sx={{ fontSize: { xs: '0.65rem', sm: '0.75rem' } }}>
                       {card.title}
                     </Typography>
                   </Box>
@@ -268,7 +268,7 @@ const TeacherDashboardOverview: React.FC = () => {
         </Paper>
 
         {/* Leave Distribution Chart */}
-        <Paper sx={{ p: 2.5, borderRadius: 2 }}>
+        <Paper sx={{ p: { xs: 2, sm: 2.5 }, borderRadius: 2 }}>
           <Typography variant="subtitle1" fontWeight="bold" mb={1} display="flex" alignItems="center" gap={1}>
             <EventNote fontSize="small" color="primary" />
             Leave Distribution
@@ -315,12 +315,12 @@ const TeacherDashboardOverview: React.FC = () => {
           sx={{
             display: 'grid',
             gridTemplateColumns: { xs: '1fr', lg: '2fr 1fr' },
-            gap: 3,
-            mb: 3,
+            gap: 2,
+            mb: 2,
           }}
         >
           {/* Professional Info - Compact Grid */}
-          <Paper sx={{ p: 2.5, borderRadius: 2 }}>
+          <Paper sx={{ p: { xs: 2, sm: 2.5 }, borderRadius: 2 }}>
             <Typography variant="subtitle1" fontWeight="bold" mb={2} display="flex" alignItems="center" gap={1}>
               <Person fontSize="small" color="primary" />
               Professional Info
@@ -329,7 +329,7 @@ const TeacherDashboardOverview: React.FC = () => {
               sx={{
                 display: 'grid',
                 gridTemplateColumns: { xs: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)' },
-                gap: 2,
+                gap: { xs: 1.5, sm: 2 },
               }}
             >
               {[
@@ -340,30 +340,30 @@ const TeacherDashboardOverview: React.FC = () => {
                 { icon: <AccessTime fontSize="small" />, label: 'Exp', value: `${dashboardStats.professional_info.experience_years} yrs` },
                 ...(dashboardStats.professional_info.class_teacher_of ? [{ icon: <School fontSize="small" />, label: 'Class', value: dashboardStats.professional_info.class_teacher_of }] : []),
               ].map((item, index) => (
-                <Box key={index} display="flex" alignItems="center" gap={1}>
-                  <Box sx={{ color: 'primary.main' }}>{item.icon}</Box>
-                  <Box>
-                    <Typography variant="caption" color="text.secondary">{item.label}</Typography>
-                    <Typography variant="body2" fontWeight="medium">{item.value}</Typography>
+                <Box key={index} display="flex" alignItems="center" gap={0.5}>
+                  <Box sx={{ color: 'primary.main', display: 'flex', alignItems: 'center' }}>{item.icon}</Box>
+                  <Box sx={{ minWidth: 0 }}>
+                    <Typography variant="caption" color="text.secondary" sx={{ fontSize: { xs: '0.65rem', sm: '0.75rem' } }}>{item.label}</Typography>
+                    <Typography variant="body2" fontWeight="medium" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.value}</Typography>
                   </Box>
                 </Box>
               ))}
             </Box>
             {/* Contact Info */}
-            <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid', borderColor: 'divider', display: 'flex', gap: 3, flexWrap: 'wrap' }}>
-              <Box display="flex" alignItems="center" gap={1}>
+            <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid', borderColor: 'divider', display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: { xs: 1, sm: 3 } }}>
+              <Box display="flex" alignItems="center" gap={0.5}>
                 <Email fontSize="small" color="primary" />
-                <Typography variant="body2" sx={{ wordBreak: 'break-all' }}>{dashboardStats.professional_info.email}</Typography>
+                <Typography variant="body2" sx={{ wordBreak: 'break-all', fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>{dashboardStats.professional_info.email}</Typography>
               </Box>
-              <Box display="flex" alignItems="center" gap={1}>
+              <Box display="flex" alignItems="center" gap={0.5}>
                 <Phone fontSize="small" color="primary" />
-                <Typography variant="body2">{dashboardStats.professional_info.phone}</Typography>
+                <Typography variant="body2" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>{dashboardStats.professional_info.phone}</Typography>
               </Box>
             </Box>
           </Paper>
 
           {/* Quick Actions */}
-          <Paper sx={{ p: 2.5, borderRadius: 2 }}>
+          <Paper sx={{ p: { xs: 2, sm: 2.5 }, borderRadius: 2 }}>
             <Typography variant="subtitle1" fontWeight="bold" mb={2}>
               Quick Actions
             </Typography>
@@ -373,7 +373,7 @@ const TeacherDashboardOverview: React.FC = () => {
                 startIcon={<EventNote />}
                 onClick={() => navigate('/teacher/leaves')}
                 fullWidth
-                sx={{ py: 1.2 }}
+                sx={{ py: 1 }}
               >
                 Manage Leaves
               </Button>
@@ -382,7 +382,7 @@ const TeacherDashboardOverview: React.FC = () => {
                 startIcon={<Person />}
                 onClick={() => navigate('/profile')}
                 fullWidth
-                sx={{ py: 1.2 }}
+                sx={{ py: 1 }}
               >
                 View Profile
               </Button>
@@ -392,9 +392,9 @@ const TeacherDashboardOverview: React.FC = () => {
       )}
 
       {/* Recent Leave Requests - Timeline Style */}
-      <Paper sx={{ p: 2.5, borderRadius: 2 }}>
+      <Paper sx={{ p: { xs: 2, sm: 2.5 }, borderRadius: 2 }}>
         <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-          <Typography variant="subtitle1" fontWeight="bold" display="flex" alignItems="center" gap={1}>
+          <Typography variant="subtitle1" fontWeight="bold" display="flex" alignItems="center" gap={1} sx={{ fontSize: { xs: '0.9rem', sm: '1rem' } }}>
             <AccessTime fontSize="small" color="primary" />
             Recent Leave Requests
           </Typography>
@@ -409,51 +409,48 @@ const TeacherDashboardOverview: React.FC = () => {
         </Box>
 
         {recentLeaves.length === 0 ? (
-          <Box textAlign="center" py={4}>
-            <EventNote sx={{ fontSize: 48, color: 'text.disabled', mb: 1 }} />
-            <Typography color="text.secondary">No leave requests yet</Typography>
+          <Box textAlign="center" py={3}>
+            <EventNote sx={{ fontSize: 40, color: 'text.disabled', mb: 1 }} />
+            <Typography color="text.secondary" variant="body2">No leave requests yet</Typography>
           </Box>
         ) : (
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
             {recentLeaves.map((leave) => (
               <Card
                 key={leave.id}
                 elevation={0}
                 sx={{
-                  p: 2,
+                  p: { xs: 1.5, sm: 2 },
                   bgcolor: 'grey.50',
                   border: '1px solid',
                   borderColor: 'divider',
                   borderRadius: 2,
                   borderLeft: `4px solid ${getStatusColor(leave.leave_status_id)}`,
-                  transition: 'transform 0.2s, box-shadow 0.2s',
-                  '&:hover': {
-                    transform: 'translateX(4px)',
-                    boxShadow: 1,
-                  },
                 }}
               >
-                <Box display="flex" justifyContent="space-between" alignItems="flex-start" flexWrap="wrap" gap={1}>
-                  <Box display="flex" alignItems="center" gap={1}>
+                <Box display="flex" justifyContent="space-between" alignItems="flex-start" flexWrap="wrap" gap={0.5}>
+                  <Box display="flex" alignItems="center" gap={0.5} sx={{ minWidth: 0 }}>
                     {getStatusIcon(leave.leave_status_id)}
-                    <Box>
-                      <Typography variant="body2" fontWeight="bold">
+                    <Box sx={{ minWidth: 0 }}>
+                      <Typography variant="body2" fontWeight="bold" sx={{ fontSize: { xs: '0.8rem', sm: '0.875rem' } }}>
                         {leave.leave_type_name}
                       </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        {new Date(leave.start_date).toLocaleDateString()} - {new Date(leave.end_date).toLocaleDateString()} • {leave.total_days} day{leave.total_days > 1 ? 's' : ''}
+                      <Typography variant="caption" color="text.secondary" sx={{ fontSize: { xs: '0.65rem', sm: '0.75rem' } }}>
+                        {new Date(leave.start_date).toLocaleDateString()} - {new Date(leave.end_date).toLocaleDateString()} • {leave.total_days}d
                       </Typography>
                     </Box>
                   </Box>
                   <Typography
                     variant="caption"
                     sx={{
-                      px: 1.5,
-                      py: 0.5,
+                      px: 1,
+                      py: 0.25,
                       borderRadius: 1,
                       bgcolor: `${getStatusColor(leave.leave_status_id)}15`,
                       color: getStatusColor(leave.leave_status_id),
                       fontWeight: 'bold',
+                      fontSize: { xs: '0.6rem', sm: '0.75rem' },
+                      whiteSpace: 'nowrap',
                     }}
                   >
                     {leave.leave_status_name}
