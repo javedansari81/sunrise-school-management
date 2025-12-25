@@ -35,6 +35,7 @@ import {
   FormControlLabel,
   Checkbox,
   CardMedia,
+  Fab,
 } from '@mui/material';
 import { DEFAULT_PAGE_SIZE } from '../../config/pagination';
 import AdminLayout from '../../components/Layout/AdminLayout';
@@ -428,21 +429,6 @@ const GalleryManagement: React.FC = () => {
             title="Filters"
             defaultExpanded={true}
             persistKey="gallery-management-filters"
-            actionButtons={
-              <Button
-                variant="contained"
-                size="small"
-                startIcon={<CloudUpload />}
-                onClick={() => handleOpenDialog()}
-                sx={{
-                  fontSize: { xs: '0.75rem', sm: '0.875rem' },
-                  padding: { xs: '4px 8px', sm: '6px 12px' },
-                  whiteSpace: 'nowrap'
-                }}
-              >
-                Upload New Image
-              </Button>
-            }
           >
             {/* Filter Controls */}
             <Box sx={{
@@ -1009,6 +995,76 @@ const GalleryManagement: React.FC = () => {
               {snackbar.message}
           </Alert>
         </Snackbar>
+
+        {/* Floating Action Button for Upload New Image with Animated Expansion */}
+        <Fab
+          color="primary"
+          aria-label="upload image"
+          variant="extended"
+          onClick={() => handleOpenDialog()}
+          sx={{
+            position: 'fixed',
+            bottom: { xs: 16, sm: 24 },
+            right: { xs: 16, sm: 24 },
+            zIndex: 1000,
+            minWidth: { xs: '48px', sm: '56px' },
+            width: { xs: '48px', sm: '56px' },
+            height: { xs: '48px', sm: '56px' },
+            borderRadius: { xs: '24px', sm: '28px' },
+            padding: { xs: '0 12px', sm: '0 16px' },
+            transition: 'all 0.3s ease-in-out',
+            overflow: 'hidden',
+            boxShadow: 3,
+            '& .MuiSvgIcon-root': {
+              transition: 'margin 0.3s ease-in-out',
+              marginRight: 0,
+              fontSize: { xs: '1.25rem', sm: '1.5rem' },
+            },
+            '& .fab-text': {
+              opacity: 0,
+              width: 0,
+              whiteSpace: 'nowrap',
+              transition: 'opacity 0.3s ease-in-out, width 0.3s ease-in-out',
+              overflow: 'hidden',
+              fontSize: '0.875rem',
+              fontWeight: 500,
+              display: { xs: 'none', sm: 'inline' },
+            },
+            '@media (hover: hover) and (pointer: fine)': {
+              '&:hover': {
+                width: 'auto',
+                minWidth: '180px',
+                paddingRight: '20px',
+                paddingLeft: '16px',
+                boxShadow: 6,
+                '& .MuiSvgIcon-root': {
+                  marginRight: '8px',
+                },
+                '& .fab-text': {
+                  opacity: 1,
+                  width: 'auto',
+                },
+              },
+            },
+            '&:active': {
+              boxShadow: 6,
+              transform: 'scale(0.95)',
+            },
+            '@media (max-width: 360px)': {
+              bottom: '12px',
+              right: '12px',
+              minWidth: '44px',
+              width: '44px',
+              height: '44px',
+              borderRadius: '22px',
+            },
+          }}
+        >
+          <CloudUpload />
+          <Box component="span" className="fab-text">
+            Upload Image
+          </Box>
+        </Fab>
       </ServiceConfigurationLoader>
     </AdminLayout>
   );

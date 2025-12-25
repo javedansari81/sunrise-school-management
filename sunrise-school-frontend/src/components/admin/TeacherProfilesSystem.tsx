@@ -27,7 +27,8 @@ import {
   DialogContent,
   DialogActions,
   Pagination,
-  Grid
+  Grid,
+  Fab,
 } from '@mui/material';
 import { DEFAULT_PAGE_SIZE, PAGINATION_UI_CONFIG } from '../../config/pagination';
 import {
@@ -817,21 +818,6 @@ const TeacherProfilesSystem: React.FC = () => {
         title="Filters"
         defaultExpanded={true}
         persistKey="teacher-profiles-filters"
-        actionButtons={
-          <Button
-            variant="contained"
-            size="small"
-            startIcon={<AddIcon />}
-            onClick={handleOpenDialog}
-            sx={{
-              fontSize: { xs: '0.75rem', sm: '0.875rem' },
-              padding: { xs: '4px 8px', sm: '6px 12px' },
-              whiteSpace: 'nowrap'
-            }}
-          >
-            New Teacher
-          </Button>
-        }
       >
         <Grid container spacing={2} alignItems="center">
           <Grid size={{ xs: 12, sm: 6, md: 4 }}>
@@ -1945,6 +1931,81 @@ const TeacherProfilesSystem: React.FC = () => {
 
       {/* Error Dialog */}
       <ErrorDialog {...errorDialog.dialogProps} />
+
+      {/* Floating Action Button for New Teacher with Animated Expansion */}
+      <Fab
+        color="primary"
+        aria-label="add teacher"
+        variant="extended"
+        onClick={handleOpenDialog}
+        sx={{
+          position: 'fixed',
+          bottom: { xs: 16, sm: 24 },
+          right: { xs: 16, sm: 24 },
+          zIndex: 1000,
+          // Mobile: smaller FAB with icon only
+          minWidth: { xs: '48px', sm: '56px' },
+          width: { xs: '48px', sm: '56px' },
+          height: { xs: '48px', sm: '56px' },
+          borderRadius: { xs: '24px', sm: '28px' },
+          padding: { xs: '0 12px', sm: '0 16px' },
+          transition: 'all 0.3s ease-in-out',
+          overflow: 'hidden',
+          boxShadow: 3,
+          '& .MuiSvgIcon-root': {
+            transition: 'margin 0.3s ease-in-out',
+            marginRight: 0,
+            fontSize: { xs: '1.25rem', sm: '1.5rem' },
+          },
+          '& .fab-text': {
+            opacity: 0,
+            width: 0,
+            whiteSpace: 'nowrap',
+            transition: 'opacity 0.3s ease-in-out, width 0.3s ease-in-out',
+            overflow: 'hidden',
+            fontSize: '0.875rem',
+            fontWeight: 500,
+            // Hide text completely on mobile devices
+            display: { xs: 'none', sm: 'inline' },
+          },
+          // Desktop only: hover to expand (only on devices with hover capability)
+          '@media (hover: hover) and (pointer: fine)': {
+            '&:hover': {
+              width: 'auto',
+              minWidth: '160px',
+              paddingRight: '20px',
+              paddingLeft: '16px',
+              boxShadow: 6,
+              '& .MuiSvgIcon-root': {
+                marginRight: '8px',
+              },
+              '& .fab-text': {
+                opacity: 1,
+                width: 'auto',
+              },
+            },
+          },
+          // Mobile/Touch: no expansion, just visual feedback
+          '&:active': {
+            boxShadow: 6,
+            transform: 'scale(0.95)',
+          },
+          // Ensure proper spacing from screen edges on very small screens
+          '@media (max-width: 360px)': {
+            bottom: '12px',
+            right: '12px',
+            minWidth: '44px',
+            width: '44px',
+            height: '44px',
+            borderRadius: '22px',
+          },
+        }}
+      >
+        <AddIcon />
+        <Box component="span" className="fab-text">
+          New Teacher
+        </Box>
+      </Fab>
     </Box>
   );
 };
