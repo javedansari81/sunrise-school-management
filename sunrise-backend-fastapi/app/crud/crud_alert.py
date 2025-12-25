@@ -84,8 +84,12 @@ class CRUDAlert(CRUDBase[Alert, AlertCreate, AlertUpdate]):
         limit: int = 25
     ) -> Tuple[List[Alert], int]:
         """Get alerts visible to a specific user/role with filtering and pagination"""
-        
+
         # Base query with relationships
+        # Alert visibility logic:
+        # 1. If target_user_id is set, ONLY that specific user should see it
+        # 2. If target_user_id is NULL and target_role is set, all users with that role see it
+        # 3. If both target_role and target_user_id are NULL, it's a broadcast (everyone sees it)
         query = (
             select(Alert)
             .options(
@@ -96,9 +100,18 @@ class CRUDAlert(CRUDBase[Alert, AlertCreate, AlertUpdate]):
                 and_(
                     or_(Alert.is_deleted == False, Alert.is_deleted.is_(None)),
                     or_(
-                        Alert.target_role == user_role,
-                        Alert.target_role.is_(None),
-                        Alert.target_user_id == user_id
+                        # Case 1: Targeted to specific user (ignore role, only user_id matters)
+                        Alert.target_user_id == user_id,
+                        # Case 2: Targeted to role only (no specific user)
+                        and_(
+                            Alert.target_role == user_role,
+                            Alert.target_user_id.is_(None)
+                        ),
+                        # Case 3: Broadcast - visible to everyone (both NULL)
+                        and_(
+                            Alert.target_role.is_(None),
+                            Alert.target_user_id.is_(None)
+                        )
                     )
                 )
             )
@@ -163,14 +176,24 @@ class CRUDAlert(CRUDBase[Alert, AlertCreate, AlertUpdate]):
         user_role: str
     ) -> int:
         """Get count of unread alerts for a user"""
+        # Same visibility logic as get_alerts_for_user
         query = select(func.count(Alert.id)).where(
             and_(
                 or_(Alert.is_deleted == False, Alert.is_deleted.is_(None)),
                 Alert.alert_status_id == 1,  # UNREAD
                 or_(
-                    Alert.target_role == user_role,
-                    Alert.target_role.is_(None),
-                    Alert.target_user_id == user_id
+                    # Case 1: Targeted to specific user
+                    Alert.target_user_id == user_id,
+                    # Case 2: Targeted to role only (no specific user)
+                    and_(
+                        Alert.target_role == user_role,
+                        Alert.target_user_id.is_(None)
+                    ),
+                    # Case 3: Broadcast - visible to everyone
+                    and_(
+                        Alert.target_role.is_(None),
+                        Alert.target_user_id.is_(None)
+                    )
                 )
             )
         )
@@ -204,6 +227,7 @@ class CRUDAlert(CRUDBase[Alert, AlertCreate, AlertUpdate]):
         user_role: str
     ) -> int:
         """Mark all unread alerts as read for a user"""
+        # Same visibility logic as get_alerts_for_user
         stmt = (
             update(Alert)
             .where(
@@ -211,9 +235,18 @@ class CRUDAlert(CRUDBase[Alert, AlertCreate, AlertUpdate]):
                     or_(Alert.is_deleted == False, Alert.is_deleted.is_(None)),
                     Alert.alert_status_id == 1,  # UNREAD
                     or_(
-                        Alert.target_role == user_role,
-                        Alert.target_role.is_(None),
-                        Alert.target_user_id == user_id
+                        # Case 1: Targeted to specific user
+                        Alert.target_user_id == user_id,
+                        # Case 2: Targeted to role only (no specific user)
+                        and_(
+                            Alert.target_role == user_role,
+                            Alert.target_user_id.is_(None)
+                        ),
+                        # Case 3: Broadcast - visible to everyone
+                        and_(
+                            Alert.target_role.is_(None),
+                            Alert.target_user_id.is_(None)
+                        )
                     )
                 )
             )
@@ -279,13 +312,22 @@ class CRUDAlert(CRUDBase[Alert, AlertCreate, AlertUpdate]):
     ) -> Dict[str, Any]:
         """Get alert statistics for dashboard"""
 
-        # Base filter for user's visible alerts
+        # Base filter for user's visible alerts (same visibility logic as get_alerts_for_user)
         base_filter = and_(
             or_(Alert.is_deleted == False, Alert.is_deleted.is_(None)),
             or_(
-                Alert.target_role == user_role,
-                Alert.target_role.is_(None),
-                Alert.target_user_id == user_id
+                # Case 1: Targeted to specific user
+                Alert.target_user_id == user_id,
+                # Case 2: Targeted to role only (no specific user)
+                and_(
+                    Alert.target_role == user_role,
+                    Alert.target_user_id.is_(None)
+                ),
+                # Case 3: Broadcast - visible to everyone
+                and_(
+                    Alert.target_role.is_(None),
+                    Alert.target_user_id.is_(None)
+                )
             )
         )
 
