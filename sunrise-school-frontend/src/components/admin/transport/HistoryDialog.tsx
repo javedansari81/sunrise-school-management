@@ -35,7 +35,6 @@ import transportService, {
 import { configurationService } from '../../../services/configurationService';
 import TransportPaymentReversalDialog from './TransportPaymentReversalDialog';
 import TransportPartialReversalDialog from './TransportPartialReversalDialog';
-import ReceiptViewerDialog from '../../fees/ReceiptViewerDialog';
 
 interface HistoryDialogProps {
   open: boolean;
@@ -64,14 +63,6 @@ const HistoryDialog: React.FC<HistoryDialogProps> = ({
   const [partialReversalDialogOpen, setPartialReversalDialogOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string>('');
   const [errorMessage, setErrorMessage] = useState<string>('');
-
-  // Receipt viewer state
-  const [receiptViewerOpen, setReceiptViewerOpen] = useState(false);
-  const [selectedReceipt, setSelectedReceipt] = useState<{
-    url: string;
-    number: string;
-    studentName: string;
-  } | null>(null);
 
   // Load configuration and data when dialog opens
   useEffect(() => {
@@ -157,10 +148,14 @@ const HistoryDialog: React.FC<HistoryDialogProps> = ({
     setTimeout(() => setErrorMessage(''), 5000);
   };
 
-  const handleViewReceipt = (receiptUrl: string, receiptNumber: string, studentName: string) => {
+  // Handle view receipt - opens PDF in new browser tab using Google Docs Viewer
+  // This ensures inline display without downloading for Cloudinary raw files
+  const handleViewReceipt = (receiptUrl: string) => {
     if (receiptUrl) {
-      setSelectedReceipt({ url: receiptUrl, number: receiptNumber, studentName });
-      setReceiptViewerOpen(true);
+      // Use Google Docs Viewer to display PDF inline in new tab
+      // This works reliably for Cloudinary raw files which default to attachment disposition
+      const viewerUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(receiptUrl)}&embedded=true`;
+      window.open(viewerUrl, '_blank');
     }
   };
 
@@ -467,11 +462,7 @@ const HistoryDialog: React.FC<HistoryDialogProps> = ({
                             {payment.receipt_url && (
                               <IconButton
                                 size="small"
-                                onClick={() => handleViewReceipt(
-                                  payment.receipt_url,
-                                  payment.receipt_number,
-                                  student?.student_name || 'Student'
-                                )}
+                                onClick={() => handleViewReceipt(payment.receipt_url)}
                                 title="View Receipt"
                               >
                                 <VisibilityIcon fontSize="small" />
@@ -537,19 +528,6 @@ const HistoryDialog: React.FC<HistoryDialogProps> = ({
             payment={selectedPayment}
             onSuccess={handleReversalSuccess}
             onError={handleReversalError}
-          />
-
-          {/* Receipt Viewer Dialog */}
-          <ReceiptViewerDialog
-            open={receiptViewerOpen}
-            onClose={() => {
-              setReceiptViewerOpen(false);
-              setSelectedReceipt(null);
-            }}
-            receiptUrl={selectedReceipt?.url || ''}
-            receiptNumber={selectedReceipt?.number || ''}
-            studentName={selectedReceipt?.studentName || ''}
-            receiptType="transport"
           />
         </>
       )}

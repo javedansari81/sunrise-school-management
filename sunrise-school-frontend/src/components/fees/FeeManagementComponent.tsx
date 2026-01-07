@@ -71,7 +71,6 @@ import {
 } from '../../utils/sessionYearUtils';
 import PaymentReversalDialog from './PaymentReversalDialog';
 import PartialReversalDialog from './PartialReversalDialog';
-import ReceiptViewerDialog from './ReceiptViewerDialog';
 import { Menu } from '@mui/material';
 import { DEFAULT_PAGE_SIZE, PAGINATION_UI_CONFIG } from '../../config/pagination';
 
@@ -273,14 +272,6 @@ const FeeManagementComponent: React.FC = () => {
   const [selectedPaymentForReversal, setSelectedPaymentForReversal] = useState<any>(null);
   const [paymentAllocations, setPaymentAllocations] = useState<any[]>([]);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-
-  // Receipt viewer dialog state
-  const [receiptViewerOpen, setReceiptViewerOpen] = useState(false);
-  const [selectedReceipt, setSelectedReceipt] = useState<{
-    url: string;
-    number: string;
-    studentName: string;
-  } | null>(null);
 
   // Auto-calculate payment amount when months are selected
   useEffect(() => {
@@ -779,15 +770,14 @@ const FeeManagementComponent: React.FC = () => {
     });
   };
 
-  // Handle view receipt - opens receipt viewer dialog
-  const handleViewReceipt = (receiptUrl: string, receiptNumber: string, studentName: string) => {
+  // Handle view receipt - opens PDF in new browser tab using Google Docs Viewer
+  // This ensures inline display without downloading for Cloudinary raw files
+  const handleViewReceipt = (receiptUrl: string) => {
     if (receiptUrl) {
-      setSelectedReceipt({
-        url: receiptUrl,
-        number: receiptNumber,
-        studentName: studentName
-      });
-      setReceiptViewerOpen(true);
+      // Use Google Docs Viewer to display PDF inline in new tab
+      // This works reliably for Cloudinary raw files which default to attachment disposition
+      const viewerUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(receiptUrl)}&embedded=true`;
+      window.open(viewerUrl, '_blank');
     }
   };
 
@@ -2094,11 +2084,7 @@ const FeeManagementComponent: React.FC = () => {
                                     <Tooltip title="View Receipt">
                                       <IconButton
                                         size="small"
-                                        onClick={() => handleViewReceipt(
-                                          payment.receipt.receipt_url,
-                                          payment.receipt.receipt_number,
-                                          paymentHistory?.student_name || 'Student'
-                                        )}
+                                        onClick={() => handleViewReceipt(payment.receipt.receipt_url)}
                                         color="primary"
                                       >
                                         <VisibilityIcon fontSize="small" />
@@ -2419,18 +2405,6 @@ const FeeManagementComponent: React.FC = () => {
         allocations={paymentAllocations}
         onSuccess={handleReversalSuccess}
         onError={handleReversalError}
-      />
-
-      {/* Receipt Viewer Dialog */}
-      <ReceiptViewerDialog
-        open={receiptViewerOpen}
-        onClose={() => {
-          setReceiptViewerOpen(false);
-          setSelectedReceipt(null);
-        }}
-        receiptUrl={selectedReceipt?.url || ''}
-        receiptNumber={selectedReceipt?.number || ''}
-        studentName={selectedReceipt?.studentName || ''}
       />
 
       {/* Snackbar for notifications */}

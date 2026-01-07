@@ -68,13 +68,15 @@ class CloudinaryReceiptService:
             logger.info(f"Uploading receipt PDF to Cloudinary: {filename}")
 
             # Upload to Cloudinary
+            # Note: flags="attachment:false" allows browser to display PDF inline instead of forcing download
             cloudinary_response = cloudinary.uploader.upload(
                 pdf_buffer,
                 folder=self.RECEIPT_FOLDER,
                 public_id=filename,
                 resource_type="raw",  # Use 'raw' for PDFs
                 overwrite=False,  # Don't overwrite existing files
-                tags=[f"payment_{payment_id}", receipt_number, "fee_receipt"]
+                tags=[f"payment_{payment_id}", receipt_number, "fee_receipt"],
+                flags="attachment:false"  # Allow inline display in browser
             )
 
             cloudinary_url = cloudinary_response.get('secure_url')

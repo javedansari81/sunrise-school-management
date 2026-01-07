@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -6,10 +6,15 @@ import {
   IconButton,
   Box,
   Typography,
-  CircularProgress,
-  Alert
+  Button,
+  Tooltip,
+  Paper
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
+import DownloadIcon from '@mui/icons-material/Download';
+import OpenInNewIcon from '@mui/icons-material/OpenInNew';
+import ReceiptLongIcon from '@mui/icons-material/ReceiptLong';
+import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 
 interface ReceiptViewerDialogProps {
   open: boolean;
@@ -28,59 +33,51 @@ const ReceiptViewerDialog: React.FC<ReceiptViewerDialogProps> = ({
   studentName,
   receiptType = 'fee'
 }) => {
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
 
-  // Use Google Docs Viewer to display PDF inline (workaround for Cloudinary download issue)
-  const getViewerUrl = (url: string) => {
-    if (!url) return url;
-
-    // Use Google Docs Viewer to display PDF inline
-    // This works around Cloudinary's Content-Disposition: attachment header
-    return `https://docs.google.com/viewer?url=${encodeURIComponent(url)}&embedded=true`;
-  };
-
-  const viewerUrl = getViewerUrl(receiptUrl);
-
-  // Reset loading state when dialog opens
-  React.useEffect(() => {
-    if (open) {
-      setLoading(true);
-      setError(false);
-      // Set a timeout to hide loading after 1 second
+  // Auto-download when dialog opens (fast experience)
+  useEffect(() => {
+    if (open && receiptUrl) {
+      // Small delay to show the dialog first
       const timer = setTimeout(() => {
-        setLoading(false);
-      }, 1000);
+        handleDownload();
+      }, 300);
       return () => clearTimeout(timer);
     }
   }, [open, receiptUrl]);
 
-  // Reset state when dialog closes
-  const handleClose = () => {
-    setLoading(true);
-    setError(false);
-    onClose();
+  // Handle download - triggers browser download
+  const handleDownload = () => {
+    const link = document.createElement('a');
+    link.href = receiptUrl;
+    link.download = `${receiptNumber}.pdf`;
+    link.target = '_blank';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Handle open in new tab (for browser PDF viewer)
+  const handleOpenInNewTab = () => {
+    window.open(receiptUrl, '_blank');
   };
 
   return (
     <Dialog
       open={open}
-      onClose={handleClose}
-      maxWidth="md"
+      onClose={onClose}
+      maxWidth="xs"
       fullWidth
       PaperProps={{
         sx: {
-          height: '90vh',
-          maxHeight: '900px'
+          borderRadius: 2
         }
       }}
     >
       {/* Header */}
       <DialogTitle
         sx={{
-          bgcolor: 'white',
-          borderBottom: 1,
-          borderColor: 'divider',
+          bgcolor: receiptType === 'transport' ? '#2e7d32' : '#1976d2',
+          color: 'white',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
@@ -88,62 +85,83 @@ const ReceiptViewerDialog: React.FC<ReceiptViewerDialogProps> = ({
           px: 2
         }}
       >
-        <Box>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <ReceiptLongIcon />
           <Typography variant="h6" sx={{ fontWeight: 600 }}>
             {receiptType === 'transport' ? 'Transport Receipt' : 'Fee Receipt'}
           </Typography>
-          {studentName && (
-            <Typography variant="caption" color="text.secondary">
-              {studentName} - {receiptNumber}
-            </Typography>
-          )}
         </Box>
-        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-          {/* Close Button */}
-          <IconButton onClick={handleClose} size="small">
-            <CloseIcon fontSize="small" />
-          </IconButton>
-        </Box>
+        <IconButton onClick={onClose} size="small" sx={{ color: 'white' }}>
+          <CloseIcon fontSize="small" />
+        </IconButton>
       </DialogTitle>
 
       {/* Content */}
-      <DialogContent sx={{ p: 0, position: 'relative', bgcolor: '#f5f5f5' }}>
-        {/* Loading Indicator */}
-        {loading && (
-          <Box
-            sx={{
-              position: 'absolute',
-              top: '50%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)',
-              zIndex: 1
-            }}
-          >
-            <CircularProgress />
-          </Box>
-        )}
+      <DialogContent sx={{ p: 3 }}>
+        {/* Receipt Info Card */}
+        <Paper
+          elevation={0}
+          sx={{
+            p: 3,
+            bgcolor: '#f8f9fa',
+            borderRadius: 2,
+            textAlign: 'center',
+            border: '1px dashed #ccc'
+          }}
+        >
+          <PictureAsPdfIcon sx={{ fontSize: 64, color: '#d32f2f', mb: 2 }} />
 
-        {/* Error Message */}
-        {error && (
-          <Box sx={{ p: 3 }}>
-            <Alert severity="error">
-              Failed to load receipt. Please close and try again.
-            </Alert>
-          </Box>
-        )}
+          <Typography variant="h6" sx={{ fontWeight: 600, mb: 0.5 }}>
+            {receiptNumber}
+          </Typography>
 
-        {/* PDF Viewer using Google Docs Viewer */}
-        {!error && (
-          <iframe
-            src={viewerUrl}
-            title="Receipt Viewer"
-            style={{
-              width: '100%',
-              height: '100%',
-              border: 'none'
-            }}
-          />
-        )}
+          {studentName && (
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              {studentName}
+            </Typography>
+          )}
+
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 3 }}>
+            Your receipt is ready! Click download to save or open in PDF viewer.
+          </Typography>
+
+          {/* Action Buttons */}
+          <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center' }}>
+            <Button
+              variant="contained"
+              color="primary"
+              startIcon={<DownloadIcon />}
+              onClick={handleDownload}
+              sx={{ px: 3 }}
+            >
+              Download
+            </Button>
+
+            <Tooltip title="Opens in browser PDF viewer">
+              <Button
+                variant="outlined"
+                color="primary"
+                startIcon={<OpenInNewIcon />}
+                onClick={handleOpenInNewTab}
+              >
+                Open
+              </Button>
+            </Tooltip>
+          </Box>
+        </Paper>
+
+        {/* Help Text */}
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          sx={{
+            display: 'block',
+            textAlign: 'center',
+            mt: 2
+          }}
+        >
+          💡 Tip: Downloaded receipts open faster with Adobe Reader or your default PDF app.
+        </Typography>
       </DialogContent>
     </Dialog>
   );

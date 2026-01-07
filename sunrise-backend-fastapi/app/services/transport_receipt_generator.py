@@ -4,6 +4,7 @@ Generates professional transport payment receipts with month-wise breakdown
 """
 
 import io
+import os
 import calendar
 from datetime import datetime
 from typing import List, Dict, Any, Optional
@@ -13,7 +14,7 @@ from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 
 
@@ -21,11 +22,13 @@ class TransportReceiptGenerator:
     """Service for generating PDF receipts for transport payments"""
 
     # School Information
-    SCHOOL_NAME = "Sunrise National Public School"
+    SCHOOL_NAME = "SUNRISE NATIONAL PUBLIC SCHOOL"
     SCHOOL_ADDRESS = "Sena road, Farsauliyana, Rath, Hamirpur, UP - 210431"
-    SCHOOL_PHONE = "6392171614, 9198627786"
     SCHOOL_EMAIL = "sunrise.nps008@gmail.com"
-    SCHOOL_HOURS = "Mon-Sat 8:00 AM - 2:30 PM"
+    SCHOOL_WEBSITE = "sunrisenps.com"
+
+    # Logo path (relative to this file)
+    LOGO_PATH = os.path.join(os.path.dirname(__file__), '..', 'static', 'images', 'school_logo.jpeg')
 
     def __init__(self):
         """Initialize the transport receipt generator"""
@@ -153,29 +156,61 @@ class TransportReceiptGenerator:
         return buffer
 
     def _create_header(self) -> List:
-        """Create school header section"""
+        """Create school header section with logo"""
         elements = []
 
-        # School name
-        school_name = Paragraph(self.SCHOOL_NAME, self.styles['SchoolTitle'])
-        elements.append(school_name)
+        # Try to load the school logo
+        logo_element = None
+        if os.path.exists(self.LOGO_PATH):
+            try:
+                logo_element = Image(self.LOGO_PATH, width=1.2*inch, height=1.2*inch)
+            except Exception:
+                logo_element = None
 
-        # School address
-        school_address = Paragraph(self.SCHOOL_ADDRESS, self.styles['SchoolSubtitle'])
-        elements.append(school_address)
+        # Fallback to text placeholder if logo not found
+        if logo_element is None:
+            logo_element = Paragraph(
+                "<b>LOGO</b>",
+                ParagraphStyle(
+                    'LogoPlaceholder',
+                    parent=self.styles['Normal'],
+                    fontSize=10,
+                    alignment=TA_CENTER,
+                    textColor=colors.HexColor('#999999')
+                )
+            )
 
-        # Contact information
-        contact_info = f"Phone: {self.SCHOOL_PHONE} | Email: {self.SCHOOL_EMAIL}"
-        contact_para = Paragraph(contact_info, self.styles['SchoolSubtitle'])
-        elements.append(contact_para)
+        # School information
+        school_info = Paragraph(
+            f"<b><font size=18 color='#1976d2'>{self.SCHOOL_NAME}</font></b><br/>"
+            f"<font size=9 color='#555555'>{self.SCHOOL_ADDRESS}</font><br/>"
+            f"<font size=9 color='#666666'>Email: {self.SCHOOL_EMAIL} | "
+            f"Website: {self.SCHOOL_WEBSITE}</font>",
+            ParagraphStyle(
+                'SchoolInfo',
+                parent=self.styles['Normal'],
+                fontSize=9,
+                alignment=TA_CENTER,
+                leading=14
+            )
+        )
 
-        # Hours
-        hours_para = Paragraph(f"Hours: {self.SCHOOL_HOURS}", self.styles['SchoolSubtitle'])
-        elements.append(hours_para)
+        # Create header table (logo + school info)
+        header_table = Table(
+            [[logo_element, school_info]],
+            colWidths=[1.4*inch, 5.6*inch]
+        )
+        header_table.setStyle(TableStyle([
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('ALIGN', (0, 0), (0, 0), 'CENTER'),
+            ('ALIGN', (1, 0), (1, 0), 'CENTER'),
+        ]))
+        elements.append(header_table)
+
+        elements.append(Spacer(1, 0.1*inch))
 
         # Horizontal line
-        elements.append(Spacer(1, 0.1*inch))
-        line_table = Table([['']], colWidths=[6.5*inch])
+        line_table = Table([['']], colWidths=[7*inch])
         line_table.setStyle(TableStyle([
             ('LINEABOVE', (0, 0), (-1, 0), 2, colors.HexColor('#1976d2')),
         ]))

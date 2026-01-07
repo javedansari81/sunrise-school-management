@@ -28,6 +28,7 @@ from app.models.student import Student
 from app.models.teacher import Teacher
 from app.models.expense import Expense as ExpenseModel
 from app.models.fee import FeeRecord as FeeRecordModel, FeePayment as FeePaymentModel, MonthlyFeeTracking as MonthlyFeeTrackingModel, MonthlyPaymentAllocation
+from app.models.transport import StudentTransportEnrollment, TransportMonthlyTracking
 from app.services.alert_service import alert_service
 from app.services.receipt_generator import ReceiptGenerator
 from app.services.cloudinary_receipt_service import CloudinaryReceiptService
@@ -2558,23 +2559,28 @@ async def pay_monthly_enhanced(
         # Generate receipt number
         receipt_number = f"FEE-{payment.id:06d}"
 
-        # Prepare payment data for receipt
+        # Prepare payment data for receipt (enhanced with payment_date_str)
+        payment_date_str = payment.payment_date.strftime('%d-%b-%Y') if payment.payment_date else 'N/A'
         payment_data = {
             'id': payment.id,
             'amount': float(payment.amount),
             'payment_method': payment_method_desc,
             'payment_date': payment.payment_date,
+            'payment_date_str': payment_date_str,
             'transaction_id': payment.transaction_id or 'N/A',
             'receipt_number': receipt_number
         }
 
-        # Prepare student data for receipt
+        # Prepare student data for receipt (enhanced with address and mobile)
         student_data = {
             'name': f"{student.first_name} {student.last_name}",
             'admission_number': student.admission_number,
-            'class_name': student.class_ref.description if student.class_ref else 'N/A',
+            'class_name': f"{student.class_ref.description} - {student.section}" if student.class_ref and student.section else (student.class_ref.description if student.class_ref else 'N/A'),
             'roll_number': student.roll_number or 'N/A',
-            'father_name': student.father_name
+            'father_name': student.father_name,
+            'mobile': student.father_phone or student.phone or 'N/A',
+            'father_phone': student.father_phone or 'N/A',
+            'address': student.address or ''
         }
 
         # Prepare fee summary
@@ -2584,13 +2590,66 @@ async def pay_monthly_enhanced(
             'balance_remaining': float(fee_record.balance_amount)
         }
 
-        # Generate receipt PDF
+        # Check if student has transport enrollment for current session
+        transport_data = None
+        try:
+            from app.crud.crud_transport import student_transport_enrollment_crud
+            transport_enrollment = await db.execute(
+                select(StudentTransportEnrollment)
+                .where(StudentTransportEnrollment.student_id == student.id)
+                .where(StudentTransportEnrollment.session_year_id == fee_record.session_year_id)
+                .where(StudentTransportEnrollment.is_active == True)
+            )
+            enrollment = transport_enrollment.scalar_one_or_none()
+
+            if enrollment:
+                # Get transport payment summary
+                from app.models.transport import TransportMonthlyTracking
+                transport_summary = await db.execute(
+                    select(
+                        func.sum(TransportMonthlyTracking.monthly_amount).label('total_amount'),
+                        func.sum(TransportMonthlyTracking.paid_amount).label('total_paid')
+                    )
+                    .where(TransportMonthlyTracking.enrollment_id == enrollment.id)
+                    .where(TransportMonthlyTracking.is_service_enabled == True)
+                )
+                summary = transport_summary.one()
+
+                total_transport = float(summary.total_amount or 0)
+                paid_transport = float(summary.total_paid or 0)
+                balance_transport = total_transport - paid_transport
+
+                # Get paid months
+                paid_months_query = await db.execute(
+                    select(TransportMonthlyTracking.month_name)
+                    .where(TransportMonthlyTracking.enrollment_id == enrollment.id)
+                    .where(TransportMonthlyTracking.payment_status_id == 2)  # Paid status
+                    .order_by(TransportMonthlyTracking.academic_month)
+                )
+                paid_months = [row[0] for row in paid_months_query.fetchall()]
+
+                transport_data = {
+                    'monthly_fee': float(enrollment.monthly_fee),
+                    'total_paid': paid_transport,
+                    'balance': balance_transport,
+                    'months_covered': paid_months
+                }
+        except Exception as transport_error:
+            logger.warning(f"Could not fetch transport data: {str(transport_error)}")
+            # Continue without transport data
+
+        # Get admin user name who processed the payment
+        created_by_name = f"{current_user.first_name} {current_user.last_name}" if current_user else None
+
+        # Generate receipt PDF (enhanced with transport data and created_by_name)
         receipt_generator = ReceiptGenerator()
         pdf_buffer = receipt_generator.generate_receipt(
             payment_data=payment_data,
             student_data=student_data,
             month_breakdown=payment_breakdown,
-            fee_summary=fee_summary
+            fee_summary=fee_summary,
+            transport_data=transport_data,
+            created_by_name=created_by_name
         )
 
         # Upload to Cloudinary
