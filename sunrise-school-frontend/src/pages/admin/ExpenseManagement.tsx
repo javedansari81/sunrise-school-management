@@ -45,6 +45,7 @@ import ServiceConfigurationLoader from '../../components/common/ServiceConfigura
 import CollapsibleFilterSection from '../../components/common/CollapsibleFilterSection';
 import { configurationService } from '../../services/configurationService';
 import { expenseAPI } from '../../services/api';
+import { useAuth } from '../../contexts/AuthContext';
 
 // Utility function to parse FastAPI validation errors
 const parseValidationErrors = (error: any): string => {
@@ -123,6 +124,10 @@ interface ExpenseFilters {
 
 const ExpenseManagement: React.FC = () => {
   const { isLoaded, isLoading: configLoading, error: configError } = useServiceConfiguration('expense-management');
+  const { user } = useAuth();
+
+  // Check if current user is SUPER_ADMIN (only SUPER_ADMIN can approve/reject expenses)
+  const isSuperAdmin = user?.user_type?.toUpperCase() === 'SUPER_ADMIN';
 
   // Get service configuration data directly
   const serviceConfig = configurationService.getServiceConfiguration('expense-management');
@@ -664,24 +669,29 @@ const ExpenseManagement: React.FC = () => {
                                       <Delete />
                                     </IconButton>
                                   </Tooltip>
-                                  <Tooltip title="Approve">
-                                    <IconButton
-                                      size="small"
-                                      color="success"
-                                      onClick={() => handleApprove(expense.id, 2, 'Approved')}
-                                    >
-                                      <CheckCircle />
-                                    </IconButton>
-                                  </Tooltip>
-                                  <Tooltip title="Reject">
-                                    <IconButton
-                                      size="small"
-                                      color="error"
-                                      onClick={() => handleApprove(expense.id, 3, 'Rejected')}
-                                    >
-                                      <Cancel />
-                                    </IconButton>
-                                  </Tooltip>
+                                  {/* Approve/Reject buttons - only visible to SUPER_ADMIN users */}
+                                  {isSuperAdmin && (
+                                    <>
+                                      <Tooltip title="Approve">
+                                        <IconButton
+                                          size="small"
+                                          color="success"
+                                          onClick={() => handleApprove(expense.id, 2, 'Approved')}
+                                        >
+                                          <CheckCircle />
+                                        </IconButton>
+                                      </Tooltip>
+                                      <Tooltip title="Reject">
+                                        <IconButton
+                                          size="small"
+                                          color="error"
+                                          onClick={() => handleApprove(expense.id, 3, 'Rejected')}
+                                        >
+                                          <Cancel />
+                                        </IconButton>
+                                      </Tooltip>
+                                    </>
+                                  )}
                                 </>
                               )}
                             </Stack>
@@ -727,7 +737,7 @@ const ExpenseManagement: React.FC = () => {
       </Snackbar>
 
       {/* Expense Form Dialog */}
-      <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="lg" fullWidth>
+      <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="md" fullWidth>
         <DialogTitle>
           {dialogMode === 'view' ? 'View Expense Details' :
            dialogMode === 'edit' ? 'Edit Expense' : 'Add New Expense'}

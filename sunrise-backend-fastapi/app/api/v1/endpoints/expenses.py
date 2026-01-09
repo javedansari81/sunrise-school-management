@@ -323,8 +323,18 @@ async def approve_expense(
     current_user: User = Depends(get_current_active_user)
 ):
     """
-    Approve or reject an expense
+    Approve or reject an expense.
+    Only SUPER_ADMIN users (user_type_id=6) can approve/reject expenses.
+    ADMIN users can create, edit, and delete expenses but approval is reserved for SUPER_ADMIN.
     """
+    # Check if user is SUPER_ADMIN (user_type_id=6)
+    # ADMIN (user_type_id=1) cannot approve expenses - they need SUPER_ADMIN approval
+    if current_user.user_type_id != 6:  # 6 = SUPER_ADMIN
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only SUPER_ADMIN users can approve or reject expenses. Please contact a SUPER_ADMIN for approval."
+        )
+
     expense = await expense_crud.get(db, id=expense_id)
     if not expense:
         raise HTTPException(

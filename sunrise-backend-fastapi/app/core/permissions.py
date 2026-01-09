@@ -62,7 +62,8 @@ class Permission(str, Enum):
 # Role-based permissions mapping
 ROLE_PERMISSIONS: Dict[UserTypeEnum, List[Permission]] = {
     UserTypeEnum.ADMIN: [
-        # Full access to everything
+        # Administrative access - can create/edit/delete expenses but NOT approve
+        # Expense approval is reserved for SUPER_ADMIN only
         Permission.VIEW_STUDENTS,
         Permission.CREATE_STUDENTS,
         Permission.UPDATE_STUDENTS,
@@ -84,7 +85,7 @@ ROLE_PERMISSIONS: Dict[UserTypeEnum, List[Permission]] = {
         Permission.VIEW_EXPENSES,
         Permission.CREATE_EXPENSES,
         Permission.UPDATE_EXPENSES,
-        Permission.APPROVE_EXPENSES,
+        # Note: APPROVE_EXPENSES removed - only SUPER_ADMIN can approve expenses
         Permission.DELETE_EXPENSES,
         Permission.VIEW_EXPENSE_REPORTS,
         Permission.VIEW_USERS,

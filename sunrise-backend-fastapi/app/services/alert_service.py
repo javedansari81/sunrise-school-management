@@ -359,10 +359,14 @@ class AlertService:
         requester_user_id: int,
         priority: str = "Medium"
     ) -> Alert:
-        """Create alert when a new expense is created"""
+        """
+        Create alert when a new expense is created.
+        Notification is sent to SUPER_ADMIN users only since they are the ones
+        who can approve/reject expenses. ADMIN users create expenses but cannot approve them.
+        """
         vendor_info = f" to {vendor_name}" if vendor_name else ""
-        title = f"New Expense: ₹{amount:,.2f}"
-        message = f"{requester_name} created a {priority.lower()} priority expense of ₹{amount:,.2f} for {expense_category}{vendor_info}. Description: {description}"
+        title = f"Expense Pending Approval: ₹{amount:,.2f}"
+        message = f"{requester_name} created a {priority.lower()} priority expense of ₹{amount:,.2f} for {expense_category}{vendor_info}. This expense requires SUPER_ADMIN approval. Description: {description}"
 
         return await alert_crud.create_alert(
             db,
@@ -375,13 +379,14 @@ class AlertService:
             actor_user_id=requester_user_id,
             actor_type="ADMIN",
             actor_name=requester_name,
-            target_role="ADMIN",  # Visible to all admins
+            target_role="SUPER_ADMIN",  # Only SUPER_ADMIN can approve expenses
             alert_metadata={
                 "expense_category": expense_category,
                 "description": description,
                 "amount": amount,
                 "vendor_name": vendor_name,
-                "priority": priority
+                "priority": priority,
+                "requires_approval": True
             },
             priority_level=3 if priority in ['High', 'Urgent'] else 2,
             expires_at=datetime.utcnow() + timedelta(days=30)
