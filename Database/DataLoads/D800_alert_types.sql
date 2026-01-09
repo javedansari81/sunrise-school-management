@@ -122,7 +122,8 @@ INSERT INTO alert_types (id, name, description, category, icon, color_code, prio
 (60, 'EXPENSE_CREATED', 'New expense created', 'FINANCIAL', 'Receipt', '#2196F3', 2, 30, FALSE),
 (61, 'EXPENSE_APPROVED', 'Expense approved', 'FINANCIAL', 'CheckCircle', '#4CAF50', 2, 30, FALSE),
 (62, 'EXPENSE_REJECTED', 'Expense rejected', 'FINANCIAL', 'Cancel', '#F44336', 3, 30, FALSE),
-(63, 'EXPENSE_PAID', 'Expense marked as paid', 'FINANCIAL', 'AccountBalanceWallet', '#4CAF50', 2, 30, FALSE)
+(63, 'EXPENSE_PAID', 'Expense marked as paid', 'FINANCIAL', 'AccountBalanceWallet', '#4CAF50', 2, 30, FALSE),
+(64, 'EXPENSE_UPDATED', 'Expense has been updated', 'FINANCIAL', 'Edit', '#FF9800', 2, 30, FALSE)
 ON CONFLICT (id) DO UPDATE SET
     name = EXCLUDED.name,
     description = EXCLUDED.description,

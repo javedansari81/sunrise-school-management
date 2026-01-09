@@ -184,7 +184,7 @@ async def update_expense(
     current_user: User = Depends(get_current_active_user)
 ):
     """
-    Update an expense record (only allowed for pending expenses)
+    Update expense record (only if pending and by requester or admin)
     """
     expense = await expense_crud.get(db, id=expense_id)
     if not expense:
@@ -193,46 +193,21 @@ async def update_expense(
             detail="Expense not found"
         )
 
-    # Only allow updates for pending expenses
+    # Only allow updates if status is pending
     if expense.expense_status_id != 1:  # Not pending
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Can only update pending expenses"
         )
 
-    # Only allow the requester to update their own expense
-    if expense.requested_by != current_user.id:
+    # Authorization: Allow if user is admin (user_type_id 1 or 6) or the requester
+    is_admin = current_user.user_type_id in [1, 6]  # ADMIN or SUPER_ADMIN
+    is_requester = expense.requested_by == current_user.id
+
+    if not (is_admin or is_requester):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Can only update your own expenses"
-        )
-
-    updated_expense = await expense_crud.update(db, db_obj=expense, obj_in=expense_data)
-    return updated_expense
-
-
-@router.put("/{expense_id}", response_model=Expense)
-async def update_expense(
-    expense_id: int,
-    expense_data: ExpenseUpdate,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
-):
-    """
-    Update expense record (only if pending or by requester)
-    """
-    expense = await expense_crud.get(db, id=expense_id)
-    if not expense:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Expense not found"
-        )
-
-    # Only allow updates if status is pending or user is the requester
-    if expense.expense_status_id != 1 and expense.requested_by != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Cannot update expense that is not pending or not requested by you"
+            detail="Cannot update expense - you must be an admin or the original requester"
         )
 
     # Validate total amount if provided
@@ -250,6 +225,33 @@ async def update_expense(
     updated_expense = await expense_crud.update(
         db, db_obj=expense, obj_in=expense_data
     )
+
+    # Generate alert for expense update (notify SUPER_ADMIN users)
+    try:
+        # Refresh to load relationships
+        await db.refresh(updated_expense, ['expense_category'])
+
+        # Get expense category name
+        expense_category_name = updated_expense.expense_category.description if updated_expense.expense_category else "Unknown"
+
+        # Get updater name
+        updater_name = f"{current_user.first_name} {current_user.last_name}" if current_user.first_name else "Admin"
+
+        await alert_service.create_expense_update_alert(
+            db,
+            expense_id=updated_expense.id,
+            expense_category=expense_category_name,
+            description=updated_expense.description,
+            amount=float(updated_expense.total_amount),
+            vendor_name=updated_expense.vendor_name,
+            updater_name=updater_name,
+            updater_user_id=current_user.id,
+            priority=updated_expense.priority or "Medium"
+        )
+    except Exception as e:
+        # Log error but don't fail the expense update
+        print(f"Failed to create expense update alert: {e}")
+
     return updated_expense
 
 

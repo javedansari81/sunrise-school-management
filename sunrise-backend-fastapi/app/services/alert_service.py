@@ -59,6 +59,7 @@ class AlertService:
         EXPENSE_APPROVED = 61
         EXPENSE_REJECTED = 62
         EXPENSE_PAID = 63
+        EXPENSE_UPDATED = 64
 
         # System
         SYSTEM_ANNOUNCEMENT = 100
@@ -379,6 +380,52 @@ class AlertService:
             actor_user_id=requester_user_id,
             actor_type="ADMIN",
             actor_name=requester_name,
+            target_role="SUPER_ADMIN",  # Only SUPER_ADMIN can approve expenses
+            alert_metadata={
+                "expense_category": expense_category,
+                "description": description,
+                "amount": amount,
+                "vendor_name": vendor_name,
+                "priority": priority,
+                "requires_approval": True
+            },
+            priority_level=3 if priority in ['High', 'Urgent'] else 2,
+            expires_at=datetime.utcnow() + timedelta(days=30)
+        )
+
+    @staticmethod
+    async def create_expense_update_alert(
+        db: AsyncSession,
+        *,
+        expense_id: int,
+        expense_category: str,
+        description: str,
+        amount: float,
+        vendor_name: Optional[str],
+        updater_name: str,
+        updater_user_id: int,
+        priority: str = "Medium"
+    ) -> Alert:
+        """
+        Create alert when an expense is updated.
+        Notification is sent to SUPER_ADMIN users only since they are the ones
+        who can approve/reject expenses. This keeps them informed of changes to pending expenses.
+        """
+        vendor_info = f" to {vendor_name}" if vendor_name else ""
+        title = f"Expense Updated: ₹{amount:,.2f}"
+        message = f"{updater_name} updated a {priority.lower()} priority expense of ₹{amount:,.2f} for {expense_category}{vendor_info}. This expense is pending SUPER_ADMIN approval. Description: {description}"
+
+        return await alert_crud.create_alert(
+            db,
+            alert_type_id=AlertService.AlertTypes.EXPENSE_UPDATED,
+            title=title,
+            message=message,
+            entity_type="EXPENSE",
+            entity_id=expense_id,
+            entity_display_name=description[:50],  # Truncate long descriptions
+            actor_user_id=updater_user_id,
+            actor_type="ADMIN",
+            actor_name=updater_name,
             target_role="SUPER_ADMIN",  # Only SUPER_ADMIN can approve expenses
             alert_metadata={
                 "expense_category": expense_category,
