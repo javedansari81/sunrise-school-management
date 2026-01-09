@@ -24,6 +24,7 @@ import StudentProfiles from './pages/admin/StudentProfiles';
 import TeacherProfiles from './pages/admin/TeacherProfiles';
 import StudentUDISEReport from './pages/admin/StudentUDISEReport';
 import FeeTrackingReport from './pages/admin/FeeTrackingReport';
+import SessionProgression from './pages/admin/SessionProgression';
 import TeacherDashboard from './pages/teacher/TeacherDashboard';
 import TeacherLeaveManagementPage from './pages/teacher/TeacherLeaveManagementPage';
 import TeacherStudentProfilesPage from './pages/teacher/TeacherStudentProfilesPage';
@@ -373,6 +374,12 @@ function App() {
           <Route path="/admin/reports/fee-tracking" element={
             <ProtectedRoute requiredRole="ADMIN">
               <FeeTrackingReport />
+            </ProtectedRoute>
+          } />
+          {/* SUPER_ADMIN Only Routes */}
+          <Route path="/admin/session-progression" element={
+            <ProtectedRoute requiredRole="SUPER_ADMIN" exactRoleMatch={true}>
+              <SessionProgression />
             </ProtectedRoute>
           } />
           </Routes>

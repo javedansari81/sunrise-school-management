@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   Box,
   Drawer,
@@ -44,6 +44,7 @@ import {
   EventAvailable as AttendanceIcon,
   Notifications as NotificationsIcon,
   LocalShipping as LocalShippingIcon,
+  TrendingUp as SessionProgressionIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -85,58 +86,76 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   // Refs for auto-scrolling to expanded submenu on mobile
   const submenuRefs = useRef<{ [key: string]: HTMLElement | null }>({});
 
-  const menuItems: MenuItem[] = [
-    { label: 'Dashboard', shortLabel: 'Dashboard', icon: <DashboardIcon />, path: '/admin/dashboard' },
+  // Check if user is SUPER_ADMIN (user_type_id = 6)
+  const isSuperAdmin = user?.user_type?.toUpperCase() === 'SUPER_ADMIN';
 
-    // User Management Group
-    {
-      label: 'User Management',
-      shortLabel: 'Users',
-      icon: <PeopleIcon />,
-      children: [
-        { label: 'Student Profiles', icon: <PersonAdd />, path: '/admin/students' },
-        { label: 'Teacher Profiles', icon: <SchoolIcon />, path: '/admin/teachers' },
-      ],
-    },
+  // Build menu items with conditional SUPER_ADMIN items
+  const menuItems: MenuItem[] = useMemo(() => {
+    const items: MenuItem[] = [
+      { label: 'Dashboard', shortLabel: 'Dashboard', icon: <DashboardIcon />, path: '/admin/dashboard' },
 
-    // Financial Management Group (includes Transport)
-    {
-      label: 'Financial Management',
-      shortLabel: 'Finance',
-      icon: <AccountBalanceIcon />,
-      children: [
-        { label: 'Fees Management', icon: <AttachMoney />, path: '/admin/fees' },
-        { label: 'Expense Management', icon: <Receipt />, path: '/admin/expenses' },
-        { label: 'Transport Service', icon: <DirectionsBusIcon />, path: '/admin/transport' },
-        { label: 'Inventory Management', icon: <ShoppingBagIcon />, path: '/admin/inventory' },
-      ],
-    },
+      // User Management Group
+      {
+        label: 'User Management',
+        shortLabel: 'Users',
+        icon: <PeopleIcon />,
+        children: [
+          { label: 'Student Profiles', icon: <PersonAdd />, path: '/admin/students' },
+          { label: 'Teacher Profiles', icon: <SchoolIcon />, path: '/admin/teachers' },
+        ],
+      },
 
-    // Operations Management Group
-    {
-      label: 'Operations',
-      shortLabel: 'Operations',
-      icon: <SettingsIcon />,
-      children: [
-        { label: 'Leave Management', icon: <BeachAccess />, path: '/admin/leaves' },
-        { label: 'Attendance Management', icon: <AttendanceIcon />, path: '/admin/attendance' },
-        { label: 'Stock Procurement', icon: <LocalShippingIcon />, path: '/admin/stock-procurement' },
-        { label: 'Gallery Management', icon: <PhotoLibraryIcon />, path: '/admin/gallery-management' },
-        { label: 'Notifications', icon: <NotificationsIcon />, path: '/admin/alerts' },
-      ],
-    },
+      // Financial Management Group (includes Transport)
+      {
+        label: 'Financial Management',
+        shortLabel: 'Finance',
+        icon: <AccountBalanceIcon />,
+        children: [
+          { label: 'Fees Management', icon: <AttachMoney />, path: '/admin/fees' },
+          { label: 'Expense Management', icon: <Receipt />, path: '/admin/expenses' },
+          { label: 'Transport Service', icon: <DirectionsBusIcon />, path: '/admin/transport' },
+          { label: 'Inventory Management', icon: <ShoppingBagIcon />, path: '/admin/inventory' },
+        ],
+      },
 
-    // Reports & Analytics
-    {
-      label: 'Reports & Analytics',
-      shortLabel: 'Reports',
-      icon: <AssessmentIcon />,
-      children: [
-        { label: 'Student UDISE Report', icon: <PeopleIcon />, path: '/admin/reports/student-udise' },
-        { label: 'Fee Tracking Report', icon: <ReceiptLongIcon />, path: '/admin/reports/fee-tracking' },
-      ],
-    },
-  ];
+      // Operations Management Group
+      {
+        label: 'Operations',
+        shortLabel: 'Operations',
+        icon: <SettingsIcon />,
+        children: [
+          { label: 'Leave Management', icon: <BeachAccess />, path: '/admin/leaves' },
+          { label: 'Attendance Management', icon: <AttendanceIcon />, path: '/admin/attendance' },
+          { label: 'Stock Procurement', icon: <LocalShippingIcon />, path: '/admin/stock-procurement' },
+          { label: 'Gallery Management', icon: <PhotoLibraryIcon />, path: '/admin/gallery-management' },
+          { label: 'Notifications', icon: <NotificationsIcon />, path: '/admin/alerts' },
+        ],
+      },
+
+      // Reports & Analytics
+      {
+        label: 'Reports & Analytics',
+        shortLabel: 'Reports',
+        icon: <AssessmentIcon />,
+        children: [
+          { label: 'Student UDISE Report', icon: <PeopleIcon />, path: '/admin/reports/student-udise' },
+          { label: 'Fee Tracking Report', icon: <ReceiptLongIcon />, path: '/admin/reports/fee-tracking' },
+        ],
+      },
+    ];
+
+    // Add SUPER_ADMIN exclusive menu items
+    if (isSuperAdmin) {
+      items.push({
+        label: 'Session Progression',
+        shortLabel: 'Progression',
+        icon: <SessionProgressionIcon />,
+        path: '/admin/session-progression',
+      });
+    }
+
+    return items;
+  }, [isSuperAdmin]);
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);

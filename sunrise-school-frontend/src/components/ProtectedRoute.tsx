@@ -7,13 +7,23 @@ import { sessionService } from '../services/sessionService';
 interface ProtectedRouteProps {
   children: React.ReactNode;
   requiredRole?: string;
+  /** If true, requires exact role match (e.g., SUPER_ADMIN only, not ADMIN) */
+  exactRoleMatch?: boolean;
 }
 
 /**
  * Check if user role satisfies the required role.
- * SUPER_ADMIN is treated as having ADMIN privileges.
+ * SUPER_ADMIN is treated as having ADMIN privileges (unless exact match is required).
+ *
+ * @param userRole - The user's current role
+ * @param requiredRole - The required role to access the route
+ * @param exactMatch - If true, requires exact role match (default: false)
  */
-const hasRequiredRole = (userRole: string | undefined, requiredRole: string): boolean => {
+const hasRequiredRole = (
+  userRole: string | undefined,
+  requiredRole: string,
+  exactMatch: boolean = false
+): boolean => {
   if (!userRole) return false;
 
   const userRoleUpper = userRole.toUpperCase();
@@ -22,7 +32,10 @@ const hasRequiredRole = (userRole: string | undefined, requiredRole: string): bo
   // Direct match
   if (userRoleUpper === requiredRoleUpper) return true;
 
-  // SUPER_ADMIN has all ADMIN privileges
+  // If exact match is required, don't allow role escalation
+  if (exactMatch) return false;
+
+  // SUPER_ADMIN has all ADMIN privileges (when exact match not required)
   if (userRoleUpper === 'SUPER_ADMIN' && requiredRoleUpper === 'ADMIN') return true;
 
   return false;
@@ -30,7 +43,8 @@ const hasRequiredRole = (userRole: string | undefined, requiredRole: string): bo
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   children,
-  requiredRole
+  requiredRole,
+  exactRoleMatch = false
 }) => {
   const { user, isAuthenticated, isLoading, handleSessionExpired, setShowLoginPopup } = useAuth();
 
@@ -61,8 +75,8 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     return <Navigate to="/" replace />;
   }
 
-  // Check if user has required role (case-insensitive, SUPER_ADMIN has ADMIN privileges)
-  if (requiredRole && !hasRequiredRole(user?.user_type, requiredRole)) {
+  // Check if user has required role (case-insensitive, SUPER_ADMIN has ADMIN privileges unless exactRoleMatch)
+  if (requiredRole && !hasRequiredRole(user?.user_type, requiredRole, exactRoleMatch)) {
     return <Navigate to="/" replace />;
   }
 
