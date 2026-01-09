@@ -1,9 +1,11 @@
 -- =====================================================
--- Create Admin User for Sunrise School Management System
+-- Migration: V024_create_super_admin_user.sql
+-- Description: Create a test SUPER_ADMIN user account
+-- Author: System
+-- Date: 2026-01-07
 -- =====================================================
--- Run this AFTER loading metadata
 -- Login credentials:
--- Email: admin@sunrise.com
+-- Email: superadmin@sunrise.com
 -- Password: admin123
 
 INSERT INTO users (
@@ -17,12 +19,12 @@ INSERT INTO users (
     is_deleted,
     created_at
 ) VALUES (
+    'Super',
     'Admin',
-    'User',
-    '7842350875',
-    'admin@sunrise.com',
+    '9999999999',
+    'superadmin@sunrise.com',
     '$2b$12$lsBmuOua4csDUY6k0hWgWO.G7GN2oHTN.388/BfgTqH51Os01ttnu',
-    1,
+    6,
     TRUE,
     FALSE,
     NOW()

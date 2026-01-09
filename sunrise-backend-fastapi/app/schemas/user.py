@@ -14,6 +14,7 @@ class UserTypeEnum(str, Enum):
     STUDENT = "STUDENT"
     STAFF = "STAFF"
     PARENT = "PARENT"
+    SUPER_ADMIN = "SUPER_ADMIN"
 
     # Metadata table ID mappings
     class VALUE:
@@ -22,6 +23,7 @@ class UserTypeEnum(str, Enum):
         STUDENT = 3
         STAFF = 4
         PARENT = 5
+        SUPER_ADMIN = 6
 
     @classmethod
     def _missing_(cls, value):

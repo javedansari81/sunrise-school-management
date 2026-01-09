@@ -146,7 +146,45 @@ ROLE_PERMISSIONS: Dict[UserTypeEnum, List[Permission]] = {
         Permission.VIEW_OWN_PROFILE,
         Permission.UPDATE_OWN_PROFILE,
         Permission.VIEW_STUDENT_PROFILE,  # Only their child's profile
-    ]
+    ],
+
+    UserTypeEnum.SUPER_ADMIN: [
+        # Full access to everything - identical to ADMIN
+        # SUPER_ADMIN serves as foundation for future enhanced privileges
+        Permission.VIEW_STUDENTS,
+        Permission.CREATE_STUDENTS,
+        Permission.UPDATE_STUDENTS,
+        Permission.DELETE_STUDENTS,
+        Permission.VIEW_TEACHERS,
+        Permission.CREATE_TEACHERS,
+        Permission.UPDATE_TEACHERS,
+        Permission.DELETE_TEACHERS,
+        Permission.VIEW_FEES,
+        Permission.CREATE_FEES,
+        Permission.UPDATE_FEES,
+        Permission.PROCESS_PAYMENTS,
+        Permission.VIEW_FEE_REPORTS,
+        Permission.VIEW_LEAVES,
+        Permission.CREATE_LEAVES,
+        Permission.UPDATE_LEAVES,
+        Permission.APPROVE_LEAVES,
+        Permission.VIEW_LEAVE_REPORTS,
+        Permission.VIEW_EXPENSES,
+        Permission.CREATE_EXPENSES,
+        Permission.UPDATE_EXPENSES,
+        Permission.APPROVE_EXPENSES,
+        Permission.DELETE_EXPENSES,
+        Permission.VIEW_EXPENSE_REPORTS,
+        Permission.VIEW_USERS,
+        Permission.CREATE_USERS,
+        Permission.UPDATE_USERS,
+        Permission.DELETE_USERS,
+        Permission.VIEW_OWN_PROFILE,
+        Permission.UPDATE_OWN_PROFILE,
+        Permission.VIEW_STUDENT_PROFILE,
+        Permission.VIEW_TEACHER_PROFILE,
+        Permission.VIEW_ADMIN_DASHBOARD,
+    ],
 }
 
 

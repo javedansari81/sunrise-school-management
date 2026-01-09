@@ -9,6 +9,25 @@ interface ProtectedRouteProps {
   requiredRole?: string;
 }
 
+/**
+ * Check if user role satisfies the required role.
+ * SUPER_ADMIN is treated as having ADMIN privileges.
+ */
+const hasRequiredRole = (userRole: string | undefined, requiredRole: string): boolean => {
+  if (!userRole) return false;
+
+  const userRoleUpper = userRole.toUpperCase();
+  const requiredRoleUpper = requiredRole.toUpperCase();
+
+  // Direct match
+  if (userRoleUpper === requiredRoleUpper) return true;
+
+  // SUPER_ADMIN has all ADMIN privileges
+  if (userRoleUpper === 'SUPER_ADMIN' && requiredRoleUpper === 'ADMIN') return true;
+
+  return false;
+};
+
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   children,
   requiredRole
@@ -42,8 +61,8 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     return <Navigate to="/" replace />;
   }
 
-  // Check if user has required role (case-insensitive, comparing with backend enum values)
-  if (requiredRole && user?.user_type?.toUpperCase() !== requiredRole.toUpperCase()) {
+  // Check if user has required role (case-insensitive, SUPER_ADMIN has ADMIN privileges)
+  if (requiredRole && !hasRequiredRole(user?.user_type, requiredRole)) {
     return <Navigate to="/" replace />;
   }
 

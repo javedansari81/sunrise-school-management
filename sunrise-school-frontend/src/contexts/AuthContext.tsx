@@ -70,9 +70,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // Helper function to map user_type_id to user_type string (matching backend enum values)
   const mapUserTypeIdToString = (user_type_id: number): string => {
     switch (user_type_id) {
-      case 1: return 'ADMIN';    // Backend enum: ADMIN = "ADMIN"
-      case 2: return 'TEACHER';  // Backend enum: TEACHER = "TEACHER"
-      case 3: return 'STUDENT';  // Backend enum: STUDENT = "STUDENT"
+      case 1: return 'ADMIN';       // Backend enum: ADMIN = "ADMIN"
+      case 2: return 'TEACHER';     // Backend enum: TEACHER = "TEACHER"
+      case 3: return 'STUDENT';     // Backend enum: STUDENT = "STUDENT"
+      case 4: return 'STAFF';       // Backend enum: STAFF = "STAFF"
+      case 5: return 'PARENT';      // Backend enum: PARENT = "PARENT"
+      case 6: return 'SUPER_ADMIN'; // Backend enum: SUPER_ADMIN = "SUPER_ADMIN"
       default: return 'STUDENT';
     }
   };

@@ -1,6 +1,6 @@
 -- =====================================================
 -- Table: user_types
--- Description: Stores user role definitions (ADMIN, TEACHER, STUDENT, STAFF, PARENT)
+-- Description: Stores user role definitions (ADMIN, TEACHER, STUDENT, STAFF, PARENT, SUPER_ADMIN)
 -- Dependencies: None (metadata table)
 -- =====================================================
 

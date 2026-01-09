@@ -424,8 +424,8 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           </Box>
         )}
 
-        {/* Admin Dashboard */}
-        {user?.user_type?.toUpperCase() === 'ADMIN' && (
+        {/* Admin Dashboard - Available for ADMIN and SUPER_ADMIN */}
+        {['ADMIN', 'SUPER_ADMIN'].includes(user?.user_type?.toUpperCase() || '') && (
           <MenuItem onClick={() => {
             handleUserMenuClose();
             window.open('/admin/dashboard', '_blank', 'noopener,noreferrer');

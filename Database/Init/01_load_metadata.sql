@@ -18,7 +18,8 @@ INSERT INTO user_types (id, name, description, is_active) VALUES
 (2, 'TEACHER', 'Teaching Staff', TRUE),
 (3, 'STUDENT', 'Enrolled Student', TRUE),
 (4, 'STAFF', 'Non-Teaching Staff', TRUE),
-(5, 'PARENT', 'Parent/Guardian', TRUE)
+(5, 'PARENT', 'Parent/Guardian', TRUE),
+(6, 'SUPER_ADMIN', 'Super Administrator with elevated privileges', TRUE)
 ON CONFLICT (id) DO UPDATE SET
     name = EXCLUDED.name,
     description = EXCLUDED.description,
@@ -351,7 +352,7 @@ COMMIT;
 \echo 'METADATA LOADED SUCCESSFULLY!'
 \echo '=========================================='
 \echo 'Loaded data:'
-\echo '- 5 User types'
+\echo '- 6 User types (including SUPER_ADMIN)'
 \echo '- 5 Session years (2022-23 to 2026-27)'
 \echo '- 3 Genders'
 \echo '- 16 Classes (Pre-Nursery to Class 12)'
@@ -371,5 +372,5 @@ COMMIT;
 \echo '- 7 Attendance statuses (with color codes)'
 \echo '- 3 Attendance periods (with time ranges)'
 \echo ''
-\echo 'Total: 125 metadata records loaded'
+\echo 'Total: 126 metadata records loaded'
 \echo '=========================================='

@@ -59,9 +59,11 @@ async def get_current_admin_user(
 ) -> User:
     """
     Get current admin user
-    Requires user to be active and have admin role (user_type_id = 1)
+    Requires user to be active and have admin role (user_type_id = 1) or super admin role (user_type_id = 6)
+    SUPER_ADMIN has all ADMIN privileges
     """
-    if current_user.user_type_id != 1:
+    # Allow both ADMIN (1) and SUPER_ADMIN (6) user types
+    if current_user.user_type_id not in [1, 6]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not enough permissions. Admin access required."

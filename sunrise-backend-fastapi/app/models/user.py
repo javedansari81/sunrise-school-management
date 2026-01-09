@@ -16,6 +16,7 @@ class UserTypeEnum(str, enum.Enum):
     STUDENT = "STUDENT"
     STAFF = "STAFF"
     PARENT = "PARENT"
+    SUPER_ADMIN = "SUPER_ADMIN"
 
     @classmethod
     def _missing_(cls, value):
@@ -71,6 +72,12 @@ class User(Base):
                 user_type_name = "TEACHER"
             elif self.user_type_id == 3:
                 user_type_name = "STUDENT"
+            elif self.user_type_id == 4:
+                user_type_name = "STAFF"
+            elif self.user_type_id == 5:
+                user_type_name = "PARENT"
+            elif self.user_type_id == 6:
+                user_type_name = "SUPER_ADMIN"
             else:
                 user_type_name = "ADMIN"
 
