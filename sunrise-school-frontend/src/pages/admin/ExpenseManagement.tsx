@@ -3,8 +3,6 @@ import {
   Typography,
   Box,
   Grid,
-  Card,
-  CardContent,
   Button,
   Table,
   TableBody,
@@ -30,8 +28,6 @@ import {
   Pagination,
   Tooltip,
   Stack,
-  Tabs,
-  Tab,
   Fab,
 } from '@mui/material';
 import { DEFAULT_PAGE_SIZE, PAGINATION_UI_CONFIG } from '../../config/pagination';
@@ -41,17 +37,8 @@ import {
   Edit,
   Delete,
   Visibility,
-  AttachMoney,
-  Receipt,
-  Category,
-  DateRange,
-  TrendingUp,
-  TrendingDown,
   CheckCircle,
-  Schedule,
   Cancel,
-  FilterList,
-  Search,
 } from '@mui/icons-material';
 import { useServiceConfiguration } from '../../contexts/ConfigurationContext';
 import ServiceConfigurationLoader from '../../components/common/ServiceConfigurationLoader';
@@ -92,21 +79,6 @@ const parseValidationErrors = (error: any): string => {
 
   return 'Validation error occurred';
 };
-
-interface TabPanelProps {
-  children?: React.ReactNode;
-  index: number;
-  value: number;
-}
-
-function TabPanel(props: TabPanelProps) {
-  const { children, value, index, ...other } = props;
-  return (
-    <div role="tabpanel" hidden={value !== index} {...other}>
-      {value === index && <Box>{children}</Box>}
-    </div>
-  );
-}
 
 interface ExpenseFormData {
   expense_date: string;
@@ -168,14 +140,12 @@ const ExpenseManagement: React.FC = () => {
   };
 
   // State management
-  const [activeTab, setActiveTab] = useState(0);
   const [expenses, setExpenses] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [openDialog, setOpenDialog] = useState(false);
   const [selectedExpense, setSelectedExpense] = useState<any>(null);
   const [dialogMode, setDialogMode] = useState<'add' | 'edit' | 'view'>('add');
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
-  const [statistics, setStatistics] = useState<any>({});
 
   // Pagination
   const [page, setPage] = useState(1);
@@ -245,11 +215,6 @@ const ExpenseManagement: React.FC = () => {
       setExpenses(response.expenses);
       setTotalPages(response.total_pages);
       setTotalExpenses(response.total);
-
-      // Update statistics from the summary field in the response
-      if (response.summary) {
-        setStatistics(response.summary);
-      }
     } catch (error) {
       console.error('Error fetching expenses:', error);
       setSnackbar({ open: true, message: 'Error fetching expenses', severity: 'error' });
@@ -257,9 +222,6 @@ const ExpenseManagement: React.FC = () => {
       setLoading(false);
     }
   };
-
-  // Statistics are now fetched from the summary field in getExpenses response
-  // No need for a separate statistics endpoint
 
   const handleOpenDialog = (expense?: any, mode: 'add' | 'edit' | 'view' = 'add') => {
     setDialogMode(mode);
@@ -430,7 +392,7 @@ const ExpenseManagement: React.FC = () => {
       }
 
       handleCloseDialog();
-      fetchExpenses(); // This will also refresh statistics from the summary field
+      fetchExpenses();
     } catch (error: any) {
       console.error('Error submitting expense:', error);
       const errorMessage = parseValidationErrors(error);
@@ -449,7 +411,7 @@ const ExpenseManagement: React.FC = () => {
       try {
         await expenseAPI.deleteExpense(expenseId);
         setSnackbar({ open: true, message: 'Expense deleted successfully', severity: 'success' });
-        fetchExpenses(); // This will also refresh statistics from the summary field
+        fetchExpenses();
       } catch (error: any) {
         console.error('Error deleting expense:', error);
         const errorMessage = parseValidationErrors(error);
@@ -502,39 +464,12 @@ const ExpenseManagement: React.FC = () => {
     }
   };
 
-  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
-    setActiveTab(newValue);
-    setPage(1); // Reset to first page when changing tabs
-
-    // Update filters based on tab selection
-    const newFilters = { ...filters };
-
-    switch (newValue) {
-      case 0: // All Expenses
-        newFilters.expense_status_id = '';
-        break;
-      case 1: // Pending
-        newFilters.expense_status_id = 1; // PENDING status ID
-        break;
-      case 2: // Rejected
-        newFilters.expense_status_id = 3; // REJECTED status ID
-        break;
-      case 3: // Statistics
-        // No filter change for statistics tab
-        break;
-      default:
-        break;
-    }
-
-    setFilters(newFilters);
-  };
-
   // Effects
   useEffect(() => {
     if (!configLoading) {
-      fetchExpenses(); // This will also fetch statistics from the summary field
+      fetchExpenses();
     }
-  }, [page, filters, configLoading, activeTab]);
+  }, [page, filters, configLoading]);
 
   useEffect(() => {
     const currentSessionYear = getCurrentSessionYear();
@@ -553,39 +488,6 @@ const ExpenseManagement: React.FC = () => {
       </AdminLayout>
     );
   }
-
-  // Computed values
-  const expenseStats = [
-    {
-      title: 'Total Expenses',
-      subtitle: '(Excludes Rejected)',
-      value: `₹${(statistics.total_amount || 0).toLocaleString()}`,
-      icon: <AttachMoney />,
-      color: 'primary',
-      count: statistics.total_expenses || 0
-    },
-    {
-      title: 'Pending Approval',
-      value: statistics.pending_expenses || 0,
-      icon: <Schedule />,
-      color: 'warning',
-      amount: `₹${(statistics.pending_amount || 0).toLocaleString()}`
-    },
-    {
-      title: 'Approved',
-      value: statistics.approved_expenses || 0,
-      icon: <CheckCircle />,
-      color: 'success',
-      amount: `₹${(statistics.approved_amount || 0).toLocaleString()}`
-    },
-    {
-      title: 'Rejected',
-      value: statistics.rejected_expenses || 0,
-      icon: <Cancel />,
-      color: 'error',
-      amount: `₹${(statistics.rejected_amount || 0).toLocaleString()}`
-    },
-  ];
 
   return (
     <AdminLayout>
@@ -625,7 +527,7 @@ const ExpenseManagement: React.FC = () => {
                 <MenuItem value="">All Statuses</MenuItem>
                 {expenseStatuses.filter(status => status.is_active).map((status: any) => (
                   <MenuItem key={status.id} value={status.id}>
-                    {status.name}
+                    {status.description || status.name}
                   </MenuItem>
                 ))}
               </Select>
@@ -656,494 +558,157 @@ const ExpenseManagement: React.FC = () => {
         </Grid>
       </CollapsibleFilterSection>
 
-      {/* Tabs */}
-      <Paper sx={{ width: '100%' }}>
-        <Tabs
-          value={activeTab}
-          onChange={handleTabChange}
-          variant="scrollable"
-          scrollButtons="auto"
-          sx={{
-            borderBottom: 1,
-            borderColor: 'divider',
-            '& .MuiTab-root': {
-              textTransform: 'none',
-              fontWeight: 500,
-              fontSize: { xs: '0.875rem', sm: '1rem' },
-              minHeight: { xs: 48, sm: 56 },
-            }
-          }}
-        >
-          <Tab
-            label="All Expenses"
-            icon={<Receipt />}
-            iconPosition="start"
-          />
-          <Tab
-            label="Pending"
-            icon={<Schedule />}
-            iconPosition="start"
-          />
-          <Tab
-            label="Rejected"
-            icon={<Cancel />}
-            iconPosition="start"
-          />
-          <Tab
-            label="Statistics"
-            icon={<TrendingUp />}
-            iconPosition="start"
-          />
-        </Tabs>
-
-        {/* All Expenses Tab */}
-        <TabPanel value={activeTab} index={0}>
-          <Box sx={{ p: 3 }}>
-            {loading ? (
-              <Box display="flex" justifyContent="center" p={4}>
-                <CircularProgress />
-              </Box>
-            ) : (
-              <>
-                <TableContainer>
-                  <Table>
-                    <TableHead>
-                      <TableRow>
-                        <TableCell>Date</TableCell>
-                        <TableCell>Category</TableCell>
-                        <TableCell>Description</TableCell>
-                        <TableCell>Amount</TableCell>
-                        <TableCell>Status</TableCell>
-                        <TableCell>Priority</TableCell>
-                        <TableCell>Vendor</TableCell>
-                        <TableCell>Actions</TableCell>
-                      </TableRow>
-                    </TableHead>
-                <TableBody>
-                  {expenses.length === 0 ? (
+      {/* Expense Table */}
+      <Paper sx={{ width: '100%', mt: 2 }}>
+        <Box sx={{ p: 3 }}>
+          {loading ? (
+            <Box display="flex" justifyContent="center" p={4}>
+              <CircularProgress />
+            </Box>
+          ) : (
+            <>
+              <TableContainer>
+                <Table>
+                  <TableHead>
                     <TableRow>
-                      <TableCell colSpan={8} align="center">
-                        <Typography variant="body2" color="text.secondary">
-                          No expenses found
-                        </Typography>
-                      </TableCell>
+                      <TableCell>Date</TableCell>
+                      <TableCell>Category</TableCell>
+                      <TableCell>Description</TableCell>
+                      <TableCell>Amount</TableCell>
+                      <TableCell>Status</TableCell>
+                      <TableCell>Priority</TableCell>
+                      <TableCell>Vendor</TableCell>
+                      <TableCell>Actions</TableCell>
                     </TableRow>
-                  ) : (
-                    expenses.map((expense) => (
-                      <TableRow key={expense.id}>
-                        <TableCell>{new Date(expense.expense_date).toLocaleDateString()}</TableCell>
-                        <TableCell>
-                          <Chip
-                            label={expense.expense_category_name}
-                            size="small"
-                            color="primary"
-                            variant="outlined"
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Typography variant="body2" noWrap sx={{ maxWidth: 200 }}>
-                            {expense.description}
-                          </Typography>
-                        </TableCell>
-                        <TableCell>
-                          <Typography variant="body2" fontWeight="bold" color="primary">
-                            ₹{parseFloat(expense.total_amount).toLocaleString()}
-                          </Typography>
-                        </TableCell>
-                        <TableCell>
-                          <Chip
-                            label={expense.expense_status_name}
-                            size="small"
-                            color={getStatusColor(expense.expense_status_name) as any}
-                            variant="filled"
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Chip
-                            label={expense.priority}
-                            size="small"
-                            color={getPriorityColor(expense.priority) as any}
-                            variant="outlined"
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Typography variant="body2" noWrap sx={{ maxWidth: 150 }}>
-                            {expense.vendor_name || '-'}
-                          </Typography>
-                        </TableCell>
-                        <TableCell>
-                          <Stack direction="row" spacing={1}>
-                            <Tooltip title="View Details">
-                              <IconButton
-                                size="small"
-                                color="primary"
-                                onClick={() => handleOpenDialog(expense, 'view')}
-                              >
-                                <Visibility />
-                              </IconButton>
-                            </Tooltip>
-                            {expense.expense_status_name?.toUpperCase() === 'PENDING' && (
-                              <>
-                                <Tooltip title="Edit">
-                                  <IconButton
-                                    size="small"
-                                    color="secondary"
-                                    onClick={() => handleOpenDialog(expense, 'edit')}
-                                  >
-                                    <Edit />
-                                  </IconButton>
-                                </Tooltip>
-                                <Tooltip title="Delete">
-                                  <IconButton
-                                    size="small"
-                                    color="error"
-                                    onClick={() => handleDelete(expense.id)}
-                                  >
-                                    <Delete />
-                                  </IconButton>
-                                </Tooltip>
-                                <Tooltip title="Approve">
-                                  <IconButton
-                                    size="small"
-                                    color="success"
-                                    onClick={() => handleApprove(expense.id, 2, 'Approved')}
-                                  >
-                                    <CheckCircle />
-                                  </IconButton>
-                                </Tooltip>
-                                <Tooltip title="Reject">
-                                  <IconButton
-                                    size="small"
-                                    color="error"
-                                    onClick={() => handleApprove(expense.id, 3, 'Rejected')}
-                                  >
-                                    <Cancel />
-                                  </IconButton>
-                                </Tooltip>
-                              </>
-                            )}
-                          </Stack>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </TableContainer>
-
-                {/* Pagination */}
-                {totalPages > 1 && (
-                  <Box display="flex" justifyContent="center" mt={3}>
-                    <Pagination
-                      count={totalPages}
-                      page={page}
-                      onChange={(_, newPage) => setPage(newPage)}
-                      color={PAGINATION_UI_CONFIG.color}
-                      showFirstButton={PAGINATION_UI_CONFIG.showFirstLastButtons}
-                      showLastButton={PAGINATION_UI_CONFIG.showFirstLastButtons}
-                    />
-                  </Box>
-                )}
-              </>
-            )}
-          </Box>
-        </TabPanel>
-
-        {/* Pending Tab */}
-        <TabPanel value={activeTab} index={1}>
-          <Box sx={{ p: 3 }}>
-            {loading ? (
-              <Box display="flex" justifyContent="center" p={4}>
-                <CircularProgress />
-              </Box>
-            ) : (
-              <>
-                <TableContainer>
-                  <Table>
-                    <TableHead>
+                  </TableHead>
+                  <TableBody>
+                    {expenses.length === 0 ? (
                       <TableRow>
-                        <TableCell>Date</TableCell>
-                        <TableCell>Category</TableCell>
-                        <TableCell>Description</TableCell>
-                        <TableCell>Amount</TableCell>
-                        <TableCell>Priority</TableCell>
-                        <TableCell>Vendor</TableCell>
-                        <TableCell>Actions</TableCell>
-                      </TableRow>
-                    </TableHead>
-                <TableBody>
-                  {expenses.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={7} align="center">
-                        <Typography variant="body2" color="text.secondary">
-                          No pending expenses found
-                        </Typography>
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    expenses.map((expense) => (
-                      <TableRow key={expense.id}>
-                        <TableCell>{new Date(expense.expense_date).toLocaleDateString()}</TableCell>
-                        <TableCell>
-                          <Chip
-                            label={expense.expense_category_name}
-                            size="small"
-                            color="primary"
-                            variant="outlined"
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Typography variant="body2" noWrap sx={{ maxWidth: 200 }}>
-                            {expense.description}
+                        <TableCell colSpan={8} align="center">
+                          <Typography variant="body2" color="text.secondary">
+                            No expenses found
                           </Typography>
-                        </TableCell>
-                        <TableCell>
-                          <Typography variant="body2" fontWeight="bold" color="primary">
-                            ₹{parseFloat(expense.total_amount).toLocaleString()}
-                          </Typography>
-                        </TableCell>
-                        <TableCell>
-                          <Chip
-                            label={expense.priority}
-                            size="small"
-                            color={getPriorityColor(expense.priority) as any}
-                            variant="outlined"
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Typography variant="body2" noWrap sx={{ maxWidth: 150 }}>
-                            {expense.vendor_name || '-'}
-                          </Typography>
-                        </TableCell>
-                        <TableCell>
-                          <Stack direction="row" spacing={1}>
-                            <Tooltip title="View Details">
-                              <IconButton
-                                size="small"
-                                color="primary"
-                                onClick={() => handleOpenDialog(expense, 'view')}
-                              >
-                                <Visibility />
-                              </IconButton>
-                            </Tooltip>
-                            <Tooltip title="Edit">
-                              <IconButton
-                                size="small"
-                                color="secondary"
-                                onClick={() => handleOpenDialog(expense, 'edit')}
-                              >
-                                <Edit />
-                              </IconButton>
-                            </Tooltip>
-                            <Tooltip title="Delete">
-                              <IconButton
-                                size="small"
-                                color="error"
-                                onClick={() => handleDelete(expense.id)}
-                              >
-                                <Delete />
-                              </IconButton>
-                            </Tooltip>
-                            <Tooltip title="Approve">
-                              <IconButton
-                                size="small"
-                                color="success"
-                                onClick={() => handleApprove(expense.id, 2, 'Approved')}
-                              >
-                                <CheckCircle />
-                              </IconButton>
-                            </Tooltip>
-                            <Tooltip title="Reject">
-                              <IconButton
-                                size="small"
-                                color="error"
-                                onClick={() => handleApprove(expense.id, 3, 'Rejected')}
-                              >
-                                <Cancel />
-                              </IconButton>
-                            </Tooltip>
-                          </Stack>
                         </TableCell>
                       </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </TableContainer>
-
-                {/* Pagination */}
-                {totalPages > 1 && (
-                  <Box display="flex" justifyContent="center" mt={3}>
-                    <Pagination
-                      count={totalPages}
-                      page={page}
-                      onChange={(_, newPage) => setPage(newPage)}
-                      color={PAGINATION_UI_CONFIG.color}
-                      showFirstButton={PAGINATION_UI_CONFIG.showFirstLastButtons}
-                      showLastButton={PAGINATION_UI_CONFIG.showFirstLastButtons}
-                    />
-                  </Box>
-                )}
-              </>
-            )}
-          </Box>
-        </TabPanel>
-
-        {/* Rejected Tab */}
-        <TabPanel value={activeTab} index={2}>
-          <Box sx={{ p: 3 }}>
-            {loading ? (
-              <Box display="flex" justifyContent="center" p={4}>
-                <CircularProgress />
-              </Box>
-            ) : (
-              <>
-                <TableContainer>
-                  <Table>
-                    <TableHead>
-                      <TableRow>
-                        <TableCell>Date</TableCell>
-                        <TableCell>Category</TableCell>
-                        <TableCell>Description</TableCell>
-                        <TableCell>Amount</TableCell>
-                        <TableCell>Priority</TableCell>
-                        <TableCell>Vendor</TableCell>
-                        <TableCell>Actions</TableCell>
-                      </TableRow>
-                    </TableHead>
-                <TableBody>
-                  {expenses.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={7} align="center">
-                        <Typography variant="body2" color="text.secondary">
-                          No rejected expenses found
-                        </Typography>
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    expenses.map((expense) => (
-                      <TableRow key={expense.id}>
-                        <TableCell>{new Date(expense.expense_date).toLocaleDateString()}</TableCell>
-                        <TableCell>
-                          <Chip
-                            label={expense.expense_category_name}
-                            size="small"
-                            color="primary"
-                            variant="outlined"
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Typography variant="body2" noWrap sx={{ maxWidth: 200 }}>
-                            {expense.description}
-                          </Typography>
-                        </TableCell>
-                        <TableCell>
-                          <Typography variant="body2" fontWeight="bold" color="error">
-                            ₹{parseFloat(expense.total_amount).toLocaleString()}
-                          </Typography>
-                        </TableCell>
-                        <TableCell>
-                          <Chip
-                            label={expense.priority}
-                            size="small"
-                            color={getPriorityColor(expense.priority) as any}
-                            variant="outlined"
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Typography variant="body2" noWrap sx={{ maxWidth: 150 }}>
-                            {expense.vendor_name || '-'}
-                          </Typography>
-                        </TableCell>
-                        <TableCell>
-                          <Stack direction="row" spacing={1}>
-                            <Tooltip title="View Details">
-                              <IconButton
-                                size="small"
-                                color="primary"
-                                onClick={() => handleOpenDialog(expense, 'view')}
-                              >
-                                <Visibility />
-                              </IconButton>
-                            </Tooltip>
-                          </Stack>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </TableContainer>
-
-                {/* Pagination */}
-                {totalPages > 1 && (
-                  <Box display="flex" justifyContent="center" mt={3}>
-                    <Pagination
-                      count={totalPages}
-                      page={page}
-                      onChange={(_, newPage) => setPage(newPage)}
-                      color={PAGINATION_UI_CONFIG.color}
-                      showFirstButton={PAGINATION_UI_CONFIG.showFirstLastButtons}
-                      showLastButton={PAGINATION_UI_CONFIG.showFirstLastButtons}
-                    />
-                  </Box>
-                )}
-              </>
-            )}
-          </Box>
-        </TabPanel>
-
-        {/* Statistics Tab */}
-        <TabPanel value={activeTab} index={3}>
-          <Box sx={{ p: 3 }}>
-            {loading ? (
-              <Box display="flex" justifyContent="center" p={3}>
-                <CircularProgress />
-              </Box>
-            ) : (
-              <>
-                <Typography variant="h6" gutterBottom>
-                  Expense Statistics
-                </Typography>
-
-                {/* Statistics Cards */}
-                <Grid container spacing={3} sx={{ mb: 4 }}>
-                  {expenseStats.map((stat, index) => (
-                    <Grid key={index} size={{ xs: 12, sm: 6, md: 3 }}>
-                      <Card elevation={3}>
-                        <CardContent>
-                          <Box display="flex" alignItems="center" justifyContent="space-between">
-                            <Box>
-                              <Typography variant="h5" fontWeight="bold" color={`${stat.color}.main`}>
-                                {stat.value}
-                              </Typography>
-                              <Typography variant="body2" color="text.secondary">
-                                {stat.title}
-                              </Typography>
-                              {stat.subtitle && (
-                                <Typography variant="caption" color="text.secondary" display="block">
-                                  {stat.subtitle}
-                                </Typography>
+                    ) : (
+                      expenses.map((expense) => (
+                        <TableRow key={expense.id}>
+                          <TableCell>{new Date(expense.expense_date).toLocaleDateString()}</TableCell>
+                          <TableCell>
+                            <Chip
+                              label={expense.expense_category_name}
+                              size="small"
+                              color="primary"
+                              variant="outlined"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2" noWrap sx={{ maxWidth: 200 }}>
+                              {expense.description}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2" fontWeight="bold" color="primary">
+                              ₹{parseFloat(expense.total_amount).toLocaleString()}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Chip
+                              label={expense.expense_status_name}
+                              size="small"
+                              color={getStatusColor(expense.expense_status_name) as any}
+                              variant="filled"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Chip
+                              label={expense.priority}
+                              size="small"
+                              color={getPriorityColor(expense.priority) as any}
+                              variant="outlined"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2" noWrap sx={{ maxWidth: 150 }}>
+                              {expense.vendor_name || '-'}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Stack direction="row" spacing={1}>
+                              <Tooltip title="View Details">
+                                <IconButton
+                                  size="small"
+                                  color="primary"
+                                  onClick={() => handleOpenDialog(expense, 'view')}
+                                >
+                                  <Visibility />
+                                </IconButton>
+                              </Tooltip>
+                              {expense.expense_status_name?.toUpperCase() === 'PENDING' && (
+                                <>
+                                  <Tooltip title="Edit">
+                                    <IconButton
+                                      size="small"
+                                      color="secondary"
+                                      onClick={() => handleOpenDialog(expense, 'edit')}
+                                    >
+                                      <Edit />
+                                    </IconButton>
+                                  </Tooltip>
+                                  <Tooltip title="Delete">
+                                    <IconButton
+                                      size="small"
+                                      color="error"
+                                      onClick={() => handleDelete(expense.id)}
+                                    >
+                                      <Delete />
+                                    </IconButton>
+                                  </Tooltip>
+                                  <Tooltip title="Approve">
+                                    <IconButton
+                                      size="small"
+                                      color="success"
+                                      onClick={() => handleApprove(expense.id, 2, 'Approved')}
+                                    >
+                                      <CheckCircle />
+                                    </IconButton>
+                                  </Tooltip>
+                                  <Tooltip title="Reject">
+                                    <IconButton
+                                      size="small"
+                                      color="error"
+                                      onClick={() => handleApprove(expense.id, 3, 'Rejected')}
+                                    >
+                                      <Cancel />
+                                    </IconButton>
+                                  </Tooltip>
+                                </>
                               )}
-                              {stat.amount && (
-                                <Typography variant="caption" color="text.secondary">
-                                  {stat.amount}
-                                </Typography>
-                              )}
-                            </Box>
-                            <Box color={`${stat.color}.main`}>
-                              {stat.icon}
-                            </Box>
-                          </Box>
-                        </CardContent>
-                      </Card>
-                    </Grid>
-                  ))}
-                </Grid>
-              </>
-            )}
-          </Box>
-        </TabPanel>
+                            </Stack>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <Box display="flex" justifyContent="center" mt={3}>
+                  <Pagination
+                    count={totalPages}
+                    page={page}
+                    onChange={(_, newPage) => setPage(newPage)}
+                    color={PAGINATION_UI_CONFIG.color}
+                    showFirstButton={PAGINATION_UI_CONFIG.showFirstLastButtons}
+                    showLastButton={PAGINATION_UI_CONFIG.showFirstLastButtons}
+                  />
+                </Box>
+              )}
+            </>
+          )}
+        </Box>
       </Paper>
 
       {/* Snackbar for notifications */}
