@@ -1,3 +1,4 @@
+import logging
 from typing import List, Optional, Dict, Any
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -6,6 +7,8 @@ from sqlalchemy import and_, or_, func, extract, case, exists, text
 from datetime import date, datetime
 
 from app.crud.base import CRUDBase
+
+logger = logging.getLogger(__name__)
 from app.models.fee import MonthlyFeeTracking, MonthlyPaymentAllocation, FeeRecord, FeePayment
 from app.models.student import Student
 from app.models.metadata import SessionYear, PaymentStatus, Class
@@ -60,29 +63,101 @@ class CRUDMonthlyFeeTracking(CRUDBase[MonthlyFeeTracking, MonthlyFeeTrackingCrea
         session_year = session_query.scalar_one_or_none()
 
         # Get fee record for this student and session
-        fee_record_query = await db.execute(
+        # IMPORTANT: Find the fee record that actually has tracking records linked to it
+        # This handles the case where duplicate fee records exist
+
+        # First, try to find a fee record that has tracking records
+        fee_record_with_tracking_query = await db.execute(
             select(FeeRecord)
             .where(
                 and_(
                     FeeRecord.student_id == student_id,
                     FeeRecord.session_year_id == session_year_id,
-                    FeeRecord.is_monthly_tracked == True
+                    FeeRecord.is_monthly_tracked == True,
+                    exists(
+                        select(MonthlyFeeTracking.id)
+                        .where(MonthlyFeeTracking.fee_record_id == FeeRecord.id)
+                    )
                 )
             )
+            .order_by(FeeRecord.created_at.desc())
         )
-        fee_record = fee_record_query.scalar_one_or_none()
+        fee_record = fee_record_with_tracking_query.scalars().first()
+
+        # If no fee record with tracking records found, fall back to any fee record with is_monthly_tracked=True
+        if not fee_record:
+            fee_record_query = await db.execute(
+                select(FeeRecord)
+                .where(
+                    and_(
+                        FeeRecord.student_id == student_id,
+                        FeeRecord.session_year_id == session_year_id,
+                        FeeRecord.is_monthly_tracked == True
+                    )
+                )
+                .order_by(FeeRecord.created_at.desc())
+            )
+            fee_record = fee_record_query.scalars().first()
 
         if not fee_record:
             # Return None instead of raising exception for better error handling
             return None
-            
+
         # Get monthly tracking records
         monthly_records_query = await db.execute(
             select(MonthlyFeeTracking)
             .where(MonthlyFeeTracking.fee_record_id == fee_record.id)
             .order_by(MonthlyFeeTracking.academic_year, MonthlyFeeTracking.academic_month)
         )
-        monthly_records = monthly_records_query.scalars().all()
+        monthly_records = list(monthly_records_query.scalars().all())
+
+        # DEBUG: Log tracking records count
+        logger.info(f"DEBUG: Monthly tracking records found: {len(monthly_records)} for fee_record_id={fee_record.id}")
+
+        # If no monthly tracking records exist, create all 12 months
+        if not monthly_records:
+            import calendar
+            from app.crud.crud_fee import fee_structure as fee_structure_crud
+
+            # Get fee structure to determine monthly fee
+            fee_structure = await fee_structure_crud.get_by_class_id_and_session_id(
+                db,
+                class_id=student.class_id,
+                session_year_id=session_year_id
+            )
+
+            if fee_structure:
+                monthly_fee = float(fee_structure.total_annual_fee) / 12
+
+                # Create tracking records for all 12 months (Apr-Mar academic year)
+                academic_months = [4, 5, 6, 7, 8, 9, 10, 11, 12, 1, 2, 3]
+
+                for month_num in academic_months:
+                    # Calculate year (Apr-Dec = 2025, Jan-Mar = 2026 for 2025-26 session)
+                    year = 2025 if month_num >= 4 else 2026
+
+                    # Calculate due date (10th of each month)
+                    due_date_for_month = date(year, month_num, 10)
+
+                    new_tracking = MonthlyFeeTracking(
+                        fee_record_id=fee_record.id,
+                        student_id=student_id,
+                        session_year_id=session_year_id,
+                        academic_month=month_num,
+                        academic_year=year,
+                        month_name=calendar.month_name[month_num],
+                        monthly_amount=monthly_fee,
+                        paid_amount=0,
+                        due_date=due_date_for_month,
+                        payment_status_id=1  # Pending
+                    )
+                    db.add(new_tracking)
+                    monthly_records.append(new_tracking)
+
+                await db.commit()
+                # Refresh to get IDs
+                for record in monthly_records:
+                    await db.refresh(record)
         
         # Get actual total payments made by the student (from fee_payments table)
         # This ensures consistency with Payment History dialog
@@ -234,7 +309,13 @@ class CRUDMonthlyFeeTracking(CRUDBase[MonthlyFeeTracking, MonthlyFeeTrackingCrea
             FROM students s
             LEFT JOIN classes c ON s.class_id = c.id
             LEFT JOIN session_years sy ON s.session_year_id = sy.id
-            LEFT JOIN fee_records fr ON s.id = fr.student_id AND s.session_year_id = fr.session_year_id
+            LEFT JOIN LATERAL (
+                SELECT * FROM fee_records fr_inner
+                WHERE fr_inner.student_id = s.id
+                  AND fr_inner.session_year_id = s.session_year_id
+                ORDER BY fr_inner.created_at DESC
+                LIMIT 1
+            ) fr ON true
             LEFT JOIN (
                 SELECT
                     mft.student_id,

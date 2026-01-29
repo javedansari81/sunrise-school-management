@@ -52,7 +52,7 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
 
         # Convert string dates back to date objects for database insertion
         for key, value in obj_in_data.items():
-            if isinstance(value, str) and key in ['date_of_birth', 'joining_date', 'admission_date', 'payment_date']:
+            if isinstance(value, str) and key in ['date_of_birth', 'joining_date', 'admission_date', 'payment_date', 'due_date']:
                 try:
                     obj_in_data[key] = datetime.strptime(value, '%Y-%m-%d').date()
                 except (ValueError, TypeError):

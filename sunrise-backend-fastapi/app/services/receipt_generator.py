@@ -188,7 +188,7 @@ class ReceiptGenerator:
         balance_remaining = fee_summary.get('balance_remaining', 0)
 
         # === RECEIPT INFO TABLE ===
-        elements.extend(self._create_receipt_info_table(receipt_number, payment_date_str))
+        elements.extend(self._create_receipt_info_table(receipt_number, payment_date_str, amount))
 
         # === STUDENT DETAILS TABLE ===
         elements.extend(self._create_student_table(
@@ -272,19 +272,22 @@ class ReceiptGenerator:
 
         return elements
 
-    def _create_receipt_info_table(self, receipt_number: str, payment_date: str) -> List:
-        """Create receipt number and date table - full width"""
+    def _create_receipt_info_table(
+        self, receipt_number: str, payment_date: str, paid_amount: float
+    ) -> List:
+        """Create receipt number, date and paid amount table - full width"""
         elements = []
         elements.append(Spacer(1, 0.1*inch))
 
         data = [
-            ['Receipt No:', receipt_number, 'Date:', payment_date]
+            ['Receipt No:', receipt_number, 'Date:', payment_date],
+            ['Paid Amount:', f'Rs. {paid_amount:,.0f}', '', '']
         ]
 
         # Full width table (7 inches)
         table = Table(data, colWidths=[1.2*inch, 2.3*inch, 1*inch, 2.5*inch])
         table.setStyle(TableStyle([
-            ('FONTNAME', (0, 0), (0, 0), 'Helvetica-Bold'),
+            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
             ('FONTNAME', (2, 0), (2, 0), 'Helvetica-Bold'),
             ('FONTSIZE', (0, 0), (-1, -1), 9),
             ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
@@ -292,6 +295,8 @@ class ReceiptGenerator:
             ('TOPPADDING', (0, 0), (-1, -1), 4),
             ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
             ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+            # Merge cells for Paid Amount row (span across remaining columns)
+            ('SPAN', (1, 1), (3, 1)),
         ]))
         elements.append(table)
 
@@ -340,24 +345,26 @@ class ReceiptGenerator:
         elements.append(Spacer(1, 0.1*inch))
         elements.append(Paragraph("TUITION FEE - MONTH WISE", self.styles['SectionHeader']))
 
-        # Header row
-        data = [['Month', 'Monthly Fee', 'Paid', 'Balance', 'Status']]
+        # Header row with Pre-Paid and Paid Now columns
+        data = [['Month', 'Monthly Fee', 'Pre-Paid', 'Paid Now', 'Balance', 'Status']]
 
         # Add each month - use correct field names from payment_breakdown
         for month in month_breakdown:
             month_name = month.get('month_name', '-')
             monthly_fee = month.get('monthly_fee', 0)
-            # Use new_paid_amount (total paid after this payment)
-            paid_amount = month.get('new_paid_amount', month.get('previous_paid', 0))
+            # Previous paid amount before this transaction
+            pre_paid = month.get('previous_paid', 0)
+            # Amount being paid in this transaction
+            paid_now = month.get('allocated_amount', 0)
             # Use remaining_balance from the data
-            balance = month.get('remaining_balance', monthly_fee - paid_amount)
+            balance = month.get('remaining_balance', monthly_fee - pre_paid - paid_now)
             # Use status from data or calculate
             status = month.get('status', 'Unpaid')
 
             # Recalculate status based on amounts if needed
             if balance <= 0.01:
                 status = 'Paid'
-            elif paid_amount > 0:
+            elif (pre_paid + paid_now) > 0:
                 status = 'Partial'
             else:
                 status = 'Unpaid'
@@ -365,13 +372,14 @@ class ReceiptGenerator:
             data.append([
                 month_name,
                 f'Rs. {monthly_fee:,.0f}',
-                f'Rs. {paid_amount:,.0f}',
+                f'Rs. {pre_paid:,.0f}',
+                f'Rs. {paid_now:,.0f}',
                 f'Rs. {balance:,.0f}',
                 status
             ])
 
-        # Full width table (7 inches)
-        table = Table(data, colWidths=[1.4*inch, 1.4*inch, 1.4*inch, 1.4*inch, 1.4*inch])
+        # Full width table (7 inches) - 6 columns
+        table = Table(data, colWidths=[1.2*inch, 1.15*inch, 1.15*inch, 1.15*inch, 1.15*inch, 1.2*inch])
         table.setStyle(TableStyle([
             # Header row styling
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
@@ -380,8 +388,8 @@ class ReceiptGenerator:
             # Data rows
             ('FONTSIZE', (0, 0), (-1, -1), 9),
             ('ALIGN', (0, 1), (0, -1), 'LEFT'),  # Month name left
-            ('ALIGN', (1, 1), (3, -1), 'RIGHT'),  # Amounts right
-            ('ALIGN', (4, 1), (4, -1), 'CENTER'),  # Status center
+            ('ALIGN', (1, 1), (4, -1), 'RIGHT'),  # Amounts right
+            ('ALIGN', (5, 1), (5, -1), 'CENTER'),  # Status center
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
             ('TOPPADDING', (0, 0), (-1, -1), 4),
             ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
@@ -403,12 +411,12 @@ class ReceiptGenerator:
         # If no transport data, show single row with "-"
         if not transport_data:
             data = [
-                ['Month', 'Monthly Fee', 'Paid', 'Balance', 'Status'],
-                ['-', '-', '-', '-', '-']
+                ['Month', 'Monthly Fee', 'Pre-Paid', 'Paid Now', 'Balance', 'Status'],
+                ['-', '-', '-', '-', '-', '-']
             ]
         else:
-            # Header row
-            data = [['Month', 'Monthly Fee', 'Paid', 'Balance', 'Status']]
+            # Header row with Pre-Paid and Paid Now columns
+            data = [['Month', 'Monthly Fee', 'Pre-Paid', 'Paid Now', 'Balance', 'Status']]
 
             # Get monthly breakdown from transport_data
             monthly_breakdown = transport_data.get('monthly_breakdown', [])
@@ -417,13 +425,16 @@ class ReceiptGenerator:
                 for month in monthly_breakdown:
                     month_name = month.get('month_name', '-')
                     monthly_fee = month.get('monthly_amount', 0)
-                    paid_amount = month.get('paid_amount', 0)
-                    balance = month.get('balance_amount', monthly_fee - paid_amount)
+                    # Previous paid amount before this transaction
+                    pre_paid = month.get('previous_paid', 0)
+                    # Amount being paid in this transaction
+                    paid_now = month.get('allocated_amount', 0)
+                    balance = month.get('balance_amount', monthly_fee - pre_paid - paid_now)
 
                     # Determine status
                     if balance <= 0.01:
                         status = 'Paid'
-                    elif paid_amount > 0:
+                    elif (pre_paid + paid_now) > 0:
                         status = 'Partial'
                     else:
                         status = 'Unpaid'
@@ -431,7 +442,8 @@ class ReceiptGenerator:
                     data.append([
                         month_name,
                         f'Rs. {monthly_fee:,.0f}',
-                        f'Rs. {paid_amount:,.0f}',
+                        f'Rs. {pre_paid:,.0f}',
+                        f'Rs. {paid_now:,.0f}',
                         f'Rs. {balance:,.0f}',
                         status
                     ])
@@ -447,7 +459,8 @@ class ReceiptGenerator:
                         data.append([
                             month_name,
                             f'Rs. {monthly_fee:,.0f}',
-                            f'Rs. {monthly_fee:,.0f}',
+                            'Rs. 0',  # Pre-paid (assuming fully paid in this transaction)
+                            f'Rs. {monthly_fee:,.0f}',  # Paid now
                             'Rs. 0',
                             'Paid'
                         ])
@@ -456,13 +469,14 @@ class ReceiptGenerator:
                     data.append([
                         'Total',
                         '-',
+                        '-',
                         f'Rs. {total_paid:,.0f}',
                         f'Rs. {balance:,.0f}',
                         'Paid' if balance <= 0 else 'Partial'
                     ])
 
-        # Full width table (7 inches)
-        table = Table(data, colWidths=[1.4*inch, 1.4*inch, 1.4*inch, 1.4*inch, 1.4*inch])
+        # Full width table (7 inches) - 6 columns
+        table = Table(data, colWidths=[1.2*inch, 1.15*inch, 1.15*inch, 1.15*inch, 1.15*inch, 1.2*inch])
         table.setStyle(TableStyle([
             # Header row styling
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
@@ -471,8 +485,8 @@ class ReceiptGenerator:
             # Data rows
             ('FONTSIZE', (0, 0), (-1, -1), 9),
             ('ALIGN', (0, 1), (0, -1), 'LEFT'),  # Month name left
-            ('ALIGN', (1, 1), (3, -1), 'RIGHT'),  # Amounts right
-            ('ALIGN', (4, 1), (4, -1), 'CENTER'),  # Status center
+            ('ALIGN', (1, 1), (4, -1), 'RIGHT'),  # Amounts right
+            ('ALIGN', (5, 1), (5, -1), 'CENTER'),  # Status center
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
             ('TOPPADDING', (0, 0), (-1, -1), 4),
             ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
@@ -489,7 +503,7 @@ class ReceiptGenerator:
         """Create fee summary table - full width, always show transport"""
         elements = []
         elements.append(Spacer(1, 0.1*inch))
-        elements.append(Paragraph("FEE SUMMARY", self.styles['SectionHeader']))
+        elements.append(Paragraph("ANNUAL FEE SUMMARY", self.styles['SectionHeader']))
 
         # Transport data - show "-" if not opted
         if transport_data:

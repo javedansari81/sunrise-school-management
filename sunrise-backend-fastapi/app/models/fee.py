@@ -87,6 +87,7 @@ class FeeRecord(Base):
 
     # Foreign keys to metadata tables
     session_year_id = Column(Integer, ForeignKey("session_years.id"), nullable=False)
+    class_id = Column(Integer, ForeignKey("classes.id"), nullable=False)
     payment_type_id = Column(Integer, ForeignKey("payment_types.id"), nullable=False)
     payment_status_id = Column(Integer, ForeignKey("payment_statuses.id"), default=1)
     payment_method_id = Column(Integer, ForeignKey("payment_methods.id"), nullable=True)

@@ -203,6 +203,7 @@ class FeeRecordCreate(FeeRecordBase):
     payment_status_id: int = Field(..., description="Foreign key to payment_statuses table")
     payment_method_id: Optional[int] = None
     fee_structure_id: Optional[int] = None
+    class_id: Optional[int] = Field(None, description="Foreign key to classes table")
     is_monthly_tracked: bool = Field(..., description="Whether this record uses monthly tracking")
     academic_month: Optional[int] = None
     academic_year: Optional[int] = None

@@ -36,6 +36,7 @@ import {
   FormHelperText,
   Divider,
   Pagination,
+  FormControlLabel,
 } from '@mui/material';
 import {
   Search,
@@ -63,6 +64,7 @@ import { dialogStyles } from '../../styles/dialogTheme';
 import { useServiceConfiguration } from '../../contexts/ConfigurationContext';
 import { enhancedFeesAPI } from '../../services/api';
 import { configurationService } from '../../services/configurationService';
+import transportService, { TransportMonthlyTracking, StudentTransportMonthlyHistory } from '../../services/transportService';
 import {
   ID_TO_SESSION_YEAR_MAP,
   getCurrentSessionYearId,
@@ -247,8 +249,8 @@ const FeeManagementComponent: React.FC = () => {
     amount: '',
     selectedMonths: [] as number[],
     paymentMethodId: 1,
-    transactionId: '',
-    remarks: ''
+    remarks: '',
+    paymentDate: new Date().toISOString().split('T')[0] // Default to today in YYYY-MM-DD format
   });
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [loadingStates, setLoadingStates] = useState<{
@@ -273,6 +275,14 @@ const FeeManagementComponent: React.FC = () => {
   const [paymentAllocations, setPaymentAllocations] = useState<any[]>([]);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
 
+  // Transport fee payment states
+  const [payTransportFee, setPayTransportFee] = useState(false);
+  const [transportMonthlyHistory, setTransportMonthlyHistory] = useState<StudentTransportMonthlyHistory | null>(null);
+  const [selectedTransportMonths, setSelectedTransportMonths] = useState<TransportMonthlyTracking[]>([]);
+  const [transportAmount, setTransportAmount] = useState<string>('');
+  const [transportPaymentLoading, setTransportPaymentLoading] = useState(false);
+  const [currentPaymentStudentHasTransport, setCurrentPaymentStudentHasTransport] = useState(false);
+
   // Auto-calculate payment amount when months are selected
   useEffect(() => {
     if (availableMonthsData && paymentForm.selectedMonths.length > 0) {
@@ -292,6 +302,52 @@ const FeeManagementComponent: React.FC = () => {
       }));
     }
   }, [paymentForm.selectedMonths, availableMonthsData]);
+
+  // Auto-calculate transport amount when months are selected
+  useEffect(() => {
+    if (selectedTransportMonths.length > 0) {
+      const total = selectedTransportMonths.reduce(
+        (sum, month) => sum + Number(month.balance_amount || 0),
+        0
+      );
+      setTransportAmount(total.toFixed(2));
+    } else {
+      setTransportAmount('');
+    }
+  }, [selectedTransportMonths]);
+
+  // Get available transport months for dropdown (unpaid/partially paid months with service enabled)
+  const getAvailableTransportMonths = (): TransportMonthlyTracking[] => {
+    if (!transportMonthlyHistory || !transportMonthlyHistory.monthly_history) return [];
+    return transportMonthlyHistory.monthly_history.filter(
+      record => record.is_service_enabled && record.balance_amount > 0
+    );
+  };
+
+  // Load transport monthly history when payment dialog opens for a student with transport enrollment
+  const loadTransportMonthlyHistory = async (studentId: number) => {
+    if (!filters.session_year_id) return;
+
+    setTransportPaymentLoading(true);
+    try {
+      const history = await transportService.getMonthlyHistory(
+        studentId,
+        parseInt(filters.session_year_id)
+      );
+      setTransportMonthlyHistory(history);
+      // If student has transport and opted for it, check the checkbox by default
+      if (history && history.monthly_history && history.monthly_history.length > 0) {
+        setPayTransportFee(true);
+      }
+    } catch (error: any) {
+      console.error('Error loading transport monthly history:', error);
+      // Don't show error - student might not have transport enrollment
+      setTransportMonthlyHistory(null);
+      setPayTransportFee(false);
+    } finally {
+      setTransportPaymentLoading(false);
+    }
+  };
 
   // Utility function to get class display name
   const getClassDisplayName = (className: string): string => {
@@ -633,9 +689,25 @@ const FeeManagementComponent: React.FC = () => {
         amount: '',
         selectedMonths: [],
         paymentMethodId: 1,
-        transactionId: '',
-        remarks: ''
+        remarks: '',
+        paymentDate: new Date().toISOString().split('T')[0] // Reset to today
       });
+
+      // Reset transport payment states
+      setTransportMonthlyHistory(null);
+      setSelectedTransportMonths([]);
+      setTransportAmount('');
+      setPayTransportFee(false);
+
+      // Check if student has transport enrollment and load transport data
+      if (student && student.has_transport_enrollment) {
+        setCurrentPaymentStudentHasTransport(true);
+        // Load transport monthly history in background
+        loadTransportMonthlyHistory(studentId);
+      } else {
+        setCurrentPaymentStudentHasTransport(false);
+      }
+
       setPaymentDialogOpen(true);
     } catch (error: any) {
       console.error('Error fetching available months:', error);
@@ -655,7 +727,7 @@ const FeeManagementComponent: React.FC = () => {
     }
   };
 
-  // Make enhanced payment
+  // Make enhanced payment (supports both tuition and transport fees)
   const makePayment = async () => {
     if (!availableMonthsData || paymentForm.selectedMonths.length === 0 || !paymentForm.amount) {
       setSnackbar({
@@ -666,38 +738,93 @@ const FeeManagementComponent: React.FC = () => {
       return;
     }
 
-    // Check if transaction ID is required for selected payment method
-    const selectedMethod = getPaymentMethods().find(m => m.id === paymentForm.paymentMethodId);
-    if (selectedMethod?.requires_reference && !paymentForm.transactionId.trim()) {
-      setSnackbar({
-        open: true,
-        message: `Transaction ID is required for ${selectedMethod.description}`,
-        severity: 'warning'
-      });
-      return;
-    }
-
     setPaymentLoading(true);
     try {
       const sessionYear = ID_TO_SESSION_YEAR_MAP[filters.session_year_id] || DEFAULT_SESSION_YEAR;
+      const sessionYearId = parseInt(filters.session_year_id);
+      const studentId = availableMonthsData.student.id;
 
-      const paymentData = {
-        amount: parseFloat(paymentForm.amount),
-        payment_method_id: paymentForm.paymentMethodId,
-        selected_months: paymentForm.selectedMonths,
-        session_year: sessionYear,
-        transaction_id: paymentForm.transactionId || `TXN${Date.now()}`,
-        remarks: paymentForm.remarks || 'Monthly fee payment'
-      };
+      // Generate transaction ID automatically (will be saved in DB by service)
+      const generatedTransactionId = `TXN${Date.now()}`;
 
-      const response = await enhancedFeesAPI.makeEnhancedPayment(availableMonthsData.student.id, paymentData);
+      // Calculate amounts for display
+      const tuitionAmount = parseFloat(paymentForm.amount);
+      const transportPaymentAmount = (payTransportFee && selectedTransportMonths.length > 0 && transportAmount)
+        ? parseFloat(transportAmount)
+        : 0;
+      const totalAmount = tuitionAmount + transportPaymentAmount;
+      const hasTransportPayment = payTransportFee && selectedTransportMonths.length > 0 && transportPaymentAmount > 0;
 
-      setSnackbar({
-        open: true,
-        message: response.data.message || 'Payment processed successfully',
-        severity: 'success'
-      });
-      setPaymentDialogOpen(false);
+      // Use combined endpoint if both tuition and transport are being paid
+      // This generates a single receipt with both payment details
+      if (hasTransportPayment) {
+        try {
+          const combinedPaymentData = {
+            tuition: {
+              amount: tuitionAmount,
+              payment_method_id: paymentForm.paymentMethodId,
+              selected_months: paymentForm.selectedMonths,
+              session_year: sessionYear,
+              transaction_id: generatedTransactionId,
+              remarks: paymentForm.remarks || 'Monthly fee payment',
+              payment_date: paymentForm.paymentDate
+            },
+            transport: {
+              amount: transportPaymentAmount,
+              selected_months: selectedTransportMonths.map(m => m.academic_month),
+              session_year_id: sessionYearId,
+              payment_date: paymentForm.paymentDate
+            }
+          };
+
+          const response = await enhancedFeesAPI.makeCombinedPayment(studentId, combinedPaymentData);
+
+          setSnackbar({
+            open: true,
+            message: response.data.message || `Payment of ₹${totalAmount.toLocaleString()} processed successfully (Tuition: ₹${tuitionAmount.toLocaleString()}, Transport: ₹${transportPaymentAmount.toLocaleString()})`,
+            severity: 'success'
+          });
+          setPaymentDialogOpen(false);
+        } catch (error: any) {
+          console.error('Error making combined payment:', error);
+          const errorMessage = error.response?.data?.detail || error.message || 'Failed to process combined payment';
+          setSnackbar({
+            open: true,
+            message: errorMessage,
+            severity: 'error'
+          });
+        }
+      } else {
+        // Tuition only - use existing endpoint
+        const tuitionPaymentData = {
+          amount: tuitionAmount,
+          payment_method_id: paymentForm.paymentMethodId,
+          selected_months: paymentForm.selectedMonths,
+          session_year: sessionYear,
+          transaction_id: generatedTransactionId,
+          remarks: paymentForm.remarks || 'Monthly fee payment',
+          payment_date: paymentForm.paymentDate
+        };
+
+        try {
+          await enhancedFeesAPI.makeEnhancedPayment(studentId, tuitionPaymentData);
+          setSnackbar({
+            open: true,
+            message: `Payment of ₹${tuitionAmount.toLocaleString()} processed successfully`,
+            severity: 'success'
+          });
+          setPaymentDialogOpen(false);
+        } catch (error: any) {
+          console.error('Error making tuition payment:', error);
+          const errorMessage = error.response?.data?.detail || error.message || 'Failed to process tuition payment';
+          setSnackbar({
+            open: true,
+            message: errorMessage,
+            severity: 'error'
+          });
+        }
+      }
+
       fetchStudentsSummary(); // Refresh the data
     } catch (error: any) {
       console.error('Error making payment:', error);
@@ -2151,9 +2278,24 @@ const FeeManagementComponent: React.FC = () => {
               <Typography variant="body2" color="text.secondary">
                 Class: {getClassDisplayName(availableMonthsData.student.class)} | Session: {availableMonthsData.session_year}
               </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Monthly Fee: ₹{availableMonthsData.monthly_fee.toLocaleString()} | Balance: ₹{availableMonthsData.summary.total_pending_amount.toLocaleString()}
-              </Typography>
+              <Box sx={{ display: 'flex', gap: 3, mt: 0.5 }}>
+                <Box>
+                  <Typography variant="caption" color="text.secondary">Tuition Fee</Typography>
+                  <Typography variant="body2">
+                    Monthly: ₹{availableMonthsData.monthly_fee.toLocaleString()} | Balance: ₹{availableMonthsData.summary.total_pending_amount.toLocaleString()}
+                  </Typography>
+                </Box>
+                {currentPaymentStudentHasTransport && transportMonthlyHistory && (
+                  <Box>
+                    <Typography variant="caption" color="text.secondary">
+                      Transport Fee
+                    </Typography>
+                    <Typography variant="body2">
+                      Monthly: ₹450/₹700 | Balance: ₹{transportMonthlyHistory.total_balance?.toLocaleString() || 0}
+                    </Typography>
+                  </Box>
+                )}
+              </Box>
             </Box>
           )}
 
@@ -2218,7 +2360,7 @@ const FeeManagementComponent: React.FC = () => {
                     fullWidth
                     required
                     type="number"
-                    label="Payment Amount"
+                    label="Tuition Fee Amount"
                     value={paymentForm.amount}
                     onChange={(e) => setPaymentForm(prev => ({ ...prev, amount: e.target.value }))}
                     disabled={paymentLoading}
@@ -2251,35 +2393,148 @@ const FeeManagementComponent: React.FC = () => {
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <TextField
                     fullWidth
-                    label="Transaction ID"
-                    value={paymentForm.transactionId}
-                    onChange={(e) => setPaymentForm(prev => ({ ...prev, transactionId: e.target.value }))}
+                    label="Payment Date"
+                    type="date"
+                    value={paymentForm.paymentDate}
+                    onChange={(e) => setPaymentForm(prev => ({ ...prev, paymentDate: e.target.value }))}
                     disabled={paymentLoading}
-                    placeholder="Optional"
-                    helperText={(() => {
-                      const selectedMethod = getPaymentMethods().find(m => m.id === paymentForm.paymentMethodId);
-                      return selectedMethod?.requires_reference
-                        ? "Required: Enter transaction/reference ID"
-                        : "Optional: Transaction reference ID";
-                    })()}
-                    required={(() => {
-                      const selectedMethod = getPaymentMethods().find(m => m.id === paymentForm.paymentMethodId);
-                      return selectedMethod?.requires_reference || false;
-                    })()}
+                    slotProps={{
+                      inputLabel: { shrink: true }
+                    }}
                   />
                 </Grid>
 
-                <Grid size={{ xs: 12 }}>
+                {/* Transport Fee Section - Only show if student has transport enrollment */}
+                {currentPaymentStudentHasTransport && (
+                  <Grid size={{ xs: 12 }}>
+                    <FormControlLabel
+                      control={
+                        <Checkbox
+                          checked={payTransportFee}
+                          onChange={(e) => {
+                            setPayTransportFee(e.target.checked);
+                            if (!e.target.checked) {
+                              setSelectedTransportMonths([]);
+                              setTransportAmount('');
+                            }
+                          }}
+                          disabled={paymentLoading || transportPaymentLoading || !transportMonthlyHistory}
+                          color="primary"
+                        />
+                      }
+                      label={
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <DirectionsBus fontSize="small" color="primary" />
+                          <Typography variant="subtitle2">
+                            Transport Fee
+                          </Typography>
+                          {transportPaymentLoading && <CircularProgress size={16} />}
+                        </Box>
+                      }
+                    />
+                    {!transportMonthlyHistory && !transportPaymentLoading && (
+                      <Typography variant="caption" color="text.secondary" sx={{ ml: 4, display: 'block' }}>
+                        No transport fee data available for this session
+                      </Typography>
+                    )}
+                  </Grid>
+                )}
+
+                {/* Transport Month Selection - Inside Grid for proper alignment */}
+                {currentPaymentStudentHasTransport && payTransportFee && transportMonthlyHistory && (
+                  <>
+                    <Grid size={{ xs: 12 }}>
+                      <FormControl fullWidth>
+                        <InputLabel>Select Transport Months</InputLabel>
+                        <Select
+                          multiple
+                          value={selectedTransportMonths.map(m => m.id)}
+                          onChange={(event) => {
+                            const selectedIds = event.target.value as number[];
+                            const availableMonths = getAvailableTransportMonths();
+                            const newSelectedMonths = availableMonths.filter(m => selectedIds.includes(m.id));
+                            setSelectedTransportMonths(newSelectedMonths);
+                          }}
+                          input={<OutlinedInput label="Select Transport Months" />}
+                          renderValue={(selected) => {
+                            const selectedMonths = getAvailableTransportMonths().filter(m =>
+                              (selected as number[]).includes(m.id)
+                            );
+                            return selectedMonths.map(m => m.month_name).join(', ');
+                          }}
+                          MenuProps={{
+                            PaperProps: {
+                              style: {
+                                maxHeight: 224,
+                                width: 250,
+                              },
+                            },
+                          }}
+                          disabled={paymentLoading || transportPaymentLoading}
+                        >
+                          {getAvailableTransportMonths().map((month) => (
+                            <MenuItem key={month.id} value={month.id}>
+                              <Checkbox checked={selectedTransportMonths.some(m => m.id === month.id)} />
+                              <ListItemText
+                                primary={month.month_name}
+                                secondary={`₹${Number(month.balance_amount || 0).toLocaleString()}`}
+                              />
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                    </Grid>
+
+                    <Grid size={{ xs: 12, sm: 6 }}>
+                      <TextField
+                        fullWidth
+                        type="number"
+                        label="Transport Fee Amount"
+                        value={transportAmount}
+                        onChange={(e) => setTransportAmount(e.target.value)}
+                        disabled={paymentLoading || selectedTransportMonths.length === 0}
+                        slotProps={{
+                          htmlInput: { min: 0, step: 0.01 }
+                        }}
+                        helperText="Editable for partial payment"
+                      />
+                    </Grid>
+                  </>
+                )}
+
+                {/* Total Amount and Remarks in same row */}
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <TextField
                     fullWidth
-                    multiline
-                    rows={2}
+                    label="Total Amount"
+                    value={(() => {
+                      const tuition = parseFloat(paymentForm.amount) || 0;
+                      const transport = (payTransportFee && selectedTransportMonths.length > 0)
+                        ? (parseFloat(transportAmount) || 0)
+                        : 0;
+                      return `₹${(tuition + transport).toFixed(2)}`;
+                    })()}
+                    disabled
+                    slotProps={{
+                      input: { readOnly: true }
+                    }}
+                    helperText="Tuition + Transport"
+                    sx={{
+                      '& .MuiInputBase-input': {
+                        fontWeight: 'bold'
+                      }
+                    }}
+                  />
+                </Grid>
+
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <TextField
+                    fullWidth
                     label="Remarks"
                     value={paymentForm.remarks}
                     onChange={(e) => setPaymentForm(prev => ({ ...prev, remarks: e.target.value }))}
                     disabled={paymentLoading}
                     placeholder="Optional notes"
-                    helperText="Optional: Additional notes about the payment"
                   />
                 </Grid>
               </Grid>

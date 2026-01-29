@@ -100,6 +100,25 @@ export const enhancedFeesAPI = {
   makeEnhancedPayment: (studentId: number, data: any) =>
     api.post(`/fees/pay-monthly-enhanced/${studentId}`, data),
 
+  // Combined Tuition + Transport Payment (single receipt)
+  makeCombinedPayment: (studentId: number, data: {
+    tuition: {
+      amount: number;
+      payment_method_id: number;
+      selected_months: number[];
+      session_year: string;
+      transaction_id: string;
+      remarks?: string;
+      payment_date?: string;
+    };
+    transport: {
+      amount: number;
+      selected_months: number[];
+      session_year_id: number;
+      payment_date?: string;
+    };
+  }) => api.post(`/fees/pay-combined/${studentId}`, data),
+
   // Fee Structure API
   getFeeStructure: () =>
     api.get('/fees/structure'),

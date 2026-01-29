@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import and_, or_, func, select, text
 from sqlalchemy.orm import joinedload, selectinload
-from datetime import date
+from datetime import date, datetime, timedelta
 import math
 import calendar
 import logging
@@ -268,11 +268,13 @@ async def create_bulk_fee_records(
             fee_record_data = FeeRecordCreate(
                 student_id=student_id,
                 session_year_id=session_year_id,
+                class_id=student.class_id,  # Get class_id from student record
                 payment_type_id=payment_type_data["payment_type_id"],
                 total_amount=payment_type_data["total_amount"],
                 balance_amount=payment_type_data["total_amount"],
                 due_date=payment_type_data["due_date"],
-                payment_status_id=1  # Pending
+                payment_status_id=1,  # Pending
+                is_monthly_tracked=False  # Not monthly tracked for bulk creation
             )
 
             # Create fee record
@@ -1867,6 +1869,16 @@ async def pay_monthly_enhanced(
     transaction_id = payment_data.get("transaction_id")
     remarks = payment_data.get("remarks", "")
 
+    # Parse payment date (defaults to today)
+    payment_date_str = payment_data.get("payment_date")
+    if payment_date_str:
+        try:
+            payment_date = datetime.strptime(payment_date_str, "%Y-%m-%d").date()
+        except (ValueError, TypeError):
+            payment_date = date.today()
+    else:
+        payment_date = date.today()
+
     # Ensure payment_method_id is a valid integer
     if not isinstance(payment_method_id, int):
         try:
@@ -2011,6 +2023,7 @@ async def pay_monthly_enhanced(
             fee_record_data = FeeRecordCreate(
                 student_id=student_id,
                 session_year_id=session_year_id,
+                class_id=student.class_id,  # Get class_id from student record
                 payment_type_id=1,  # Monthly
                 payment_status_id=1,  # Pending
                 payment_method_id=payment_method_id,
@@ -2067,13 +2080,11 @@ async def pay_monthly_enhanced(
     actual_amount_to_process = min(amount, total_allocatable)
 
     # Create the payment record with the actual amount that will be processed
-    today_date = date.today()
-
     payment_data = FeePaymentCreate(
         fee_record_id=available_months[0].fee_record_id,
         amount=actual_amount_to_process,  # Use actual processable amount
         payment_method_id=payment_method_id,  # Use payment_method_id directly (integer)
-        payment_date=today_date,
+        payment_date=payment_date,  # Use payment_date from request (defaults to today)
         transaction_id=transaction_id,
         remarks=f"Enhanced monthly payment: {remarks}" if remarks else "Enhanced monthly payment"
     )
@@ -2426,7 +2437,7 @@ async def pay_monthly_enhanced(
             "fully_paid_months": fully_paid_months,
             "partial_months": partial_months,
             "transaction_id": transaction_id,
-            "payment_date": date.today().isoformat()
+            "payment_date": payment_date.isoformat()
         },
         "month_wise_breakdown": payment_breakdown,
         "updated_balance": {
@@ -2441,6 +2452,578 @@ async def pay_monthly_enhanced(
             "message_sid": whatsapp_result.get("message_sid") if whatsapp_result else None,
             "phone_number": student.phone if student.phone else None,
             "error": whatsapp_result.get("error") if whatsapp_result else whatsapp_error
+        }
+    }
+
+
+@router.post("/pay-combined/{student_id}")
+async def pay_combined_tuition_transport(
+    student_id: int,
+    payment_data: dict,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Combined tuition + transport fee payment endpoint.
+    Processes both tuition and transport payments in a single transaction
+    and generates a unified receipt with both payment details.
+
+    Expected payment_data format:
+    {
+        "tuition": {
+            "amount": float,
+            "payment_method_id": int,
+            "selected_months": [4, 5, 6],
+            "session_year": "2025-26",
+            "transaction_id": "TXN123",
+            "remarks": "Monthly fee payment",
+            "payment_date": "2026-01-29"  # Optional, defaults to today
+        },
+        "transport": {
+            "amount": float,
+            "selected_months": [4, 5, 6],  # academic month numbers
+            "session_year_id": int,
+            "payment_date": "2026-01-29"  # Optional, defaults to today
+        }
+    }
+    """
+    from decimal import Decimal
+    from app.models.transport import StudentTransportEnrollment, TransportMonthlyTracking, TransportPayment, TransportPaymentAllocation
+    from sqlalchemy.orm import selectinload
+
+    tuition_data = payment_data.get("tuition", {})
+    transport_data = payment_data.get("transport", {})
+
+    # Validate tuition data
+    tuition_amount = float(tuition_data.get("amount", 0))
+    tuition_payment_method_id = tuition_data.get("payment_method_id", 1)
+    tuition_selected_months = tuition_data.get("selected_months", [])
+    session_year = tuition_data.get("session_year", "2025-26")
+    transaction_id = tuition_data.get("transaction_id", f"TXN{datetime.now().timestamp()}")
+    remarks = tuition_data.get("remarks", "")
+
+    # Parse payment date from tuition data (defaults to today)
+    payment_date_str = tuition_data.get("payment_date")
+    if payment_date_str:
+        try:
+            payment_date = datetime.strptime(payment_date_str, "%Y-%m-%d").date()
+        except (ValueError, TypeError):
+            payment_date = date.today()
+    else:
+        payment_date = date.today()
+
+    # Validate transport data
+    transport_amount = float(transport_data.get("amount", 0))
+    transport_selected_months = transport_data.get("selected_months", [])
+    transport_session_year_id = transport_data.get("session_year_id", 4)  # Default to 2025-26
+
+    if tuition_amount <= 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Tuition payment amount must be greater than 0"
+        )
+
+    if not tuition_selected_months:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="At least one tuition month must be selected"
+        )
+
+    if transport_amount <= 0 or not transport_selected_months:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Transport payment amount and months are required for combined payment"
+        )
+
+    # Get session year ID
+    session_year_mapping = {
+        "2022-23": 1, "2023-24": 2, "2024-25": 3, "2025-26": 4, "2026-27": 5
+    }
+    session_year_id = session_year_mapping.get(session_year, 4)
+
+    # Get student with class relationship
+    student = await db.execute(
+        select(Student)
+        .options(selectinload(Student.class_ref))
+        .where(Student.id == student_id)
+    )
+    student = student.scalar_one_or_none()
+
+    if not student:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Student not found"
+        )
+
+    # =====================================================
+    # PART 1: Process Tuition Fee Payment
+    # =====================================================
+
+    # Get fee structure
+    fee_structure = await fee_structure_crud.get_by_class_id_and_session_id(
+        db, class_id=student.class_id, session_year_id=session_year_id
+    )
+
+    if not fee_structure:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Fee structure not found for student's class"
+        )
+
+    monthly_fee = float(fee_structure.total_annual_fee) / 12
+
+    # =====================================================
+    # STEP 1: Get existing tracking records for selected months
+    # =====================================================
+
+    # Query for existing tracking records for the selected months
+    existing_tracking = await db.execute(
+        select(MonthlyFeeTrackingModel)
+        .where(
+            and_(
+                MonthlyFeeTrackingModel.student_id == student_id,
+                MonthlyFeeTrackingModel.session_year_id == session_year_id,
+                MonthlyFeeTrackingModel.academic_month.in_(tuition_selected_months)
+            )
+        )
+        .order_by(MonthlyFeeTrackingModel.academic_month)
+    )
+    tuition_tracking_records = list(existing_tracking.scalars().all())
+
+    # =====================================================
+    # STEP 2: Find or create the fee record
+    # =====================================================
+
+    # First, check if there's ANY existing tracking record for this student/session
+    # This helps us find the correct fee_record_id even if selected months don't have records yet
+    any_tracking_query = await db.execute(
+        select(MonthlyFeeTrackingModel)
+        .where(
+            and_(
+                MonthlyFeeTrackingModel.student_id == student_id,
+                MonthlyFeeTrackingModel.session_year_id == session_year_id
+            )
+        )
+        .limit(1)
+    )
+    any_tracking_record = any_tracking_query.scalars().first()
+
+    # Get or create fee record
+    fee_record = None
+
+    # If we found any existing tracking record, use its fee_record_id
+    if any_tracking_record:
+        fee_record_query = await db.execute(
+            select(FeeRecordModel).where(FeeRecordModel.id == any_tracking_record.fee_record_id)
+        )
+        fee_record = fee_record_query.scalars().first()
+
+    # If no fee record found from tracking records, try the standard lookup
+    if not fee_record:
+        fee_record = await fee_record_crud.get_by_student_session_type(
+            db, student_id=student_id, session_year_id=session_year_id, payment_type_id=1
+        )
+
+    # Only create a new fee record if none exists
+    if not fee_record:
+        fee_record = await fee_record_crud.create(db, obj_in=FeeRecordCreate(
+            student_id=student_id,
+            session_year_id=session_year_id,
+            class_id=student.class_id,  # Get class_id from student record
+            payment_type_id=1,  # Monthly
+            payment_status_id=1,  # Pending
+            payment_method_id=tuition_payment_method_id,
+            fee_structure_id=fee_structure.id,
+            is_monthly_tracked=True,
+            total_amount=fee_structure.total_annual_fee,
+            paid_amount=Decimal("0"),
+            balance_amount=fee_structure.total_annual_fee,
+            due_date=date(2025, 4, 30),
+            remarks="Combined tuition + transport payment"
+        ))
+
+    # Create tracking records for months that don't exist
+    for month_num in tuition_selected_months:
+        exists = any(r.academic_month == month_num for r in tuition_tracking_records)
+        if not exists:
+            # Calculate year for this month (academic year: Apr 2025 - Mar 2026)
+            year = 2025 if month_num >= 4 else 2026
+            # Calculate due date (last day of the month)
+            last_day = calendar.monthrange(year, month_num)[1]
+            due_date = date(year, month_num, last_day)
+
+            new_record = MonthlyFeeTrackingModel(
+                fee_record_id=fee_record.id,
+                student_id=student_id,
+                session_year_id=session_year_id,
+                academic_month=month_num,
+                academic_year=year,
+                month_name=calendar.month_name[month_num],
+                monthly_amount=monthly_fee,
+                paid_amount=0,
+                due_date=due_date,
+                payment_status_id=1  # Pending (same as original pay_monthly_enhanced)
+            )
+            db.add(new_record)
+            tuition_tracking_records.append(new_record)
+
+    await db.flush()
+
+    # Filter for available months (not fully paid)
+    available_tuition_months = [
+        r for r in tuition_tracking_records
+        if float(r.paid_amount) < float(r.monthly_amount)
+    ]
+
+    if not available_tuition_months:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Selected tuition months are already fully paid"
+        )
+
+    # Sort by academic month
+    available_tuition_months.sort(key=lambda x: x.academic_month if x.academic_month >= 4 else x.academic_month + 12)
+
+    # Calculate actual tuition amount to process
+    total_tuition_allocatable = sum(
+        float(r.monthly_amount) - float(r.paid_amount) for r in available_tuition_months
+    )
+    actual_tuition_amount = min(tuition_amount, total_tuition_allocatable)
+
+    # Create tuition payment record
+    tuition_payment_data = FeePaymentCreate(
+        fee_record_id=fee_record.id,
+        amount=actual_tuition_amount,
+        payment_method_id=tuition_payment_method_id,
+        payment_date=payment_date,
+        transaction_id=transaction_id,
+        remarks=f"Combined payment: {remarks}" if remarks else "Combined tuition + transport payment"
+    )
+    tuition_payment = await fee_payment_crud.create(db, obj_in=tuition_payment_data)
+
+    # Allocate tuition payment to months
+    remaining_tuition = actual_tuition_amount
+    tuition_breakdown = []
+
+    for month_record in available_tuition_months:
+        if remaining_tuition <= 0:
+            break
+
+        month_balance = float(month_record.monthly_amount) - float(month_record.paid_amount)
+        allocation_amount = min(remaining_tuition, month_balance)
+
+        if allocation_amount > 0:
+            # Create allocation
+            allocation = MonthlyPaymentAllocation(
+                fee_payment_id=tuition_payment.id,
+                monthly_tracking_id=month_record.id,
+                allocated_amount=allocation_amount,
+                created_by=current_user.id
+            )
+            db.add(allocation)
+
+            # Update tracking record - only update paid_amount (balance_amount is computed property)
+            previous_paid = float(month_record.paid_amount)
+            month_record.paid_amount = previous_paid + allocation_amount
+
+            # Calculate balance for response (don't set on model - it's a computed property)
+            new_balance = float(month_record.monthly_amount) - float(month_record.paid_amount)
+            payment_status_text = "Paid" if new_balance <= 0.01 else "Partial"
+
+            # Update payment_status_id (not payment_status)
+            if new_balance <= 0.01:
+                month_record.payment_status_id = 2  # PAID
+            elif month_record.paid_amount > 0:
+                month_record.payment_status_id = 3  # PARTIAL
+
+            tuition_breakdown.append({
+                "month": month_record.academic_month,
+                "month_name": month_record.month_name,
+                "monthly_fee": float(month_record.monthly_amount),
+                "previous_paid": previous_paid,
+                "allocated_amount": allocation_amount,
+                "new_paid_amount": float(month_record.paid_amount),
+                "remaining_balance": new_balance,
+                "status": payment_status_text
+            })
+
+            remaining_tuition -= allocation_amount
+
+    # Update fee record totals
+    fee_record.paid_amount = float(fee_record.paid_amount) + actual_tuition_amount
+    fee_record.balance_amount = float(fee_record.total_amount) - float(fee_record.paid_amount)
+
+    await db.flush()
+
+    # =====================================================
+    # PART 2: Process Transport Fee Payment
+    # =====================================================
+    from app.models.transport import StudentTransportEnrollment as STE, TransportMonthlyTracking as TMT
+    from app.models.transport import TransportPayment, TransportPaymentAllocation
+
+    # Get active transport enrollment
+    enrollment_result = await db.execute(
+        select(STE)
+        .options(selectinload(STE.transport_type))
+        .where(
+            STE.student_id == student_id,
+            STE.session_year_id == transport_session_year_id,
+            STE.is_active == True
+        )
+    )
+    transport_enrollment = enrollment_result.scalar_one_or_none()
+
+    if not transport_enrollment:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No active transport enrollment found for this student"
+        )
+
+    # Get monthly tracking records for selected transport months
+    transport_tracking_result = await db.execute(
+        select(TMT)
+        .where(
+            TMT.student_id == student_id,
+            TMT.session_year_id == transport_session_year_id,
+            TMT.academic_month.in_(transport_selected_months),
+            TMT.is_service_enabled == True
+        )
+        .order_by(TMT.academic_year, TMT.academic_month)
+    )
+    transport_monthly_records = list(transport_tracking_result.scalars().all())
+
+    if not transport_monthly_records:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No enabled transport months found for selected months"
+        )
+
+    # Filter for unpaid transport months
+    unpaid_transport_records = [
+        r for r in transport_monthly_records
+        if Decimal(str(r.monthly_amount)) - Decimal(str(r.paid_amount)) > 0
+    ]
+
+    if not unpaid_transport_records:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Selected transport months are already fully paid"
+        )
+
+    # Create transport payment record
+    transport_payment = TransportPayment(
+        enrollment_id=transport_enrollment.id,
+        student_id=student_id,
+        amount=transport_amount,
+        payment_method_id=tuition_payment_method_id,  # Same payment method
+        payment_date=payment_date,
+        transaction_id=f"{transaction_id}-T",
+        remarks="Combined tuition + transport payment (Transport)",
+        created_by=current_user.id
+    )
+    db.add(transport_payment)
+    await db.flush()
+
+    # Distribute transport payment across months
+    remaining_transport = Decimal(str(transport_amount))
+    transport_breakdown = []
+
+    for record in unpaid_transport_records:
+        if remaining_transport <= 0:
+            break
+
+        # Capture previous paid amount BEFORE updating
+        previous_paid = float(record.paid_amount)
+        balance = Decimal(str(record.monthly_amount)) - Decimal(str(record.paid_amount))
+
+        if balance > 0:
+            payment_for_month = min(remaining_transport, balance)
+            record.paid_amount = Decimal(str(record.paid_amount)) + payment_for_month
+
+            # Create transport allocation record
+            transport_allocation = TransportPaymentAllocation(
+                transport_payment_id=transport_payment.id,
+                monthly_tracking_id=record.id,
+                allocated_amount=float(payment_for_month),
+                is_reversal=False,
+                created_by=current_user.id
+            )
+            db.add(transport_allocation)
+
+            # Update payment status
+            paid_rounded = record.paid_amount.quantize(Decimal('0.01'))
+            monthly_rounded = Decimal(str(record.monthly_amount)).quantize(Decimal('0.01'))
+
+            if paid_rounded >= monthly_rounded:
+                record.payment_status_id = 2  # PAID
+            elif record.paid_amount > 0:
+                record.payment_status_id = 3  # PARTIAL
+
+            record.updated_at = datetime.now()
+            remaining_transport -= payment_for_month
+
+            transport_breakdown.append({
+                "month_name": record.month_name,
+                "academic_year": record.academic_year,
+                "monthly_amount": float(record.monthly_amount),
+                "previous_paid": previous_paid,  # Amount paid before this transaction
+                "paid_amount": float(record.paid_amount),  # Total paid after this transaction
+                "balance_amount": float(Decimal(str(record.monthly_amount)) - record.paid_amount),
+                "allocated_amount": float(payment_for_month),  # Amount paid in this transaction
+                "status": "Paid" if paid_rounded >= monthly_rounded else "Partial"
+            })
+
+    # Commit all changes
+    await db.commit()
+
+    # Refresh records
+    await db.refresh(tuition_payment)
+    await db.refresh(transport_payment)
+    await db.refresh(fee_record)
+
+    # =====================================================
+    # PART 3: Generate Combined Receipt
+    # =====================================================
+    receipt_url = None
+    receipt_number = None
+
+    # Calculate transport totals after payment (needed for both receipt and response)
+    transport_total_result = await db.execute(
+        select(
+            func.sum(TMT.paid_amount).label('total_paid'),
+            func.sum(TMT.monthly_amount - TMT.paid_amount).label('total_balance'),
+            func.sum(TMT.monthly_amount).label('total_fee')
+        ).where(TMT.enrollment_id == transport_enrollment.id)
+    )
+    transport_totals = transport_total_result.first()
+
+    try:
+        # Generate receipt number
+        receipt_number = f"RCP-{tuition_payment.id:06d}"
+
+        # Get payment method description
+        payment_method = await payment_method_crud.get_by_id_async(db, id=tuition_payment_method_id)
+        payment_method_name = payment_method.description if payment_method else "Cash"
+
+        # Format payment date for receipt display
+        payment_date_str = payment_date.strftime('%d-%b-%Y') if payment_date else 'N/A'
+
+        # Prepare payment data for receipt
+        receipt_payment_data = {
+            'id': tuition_payment.id,
+            'amount': float(actual_tuition_amount) + float(transport_amount),  # Combined total
+            'tuition_amount': float(actual_tuition_amount),
+            'transport_amount': float(transport_amount),
+            'payment_method': payment_method_name,
+            'payment_date': payment_date,
+            'payment_date_str': payment_date_str,  # Formatted date string for receipt
+            'transaction_id': transaction_id,
+            'receipt_number': receipt_number
+        }
+
+        # Prepare student data for receipt
+        student_data = {
+            'name': f"{student.first_name} {student.last_name}",
+            'admission_number': student.admission_number,
+            'class_name': student.class_ref.description if student.class_ref else 'N/A',
+            'roll_number': student.roll_number or 'N/A',
+            'father_name': student.father_name,
+            'phone': student.phone
+        }
+
+        # Prepare fee summary
+        fee_summary = {
+            'total_annual_fee': float(fee_record.total_amount),
+            'total_paid': float(fee_record.paid_amount),
+            'balance_remaining': float(fee_record.balance_amount)
+        }
+
+        # Prepare transport data for receipt with monthly breakdown
+        transport_receipt_data = {
+            'monthly_fee': float(transport_enrollment.monthly_fee),
+            'total_fee': float(transport_totals.total_fee or 0) if transport_totals else 0,
+            'total_paid': float(transport_totals.total_paid or 0) if transport_totals else 0,
+            'balance': float(transport_totals.total_balance or 0) if transport_totals else 0,
+            'monthly_breakdown': transport_breakdown,  # This contains the months paid in THIS transaction
+            'current_payment_amount': float(transport_amount),
+            'months_covered': [m['month_name'] for m in transport_breakdown]
+        }
+
+        # Get admin user name
+        created_by_name = f"{current_user.first_name} {current_user.last_name}" if current_user else None
+
+        # Generate receipt PDF
+        receipt_generator = ReceiptGenerator()
+        pdf_buffer = receipt_generator.generate_receipt(
+            payment_data=receipt_payment_data,
+            student_data=student_data,
+            month_breakdown=tuition_breakdown,
+            fee_summary=fee_summary,
+            transport_data=transport_receipt_data,
+            created_by_name=created_by_name
+        )
+
+        # Upload to Cloudinary
+        cloudinary_service = CloudinaryReceiptService()
+        receipt_url, cloudinary_public_id = cloudinary_service.upload_receipt(
+            pdf_buffer=pdf_buffer,
+            payment_id=tuition_payment.id,
+            receipt_number=receipt_number
+        )
+
+        # Update tuition payment with receipt info
+        tuition_payment.receipt_number = receipt_number
+        tuition_payment.receipt_cloudinary_url = receipt_url
+        tuition_payment.receipt_cloudinary_id = cloudinary_public_id
+
+        await db.commit()
+        await db.refresh(tuition_payment)
+
+        logger.info(f"Combined receipt generated: {receipt_url}")
+
+    except Exception as e:
+        logger.error(f"Failed to generate combined receipt: {str(e)}")
+        import traceback
+        traceback.print_exc()
+
+    # Return combined response
+    return {
+        "success": True,
+        "message": f"Combined payment of ₹{actual_tuition_amount + transport_amount} processed (Tuition: ₹{actual_tuition_amount}, Transport: ₹{transport_amount})",
+        "tuition_payment": {
+            "payment_id": tuition_payment.id,
+            "amount": float(actual_tuition_amount),
+            "months_affected": len(tuition_breakdown),
+            "month_breakdown": tuition_breakdown
+        },
+        "transport_payment": {
+            "payment_id": transport_payment.id,
+            "amount": float(transport_amount),
+            "months_affected": len(transport_breakdown),
+            "month_breakdown": transport_breakdown
+        },
+        "receipt": {
+            "available": receipt_url is not None,
+            "receipt_number": receipt_number,
+            "receipt_url": receipt_url
+        },
+        "student": {
+            "id": student.id,
+            "name": f"{student.first_name} {student.last_name}",
+            "admission_number": student.admission_number,
+            "class": student.class_ref.name if student.class_ref else "Unknown"
+        },
+        "updated_balances": {
+            "tuition": {
+                "total_annual_fee": float(fee_record.total_amount),
+                "total_paid": float(fee_record.paid_amount),
+                "balance_remaining": float(fee_record.balance_amount)
+            },
+            "transport": {
+                "total_fee": float(transport_totals.total_fee or 0) if transport_totals else 0,
+                "total_paid": float(transport_totals.total_paid or 0) if transport_totals else 0,
+                "balance_remaining": float(transport_totals.total_balance or 0) if transport_totals else 0
+            }
         }
     }
 

@@ -80,7 +80,11 @@ class CRUDFeeRecord(CRUDBase[FeeRecord, FeeRecordCreate, FeeRecordUpdate]):
         session_year_id: int,
         payment_type_id: int
     ) -> Optional[FeeRecord]:
-        """Get fee record by student, session year, and payment type"""
+        """Get fee record by student, session year, and payment type
+
+        Uses .first() instead of scalar_one_or_none() to handle potential duplicates gracefully.
+        Returns the most recently created record if duplicates exist.
+        """
         result = await db.execute(
             select(FeeRecord).where(
                 and_(
@@ -89,8 +93,9 @@ class CRUDFeeRecord(CRUDBase[FeeRecord, FeeRecordCreate, FeeRecordUpdate]):
                     FeeRecord.payment_type_id == payment_type_id
                 )
             )
+            .order_by(FeeRecord.created_at.desc())  # Get the most recent one if duplicates exist
         )
-        return result.scalar_one_or_none()
+        return result.scalars().first()
 
     async def get_multi_with_filters(
         self,
