@@ -22,6 +22,13 @@ class Settings:
     CLOUDINARY_API_KEY: str = os.getenv("CLOUDINARY_API_KEY", "")
     CLOUDINARY_API_SECRET: str = os.getenv("CLOUDINARY_API_SECRET", "")
 
+    # Twilio WhatsApp Configuration
+    TWILIO_ACCOUNT_SID: str = os.getenv("TWILIO_ACCOUNT_SID", "")
+    TWILIO_AUTH_TOKEN: str = os.getenv("TWILIO_AUTH_TOKEN", "")
+    TWILIO_WHATSAPP_NUMBER: str = os.getenv("TWILIO_WHATSAPP_NUMBER", "")
+    # Approved WhatsApp template SID for fee receipt notifications
+    TWILIO_WHATSAPP_TEMPLATE_SID: str = os.getenv("TWILIO_WHATSAPP_TEMPLATE_SID", "")
+
     # CORS Origins - Support both environment variable and defaults
     @property
     def BACKEND_CORS_ORIGINS(self) -> List[str]:

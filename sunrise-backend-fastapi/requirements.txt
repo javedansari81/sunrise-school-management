@@ -88,6 +88,11 @@ reportlab==4.0.9                    # PDF generation library for receipts
 cloudinary==1.41.0                  # Cloudinary SDK for image/video management
 
 # =====================================================
+# Messaging and Notifications
+# =====================================================
+twilio==9.0.0                       # Twilio SDK for WhatsApp/SMS messaging
+
+# =====================================================
 # Development and Code Quality
 # =====================================================
 black==23.11.0                      # Code formatter

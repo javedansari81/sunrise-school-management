@@ -32,6 +32,7 @@ from app.models.transport import StudentTransportEnrollment, TransportMonthlyTra
 from app.services.alert_service import alert_service
 from app.services.receipt_generator import ReceiptGenerator
 from app.services.cloudinary_receipt_service import CloudinaryReceiptService
+from app.services.whatsapp_service import whatsapp_service
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -321,44 +322,6 @@ async def get_student_fees(
     }
 
 
-@router.post("/payment")
-async def process_fee_payment(
-    payment_data: FeePaymentCreate,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
-):
-    """
-    Process fee payment (full or partial)
-    """
-    # Get fee record
-    fee_record = await fee_record_crud.get(db, id=payment_data.fee_record_id)
-    if not fee_record:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Fee record not found"
-        )
-
-    # Validate payment amount
-    if payment_data.amount <= 0:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Payment amount must be greater than 0"
-        )
-
-    if payment_data.amount > fee_record.balance_amount:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Payment amount cannot exceed balance amount of {fee_record.balance_amount}"
-        )
-
-    # Create payment and update fee record
-    payment = await fee_payment_crud.create_payment(
-        db, obj_in=payment_data, fee_record=fee_record
-    )
-
-    return payment
-
-
 # =====================================================
 # Payment Reversal Endpoints
 # =====================================================
@@ -554,120 +517,6 @@ async def reverse_payment_partial(
         )
 
 
-@router.post("/student-submit/{student_id}")
-async def student_submit_fee(
-    student_id: int,
-    submission_data: dict,  # {"payment_type": str, "amount": float, "payment_method_id": int, "transaction_id": str, "remarks": str}
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
-):
-    """
-    Allow students to submit fee payments with different frequencies
-    Supports Monthly, Quarterly, Half Yearly, and Yearly payments
-    """
-    # Verify student exists and current user has permission
-    student = await student_crud.get(db, id=student_id)
-    if not student:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Student not found"
-        )
-
-    # Check if current user is the student or has admin/teacher role
-    if current_user.user_type_id not in [1, 2] and student.user_id != current_user.id:  # 1=admin, 2=teacher
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You can only submit fees for your own account"
-        )
-
-    payment_type = submission_data.get("payment_type")
-    amount = submission_data.get("amount", 0)
-    payment_method_id = submission_data.get("payment_method_id")
-    transaction_id = submission_data.get("transaction_id")
-    remarks = submission_data.get("remarks", "")
-
-    # Validate input
-    if not payment_type or payment_type not in ["Monthly", "Quarterly", "Half Yearly", "Yearly"]:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid payment type. Must be one of: Monthly, Quarterly, Half Yearly, Yearly"
-        )
-
-    if amount <= 0:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Payment amount must be greater than 0"
-        )
-
-    if not payment_method_id:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Payment method is required"
-        )
-
-    # Get payment type ID from mapping
-    payment_type_mapping = {"Monthly": 1, "Quarterly": 2, "Half Yearly": 3, "Yearly": 4}
-    payment_type_id = payment_type_mapping.get(payment_type)
-    if not payment_type_id:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid payment type"
-        )
-
-    # Get current session year (2025-26)
-    current_session_id = 4  # 2025-26 session year ID
-
-    # Check if fee record exists for this student, session, and payment type
-    fee_record = await fee_record_crud.get_by_student_session_type(
-        db,
-        student_id=student_id,
-        session_year_id=current_session_id,
-        payment_type_id=payment_type_id
-    )
-
-    if not fee_record:
-        # Create new fee record if it doesn't exist
-        fee_record_data = FeeRecordCreate(
-            student_id=student_id,
-            session_year_id=current_session_id,
-            payment_type_id=payment_type_id,
-            total_amount=amount,
-            balance_amount=amount,
-            due_date=date.today(),
-            payment_status_id=1  # Pending
-        )
-        fee_record = await fee_record_crud.create(db, obj_in=fee_record_data)
-
-    # Validate payment amount doesn't exceed balance
-    if amount > fee_record.balance_amount:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Payment amount ({amount}) cannot exceed balance amount ({fee_record.balance_amount})"
-        )
-
-    # Create payment record
-    payment_data = FeePaymentCreate(
-        fee_record_id=fee_record.id,
-        amount=amount,
-        payment_method_id=payment_method_id,
-        payment_date=date.today(),
-        transaction_id=transaction_id,
-        remarks=remarks
-    )
-
-    # Process payment
-    payment = await fee_payment_crud.create_payment(
-        db, obj_in=payment_data, fee_record=fee_record
-    )
-
-    return {
-        "message": "Fee payment submitted successfully",
-        "payment": payment,
-        "fee_record": fee_record,
-        "remaining_balance": fee_record.balance_amount - amount
-    }
-
-
 @router.get("/student-options/{student_id}")
 async def get_student_fee_options(
     student_id: int,
@@ -774,87 +623,6 @@ async def get_student_fee_options(
         "session_year": session_year.value,
         "annual_fee": annual_fee,
         "payment_options": payment_options
-    }
-
-
-@router.post("/payments/lump-sum/{student_id}")
-async def process_lump_sum_payment(
-    student_id: int,
-    payment_data: dict,  # {"amount": float, "payment_method": str, "transaction_id": str, "remarks": str}
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
-):
-    """
-    Process lump sum payment - automatically distribute across pending fee records
-    """
-    # Verify student exists
-    student = await student_crud.get(db, id=student_id)
-    if not student:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Student not found"
-        )
-
-    total_amount = payment_data.get("amount", 0)
-    if total_amount <= 0:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Payment amount must be greater than 0"
-        )
-
-    # Get all pending fee records for the student (ordered by due date)
-    pending_fees = await fee_record_crud.get_pending_fees_by_student(db, student_id=student_id)
-
-    if not pending_fees:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="No pending fees found for this student"
-        )
-
-    remaining_amount = total_amount
-    payments_made = []
-
-    # Process payments in order of due date
-    for fee_record in pending_fees:
-        if remaining_amount <= 0:
-            break
-
-        # Calculate payment amount for this record
-        payment_amount = min(remaining_amount, fee_record.balance_amount)
-
-        # Create payment record
-        payment_create = FeePaymentCreate(
-            fee_record_id=fee_record.id,
-            amount=payment_amount,
-            payment_method=payment_data.get("payment_method", "Cash"),
-            transaction_id=payment_data.get("transaction_id", ""),
-            payment_date=date.today(),
-            remarks=f"Lump sum payment - {payment_data.get('remarks', '')}"
-        )
-
-        # Process the payment
-        payment = await fee_payment_crud.create_payment(
-            db, obj_in=payment_create, fee_record=fee_record
-        )
-
-        payments_made.append({
-            "fee_record_id": fee_record.id,
-            "amount_paid": payment_amount,
-            "remaining_balance": fee_record.balance_amount - payment_amount
-        })
-
-        remaining_amount -= payment_amount
-
-    # Calculate months covered (assuming monthly fees)
-    months_covered = len([p for p in payments_made if p["remaining_balance"] == 0])
-
-    return {
-        "message": "Lump sum payment processed successfully",
-        "total_amount": total_amount,
-        "amount_used": total_amount - remaining_amount,
-        "remaining_amount": remaining_amount,
-        "months_covered": months_covered,
-        "payments_made": payments_made
     }
 
 
@@ -2073,161 +1841,6 @@ async def get_fee_summary(
     }
 
 
-@router.post("/pay-monthly-fee/{student_id}")
-async def pay_monthly_fee(
-    student_id: int,
-    from_month: int = Query(..., ge=1, le=12, description="Starting month (1-12)"),
-    to_month: int = Query(..., ge=1, le=12, description="Ending month (1-12)"),
-    payment_method_id: int = Query(..., description="Payment method ID"),
-    amount: float = Query(..., gt=0, description="Payment amount"),
-    transaction_id: Optional[str] = Query(None, description="Transaction reference ID"),
-    remarks: Optional[str] = Query(None, description="Payment remarks"),
-    session_year: Optional[SessionYearEnum] = SessionYearEnum.YEAR_2025_26,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
-):
-    """
-    Process monthly fee payment for a student for specified month range
-    Allows paying for multiple months at once (from_month to to_month)
-    """
-    from datetime import datetime, date
-
-    # Validate month range
-    if from_month > to_month:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="From month cannot be greater than to month"
-        )
-
-    # Get student
-    student = await student_crud.get(db, id=student_id)
-    if not student:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Student not found"
-        )
-
-    # Get student's fee structure
-    fee_structure = await fee_structure_crud.get_by_class_and_session(
-        db,
-        class_name=student.class_ref.name if student.class_ref else "",
-        session_year=session_year.value
-    )
-
-    if not fee_structure:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Fee structure not found for student's class"
-        )
-
-    # Calculate monthly fee and total months
-    monthly_fee = float(fee_structure.total_annual_fee) / 12
-    months_count = to_month - from_month + 1
-    expected_amount = monthly_fee * months_count
-
-    # Validate payment amount
-    if amount > expected_amount * 1.1:  # Allow 10% buffer for convenience
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Payment amount ({amount}) exceeds expected amount ({expected_amount}) by more than 10%"
-        )
-
-    # Get or create fee record for the student
-    existing_record = await fee_record_crud.get_by_student_and_session(
-        db, student_id=student_id, session_year=session_year.value
-    )
-
-    if not existing_record:
-        # Create new fee record
-        fee_record_data = FeeRecordCreate(
-            student_id=student_id,
-            session_year_id=4,  # 2025-26
-            payment_type_id=1,  # Default
-            payment_status_id=1,  # Pending
-            payment_method_id=payment_method_id,
-            total_amount=fee_structure.total_annual_fee,
-            paid_amount=0,
-            balance_amount=fee_structure.total_annual_fee,
-            due_date=date(2025, 4, 30),  # Default due date
-            remarks=f"Monthly fee payment for {calendar.month_name[from_month]} to {calendar.month_name[to_month]}"
-        )
-        fee_record = await fee_record_crud.create(db, obj_in=fee_record_data)
-    else:
-        fee_record = existing_record
-
-    # Create payment record
-    payment_data = FeePaymentCreate(
-        fee_record_id=fee_record.id,
-        amount=amount,
-        payment_method_id=payment_method_id,
-        payment_date=date.today(),
-        transaction_id=transaction_id,
-        remarks=f"Payment for months {from_month} to {to_month}: {remarks}" if remarks else f"Payment for months {from_month} to {to_month}"
-    )
-
-    payment = await fee_payment_crud.create(db, obj_in=payment_data)
-
-    # Update fee record amounts
-    # Convert amount to Decimal for compatibility with database field
-    from decimal import Decimal
-    fee_record.paid_amount += Decimal(str(amount))
-    fee_record.balance_amount = fee_record.total_amount - fee_record.paid_amount
-
-    # Update payment status based on balance
-    if fee_record.balance_amount <= 0:
-        fee_record.payment_status_id = 2  # PAID
-        fee_record.balance_amount = 0
-    elif fee_record.paid_amount > 0:
-        fee_record.payment_status_id = 3  # PARTIAL
-
-    await db.commit()
-    await db.refresh(fee_record)
-    await db.refresh(payment)
-
-    # Calculate payment breakdown by month
-    amount_per_month = amount / months_count
-    months_paid = []
-
-    for month in range(from_month, to_month + 1):
-        months_paid.append({
-            "month": month,
-            "month_name": calendar.month_name[month],
-            "amount_paid": amount_per_month,
-            "expected_amount": monthly_fee,
-            "status": "paid" if amount_per_month >= monthly_fee else "partial"
-        })
-
-    return {
-        "success": True,
-        "message": f"Payment of ₹{amount} processed successfully for {months_count} month(s)",
-        "payment_id": payment.id,
-        "fee_record_id": fee_record.id,
-        "student": {
-            "id": student.id,
-            "name": f"{student.first_name} {student.last_name}",
-            "admission_number": student.admission_number,
-            "class": student.class_ref.name if student.class_ref else "Unknown"
-        },
-        "payment_details": {
-            "amount": amount,
-            "from_month": from_month,
-            "to_month": to_month,
-            "months_count": months_count,
-            "amount_per_month": amount_per_month,
-            "expected_per_month": monthly_fee,
-            "transaction_id": transaction_id,
-            "payment_date": date.today(),
-            "months_paid": months_paid
-        },
-        "updated_balance": {
-            "total_annual_fee": float(fee_record.total_amount),
-            "total_paid": float(fee_record.paid_amount),
-            "balance_remaining": float(fee_record.balance_amount),
-            "payment_status": "Paid" if fee_record.balance_amount <= 0 else ("Partial" if fee_record.paid_amount > 0 else "Pending")
-        }
-    }
-
-
 @router.post("/pay-monthly-enhanced/{student_id}")
 async def pay_monthly_enhanced(
     student_id: int,
@@ -2711,6 +2324,82 @@ async def pay_monthly_enhanced(
         print(f"Failed to create fee payment alert: {e}")
         traceback.print_exc()
 
+    # =====================================================
+    # WhatsApp Notification - DISABLED (Pending Template Approval)
+    # =====================================================
+    # Uncomment this section once WhatsApp template is approved by Twilio/Meta
+    # Template submitted: fee_payment_receipt_v2 (8 variables)
+    # =====================================================
+    #
+    # whatsapp_result = None
+    # whatsapp_status = None
+    # whatsapp_error = None
+    # try:
+    #     from datetime import datetime as dt
+    #
+    #     # Check if student has a valid phone number
+    #     is_valid_phone, student_phone = whatsapp_service.validate_phone_number(student.phone)
+    #
+    #     if is_valid_phone and student_phone:
+    #         # Build months covered string
+    #         months_covered_str = ", ".join([m["month_name"] for m in payment_breakdown]) if payment_breakdown else "N/A"
+    #
+    #         # Get payment method name
+    #         payment_method_name = payment_method.description if payment_method else "Cash"
+    #
+    #         # Calculate tuition and transport fees from fee structure
+    #         tuition_fee_amount = float(actual_amount_to_process)
+    #         transport_fee_amount = None
+    #
+    #         # Get class name (just the class number/name, not section)
+    #         class_name_str = student.class_ref.description if student.class_ref else "N/A"
+    #         if class_name_str and class_name_str.lower().startswith("class "):
+    #             class_name_str = class_name_str[6:]
+    #
+    #         # Get father's name
+    #         father_name = student.father_name if student.father_name else "N/A"
+    #
+    #         # Send WhatsApp notification with clean template
+    #         whatsapp_result = await whatsapp_service.send_fee_payment_notification(
+    #             phone_number=student_phone,
+    #             student_name=f"{student.first_name} {student.last_name}",
+    #             receipt_number=receipt_number or f"FEE-{payment.id:06d}",
+    #             receipt_date=date.today().strftime("%d %b %Y"),
+    #             class_name=class_name_str,
+    #             father_name=father_name,
+    #             tuition_fee=tuition_fee_amount,
+    #             transport_fee=transport_fee_amount,
+    #             total_amount=float(actual_amount_to_process),
+    #             payment_method=payment_method_name,
+    #             months_covered=months_covered_str,
+    #             payment_id=payment.id,
+    #             receipt_url=receipt_url
+    #         )
+    #
+    #         logger.info(f"WhatsApp notification sent for payment {payment.id}: {whatsapp_result}")
+    #         whatsapp_status = whatsapp_result.get("status", "UNKNOWN")
+    #         whatsapp_error = whatsapp_result.get("error")
+    #     else:
+    #         whatsapp_status = "NO_PHONE"
+    #         whatsapp_error = "Student phone number not available or invalid"
+    #         logger.info(f"WhatsApp not sent for payment {payment.id}: No valid student phone")
+    #
+    # except Exception as e:
+    #     import traceback
+    #     logger.error(f"Failed to send WhatsApp notification for payment {payment.id}: {e}")
+    #     traceback.print_exc()
+    #     whatsapp_status = "ERROR"
+    #     whatsapp_error = str(e)[:500]
+    #
+    # =====================================================
+    # End of WhatsApp Notification (commented out)
+    # =====================================================
+
+    # WhatsApp disabled - set placeholder values
+    whatsapp_result = None
+    whatsapp_status = "DISABLED"
+    whatsapp_error = "WhatsApp notifications disabled pending template approval"
+
     return {
         "success": True,
         "message": f"Payment of ₹{actual_amount_to_process} processed: ₹{total_allocated} allocated across {total_months_affected} month(s)" + (f", ₹{remaining_unprocessed} could not be processed (no pending amounts)" if remaining_unprocessed > 0 else ""),
@@ -2745,6 +2434,13 @@ async def pay_monthly_enhanced(
             "total_paid": float(fee_record.paid_amount),
             "balance_remaining": float(fee_record.balance_amount),
             "payment_status": "Paid" if fee_record.balance_amount <= 0 else ("Partial" if fee_record.paid_amount > 0 else "Pending")
+        },
+        "whatsapp_notification": {
+            "sent": whatsapp_result.get("success", False) if whatsapp_result else False,
+            "status": whatsapp_result.get("status") if whatsapp_result else whatsapp_status,
+            "message_sid": whatsapp_result.get("message_sid") if whatsapp_result else None,
+            "phone_number": student.phone if student.phone else None,
+            "error": whatsapp_result.get("error") if whatsapp_result else whatsapp_error
         }
     }
 
@@ -3509,3 +3205,44 @@ async def validate_payment_consistency(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error validating payment consistency: {str(e)}"
         )
+
+
+# =====================================================
+# WhatsApp Service Test Endpoint
+# =====================================================
+
+@router.post("/whatsapp/test")
+async def test_whatsapp_service(
+    phone_number: str = Query(..., description="Phone number to send test message to"),
+    message: Optional[str] = Query(None, description="Optional custom message"),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Test WhatsApp service connectivity by sending a simple test message.
+
+    Use this endpoint to verify that:
+    1. Twilio credentials are correct
+    2. WhatsApp sender number is properly configured
+    3. Messages can be delivered to the recipient
+
+    Example: POST /api/v1/fees/whatsapp/test?phone_number=9876543210
+    """
+    logger.info(f"WhatsApp test requested by user {current_user.id} to {phone_number}")
+
+    # Send test message
+    result = await whatsapp_service.send_test_message(
+        phone_number=phone_number,
+        custom_message=message
+    )
+
+    return {
+        "test_type": "whatsapp_connectivity",
+        "requested_by": current_user.email,
+        "result": result,
+        "troubleshooting": {
+            "if_error_63007": "Your WhatsApp number is not registered with Twilio. Go to Twilio Console → Messaging → Senders → WhatsApp senders",
+            "if_error_63016": "Recipient phone number is not registered on WhatsApp",
+            "sandbox_option": "For testing, you can use Twilio sandbox number +14155238886 (recipient must opt-in first)"
+        }
+    }

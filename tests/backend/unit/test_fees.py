@@ -243,29 +243,6 @@ class TestFeeAPI:
         assert data["student_id"] == test_student.id
         assert data["total_amount"] == 1000.00
 
-    def test_student_fee_submission(self, client: TestClient, student_token: str, test_student: Student):
-        """Test student fee submission endpoint"""
-        headers = {"Authorization": f"Bearer {student_token}"}
-        submission_data = {
-            "payment_type": "Monthly",
-            "amount": 500.00,
-            "payment_method_id": 1,
-            "transaction_id": "TXN123456",
-            "remarks": "Monthly fee payment"
-        }
-        
-        response = client.post(
-            f"/api/v1/fees/student-submit/{test_student.id}",
-            json=submission_data,
-            headers=headers
-        )
-        
-        assert response.status_code == 200
-        data = response.json()
-        assert data["message"] == "Fee payment submitted successfully"
-        assert "payment" in data
-        assert "fee_record" in data
-
     def test_get_student_fee_options(self, client: TestClient, student_token: str, test_student: Student):
         """Test getting fee options for a student"""
         headers = {"Authorization": f"Bearer {student_token}"}

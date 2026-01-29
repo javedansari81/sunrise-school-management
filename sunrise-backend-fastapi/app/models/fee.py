@@ -179,6 +179,13 @@ class FeePayment(Base):
     reversal_type = Column(String(20), nullable=True)  # 'FULL' or 'PARTIAL'
     created_by = Column(Integer, ForeignKey("users.id"), nullable=True)
 
+    # WhatsApp Notification Tracking (commented out - columns not yet added to DB)
+    # whatsapp_status = Column(String(30), nullable=True)  # SENT, FAILED, PENDING, etc.
+    # whatsapp_message_sid = Column(String(50), nullable=True)  # Twilio message SID
+    # whatsapp_sent_at = Column(DateTime(timezone=True), nullable=True)
+    # whatsapp_phone_number = Column(String(20), nullable=True)  # Phone number used
+    # whatsapp_error = Column(Text, nullable=True)  # Error message if failed
+
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 

@@ -61,22 +61,30 @@ class CloudinaryTransportReceiptService:
                     detail=f"Receipt PDF size ({file_size_mb:.2f}MB) exceeds maximum allowed size of {self.MAX_FILE_SIZE_MB}MB"
                 )
 
-            # Generate unique filename
+            # Generate unique filename (without .pdf extension as format parameter handles it)
+            # IMPORTANT: The format="pdf" parameter ensures:
+            # 1. Cloudinary serves proper Content-Type: application/pdf header
+            # 2. WhatsApp/Twilio can validate and download the file correctly
+            # 3. The URL ends with .pdf extension automatically
+            # 4. The URL is publicly accessible with proper MIME type
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
             filename = f"receipt_{payment_id}_{timestamp}"
 
             logger.info(f"Uploading transport receipt PDF to Cloudinary: {filename}")
 
             # Upload to Cloudinary
-            # Note: flags="attachment:false" allows browser to display PDF inline instead of forcing download
+            # Note: flags="attachment:false" allows browser to display PDF inline
+            # format="pdf" explicitly tells Cloudinary this is a PDF file and adds .pdf extension
             cloudinary_response = cloudinary.uploader.upload(
                 pdf_buffer,
                 folder=self.RECEIPT_FOLDER,
                 public_id=filename,
-                resource_type="raw",  # Use 'raw' for PDFs
+                resource_type="raw",  # Use 'raw' for PDFs and documents
+                format="pdf",  # Adds .pdf extension and sets proper Content-Type header
                 overwrite=False,  # Don't overwrite existing files
                 tags=[f"transport_payment_{payment_id}", receipt_number, "transport_receipt"],
                 flags="attachment:false"  # Allow inline display in browser
+                # Note: access_mode defaults to "public", no need to specify
             )
 
             cloudinary_url = cloudinary_response.get('secure_url')
