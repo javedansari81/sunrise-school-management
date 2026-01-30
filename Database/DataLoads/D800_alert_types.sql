@@ -44,7 +44,8 @@ ON CONFLICT (id) DO UPDATE SET
 INSERT INTO alert_types (id, name, description, category, icon, color_code, priority_level, default_expiry_days, requires_acknowledgment) VALUES
 (10, 'FEE_PAYMENT_RECEIVED', 'Fee payment processed', 'FINANCIAL', 'Payment', '#4CAF50', 2, 30, FALSE),
 (11, 'FEE_PAYMENT_REVERSED', 'Fee payment reversed', 'FINANCIAL', 'Undo', '#FF9800', 3, 30, TRUE),
-(12, 'FEE_OVERDUE', 'Fee payment overdue', 'FINANCIAL', 'Warning', '#F44336', 3, 30, FALSE)
+(12, 'FEE_OVERDUE', 'Fee payment overdue', 'FINANCIAL', 'Warning', '#F44336', 3, 30, FALSE),
+(13, 'COMBINED_PAYMENT_RECEIVED', 'Combined tuition and transport fee payment processed', 'FINANCIAL', 'Payments', '#4CAF50', 2, 30, FALSE)
 ON CONFLICT (id) DO UPDATE SET
     name = EXCLUDED.name,
     description = EXCLUDED.description,

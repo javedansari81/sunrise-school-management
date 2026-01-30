@@ -123,6 +123,7 @@ export type AlertEntityType =
   | 'LEAVE_REQUEST'
   | 'FEE_PAYMENT'
   | 'TRANSPORT_PAYMENT'
+  | 'COMBINED_PAYMENT'
   | 'STUDENT'
   | 'TEACHER'
   | 'ATTENDANCE'

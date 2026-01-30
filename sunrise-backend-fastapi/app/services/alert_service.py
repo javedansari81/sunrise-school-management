@@ -36,6 +36,7 @@ class AlertService:
         FEE_PAYMENT_RECEIVED = 10
         FEE_PAYMENT_REVERSED = 11
         FEE_OVERDUE = 12
+        COMBINED_PAYMENT_RECEIVED = 13  # Combined tuition + transport payment
 
         # Transport Fee Management
         TRANSPORT_PAYMENT_RECEIVED = 20
@@ -121,21 +122,28 @@ class AlertService:
         class_name: str,
         amount: float,
         payment_method: str,
-        fee_type: str,  # 'TUITION' or 'TRANSPORT'
+        fee_type: str,  # 'TUITION', 'TRANSPORT', or 'COMBINED'
         months_paid: Optional[str] = None,
         actor_user_id: int,
         actor_name: str
     ) -> Alert:
         """Create alert when a fee payment is processed"""
-        alert_type_id = (
-            AlertService.AlertTypes.FEE_PAYMENT_RECEIVED 
-            if fee_type == 'TUITION' 
-            else AlertService.AlertTypes.TRANSPORT_PAYMENT_RECEIVED
-        )
-        
-        fee_label = "Tuition Fee" if fee_type == 'TUITION' else "Transport Fee"
+        # Determine alert type ID based on fee type
+        if fee_type == 'TUITION':
+            alert_type_id = AlertService.AlertTypes.FEE_PAYMENT_RECEIVED
+            fee_label = "Tuition Fee"
+            entity_type = "FEE_PAYMENT"
+        elif fee_type == 'COMBINED':
+            alert_type_id = AlertService.AlertTypes.COMBINED_PAYMENT_RECEIVED
+            fee_label = "Combined Fee (Tuition + Transport)"
+            entity_type = "COMBINED_PAYMENT"
+        else:  # TRANSPORT
+            alert_type_id = AlertService.AlertTypes.TRANSPORT_PAYMENT_RECEIVED
+            fee_label = "Transport Fee"
+            entity_type = "TRANSPORT_PAYMENT"
+
         title = f"{fee_label} Payment: ₹{amount:,.2f}"
-        
+
         month_info = f" for {months_paid}" if months_paid else ""
         message = f"{actor_name} processed {fee_label} payment of ₹{amount:,.2f} for {student_name} ({class_name}){month_info} via {payment_method}."
 
@@ -144,7 +152,7 @@ class AlertService:
             alert_type_id=alert_type_id,
             title=title,
             message=message,
-            entity_type="FEE_PAYMENT" if fee_type == 'TUITION' else "TRANSPORT_PAYMENT",
+            entity_type=entity_type,
             entity_id=payment_id,
             entity_display_name=student_name,
             actor_user_id=actor_user_id,

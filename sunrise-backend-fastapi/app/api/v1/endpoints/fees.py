@@ -2986,6 +2986,54 @@ async def pay_combined_tuition_transport(
         import traceback
         traceback.print_exc()
 
+    # =====================================================
+    # PART 4: Create Alert for Combined Payment
+    # =====================================================
+    try:
+        # Get payment method description for alert
+        payment_method = await payment_method_crud.get_by_id_async(db, id=tuition_payment_method_id)
+        payment_method_desc = payment_method.description if payment_method else "Cash"
+
+        # Get current user name
+        actor_name = f"{current_user.first_name} {current_user.last_name}" if current_user.first_name else "Admin"
+
+        # Build months paid string for tuition
+        tuition_months_list = [m["month_name"] for m in tuition_breakdown]
+        tuition_months_str = ", ".join(tuition_months_list) if tuition_months_list else None
+
+        # Build months paid string for transport
+        transport_months_list = [m["month_name"] for m in transport_breakdown]
+        transport_months_str = ", ".join(transport_months_list) if transport_months_list else None
+
+        # Combined months string
+        months_paid_str = tuition_months_str
+        if transport_months_str:
+            months_paid_str = f"Tuition: {tuition_months_str}; Transport: {transport_months_str}"
+
+        # Total combined amount
+        total_amount = float(actual_tuition_amount) + float(transport_amount)
+
+        print(f"Creating combined fee payment alert for student {student.id}")
+        await alert_service.create_fee_payment_alert(
+            db,
+            payment_id=tuition_payment.id,
+            student_id=student.id,
+            student_name=f"{student.first_name} {student.last_name}",
+            class_name=student.class_ref.description if student.class_ref else "Unknown",
+            amount=total_amount,
+            payment_method=payment_method_desc,
+            fee_type='COMBINED',  # Indicate this is a combined payment
+            months_paid=months_paid_str,
+            actor_user_id=current_user.id,
+            actor_name=actor_name
+        )
+        print(f"Combined fee payment alert created successfully")
+    except Exception as e:
+        # Log error but don't fail the payment
+        import traceback
+        print(f"Failed to create combined fee payment alert: {e}")
+        traceback.print_exc()
+
     # Return combined response
     return {
         "success": True,
