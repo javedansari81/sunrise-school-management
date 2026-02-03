@@ -22,6 +22,7 @@ import {
   Chip,
   FormControlLabel,
   Checkbox,
+  Fab,
 } from '@mui/material';
 import { DEFAULT_PAGE_SIZE, PAGINATION_UI_CONFIG } from '../../config/pagination';
 import {
@@ -29,6 +30,7 @@ import {
   SessionYearDropdown,
 } from '../../components/common/MetadataDropdown';
 import ServiceConfigurationLoader from '../../components/common/ServiceConfigurationLoader';
+import CollapsibleFilterSection from '../../components/common/CollapsibleFilterSection';
 import {
   FilterList,
   Search,
@@ -37,9 +39,13 @@ import {
   TableChart,
   ExpandMore,
   ExpandLess,
+  Add,
 } from '@mui/icons-material';
 import AdminLayout from '../../components/Layout/AdminLayout';
 import { reportsAPI } from '../../services/api';
+import { configurationService } from '../../services/configurationService';
+import { useServiceConfiguration } from '../../contexts/ConfigurationContext';
+import { DEFAULT_SESSION_YEAR_ID } from '../../constants/sessionYear';
 import * as XLSX from 'xlsx';
 
 interface FeeTrackingData {
@@ -79,20 +85,31 @@ interface FeeTrackingData {
 }
 
 const FeeTrackingReport: React.FC = () => {
+  const { isLoaded } = useServiceConfiguration('fee-management');
+
   // State management
   const [feeData, setFeeData] = useState<FeeTrackingData[]>([]);
   const [loading, setLoading] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
   const [filtersExpanded, setFiltersExpanded] = useState(true);
 
-  // Filters
-  const [filterSessionYear, setFilterSessionYear] = useState<string>('');
+  // Filters - Initialize with default session year 2025-26 (ID: 4)
+  const [filterSessionYear, setFilterSessionYear] = useState<string>(DEFAULT_SESSION_YEAR_ID);
   const [filterClass, setFilterClass] = useState<string>('all');
   const [filterSection, setFilterSection] = useState<string>('all');
   const [filterPaymentStatus, setFilterPaymentStatus] = useState<string>('all');
   const [filterTransportOpted, setFilterTransportOpted] = useState<string>('all');
   const [filterPendingOnly, setFilterPendingOnly] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+
+  // Set default session year when configuration is loaded
+  useEffect(() => {
+    if (isLoaded && !filterSessionYear) {
+      // Use centralized session year service
+      const currentSessionYearId = configurationService.getCurrentSessionYearId();
+      setFilterSessionYear(currentSessionYearId.toString());
+    }
+  }, [isLoaded, filterSessionYear]);
 
   // Pagination
   const [page, setPage] = useState(1);
@@ -269,21 +286,7 @@ const FeeTrackingReport: React.FC = () => {
                   />
                 )}
               </Box>
-              <Box display="flex" alignItems="center" gap={1}>
-                <Button
-                  variant="contained"
-                  startIcon={<TableChart />}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleExportExcel();
-                  }}
-                  disabled={feeData.length === 0}
-                  size="small"
-                >
-                  Export
-                </Button>
-                {filtersExpanded ? <ExpandLess /> : <ExpandMore />}
-              </Box>
+              {filtersExpanded ? <ExpandLess /> : <ExpandMore />}
             </Box>
 
             {filtersExpanded && (
@@ -491,6 +494,77 @@ const FeeTrackingReport: React.FC = () => {
               {snackbar.message}
           </Alert>
         </Snackbar>
+
+        {/* Floating Action Button for Export with Animated Expansion */}
+        <Fab
+          color="primary"
+          aria-label="export report"
+          variant="extended"
+          onClick={handleExportExcel}
+          disabled={feeData.length === 0}
+          sx={{
+            position: 'fixed',
+            bottom: { xs: 16, sm: 24 },
+            right: { xs: 16, sm: 24 },
+            zIndex: 1000,
+            minWidth: { xs: '48px', sm: '56px' },
+            width: { xs: '48px', sm: '56px' },
+            height: { xs: '48px', sm: '56px' },
+            borderRadius: { xs: '24px', sm: '28px' },
+            padding: { xs: '0 12px', sm: '0 16px' },
+            transition: 'all 0.3s ease-in-out',
+            overflow: 'hidden',
+            boxShadow: 3,
+            '& .MuiSvgIcon-root': {
+              transition: 'margin 0.3s ease-in-out',
+              marginRight: 0,
+              fontSize: { xs: '1.25rem', sm: '1.5rem' },
+            },
+            '& .fab-text': {
+              opacity: 0,
+              width: 0,
+              whiteSpace: 'nowrap',
+              transition: 'opacity 0.3s ease-in-out, width 0.3s ease-in-out',
+              overflow: 'hidden',
+              fontSize: '0.875rem',
+              fontWeight: 500,
+              display: { xs: 'none', sm: 'inline' },
+            },
+            '@media (hover: hover) and (pointer: fine)': {
+              '&:hover': {
+                width: 'auto',
+                minWidth: '160px',
+                paddingRight: '20px',
+                paddingLeft: '16px',
+                boxShadow: 6,
+                '& .MuiSvgIcon-root': {
+                  marginRight: '8px',
+                },
+                '& .fab-text': {
+                  opacity: 1,
+                  width: 'auto',
+                },
+              },
+            },
+            '&:active': {
+              boxShadow: 6,
+              transform: 'scale(0.95)',
+            },
+            '@media (max-width: 360px)': {
+              bottom: '12px',
+              right: '12px',
+              minWidth: '44px',
+              width: '44px',
+              height: '44px',
+              borderRadius: '22px',
+            },
+          }}
+        >
+          <TableChart />
+          <Box component="span" className="fab-text">
+            Export Excel
+          </Box>
+        </Fab>
       </ServiceConfigurationLoader>
     </AdminLayout>
   );
