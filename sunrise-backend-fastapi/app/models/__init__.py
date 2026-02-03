@@ -13,6 +13,8 @@ from .gallery import GalleryCategory, GalleryImage
 from .inventory import InventoryItemType, InventorySizeType, InventoryPricing, InventoryPurchase, InventoryPurchaseItem
 from .attendance import AttendanceStatus, AttendancePeriod, AttendanceRecord
 from .alert import AlertType, AlertStatus, Alert
+from .progression_action import ProgressionAction
+from .student_session_history import StudentSessionHistory
 
 __all__ = [
     # Metadata models
@@ -23,10 +25,12 @@ __all__ = [
     "EmploymentStatus", "Qualification",
     "AttendanceStatus", "AttendancePeriod",
     "AlertType", "AlertStatus",
+    "ProgressionAction",
     # Main models
     "User",
     "Teacher",
     "Student",
+    "StudentSessionHistory",
     "FeeStructure",
     "FeeRecord",
     "FeePayment",

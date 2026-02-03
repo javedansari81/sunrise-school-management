@@ -48,6 +48,7 @@ DECLARE
     v_month_names TEXT[] := ARRAY['April', 'May', 'June', 'July', 'August', 'September',
                                     'October', 'November', 'December', 'January', 'February', 'March'];
     v_existing_count INTEGER;
+    v_session_start_year INTEGER; -- Derived from session_years table
     -- Sibling waiver variables
     v_sibling_count INTEGER;
     v_birth_order INTEGER;
@@ -58,23 +59,37 @@ DECLARE
     v_original_total_fee DECIMAL(10,2);
     v_waived_total_fee DECIMAL(10,2);
 BEGIN
+    -- ALWAYS derive the start year from the session_years table
+    -- This ensures the year is correct for past, current, or future session years
+    -- Never use current date as it can lead to incorrect year calculations
+    SELECT EXTRACT(YEAR FROM sy.start_date)::INTEGER
+    INTO v_session_start_year
+    FROM session_years sy
+    WHERE sy.id = p_session_year_id;
+
+    -- If session year not found, raise an error - session year must exist in the database
+    IF v_session_start_year IS NULL THEN
+        RAISE EXCEPTION 'Session year ID % not found in session_years table', p_session_year_id;
+    END IF;
+
     -- Loop through each student ID
     FOREACH v_student_id IN ARRAY p_student_ids
     LOOP
         v_fee_record_created := FALSE;
         v_monthly_records_created := 0;
-        
+
         BEGIN
-            -- Get student details
-            SELECT 
+            -- Get student details (including date_of_birth for sibling birth order calculation)
+            SELECT
                 s.id,
                 s.first_name || ' ' || s.last_name as full_name,
                 s.class_id,
-                s.session_year_id
+                s.session_year_id,
+                s.date_of_birth
             INTO v_student
             FROM students s
             WHERE s.id = v_student_id;
-            
+
             IF NOT FOUND THEN
                 -- Student not found
                 student_id := v_student_id;
@@ -87,7 +102,7 @@ BEGIN
                 RETURN NEXT;
                 CONTINUE;
             END IF;
-            
+
             v_student_name := v_student.full_name;
 
             -- Check for sibling waiver
@@ -96,21 +111,38 @@ BEGIN
             v_birth_order := 1;
 
             -- Get sibling information for this student
-            SELECT COUNT(*) + 1 INTO v_sibling_count
+            -- IMPORTANT: Only count siblings who are ACTIVE and in the SAME SESSION YEAR
+            -- This ensures discounts are only applied when siblings are actually studying together
+            -- in the same academic year (e.g., if sibling left school or not yet promoted, no discount)
+            SELECT COUNT(*) INTO v_sibling_count
             FROM student_siblings ss
+            INNER JOIN students sibling_student ON sibling_student.id = ss.sibling_student_id
             WHERE ss.student_id = v_student_id
-              AND ss.is_active = TRUE;
+              AND ss.is_active = TRUE
+              AND sibling_student.session_year_id = p_session_year_id
+              AND sibling_student.is_active = TRUE
+              AND (sibling_student.is_deleted = FALSE OR sibling_student.is_deleted IS NULL);
 
-            -- If student has siblings, get their waiver info
+            -- Add 1 for the current student to get total siblings count
+            v_sibling_count := v_sibling_count + 1;
+
+            -- If student has siblings in the same session year, calculate waiver dynamically
             IF v_sibling_count > 1 THEN
-                SELECT
-                    ss.birth_order,
-                    ss.fee_waiver_percentage
-                INTO v_birth_order, v_waiver_percentage
+                -- Calculate birth order for this student among siblings in the same session year
+                -- Birth order = count of older siblings in same session + 1
+                -- Older siblings have earlier date_of_birth
+                SELECT COUNT(*) + 1 INTO v_birth_order
                 FROM student_siblings ss
+                INNER JOIN students sibling_student ON sibling_student.id = ss.sibling_student_id
                 WHERE ss.student_id = v_student_id
                   AND ss.is_active = TRUE
-                LIMIT 1;
+                  AND sibling_student.session_year_id = p_session_year_id
+                  AND sibling_student.is_active = TRUE
+                  AND (sibling_student.is_deleted = FALSE OR sibling_student.is_deleted IS NULL)
+                  AND sibling_student.date_of_birth < v_student.date_of_birth;
+
+                -- Calculate waiver percentage using the database function
+                v_waiver_percentage := calculate_sibling_fee_waiver(v_sibling_count, v_birth_order);
 
                 -- Get waiver reason text
                 IF v_waiver_percentage > 0 THEN
@@ -119,23 +151,25 @@ BEGIN
             END IF;
 
             -- Check if fee record already exists
-            SELECT 
+            SELECT
                 fr.id,
                 fr.total_amount,
+                fr.original_total_amount,
                 fr.is_monthly_tracked
             INTO v_fee_record
             FROM fee_records fr
             WHERE fr.student_id = v_student_id
               AND fr.session_year_id = p_session_year_id;
-            
+
             IF FOUND THEN
                 -- Fee record exists
                 v_fee_record_id := v_fee_record.id;
                 v_fee_record_created := FALSE;
 
-                -- Calculate original monthly fee from annual fee
-                v_original_monthly_fee := ROUND(v_fee_record.total_amount / 12, 2);
-                v_original_total_fee := v_fee_record.total_amount;
+                -- Use original_total_amount if available (pre-waiver amount), otherwise use total_amount
+                -- This ensures we always calculate waiver from the original fee, not a previously waived amount
+                v_original_total_fee := COALESCE(v_fee_record.original_total_amount, v_fee_record.total_amount);
+                v_original_monthly_fee := ROUND(v_original_total_fee / 12, 2);
 
                 -- Apply sibling waiver if applicable
                 IF v_waiver_percentage > 0 THEN
@@ -216,7 +250,7 @@ BEGIN
                     v_waived_total_fee, -- Balance = Total initially
                     2, -- Monthly payment type
                     1, -- Pending status
-                    DATE(p_start_year || '-' || LPAD(p_start_month::TEXT, 2, '0') || '-10'), -- Due date: 10th of start month
+                    DATE(v_session_start_year || '-' || LPAD(p_start_month::TEXT, 2, '0') || '-10'), -- Due date: 10th of start month
                     TRUE, -- Enable monthly tracking
                     (v_waiver_percentage > 0), -- Has sibling waiver
                     v_waiver_percentage,
@@ -383,11 +417,12 @@ BEGIN
                 v_month := v_academic_months[i];
                 v_month_name := v_month_names[i];
                 
-                -- Calculate year (April-December = start_year, January-March = start_year+1)
+                -- Calculate year using session start year (April-December = start_year, January-March = start_year+1)
+                -- Uses v_session_start_year derived from session_years table for accuracy
                 IF v_month >= 4 THEN
-                    v_year := p_start_year;
+                    v_year := v_session_start_year;
                 ELSE
-                    v_year := p_start_year + 1;
+                    v_year := v_session_start_year + 1;
                 END IF;
                 
                 -- Calculate due date (10th of each month)

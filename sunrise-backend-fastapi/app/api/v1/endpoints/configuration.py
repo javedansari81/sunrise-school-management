@@ -72,6 +72,9 @@ SERVICE_METADATA_MAPPINGS = {
     "alert-management": [
         "alert_types", "alert_statuses"
     ],
+    "session-progression": [
+        "progression_actions", "session_years", "classes"
+    ],
     "common": [
         "session_years", "user_types"
     ]
@@ -150,6 +153,8 @@ async def get_service_metadata_configuration(db: AsyncSession, service_name: str
                 configuration[metadata_type] = [{"id": item.id, "name": item.name, "description": item.description, "color_code": item.color_code, "priority_level": item.priority_level, "is_active": item.is_active} for item in items]
             elif metadata_type == "alert_statuses":
                 configuration[metadata_type] = [{"id": item.id, "name": item.name, "description": item.description, "color_code": item.color_code, "is_final": item.is_final, "is_active": item.is_active} for item in items]
+            elif metadata_type == "progression_actions":
+                configuration[metadata_type] = [{"id": item.id, "name": item.name, "description": item.description, "display_order": item.display_order, "icon": item.icon, "color_code": item.color_code, "is_positive": item.is_positive, "creates_new_session": item.creates_new_session, "is_active": item.is_active} for item in items]
 
     # Add service-specific metadata
     configuration["metadata"] = {
@@ -487,6 +492,28 @@ async def get_common_configuration(
     """
     return await _get_service_configuration_with_cache(
         db, "common", request
+    )
+
+
+@router.get("/session-progression/")
+async def get_session_progression_configuration(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Get configuration for Session Progression System
+
+    Returns only metadata required for session progression:
+    - progression_actions (NEW_ADMISSION, PROMOTED, RETAINED, DEMOTED, etc.)
+    - session_years
+    - classes
+
+    This endpoint provides configuration for promoting/retaining/graduating
+    students between academic sessions.
+    """
+    return await _get_service_configuration_with_cache(
+        db, "session-progression", request
     )
 
 

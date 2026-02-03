@@ -51,6 +51,7 @@
 \ir Tables/T220_qualifications.sql
 \ir Tables/T230_departments.sql
 \ir Tables/T240_positions.sql
+\ir Tables/T297_progression_actions.sql
 
 \echo ''
 \echo '✓ All metadata tables created'
@@ -66,6 +67,8 @@
 
 \ir Tables/T300_users.sql
 \ir Tables/T310_students.sql
+\ir Tables/T315_student_siblings.sql
+\ir Tables/T316_student_session_history.sql
 \ir Tables/T320_teachers.sql
 
 \echo ''

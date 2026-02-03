@@ -268,18 +268,77 @@ class CRUDMonthlyFeeTracking(CRUDBase[MonthlyFeeTracking, MonthlyFeeTrackingCrea
         limit: int = 20,
         offset: int = 0
     ) -> List[EnhancedStudentFeeSummary]:
-        """Get enhanced student fee summary by querying underlying tables with direct class_id and payment_status_id filtering"""
+        """
+        Get enhanced student fee summary by querying underlying tables.
 
-        # Build the query by joining underlying tables directly
+        For current session year: Uses students table directly
+        For historical session years: Uses student_session_history to get
+        students who were in that session with their historical class info
+        """
+
+        # Build the query using student_session_history for historical data
+        # This allows viewing students in their previous session years with correct class
         base_query = """
+            WITH student_session_data AS (
+                -- Get students for the requested session year
+                -- Sources:
+                -- 1. student_session_history where session_year_id matches (students progressed TO this session)
+                -- 2. student_session_history where from_session_year_id matches (students progressed FROM this session)
+                -- 3. students table (for current session students not yet progressed)
+                SELECT DISTINCT ON (student_id)
+                    student_id,
+                    class_id as session_class_id,
+                    session_year_id,
+                    roll_number as session_roll_number
+                FROM (
+                    -- Students who were progressed TO this session year
+                    SELECT
+                        ssh.student_id,
+                        ssh.class_id,
+                        ssh.session_year_id,
+                        ssh.roll_number,
+                        1 as priority
+                    FROM student_session_history ssh
+                    WHERE ssh.session_year_id = :session_year_id
+
+                    UNION ALL
+
+                    -- Students who were progressed FROM this session year (historical view)
+                    -- Use from_class_id and from_session_year_id to show their state in the source session
+                    SELECT
+                        ssh.student_id,
+                        ssh.from_class_id as class_id,
+                        ssh.from_session_year_id as session_year_id,
+                        ssh.roll_number,
+                        2 as priority
+                    FROM student_session_history ssh
+                    WHERE ssh.from_session_year_id = :session_year_id
+                      AND ssh.from_class_id IS NOT NULL
+
+                    UNION ALL
+
+                    -- Current students (for those not yet in history or current session)
+                    SELECT
+                        s.id as student_id,
+                        s.class_id,
+                        s.session_year_id,
+                        s.roll_number,
+                        3 as priority
+                    FROM students s
+                    WHERE s.session_year_id = :session_year_id
+                      AND s.is_active = true
+                      AND (s.is_deleted = FALSE OR s.is_deleted IS NULL)
+                ) combined
+                ORDER BY student_id, priority ASC
+            )
             SELECT
                 s.id as student_id,
                 s.admission_number,
                 s.first_name || ' ' || s.last_name as student_name,
-                s.roll_number,
+                COALESCE(ssd.session_roll_number, s.roll_number) as roll_number,
                 s.father_name,
                 s.phone as mobile_number,
-                c.name as class_name,
+                c.description as class_name,
                 sy.name as session_year,
                 fr.id as fee_record_id,
                 fr.total_amount as annual_fee,
@@ -306,13 +365,14 @@ class CRUDMonthlyFeeTracking(CRUDBase[MonthlyFeeTracking, MonthlyFeeTrackingCrea
                     ELSE false
                 END as has_transport_enrollment,
                 ste.id as transport_enrollment_id
-            FROM students s
-            LEFT JOIN classes c ON s.class_id = c.id
-            LEFT JOIN session_years sy ON s.session_year_id = sy.id
+            FROM student_session_data ssd
+            INNER JOIN students s ON s.id = ssd.student_id
+            INNER JOIN classes c ON ssd.session_class_id = c.id
+            INNER JOIN session_years sy ON ssd.session_year_id = sy.id
             LEFT JOIN LATERAL (
                 SELECT * FROM fee_records fr_inner
                 WHERE fr_inner.student_id = s.id
-                  AND fr_inner.session_year_id = s.session_year_id
+                  AND fr_inner.session_year_id = :session_year_id
                 ORDER BY fr_inner.created_at DESC
                 LIMIT 1
             ) fr ON true
@@ -329,26 +389,25 @@ class CRUDMonthlyFeeTracking(CRUDBase[MonthlyFeeTracking, MonthlyFeeTrackingCrea
                     SUM(mft.balance_amount) as monthly_balance
                 FROM monthly_fee_tracking mft
                 LEFT JOIN payment_statuses ps ON mft.payment_status_id = ps.id
-                WHERE ps.is_active = true
+                WHERE mft.session_year_id = :session_year_id
+                  AND ps.is_active = true
                 GROUP BY mft.student_id, mft.session_year_id
-            ) monthly_stats ON s.id = monthly_stats.student_id AND s.session_year_id = monthly_stats.session_year_id
+            ) monthly_stats ON s.id = monthly_stats.student_id
             LEFT JOIN student_transport_enrollment ste
                 ON s.id = ste.student_id
-                AND s.session_year_id = ste.session_year_id
+                AND ste.session_year_id = :session_year_id
                 AND ste.is_active = true
                 AND ste.discontinue_date IS NULL
-            WHERE s.is_active = true
-              AND (s.is_deleted = FALSE OR s.is_deleted IS NULL)
+            WHERE (s.is_deleted = FALSE OR s.is_deleted IS NULL)
               AND c.is_active = true
               AND sy.is_active = true
-              AND s.session_year_id = :session_year_id
         """
 
         params = {"session_year_id": session_year_id}
 
-        # Add class filter if provided - filter directly by class_id
+        # Add class filter if provided - filter by the session's class_id
         if class_id:
-            base_query += " AND s.class_id = :class_id"
+            base_query += " AND ssd.session_class_id = :class_id"
             params["class_id"] = class_id
 
         # Add payment status filter if provided - filter by fee_records payment_status_id

@@ -24,6 +24,7 @@ DECLARE
     v_enrollment RECORD;
     v_month INTEGER;
     v_year INTEGER;
+    v_session_start_year INTEGER; -- Derived from session_years table
     v_month_name VARCHAR(20);
     v_due_date DATE;
     v_is_service_enabled BOOLEAN;
@@ -44,13 +45,25 @@ BEGIN
         RAISE EXCEPTION 'Enrollment ID % not found', p_enrollment_id;
     END IF;
 
+    -- ALWAYS derive the start year from the session_years table using enrollment's session_year_id
+    -- This ensures the year is correct for past, current, or future session years
+    SELECT EXTRACT(YEAR FROM sy.start_date)::INTEGER
+    INTO v_session_start_year
+    FROM session_years sy
+    WHERE sy.id = v_enrollment.session_year_id;
+
+    -- If session year not found, raise an error
+    IF v_session_start_year IS NULL THEN
+        RAISE EXCEPTION 'Session year ID % not found in session_years table', v_enrollment.session_year_id;
+    END IF;
+
     -- Extract enrollment month and year
     v_enrollment_month := EXTRACT(MONTH FROM v_enrollment.enrollment_date);
     v_enrollment_year := EXTRACT(YEAR FROM v_enrollment.enrollment_date);
 
-    -- Initialize month and year
+    -- Initialize month and year using session start year (not the passed parameter)
     v_month := p_start_month;
-    v_year := p_start_year;
+    v_year := v_session_start_year;
 
     -- Create 12 monthly tracking records (April to March)
     FOR i IN 1..12 LOOP

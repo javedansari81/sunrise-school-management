@@ -25,6 +25,16 @@ from .inventory import (
     InventoryPurchaseCreate, InventoryPurchaseUpdate, InventoryPurchaseResponse,
     InventoryPurchaseListResponse, StudentInventorySummary, InventoryStatistics
 )
+from .session_progression import (
+    ProgressionActionResponse,
+    StudentProgressionPreviewRequest, StudentProgressionPreviewItem,
+    StudentProgressionPreviewResponse, StudentProgressionItem,
+    BulkProgressionRequest, BulkProgressionResultItem, BulkProgressionResponse,
+    StudentProgressionHistoryItem, StudentProgressionHistoryResponse,
+    RollbackRequest, RollbackResponse,
+    ProgressionReportRequest, ProgressionStatsByAction, ProgressionStatsByClass,
+    ProgressionReportResponse
+)
 
 __all__ = [
     "User",
@@ -79,5 +89,22 @@ __all__ = [
     "InventoryPurchaseResponse",
     "InventoryPurchaseListResponse",
     "StudentInventorySummary",
-    "InventoryStatistics"
+    "InventoryStatistics",
+    # Session Progression
+    "ProgressionActionResponse",
+    "StudentProgressionPreviewRequest",
+    "StudentProgressionPreviewItem",
+    "StudentProgressionPreviewResponse",
+    "StudentProgressionItem",
+    "BulkProgressionRequest",
+    "BulkProgressionResultItem",
+    "BulkProgressionResponse",
+    "StudentProgressionHistoryItem",
+    "StudentProgressionHistoryResponse",
+    "RollbackRequest",
+    "RollbackResponse",
+    "ProgressionReportRequest",
+    "ProgressionStatsByAction",
+    "ProgressionStatsByClass",
+    "ProgressionReportResponse"
 ]

@@ -86,6 +86,14 @@ export interface AttendancePeriod extends MetadataItem {
   end_time?: string;
 }
 
+export interface ProgressionAction extends MetadataItem {
+  display_order: number;
+  icon?: string;
+  color_code?: string;
+  is_positive: boolean;
+  creates_new_session: boolean;
+}
+
 export interface Configuration {
   user_types?: UserType[];
   session_years?: SessionYear[];
@@ -106,6 +114,7 @@ export interface Configuration {
   gallery_categories?: GalleryCategory[];
   attendance_statuses?: AttendanceStatus[];
   attendance_periods?: AttendancePeriod[];
+  progression_actions?: ProgressionAction[];
   metadata: {
     service?: string;
     last_updated?: string;
@@ -131,6 +140,7 @@ export type ServiceType =
   | 'inventory-management'
   | 'transport-management'
   | 'attendance-management'
+  | 'session-progression'
   | 'common';
 
 // Dropdown option interface for UI components
@@ -564,6 +574,24 @@ class ConfigurationService {
   }
 
   /**
+   * Get progression actions as dropdown options (service-aware)
+   */
+  public getProgressionActions(): ProgressionAction[] {
+    const actions = this.getMetadataFromServices<ProgressionAction>('progression_actions');
+    return actions
+      .sort((a, b) => (a.display_order || 0) - (b.display_order || 0))
+      .filter(action => action.is_active);
+  }
+
+  /**
+   * Get progression action by ID (service-aware)
+   */
+  public getProgressionActionById(id: number): ProgressionAction | null {
+    const actions = this.getMetadataFromServices<ProgressionAction>('progression_actions');
+    return actions.find(action => action.id === id) || null;
+  }
+
+  /**
    * Convert metadata items to dropdown options
    */
   private getDropdownOptions(items: MetadataItem[]): DropdownOption[] {
@@ -572,7 +600,7 @@ class ConfigurationService {
       .map(item => ({
         id: item.id,
         name: item.name,
-        display_name: item.name,
+        description: item.description,
         is_active: item.is_active
       }));
   }
@@ -610,6 +638,7 @@ export const configurationAPI = {
   getTeacherManagementConfiguration: () => api.get('/configuration/teacher-management/'),
   getGalleryManagementConfiguration: () => api.get('/configuration/gallery-management/'),
   getInventoryManagementConfiguration: () => api.get('/configuration/inventory-management/'),
+  getSessionProgressionConfiguration: () => api.get('/configuration/session-progression/'),
   getCommonConfiguration: () => api.get('/configuration/common/'),
 
   // Service-specific refresh

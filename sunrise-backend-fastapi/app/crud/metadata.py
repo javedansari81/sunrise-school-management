@@ -17,6 +17,7 @@ from app.models.transport import TransportType
 from app.models.gallery import GalleryCategory
 from app.models.attendance import AttendanceStatus, AttendancePeriod
 from app.models.alert import AlertType, AlertStatus
+from app.models.progression_action import ProgressionAction
 # Note: Schema imports removed to avoid circular dependencies
 # Schemas will be imported in endpoints as needed
 
@@ -113,6 +114,7 @@ attendance_status_crud = MetadataCRUD(AttendanceStatus)
 attendance_period_crud = MetadataCRUD(AttendancePeriod)
 alert_type_crud = MetadataCRUD(AlertType)
 alert_status_crud = MetadataCRUD(AlertStatus)
+progression_action_crud = MetadataCRUD(ProgressionAction)
 
 
 def get_all_metadata(db: Session) -> Dict[str, List[Any]]:
@@ -358,6 +360,15 @@ async def get_all_metadata_async(db: AsyncSession) -> Dict[str, List[Any]]:
                NULL::BOOLEAN as requires_reference, is_active, created_at, updated_at
         FROM alert_statuses WHERE is_active = true
 
+        UNION ALL
+
+        SELECT 'progression_actions' as table_name, id, name, description,
+               display_order as sort_order, NULL::DATE as start_date, NULL::DATE as end_date, NULL::BOOLEAN as is_current,
+               NULL::INTEGER as max_days_per_year, NULL::BOOLEAN as requires_medical_certificate, NULL::DECIMAL as budget_limit,
+               is_positive as requires_approval, color_code, creates_new_session as is_final, NULL::INTEGER as level_order,
+               NULL::BOOLEAN as requires_reference, is_active, created_at, updated_at
+        FROM progression_actions WHERE is_active = true
+
         ORDER BY table_name, id
     """)
 
@@ -391,7 +402,8 @@ async def get_all_metadata_async(db: AsyncSession) -> Dict[str, List[Any]]:
         "attendance_statuses": [],
         "attendance_periods": [],
         "alert_types": [],
-        "alert_statuses": []
+        "alert_statuses": [],
+        "progression_actions": []
     }
 
     # Process results efficiently
@@ -531,10 +543,31 @@ async def get_all_metadata_async(db: AsyncSession) -> Dict[str, List[Any]]:
                 'color_code': row.color_code, 'is_final': row.is_final,
                 'is_active': row.is_active
             })()
+        elif table_name == 'progression_actions':
+            obj = type('ProgressionAction', (), {
+                'id': row.id, 'name': row.name, 'description': row.description,
+                'display_order': row.sort_order, 'icon': None,  # icon needs separate query
+                'color_code': row.color_code, 'is_positive': row.requires_approval,
+                'creates_new_session': row.is_final, 'is_active': row.is_active
+            })()
         else:
             continue
 
         metadata[table_name].append(obj)
+
+    # Supplemental query for progression_actions to get icon field
+    # (icon is not included in the UNION query due to column limitations)
+    if metadata.get("progression_actions"):
+        icon_query = text("""
+            SELECT id, icon FROM progression_actions WHERE is_active = true
+        """)
+        icon_result = await db.execute(icon_query)
+        icon_rows = icon_result.fetchall()
+        icon_map = {row.id: row.icon for row in icon_rows}
+
+        # Update progression_action objects with their icons
+        for action in metadata["progression_actions"]:
+            action.icon = icon_map.get(action.id)
 
     end_time = time.time()
 

@@ -16,6 +16,13 @@ from .metadata import (
     get_all_metadata, get_all_metadata_async, get_current_session_year, get_dropdown_options,
     validate_metadata_ids, get_metadata_name_by_id
 )
+from .crud_session_progression import (
+    get_progression_actions, get_progression_action_by_id,
+    get_eligible_students_for_progression, get_next_class_id, get_previous_class_id,
+    create_session_history_record, progress_student, bulk_progress_students,
+    get_student_progression_history, rollback_progression_batch,
+    get_progression_statistics, ProgressionActionIds, HIGHEST_CLASS_ID
+)
 
 __all__ = [
     "user_crud",
@@ -35,5 +42,11 @@ __all__ = [
     "department_crud", "position_crud",
     # Metadata helpers
     "get_all_metadata", "get_all_metadata_async", "get_current_session_year", "get_dropdown_options",
-    "validate_metadata_ids", "get_metadata_name_by_id"
+    "validate_metadata_ids", "get_metadata_name_by_id",
+    # Session Progression
+    "get_progression_actions", "get_progression_action_by_id",
+    "get_eligible_students_for_progression", "get_next_class_id", "get_previous_class_id",
+    "create_session_history_record", "progress_student", "bulk_progress_students",
+    "get_student_progression_history", "rollback_progression_batch",
+    "get_progression_statistics", "ProgressionActionIds", "HIGHEST_CLASS_ID"
 ]

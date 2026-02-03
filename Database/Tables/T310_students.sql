@@ -44,6 +44,9 @@ CREATE TABLE students (
     guardian_relation VARCHAR(50),
     profile_picture_url TEXT,
     profile_picture_cloudinary_id TEXT,
+    -- Session Progression: Track original admission details
+    original_session_year_id INTEGER,
+    original_class_id INTEGER,
     is_active BOOLEAN DEFAULT TRUE,
     is_deleted BOOLEAN DEFAULT FALSE,
     deleted_date TIMESTAMP WITH TIME ZONE,
@@ -52,7 +55,9 @@ CREATE TABLE students (
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
     FOREIGN KEY (class_id) REFERENCES classes(id),
     FOREIGN KEY (session_year_id) REFERENCES session_years(id),
-    FOREIGN KEY (gender_id) REFERENCES genders(id)
+    FOREIGN KEY (gender_id) REFERENCES genders(id),
+    FOREIGN KEY (original_session_year_id) REFERENCES session_years(id),
+    FOREIGN KEY (original_class_id) REFERENCES classes(id)
 );
 
 -- Create indexes

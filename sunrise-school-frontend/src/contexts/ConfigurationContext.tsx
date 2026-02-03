@@ -55,6 +55,7 @@ interface ConfigurationContextType {
   getEmploymentStatuses: () => DropdownOption[];
   getQualifications: () => DropdownOption[];
   getGalleryCategories: () => DropdownOption[];
+  getProgressionActions: () => any[];
 }
 
 const ConfigurationContext = createContext<ConfigurationContextType | undefined>(undefined);
@@ -83,6 +84,7 @@ export const ConfigurationProvider: React.FC<ConfigurationProviderProps> = ({
     'inventory-management': false,
     'transport-management': false,
     'attendance-management': false,
+    'session-progression': false,
     'common': false,
   });
   const [serviceErrors, setServiceErrors] = useState<Record<ServiceType, string | null>>({
@@ -95,6 +97,7 @@ export const ConfigurationProvider: React.FC<ConfigurationProviderProps> = ({
     'inventory-management': null,
     'transport-management': null,
     'attendance-management': null,
+    'session-progression': null,
     'common': null,
   });
 
@@ -233,6 +236,7 @@ export const ConfigurationProvider: React.FC<ConfigurationProviderProps> = ({
   const getEmploymentStatuses = useCallback(() => configurationService.getEmploymentStatuses(), []);
   const getQualifications = useCallback(() => configurationService.getQualifications(), []);
   const getGalleryCategories = useCallback(() => configurationService.getGalleryCategories(), []);
+  const getProgressionActions = useCallback(() => configurationService.getProgressionActions(), []);
 
   // Auto-load configuration on mount (DISABLED - Use service-specific loading instead)
   useEffect(() => {
@@ -286,6 +290,7 @@ export const ConfigurationProvider: React.FC<ConfigurationProviderProps> = ({
     getEmploymentStatuses,
     getQualifications,
     getGalleryCategories,
+    getProgressionActions,
   }), [
     configuration,
     isLoading,
@@ -317,6 +322,7 @@ export const ConfigurationProvider: React.FC<ConfigurationProviderProps> = ({
     getEmploymentStatuses,
     getQualifications,
     getGalleryCategories,
+    getProgressionActions,
   ]);
 
   return (

@@ -38,7 +38,8 @@ class SessionYear(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     # Relationships
-    students = relationship("Student", back_populates="session_year")
+    # Specify foreign_keys because Student has multiple FKs to session_years (session_year_id, original_session_year_id)
+    students = relationship("Student", foreign_keys="[Student.session_year_id]", back_populates="session_year")
     fee_structures = relationship("FeeStructure", back_populates="session_year")
     fee_records = relationship("FeeRecord", back_populates="session_year")
 
@@ -70,7 +71,8 @@ class Class(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     # Relationships
-    students = relationship("Student", back_populates="class_ref")
+    # Specify foreign_keys because Student has multiple FKs to classes (class_id, original_class_id)
+    students = relationship("Student", foreign_keys="[Student.class_id]", back_populates="class_ref")
     teachers = relationship("Teacher", back_populates="class_teacher_of_ref")
     fee_structures = relationship("FeeStructure", back_populates="class_ref")
 

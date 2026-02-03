@@ -342,6 +342,25 @@ ON CONFLICT (id) DO UPDATE SET
     is_active = EXCLUDED.is_active,
     updated_at = NOW();
 
+-- =====================================================
+-- Progression Actions Data (for Session Progression feature)
+-- Only PROMOTED, RETAINED, DEMOTED are supported for session progression
+-- =====================================================
+INSERT INTO progression_actions (id, name, description, display_order, icon, color_code, is_positive, creates_new_session, is_active) VALUES
+(1, 'PROMOTED', 'Promoted to next class', 1, 'TrendingUp', '#2196F3', TRUE, TRUE, TRUE),
+(2, 'RETAINED', 'Retained in same class', 2, 'Replay', '#FF9800', FALSE, TRUE, TRUE),
+(3, 'DEMOTED', 'Demoted to previous class', 3, 'TrendingDown', '#F44336', FALSE, TRUE, TRUE)
+ON CONFLICT (id) DO UPDATE SET
+    name = EXCLUDED.name,
+    description = EXCLUDED.description,
+    display_order = EXCLUDED.display_order,
+    icon = EXCLUDED.icon,
+    color_code = EXCLUDED.color_code,
+    is_positive = EXCLUDED.is_positive,
+    creates_new_session = EXCLUDED.creates_new_session,
+    is_active = EXCLUDED.is_active,
+    updated_at = NOW();
+
 -- Commit transaction
 COMMIT;
 
@@ -371,6 +390,7 @@ COMMIT;
 \echo '- 7 Inventory size types'
 \echo '- 7 Attendance statuses (with color codes)'
 \echo '- 3 Attendance periods (with time ranges)'
+\echo '- 8 Progression actions (for session progression)'
 \echo ''
-\echo 'Total: 126 metadata records loaded'
+\echo 'Total: 134 metadata records loaded'
 \echo '=========================================='

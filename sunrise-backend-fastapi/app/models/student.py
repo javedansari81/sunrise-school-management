@@ -64,6 +64,10 @@ class Student(Base):
     class_id = Column(Integer, ForeignKey("classes.id"), nullable=False)
     session_year_id = Column(Integer, ForeignKey("session_years.id"), nullable=False)
 
+    # Original admission tracking (for session progression)
+    original_session_year_id = Column(Integer, ForeignKey("session_years.id"), nullable=True)
+    original_class_id = Column(Integer, ForeignKey("classes.id"), nullable=True)
+
     section = Column(String(10), nullable=True)
     roll_number = Column(String(20), nullable=True)
     blood_group = Column(String(5), nullable=True)
@@ -116,12 +120,19 @@ class Student(Base):
     # Relationships
     user = relationship("User", back_populates="student_profile")
     gender = relationship("Gender", back_populates="students")
-    class_ref = relationship("Class", back_populates="students")
-    session_year = relationship("SessionYear", back_populates="students")
+    class_ref = relationship("Class", foreign_keys=[class_id], back_populates="students")
+    session_year = relationship("SessionYear", foreign_keys=[session_year_id], back_populates="students")
     fee_records = relationship("FeeRecord", back_populates="student")
     transport_enrollments = relationship("StudentTransportEnrollment", back_populates="student")
     inventory_purchases = relationship("InventoryPurchase", back_populates="student")
     # leave_requests = relationship("LeaveRequest", back_populates="student")
+
+    # Original admission relationships (for session progression)
+    original_session_year = relationship("SessionYear", foreign_keys=[original_session_year_id])
+    original_class = relationship("Class", foreign_keys=[original_class_id])
+
+    # Session history relationship
+    session_histories = relationship("StudentSessionHistory", back_populates="student")
 
     @property
     def gender_enum(self) -> GenderEnum:

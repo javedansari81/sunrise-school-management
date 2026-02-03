@@ -541,6 +541,7 @@ class EnhancedPaymentRequest(BaseModel):
 
 # Monthly Tracking Enable Request
 class EnableMonthlyTrackingRequest(BaseModel):
-    fee_record_ids: List[int] = Field(..., description="List of fee record IDs to enable tracking for")
+    fee_record_ids: List[int] = Field(..., description="List of student IDs to enable tracking for")
+    session_year_id: int = Field(..., description="Session year ID for which to enable tracking")
     start_month: int = Field(4, ge=1, le=12, description="Starting academic month (default: April)")
     start_year: Optional[int] = Field(None, description="Starting academic year (default: current year)")

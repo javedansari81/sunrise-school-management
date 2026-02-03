@@ -538,8 +538,9 @@ async def get_student_fee_options(
             detail="Student not found"
         )
 
-    # Check if current user is the student or has admin/teacher role
-    if current_user.user_type_id not in [1, 2] and student.user_id != current_user.id:  # 1=admin, 2=teacher
+    # Check if current user is the student or has admin/teacher/super_admin role
+    # 1=admin, 2=teacher, 6=super_admin can view any student's fee options
+    if current_user.user_type_id not in [1, 2, 6] and student.user_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You can only view fee options for your own account"
@@ -910,7 +911,8 @@ async def get_payment_history(
         )
 
     # Check if current user has permission to view this student's history
-    if current_user.user_type_id not in [1, 2] and student.user_id != current_user.id:  # 1=admin, 2=teacher
+    # 1=admin, 2=teacher, 6=super_admin can view any student's history
+    if current_user.user_type_id not in [1, 2, 6] and student.user_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You can only view payment history for your own account"
@@ -1105,7 +1107,8 @@ async def get_payment_receipt(
     student = fee_record.student
 
     # Check if current user has permission to view this receipt
-    if current_user.user_type_id not in [1, 2] and student.user_id != current_user.id:  # 1=admin, 2=teacher
+    # 1=admin, 2=teacher, 6=super_admin can view any student's receipts
+    if current_user.user_type_id not in [1, 2, 6] and student.user_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You can only view receipts for your own payments"
@@ -1953,11 +1956,15 @@ async def pay_monthly_enhanced(
             detail="Student not found"
         )
 
-    # Get session year ID
+    # Get session year ID and derive start year from session year name
     session_year_mapping = {
         "2022-23": 1, "2023-24": 2, "2024-25": 3, "2025-26": 4, "2026-27": 5
     }
     session_year_id = session_year_mapping.get(session_year, 4)
+
+    # Derive the start year from the session year name (e.g., "2026-27" -> 2026)
+    # This ensures correct year calculation for any session year (past, current, or future)
+    session_start_year = int(session_year.split("-")[0])
 
     # Get student's fee structure to calculate monthly fee
     fee_structure = await fee_structure_crud.get_by_class_id_and_session_id(
@@ -2032,7 +2039,7 @@ async def pay_monthly_enhanced(
                 total_amount=fee_structure.total_annual_fee,
                 paid_amount=0,
                 balance_amount=fee_structure.total_annual_fee,
-                due_date=date(2025, 4, 30),
+                due_date=date(session_start_year, 4, 30),
                 remarks="Enhanced monthly payment system"
             )
             fee_record = await fee_record_crud.create(db, obj_in=fee_record_data)
@@ -2042,8 +2049,9 @@ async def pay_monthly_enhanced(
         # Create monthly tracking records for selected months
         available_months = []
         for month in selected_months:
-            # Calculate due date (10th of each month)
-            year = 2025 if month >= 4 else 2026  # Academic year Apr 2025 - Mar 2026
+            # Calculate due date (10th of each month) using session_start_year
+            # April-December = start_year, January-March = start_year + 1
+            year = session_start_year if month >= 4 else session_start_year + 1
             due_date = date(year, month, 10)
 
             monthly_tracking = MonthlyFeeTrackingModel(
@@ -2535,11 +2543,15 @@ async def pay_combined_tuition_transport(
             detail="Transport payment amount and months are required for combined payment"
         )
 
-    # Get session year ID
+    # Get session year ID and derive start year from session year name
     session_year_mapping = {
         "2022-23": 1, "2023-24": 2, "2024-25": 3, "2025-26": 4, "2026-27": 5
     }
     session_year_id = session_year_mapping.get(session_year, 4)
+
+    # Derive the start year from the session year name (e.g., "2026-27" -> 2026)
+    # This ensures correct year calculation for any session year (past, current, or future)
+    session_start_year = int(session_year.split("-")[0])
 
     # Get student with class relationship
     student = await db.execute(
@@ -2638,7 +2650,7 @@ async def pay_combined_tuition_transport(
             total_amount=fee_structure.total_annual_fee,
             paid_amount=Decimal("0"),
             balance_amount=fee_structure.total_annual_fee,
-            due_date=date(2025, 4, 30),
+            due_date=date(session_start_year, 4, 30),
             remarks="Combined tuition + transport payment"
         ))
 
@@ -2646,8 +2658,9 @@ async def pay_combined_tuition_transport(
     for month_num in tuition_selected_months:
         exists = any(r.academic_month == month_num for r in tuition_tracking_records)
         if not exists:
-            # Calculate year for this month (academic year: Apr 2025 - Mar 2026)
-            year = 2025 if month_num >= 4 else 2026
+            # Calculate year for this month using session_start_year
+            # April-December = start_year, January-March = start_year + 1
+            year = session_start_year if month_num >= 4 else session_start_year + 1
             # Calculate due date (last day of the month)
             last_day = calendar.monthrange(year, month_num)[1]
             due_date = date(year, month_num, last_day)
@@ -3097,11 +3110,15 @@ async def get_available_months_for_payment(
             detail="Student not found"
         )
 
-    # Get session year ID
+    # Get session year ID and derive start year from session year name
     session_year_mapping = {
         "2022-23": 1, "2023-24": 2, "2024-25": 3, "2025-26": 4, "2026-27": 5
     }
     session_year_id = session_year_mapping.get(session_year.value, 4)
+
+    # Derive the start year from the session year name (e.g., "2026-27" -> 2026)
+    # This ensures correct year calculation for any session year (past, current, or future)
+    session_start_year = int(session_year.value.split("-")[0])
 
     # Get student's fee structure - try multiple approaches
     fee_structure = None
@@ -3179,8 +3196,9 @@ async def get_available_months_for_payment(
             balance = monthly_amount - paid_amount
 
             if balance > 0.01:  # Not fully paid (allowing for small rounding differences)
-                # Calculate year for this month (academic year: Apr 2025 - Mar 2026)
-                year = 2025 if month >= 4 else 2026
+                # Calculate year for this month using session_start_year
+                # April-December = start_year, January-March = start_year + 1
+                year = session_start_year if month >= 4 else session_start_year + 1
                 available_months.append({
                     "month": month,
                     "month_name": month_name,
@@ -3192,8 +3210,9 @@ async def get_available_months_for_payment(
                     "can_pay": True
                 })
             else:
-                # Calculate year for this month (academic year: Apr 2025 - Mar 2026)
-                year = 2025 if month >= 4 else 2026
+                # Calculate year for this month using session_start_year
+                # April-December = start_year, January-March = start_year + 1
+                year = session_start_year if month >= 4 else session_start_year + 1
                 paid_months.append({
                     "month": month,
                     "month_name": month_name,
@@ -3206,8 +3225,9 @@ async def get_available_months_for_payment(
                 })
         else:
             # No tracking record exists, so it's available for payment
-            # Calculate year for this month (academic year: Apr 2025 - Mar 2026)
-            year = 2025 if month >= 4 else 2026
+            # Calculate year for this month using session_start_year
+            # April-December = start_year, January-March = start_year + 1
+            year = session_start_year if month >= 4 else session_start_year + 1
             available_months.append({
                 "month": month,
                 "month_name": month_name,
@@ -3703,7 +3723,7 @@ async def enable_monthly_tracking(
                     """),
                     {
                         "student_id": student_id,
-                        "session_year_id": 4,
+                        "session_year_id": request.session_year_id,
                         "start_month": request.start_month,
                         "start_year": request.start_year
                     }
@@ -3753,6 +3773,102 @@ async def enable_monthly_tracking(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to enable monthly tracking: {str(e)}"
+        )
+
+
+@router.delete("/monthly-tracking/{student_id}/{session_year_id}")
+async def delete_monthly_tracking_records(
+    student_id: int,
+    session_year_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Delete monthly tracking records for a student and session year.
+    This is useful for resetting monthly tracking when records have incorrect data.
+
+    IMPORTANT: Only deletes records with no payments (payment_status_id = 1 and paid_amount = 0)
+    """
+    try:
+        # Check if user has permission (admin/super_admin only)
+        if current_user.user_type_id not in [1, 6]:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Only admins can delete monthly tracking records"
+            )
+
+        # Verify student exists
+        student = await student_crud.get(db, id=student_id)
+        if not student:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Student not found"
+            )
+
+        # Get monthly tracking records that can be deleted (unpaid only)
+        result = await db.execute(
+            select(MonthlyFeeTrackingModel)
+            .where(
+                and_(
+                    MonthlyFeeTrackingModel.student_id == student_id,
+                    MonthlyFeeTrackingModel.session_year_id == session_year_id,
+                    MonthlyFeeTrackingModel.payment_status_id == 1,  # Pending status
+                    MonthlyFeeTrackingModel.paid_amount == 0
+                )
+            )
+        )
+        unpaid_records = result.scalars().all()
+
+        # Check if there are paid records that cannot be deleted
+        paid_result = await db.execute(
+            select(func.count(MonthlyFeeTrackingModel.id))
+            .where(
+                and_(
+                    MonthlyFeeTrackingModel.student_id == student_id,
+                    MonthlyFeeTrackingModel.session_year_id == session_year_id,
+                    or_(
+                        MonthlyFeeTrackingModel.payment_status_id != 1,
+                        MonthlyFeeTrackingModel.paid_amount > 0
+                    )
+                )
+            )
+        )
+        paid_count = paid_result.scalar() or 0
+
+        if not unpaid_records:
+            if paid_count > 0:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Cannot delete: {paid_count} records have payments. Only unpaid records can be deleted."
+                )
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No monthly tracking records found for this student and session year"
+            )
+
+        # Delete unpaid records
+        deleted_count = 0
+        for record in unpaid_records:
+            await db.delete(record)
+            deleted_count += 1
+
+        await db.commit()
+
+        return {
+            "message": f"Successfully deleted {deleted_count} monthly tracking records",
+            "student_id": student_id,
+            "session_year_id": session_year_id,
+            "deleted_count": deleted_count,
+            "skipped_paid_records": paid_count
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to delete monthly tracking records: {str(e)}"
         )
 
 

@@ -911,14 +911,29 @@ const FeeManagementComponent: React.FC = () => {
   // Enable monthly tracking for selected students
   const enableMonthlyTracking = async () => {
     if (selectedStudentIds.length === 0) return;
+    if (!filters.session_year_id) {
+      setSnackbar({
+        open: true,
+        message: 'Please select a session year first',
+        severity: 'warning'
+      });
+      return;
+    }
 
     setLoading(true);
     try {
       // Pass student_ids directly (the API now handles fee record creation)
+      // Include session_year_id to create tracking for the correct session
+      const sessionYearId = parseInt(filters.session_year_id);
+      const sessionYearName = ID_TO_SESSION_YEAR_MAP[filters.session_year_id] || DEFAULT_SESSION_YEAR;
+      // Extract start year from session year name (e.g., "2025-26" -> 2025)
+      const startYear = parseInt(sessionYearName.split('-')[0]);
+
       const requestData = {
         fee_record_ids: selectedStudentIds, // These are actually student_ids
+        session_year_id: sessionYearId,
         start_month: 4,
-        start_year: new Date().getFullYear()
+        start_year: startYear
       };
 
       console.log('🚀 Enabling monthly tracking for students:', {
