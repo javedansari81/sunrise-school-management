@@ -140,6 +140,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
         children: [
           { label: 'Student UDISE Report', icon: <PeopleIcon />, path: '/admin/reports/student-udise' },
           { label: 'Fee Tracking Report', icon: <ReceiptLongIcon />, path: '/admin/reports/fee-tracking' },
+          { label: 'Daily Collection Report', icon: <ReceiptLongIcon />, path: '/admin/reports/daily-collection' },
         ],
       },
     ];

@@ -7,9 +7,10 @@ from decimal import Decimal
 from datetime import datetime, date
 
 from app.models.student import Student
-from app.models.metadata import Gender, Class, SessionYear
-from app.models.fee import FeeRecord, MonthlyFeeTracking
-from app.models.transport import StudentTransportEnrollment, TransportMonthlyTracking, TransportType
+from app.models.metadata import Gender, Class, SessionYear, PaymentMethod
+from app.models.fee import FeeRecord, FeePayment, MonthlyFeeTracking
+from app.models.transport import StudentTransportEnrollment, TransportMonthlyTracking, TransportType, TransportPayment
+from app.models.user import User
 
 
 class CRUDReport:
@@ -384,6 +385,184 @@ class CRUDReport:
         start_idx = (page - 1) * per_page
         end_idx = start_idx + per_page
         paginated_records = filtered_records[start_idx:end_idx]
+
+        return paginated_records, total_count, summary
+
+    async def get_daily_collection_report_data(
+        self,
+        db: AsyncSession,
+        *,
+        from_date: date,
+        to_date: date,
+        class_id: Optional[int] = None,
+        section: Optional[str] = None,
+        payment_method_id: Optional[int] = None,
+        search: Optional[str] = None,
+        page: int = 1,
+        per_page: int = 25
+    ) -> Tuple[List[Dict[str, Any]], int, Dict[str, Any]]:
+        """
+        Get daily collection report data with fee and transport payments
+        Returns: (list of payment data, total count, summary statistics)
+        """
+        all_records = []
+
+        # Query Fee Payments
+        fee_query = (
+            select(FeePayment)
+            .options(
+                joinedload(FeePayment.fee_record).joinedload(FeeRecord.student).joinedload(Student.class_ref),
+                joinedload(FeePayment.fee_record).joinedload(FeeRecord.session_year),
+                joinedload(FeePayment.payment_method),
+                joinedload(FeePayment.creator)
+            )
+            .where(
+                and_(
+                    FeePayment.payment_date >= from_date,
+                    FeePayment.payment_date <= to_date,
+                    FeePayment.is_reversal == False
+                )
+            )
+        )
+
+        fee_result = await db.execute(fee_query)
+        fee_payments = fee_result.unique().scalars().all()
+
+        for payment in fee_payments:
+            fee_record = payment.fee_record
+            student = fee_record.student if fee_record else None
+
+            if not student:
+                continue
+
+            # Apply filters
+            if class_id and student.class_id != class_id:
+                continue
+            if section and student.section != section:
+                continue
+            if payment_method_id and payment.payment_method_id != payment_method_id:
+                continue
+            if search:
+                search_lower = search.lower()
+                if not (
+                    search_lower in student.first_name.lower() or
+                    search_lower in student.last_name.lower() or
+                    search_lower in (student.admission_number or "").lower()
+                ):
+                    continue
+
+            all_records.append({
+                "payment_id": payment.id,
+                "receipt_number": payment.receipt_number,
+                "payment_date": payment.payment_date,
+                "amount": float(payment.amount),
+                "payment_method": payment.payment_method.name if payment.payment_method else "Cash",
+                "payment_method_id": payment.payment_method_id,
+                "transaction_id": payment.transaction_id,
+                "student_id": student.id,
+                "admission_number": student.admission_number,
+                "student_name": f"{student.first_name} {student.last_name}",
+                "class_name": student.class_ref.description if student.class_ref else "",
+                "section": student.section,
+                "fee_record_id": fee_record.id,
+                "session_year_name": fee_record.session_year.name if fee_record.session_year else "",
+                "payment_type": "Fee",
+                "remarks": payment.remarks,
+                "created_by_name": f"{payment.creator.first_name} {payment.creator.last_name}" if payment.creator else None,
+                "created_at": payment.created_at
+            })
+
+        # Query Transport Payments
+        try:
+            transport_query = (
+                select(TransportPayment)
+                .options(
+                    joinedload(TransportPayment.enrollment).joinedload(StudentTransportEnrollment.student).joinedload(Student.class_ref),
+                    joinedload(TransportPayment.enrollment).joinedload(StudentTransportEnrollment.session_year),
+                    joinedload(TransportPayment.payment_method),
+                    joinedload(TransportPayment.creator)
+                )
+                .where(
+                    and_(
+                        TransportPayment.payment_date >= from_date,
+                        TransportPayment.payment_date <= to_date,
+                        TransportPayment.is_reversal == False
+                    )
+                )
+            )
+
+            transport_result = await db.execute(transport_query)
+            transport_payments = transport_result.unique().scalars().all()
+
+            for payment in transport_payments:
+                enrollment = payment.enrollment
+                student = enrollment.student if enrollment else None
+
+                if not student:
+                    continue
+
+                # Apply filters
+                if class_id and student.class_id != class_id:
+                    continue
+                if section and student.section != section:
+                    continue
+                if payment_method_id and payment.payment_method_id != payment_method_id:
+                    continue
+                if search:
+                    search_lower = search.lower()
+                    if not (
+                        search_lower in student.first_name.lower() or
+                        search_lower in student.last_name.lower() or
+                        search_lower in (student.admission_number or "").lower()
+                    ):
+                        continue
+
+                all_records.append({
+                    "payment_id": payment.id,
+                    "receipt_number": payment.receipt_number,
+                    "payment_date": payment.payment_date,
+                    "amount": float(payment.amount),
+                    "payment_method": payment.payment_method.name if payment.payment_method else "Cash",
+                    "payment_method_id": payment.payment_method_id,
+                    "transaction_id": payment.transaction_id,
+                    "student_id": student.id,
+                    "admission_number": student.admission_number,
+                    "student_name": f"{student.first_name} {student.last_name}",
+                    "class_name": student.class_ref.description if student.class_ref else "",
+                    "section": student.section,
+                    "fee_record_id": enrollment.id,
+                    "session_year_name": enrollment.session_year.name if enrollment.session_year else "",
+                    "payment_type": "Transport",
+                    "remarks": payment.remarks,
+                    "created_by_name": f"{payment.creator.first_name} {payment.creator.last_name}" if payment.creator else None,
+                    "created_at": payment.created_at
+                })
+        except Exception as e:
+            # Transport payments table might not exist or have different structure
+            pass
+
+        # Sort by payment date and created_at (most recent first)
+        all_records.sort(key=lambda x: (x["payment_date"], x["created_at"]), reverse=True)
+
+        total_count = len(all_records)
+
+        # Calculate summary
+        summary = {
+            "total_collections": total_count,
+            "total_amount": sum(r["amount"] for r in all_records),
+            "cash_amount": sum(r["amount"] for r in all_records if r["payment_method"].lower() == "cash"),
+            "online_amount": sum(r["amount"] for r in all_records if r["payment_method"].lower() == "online"),
+            "upi_amount": sum(r["amount"] for r in all_records if r["payment_method"].lower() == "upi"),
+            "cheque_amount": sum(r["amount"] for r in all_records if r["payment_method"].lower() == "cheque"),
+            "card_amount": sum(r["amount"] for r in all_records if r["payment_method"].lower() == "card"),
+            "fee_collections": sum(r["amount"] for r in all_records if r["payment_type"] == "Fee"),
+            "transport_collections": sum(r["amount"] for r in all_records if r["payment_type"] == "Transport"),
+        }
+
+        # Apply pagination
+        start_idx = (page - 1) * per_page
+        end_idx = start_idx + per_page
+        paginated_records = all_records[start_idx:end_idx]
 
         return paginated_records, total_count, summary
 

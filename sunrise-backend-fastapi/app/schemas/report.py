@@ -182,3 +182,78 @@ class FeeTrackingReportFilters(BaseModel):
     page: int = Field(default=1, ge=1)
     per_page: int = Field(default=25, ge=1, le=100)
 
+
+# ============================================================================
+# DAILY COLLECTION REPORT SCHEMAS
+# ============================================================================
+
+class DailyCollectionData(BaseModel):
+    """Individual payment record for daily collection report"""
+    # Payment Information
+    payment_id: int
+    receipt_number: Optional[str] = None
+    payment_date: date
+    amount: Decimal = Field(default=Decimal("0.00"), description="Payment amount")
+    payment_method: str = Field(default="Cash", description="Payment method name")
+    transaction_id: Optional[str] = None
+
+    # Student Information
+    student_id: int
+    admission_number: str
+    student_name: str
+    class_name: str
+    section: Optional[str] = None
+
+    # Fee Record Information
+    fee_record_id: int
+    session_year_name: str
+
+    # Payment Type (Fee/Transport)
+    payment_type: str = Field(default="Fee", description="Fee or Transport")
+
+    # Additional Info
+    remarks: Optional[str] = None
+    created_by_name: Optional[str] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class DailyCollectionReportResponse(BaseModel):
+    """Response schema for daily collection report"""
+    records: List[DailyCollectionData]
+    total: int
+    page: int
+    per_page: int
+    total_pages: int
+
+    # Summary statistics
+    summary: dict = Field(
+        default_factory=lambda: {
+            "total_collections": 0,
+            "total_amount": "0.00",
+            "cash_amount": "0.00",
+            "online_amount": "0.00",
+            "upi_amount": "0.00",
+            "cheque_amount": "0.00",
+            "card_amount": "0.00",
+            "fee_collections": "0.00",
+            "transport_collections": "0.00",
+        }
+    )
+
+    class Config:
+        from_attributes = True
+
+
+class DailyCollectionReportFilters(BaseModel):
+    """Filters for daily collection report"""
+    from_date: date = Field(..., description="Start date for collection report")
+    to_date: date = Field(..., description="End date for collection report")
+    class_id: Optional[int] = None
+    section: Optional[str] = None
+    payment_method_id: Optional[int] = None
+    search: Optional[str] = None
+    page: int = Field(default=1, ge=1)
+    per_page: int = Field(default=25, ge=1, le=100)

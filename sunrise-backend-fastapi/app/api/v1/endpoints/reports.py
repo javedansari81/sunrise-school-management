@@ -1,4 +1,5 @@
 from typing import Optional
+from datetime import date
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 import math
@@ -8,7 +9,8 @@ from app.core.database import get_db
 from app.crud import report_crud
 from app.schemas.report import (
     UDISEReportResponse, StudentUDISEData,
-    FeeTrackingReportResponse, FeeTrackingData
+    FeeTrackingReportResponse, FeeTrackingData,
+    DailyCollectionReportResponse, DailyCollectionData
 )
 from app.api.deps import get_current_active_user
 from app.models.user import User
@@ -207,3 +209,110 @@ async def get_fee_tracking_report(
             detail=f"Failed to generate fee tracking report: {str(e)}"
         )
 
+
+@router.get("/daily-collection", response_model=DailyCollectionReportResponse)
+async def get_daily_collection_report(
+    from_date: date = Query(..., description="Start date for collection report (YYYY-MM-DD)"),
+    to_date: date = Query(..., description="End date for collection report (YYYY-MM-DD)"),
+    class_id: Optional[int] = Query(None, description="Filter by class ID"),
+    section: Optional[str] = Query(None, description="Filter by section"),
+    payment_method_id: Optional[int] = Query(None, description="Filter by payment method ID"),
+    search: Optional[str] = Query(None, description="Search by student name or admission number"),
+    page: int = Query(1, ge=1, description="Page number"),
+    per_page: int = Query(25, ge=1, le=100, description="Records per page"),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Get Daily Collection Report with fee and transport payment details
+
+    This endpoint provides daily collection information including:
+    - Fee payments collected within the date range
+    - Transport payments collected within the date range
+    - Payment method breakdown
+    - Summary statistics
+
+    **Required Parameters:**
+    - from_date: Start date for the report (YYYY-MM-DD)
+    - to_date: End date for the report (YYYY-MM-DD)
+
+    **Optional Filters:**
+    - class_id: Filter by specific class
+    - section: Filter by specific section
+    - payment_method_id: Filter by payment method
+    - search: Search across student name, admission number
+
+    **Pagination:**
+    - page: Page number (default: 1)
+    - per_page: Records per page (default: 25, max: 100)
+
+    **Returns:**
+    - List of payment records with student and payment details
+    - Total count and pagination metadata
+    - Summary statistics (total amounts by payment method, etc.)
+    """
+    logger.info(f"=== Daily Collection Report Request ===")
+    logger.info(f"Date Range: {from_date} to {to_date}")
+    logger.info(f"Filters: class={class_id}, section={section}, payment_method={payment_method_id}, search={search}")
+    logger.info(f"Pagination: page={page}, per_page={per_page}")
+
+    # Validate date range
+    if from_date > to_date:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="from_date cannot be greater than to_date"
+        )
+
+    try:
+        # Get report data from CRUD
+        records_data, total, summary = await report_crud.get_daily_collection_report_data(
+            db,
+            from_date=from_date,
+            to_date=to_date,
+            class_id=class_id,
+            section=section,
+            payment_method_id=payment_method_id,
+            search=search,
+            page=page,
+            per_page=per_page
+        )
+
+        # Calculate pagination metadata
+        total_pages = math.ceil(total / per_page) if total > 0 else 0
+
+        # Convert summary to string for JSON serialization
+        summary_serialized = {
+            "total_collections": summary["total_collections"],
+            "total_amount": str(round(summary["total_amount"], 2)),
+            "cash_amount": str(round(summary["cash_amount"], 2)),
+            "online_amount": str(round(summary["online_amount"], 2)),
+            "upi_amount": str(round(summary["upi_amount"], 2)),
+            "cheque_amount": str(round(summary["cheque_amount"], 2)),
+            "card_amount": str(round(summary["card_amount"], 2)),
+            "fee_collections": str(round(summary["fee_collections"], 2)),
+            "transport_collections": str(round(summary["transport_collections"], 2)),
+        }
+
+        # Convert to Pydantic models
+        records = [DailyCollectionData(**data) for data in records_data]
+
+        logger.info(f"Successfully retrieved {len(records)} records out of {total} total")
+        logger.info(f"Summary: {summary_serialized}")
+
+        return DailyCollectionReportResponse(
+            records=records,
+            total=total,
+            page=page,
+            per_page=per_page,
+            total_pages=total_pages,
+            summary=summary_serialized
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error generating daily collection report: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to generate daily collection report: {str(e)}"
+        )

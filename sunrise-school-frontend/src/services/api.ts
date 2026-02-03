@@ -563,6 +563,10 @@ export const reportsAPI = {
   // Get Fee Tracking Report
   getFeeTrackingReport: (params: URLSearchParams) =>
     api.get(`/reports/fee-tracking?${params.toString()}`).then(response => response.data),
+
+  // Get Daily Collection Report
+  getDailyCollectionReport: (params: URLSearchParams) =>
+    api.get(`/reports/daily-collection?${params.toString()}`).then(response => response.data),
 };
 
 // Student Siblings API
