@@ -20,8 +20,6 @@ import {
   Pagination,
   TextField,
   Chip,
-  FormControlLabel,
-  Checkbox,
   Fab,
 } from '@mui/material';
 import { DEFAULT_PAGE_SIZE, PAGINATION_UI_CONFIG } from '../../config/pagination';
@@ -30,16 +28,12 @@ import {
   SessionYearDropdown,
 } from '../../components/common/MetadataDropdown';
 import ServiceConfigurationLoader from '../../components/common/ServiceConfigurationLoader';
-import CollapsibleFilterSection from '../../components/common/CollapsibleFilterSection';
 import {
   FilterList,
   Search,
-  Download,
-  PictureAsPdf,
   TableChart,
   ExpandMore,
   ExpandLess,
-  Add,
 } from '@mui/icons-material';
 import AdminLayout from '../../components/Layout/AdminLayout';
 import { reportsAPI } from '../../services/api';
@@ -99,7 +93,6 @@ const FeeTrackingReport: React.FC = () => {
   const [filterSection, setFilterSection] = useState<string>('all');
   const [filterPaymentStatus, setFilterPaymentStatus] = useState<string>('all');
   const [filterTransportOpted, setFilterTransportOpted] = useState<string>('all');
-  const [filterPendingOnly, setFilterPendingOnly] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
   // Set default session year when configuration is loaded
@@ -143,7 +136,6 @@ const FeeTrackingReport: React.FC = () => {
       if (filterSection !== 'all') params.append('section', filterSection);
       if (filterPaymentStatus !== 'all') params.append('payment_status', filterPaymentStatus);
       if (filterTransportOpted !== 'all') params.append('transport_opted', filterTransportOpted);
-      if (filterPendingOnly) params.append('pending_only', 'true');
       if (searchTerm) params.append('search', searchTerm);
 
       const response = await reportsAPI.getFeeTrackingReport(params);
@@ -171,12 +163,12 @@ const FeeTrackingReport: React.FC = () => {
     if (filterSessionYear && filterSessionYear !== 'all') {
       loadFeeData();
     }
-  }, [page, filterSessionYear, filterClass, filterSection, filterPaymentStatus, filterTransportOpted, filterPendingOnly, searchTerm]);
+  }, [page, filterSessionYear, filterClass, filterSection, filterPaymentStatus, filterTransportOpted, searchTerm]);
 
   // Reset to page 1 when filters change
   useEffect(() => {
     setPage(1);
-  }, [filterSessionYear, filterClass, filterSection, filterPaymentStatus, filterTransportOpted, filterPendingOnly, searchTerm]);
+  }, [filterSessionYear, filterClass, filterSection, filterPaymentStatus, filterTransportOpted, searchTerm]);
 
   // Export to Excel
   const handleExportExcel = () => {
@@ -196,23 +188,19 @@ const FeeTrackingReport: React.FC = () => {
         'Class': record.class_name,
         'Section': record.section || 'N/A',
         'Session Year': record.session_year_name,
-        'Total Fee Amount': `₹${record.total_fee_amount}`,
-        'Paid Fee Amount': `₹${record.paid_fee_amount}`,
-        'Pending Fee Amount': `₹${record.pending_fee_amount}`,
-        'Fee Collection Rate': `${record.fee_collection_rate.toFixed(2)}%`,
-        'Fee Payment Status': record.fee_payment_status,
+        'Total Fee': `₹${record.total_amount}`,
+        'Total Tuition Fee': `₹${record.total_fee_amount}`,
+        'Tuition Paid': `₹${record.paid_fee_amount}`,
+        'Tuition Balance': `₹${record.pending_fee_amount}`,
         'Transport Opted': record.transport_opted ? 'Yes' : 'No',
         'Transport Type': record.transport_type || 'N/A',
-        'Monthly Transport Fee': record.monthly_transport_fee ? `₹${record.monthly_transport_fee}` : 'N/A',
-        'Total Transport Amount': record.total_transport_amount ? `₹${record.total_transport_amount}` : 'N/A',
-        'Paid Transport Amount': record.paid_transport_amount ? `₹${record.paid_transport_amount}` : 'N/A',
-        'Pending Transport Amount': record.pending_transport_amount ? `₹${record.pending_transport_amount}` : 'N/A',
-        'Transport Collection Rate': record.transport_collection_rate ? `${record.transport_collection_rate.toFixed(2)}%` : 'N/A',
-        'Transport Payment Status': record.transport_payment_status || 'N/A',
-        'Total Amount': `₹${record.total_amount}`,
+        'Total Transport Fee': record.total_transport_amount ? `₹${record.total_transport_amount}` : '₹0.00',
+        'Transport Paid': record.paid_transport_amount ? `₹${record.paid_transport_amount}` : '₹0.00',
+        'Transport Balance': record.pending_transport_amount ? `₹${record.pending_transport_amount}` : '₹0.00',
         'Total Paid': `₹${record.total_paid}`,
-        'Total Pending': `₹${record.total_pending}`,
-        'Overall Collection Rate': `${record.overall_collection_rate.toFixed(2)}%`,
+        'Total Balance': `₹${record.total_pending}`,
+        'Collection Rate': `${record.overall_collection_rate.toFixed(2)}%`,
+        'Payment Status': record.fee_payment_status,
       }));
 
       const worksheet = XLSX.utils.json_to_sheet(exportData);
@@ -300,7 +288,6 @@ const FeeTrackingReport: React.FC = () => {
                     lg: 'repeat(6, 1fr)'
                   }}
                   gap={1.5}
-                  mb={1.5}
                 >
                   <SessionYearDropdown
                     value={filterSessionYear}
@@ -370,17 +357,6 @@ const FeeTrackingReport: React.FC = () => {
                     fullWidth
                   />
                 </Box>
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      checked={filterPendingOnly}
-                      onChange={(e) => setFilterPendingOnly(e.target.checked)}
-                      size="small"
-                    />
-                  }
-                  label="Show only students with pending payments"
-                  sx={{ ml: 0.5 }}
-                />
               </Box>
             )}
           </Paper>
@@ -402,10 +378,12 @@ const FeeTrackingReport: React.FC = () => {
                         <TableCell>Class</TableCell>
                         <TableCell>Section</TableCell>
                         <TableCell>Total Fee</TableCell>
-                        <TableCell>Fee Paid</TableCell>
+                        <TableCell>Total Tuition Fee</TableCell>
+                        <TableCell>Tuition Paid</TableCell>
+                        <TableCell>Total Transport Fee</TableCell>
                         <TableCell>Transport Paid</TableCell>
                         <TableCell>Total Paid</TableCell>
-                        <TableCell>Pending</TableCell>
+                        <TableCell>Balance</TableCell>
                         <TableCell>Collection Rate</TableCell>
                         <TableCell>Status</TableCell>
                         <TableCell>Transport</TableCell>
@@ -414,7 +392,7 @@ const FeeTrackingReport: React.FC = () => {
                     <TableBody>
                       {feeData.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={12} align="center">
+                          <TableCell colSpan={14} align="center">
                             <Typography variant="body2" color="text.secondary" sx={{ py: 3 }}>
                               {filterSessionYear ? 'No records found' : 'Please select a session year'}
                             </Typography>
@@ -427,8 +405,10 @@ const FeeTrackingReport: React.FC = () => {
                             <TableCell>{record.full_name}</TableCell>
                             <TableCell>{record.class_name}</TableCell>
                             <TableCell>{record.section || 'N/A'}</TableCell>
+                            <TableCell>₹{record.total_amount}</TableCell>
                             <TableCell>₹{record.total_fee_amount}</TableCell>
                             <TableCell>₹{record.paid_fee_amount}</TableCell>
+                            <TableCell>₹{record.total_transport_amount || '0.00'}</TableCell>
                             <TableCell>₹{record.paid_transport_amount || '0.00'}</TableCell>
                             <TableCell>₹{record.total_paid}</TableCell>
                             <TableCell>
