@@ -19,6 +19,8 @@ import TransportManagement from './pages/admin/TransportManagement';
 import GalleryManagement from './pages/admin/GalleryManagement';
 import InventoryManagement from './pages/admin/InventoryManagement';
 import StockProcurementManagement from './pages/admin/StockProcurementManagement';
+import PricingManagement from './pages/admin/PricingManagement';
+import StockLevelsManagement from './pages/admin/StockLevelsManagement';
 import AttendanceManagement from './pages/admin/AttendanceManagement';
 import StudentProfiles from './pages/admin/StudentProfiles';
 import TeacherProfiles from './pages/admin/TeacherProfiles';
@@ -337,7 +339,7 @@ function App() {
               <TransportManagement />
             </ProtectedRoute>
           } />
-          <Route path="/admin/inventory" element={
+          <Route path="/admin/shop-sales" element={
             <ProtectedRoute requiredRole="ADMIN">
               <InventoryManagement />
             </ProtectedRoute>
@@ -345,6 +347,16 @@ function App() {
           <Route path="/admin/stock-procurement" element={
             <ProtectedRoute requiredRole="ADMIN">
               <StockProcurementManagement />
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/pricing" element={
+            <ProtectedRoute requiredRole="ADMIN">
+              <PricingManagement />
+            </ProtectedRoute>
+          } />
+          <Route path="/admin/stock-levels" element={
+            <ProtectedRoute requiredRole="ADMIN">
+              <StockLevelsManagement />
             </ProtectedRoute>
           } />
           <Route path="/admin/attendance" element={

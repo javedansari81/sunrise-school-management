@@ -45,6 +45,10 @@ import {
   Notifications as NotificationsIcon,
   LocalShipping as LocalShippingIcon,
   TrendingUp as SessionProgressionIcon,
+  Storefront as StorefrontIcon,
+  PointOfSale as PointOfSaleIcon,
+  PriceChange as PriceChangeIcon,
+  Inventory as InventoryIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -105,7 +109,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
         ],
       },
 
-      // Financial Management Group (includes Transport)
+      // Financial Management Group
       {
         label: 'Financial Management',
         shortLabel: 'Finance',
@@ -114,7 +118,19 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
           { label: 'Fees Management', icon: <AttachMoney />, path: '/admin/fees' },
           { label: 'Expense Management', icon: <Receipt />, path: '/admin/expenses' },
           { label: 'Transport Service', icon: <DirectionsBusIcon />, path: '/admin/transport' },
-          { label: 'Inventory Management', icon: <ShoppingBagIcon />, path: '/admin/inventory' },
+        ],
+      },
+
+      // School Shop Group (NEW)
+      {
+        label: 'School Shop',
+        shortLabel: 'Shop',
+        icon: <StorefrontIcon />,
+        children: [
+          { label: 'Shop Sales', icon: <PointOfSaleIcon />, path: '/admin/shop-sales' },
+          { label: 'Stock Procurements', icon: <LocalShippingIcon />, path: '/admin/stock-procurement' },
+          { label: 'Pricing Management', icon: <PriceChangeIcon />, path: '/admin/pricing' },
+          { label: 'Stock Levels', icon: <InventoryIcon />, path: '/admin/stock-levels' },
         ],
       },
 
@@ -126,7 +142,6 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
         children: [
           { label: 'Leave Management', icon: <BeachAccess />, path: '/admin/leaves' },
           { label: 'Attendance Management', icon: <AttendanceIcon />, path: '/admin/attendance' },
-          { label: 'Stock Procurement', icon: <LocalShippingIcon />, path: '/admin/stock-procurement' },
           { label: 'Gallery Management', icon: <PhotoLibraryIcon />, path: '/admin/gallery-management' },
           { label: 'Notifications', icon: <NotificationsIcon />, path: '/admin/alerts' },
         ],
