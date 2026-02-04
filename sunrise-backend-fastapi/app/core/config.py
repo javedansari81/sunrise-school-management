@@ -26,8 +26,10 @@ class Settings:
     TWILIO_ACCOUNT_SID: str = os.getenv("TWILIO_ACCOUNT_SID", "")
     TWILIO_AUTH_TOKEN: str = os.getenv("TWILIO_AUTH_TOKEN", "")
     TWILIO_WHATSAPP_NUMBER: str = os.getenv("TWILIO_WHATSAPP_NUMBER", "")
-    # Approved WhatsApp template SID for fee receipt notifications
+    # Approved WhatsApp template SID for detailed fee receipt (school_fee_receipt_v3 - 13 variables)
     TWILIO_WHATSAPP_TEMPLATE_SID: str = os.getenv("TWILIO_WHATSAPP_TEMPLATE_SID", "")
+    # Approved WhatsApp template SID for simple text receipt (school_fee_text_receipt_v6 - 2 variables)
+    TWILIO_WHATSAPP_TEXT_RECEIPT_SID: str = os.getenv("TWILIO_WHATSAPP_TEXT_RECEIPT_SID", "")
 
     # CORS Origins - Support both environment variable and defaults
     @property

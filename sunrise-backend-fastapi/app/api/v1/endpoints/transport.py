@@ -34,6 +34,7 @@ from app.services.cloudinary_transport_receipt_service import CloudinaryTranspor
 
 logger = logging.getLogger(__name__)
 from app.services.alert_service import alert_service
+from app.services.whatsapp_service import whatsapp_service
 
 router = APIRouter()
 
@@ -542,6 +543,47 @@ async def pay_monthly_transport(
         except Exception as e:
             # Log error but don't fail the payment
             logger.error(f"Failed to create transport fee payment alert: {e}")
+
+        # =====================================================
+        # WhatsApp Notification - Using approved template
+        # Template: school_fee_text_receipt_v6 (2 variables)
+        # =====================================================
+        whatsapp_result = None
+        whatsapp_status = None
+        whatsapp_error = None
+        try:
+            if student:
+                # Check available phone numbers in priority order: father > mother > guardian > student
+                contact_phone = None
+                for phone_field in [student.father_phone, student.mother_phone, student.guardian_phone, student.phone]:
+                    is_valid, validated_phone = whatsapp_service.validate_phone_number(phone_field)
+                    if is_valid and validated_phone:
+                        contact_phone = validated_phone
+                        break
+
+                if contact_phone:
+                    # Send WhatsApp notification using simple text receipt template
+                    whatsapp_result = await whatsapp_service.send_fee_text_receipt(
+                        phone_number=contact_phone,
+                        student_name=f"{student.first_name} {student.last_name}",
+                        amount=float(payment_data.amount),
+                        payment_id=payment.id
+                    )
+
+                    logger.info(f"WhatsApp notification sent for transport payment {payment.id}: {whatsapp_result}")
+                    whatsapp_status = whatsapp_result.get("status", "UNKNOWN")
+                    whatsapp_error = whatsapp_result.get("error")
+                else:
+                    whatsapp_status = "NO_PHONE"
+                    whatsapp_error = "No valid phone number available (checked father, mother, guardian, student)"
+                    logger.info(f"WhatsApp not sent for transport payment {payment.id}: No valid phone number")
+
+        except Exception as e:
+            import traceback
+            logger.error(f"Failed to send WhatsApp notification for transport payment {payment.id}: {e}")
+            traceback.print_exc()
+            whatsapp_status = "ERROR"
+            whatsapp_error = str(e)[:500]
 
         return {
             "success": True,

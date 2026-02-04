@@ -2344,80 +2344,44 @@ async def pay_monthly_enhanced(
         traceback.print_exc()
 
     # =====================================================
-    # WhatsApp Notification - DISABLED (Pending Template Approval)
+    # WhatsApp Notification - Using approved template
+    # Template: school_fee_text_receipt_v6 (2 variables)
     # =====================================================
-    # Uncomment this section once WhatsApp template is approved by Twilio/Meta
-    # Template submitted: fee_payment_receipt_v2 (8 variables)
-    # =====================================================
-    #
-    # whatsapp_result = None
-    # whatsapp_status = None
-    # whatsapp_error = None
-    # try:
-    #     from datetime import datetime as dt
-    #
-    #     # Check if student has a valid phone number
-    #     is_valid_phone, student_phone = whatsapp_service.validate_phone_number(student.phone)
-    #
-    #     if is_valid_phone and student_phone:
-    #         # Build months covered string
-    #         months_covered_str = ", ".join([m["month_name"] for m in payment_breakdown]) if payment_breakdown else "N/A"
-    #
-    #         # Get payment method name
-    #         payment_method_name = payment_method.description if payment_method else "Cash"
-    #
-    #         # Calculate tuition and transport fees from fee structure
-    #         tuition_fee_amount = float(actual_amount_to_process)
-    #         transport_fee_amount = None
-    #
-    #         # Get class name (just the class number/name, not section)
-    #         class_name_str = student.class_ref.description if student.class_ref else "N/A"
-    #         if class_name_str and class_name_str.lower().startswith("class "):
-    #             class_name_str = class_name_str[6:]
-    #
-    #         # Get father's name
-    #         father_name = student.father_name if student.father_name else "N/A"
-    #
-    #         # Send WhatsApp notification with clean template
-    #         whatsapp_result = await whatsapp_service.send_fee_payment_notification(
-    #             phone_number=student_phone,
-    #             student_name=f"{student.first_name} {student.last_name}",
-    #             receipt_number=receipt_number or f"FEE-{payment.id:06d}",
-    #             receipt_date=date.today().strftime("%d %b %Y"),
-    #             class_name=class_name_str,
-    #             father_name=father_name,
-    #             tuition_fee=tuition_fee_amount,
-    #             transport_fee=transport_fee_amount,
-    #             total_amount=float(actual_amount_to_process),
-    #             payment_method=payment_method_name,
-    #             months_covered=months_covered_str,
-    #             payment_id=payment.id,
-    #             receipt_url=receipt_url
-    #         )
-    #
-    #         logger.info(f"WhatsApp notification sent for payment {payment.id}: {whatsapp_result}")
-    #         whatsapp_status = whatsapp_result.get("status", "UNKNOWN")
-    #         whatsapp_error = whatsapp_result.get("error")
-    #     else:
-    #         whatsapp_status = "NO_PHONE"
-    #         whatsapp_error = "Student phone number not available or invalid"
-    #         logger.info(f"WhatsApp not sent for payment {payment.id}: No valid student phone")
-    #
-    # except Exception as e:
-    #     import traceback
-    #     logger.error(f"Failed to send WhatsApp notification for payment {payment.id}: {e}")
-    #     traceback.print_exc()
-    #     whatsapp_status = "ERROR"
-    #     whatsapp_error = str(e)[:500]
-    #
-    # =====================================================
-    # End of WhatsApp Notification (commented out)
-    # =====================================================
-
-    # WhatsApp disabled - set placeholder values
     whatsapp_result = None
-    whatsapp_status = "DISABLED"
-    whatsapp_error = "WhatsApp notifications disabled pending template approval"
+    whatsapp_status = None
+    whatsapp_error = None
+    try:
+        # Check available phone numbers in priority order: father > mother > guardian > student
+        contact_phone = None
+        for phone_field in [student.father_phone, student.mother_phone, student.guardian_phone, student.phone]:
+            is_valid, validated_phone = whatsapp_service.validate_phone_number(phone_field)
+            if is_valid and validated_phone:
+                contact_phone = validated_phone
+                break
+
+        if contact_phone:
+            # Send WhatsApp notification using simple text receipt template
+            whatsapp_result = await whatsapp_service.send_fee_text_receipt(
+                phone_number=contact_phone,
+                student_name=f"{student.first_name} {student.last_name}",
+                amount=float(actual_amount_to_process),
+                payment_id=payment.id
+            )
+
+            logger.info(f"WhatsApp notification sent for payment {payment.id}: {whatsapp_result}")
+            whatsapp_status = whatsapp_result.get("status", "UNKNOWN")
+            whatsapp_error = whatsapp_result.get("error")
+        else:
+            whatsapp_status = "NO_PHONE"
+            whatsapp_error = "No valid phone number available (checked father, mother, guardian, student)"
+            logger.info(f"WhatsApp not sent for payment {payment.id}: No valid phone number")
+
+    except Exception as e:
+        import traceback
+        logger.error(f"Failed to send WhatsApp notification for payment {payment.id}: {e}")
+        traceback.print_exc()
+        whatsapp_status = "ERROR"
+        whatsapp_error = str(e)[:500]
 
     return {
         "success": True,
@@ -3046,6 +3010,49 @@ async def pay_combined_tuition_transport(
         import traceback
         print(f"Failed to create combined fee payment alert: {e}")
         traceback.print_exc()
+
+    # =====================================================
+    # PART 5: WhatsApp Notification - Using approved template
+    # Template: school_fee_text_receipt_v6 (2 variables)
+    # =====================================================
+    whatsapp_result = None
+    whatsapp_status = None
+    whatsapp_error = None
+    try:
+        # Total combined amount for WhatsApp
+        total_combined_amount = float(actual_tuition_amount) + float(transport_amount)
+
+        # Check available phone numbers in priority order: father > mother > guardian > student
+        contact_phone = None
+        for phone_field in [student.father_phone, student.mother_phone, student.guardian_phone, student.phone]:
+            is_valid, validated_phone = whatsapp_service.validate_phone_number(phone_field)
+            if is_valid and validated_phone:
+                contact_phone = validated_phone
+                break
+
+        if contact_phone:
+            # Send WhatsApp notification using simple text receipt template
+            whatsapp_result = await whatsapp_service.send_fee_text_receipt(
+                phone_number=contact_phone,
+                student_name=f"{student.first_name} {student.last_name}",
+                amount=total_combined_amount,
+                payment_id=tuition_payment.id
+            )
+
+            logger.info(f"WhatsApp notification sent for combined payment {tuition_payment.id}: {whatsapp_result}")
+            whatsapp_status = whatsapp_result.get("status", "UNKNOWN")
+            whatsapp_error = whatsapp_result.get("error")
+        else:
+            whatsapp_status = "NO_PHONE"
+            whatsapp_error = "No valid phone number available (checked father, mother, guardian, student)"
+            logger.info(f"WhatsApp not sent for combined payment {tuition_payment.id}: No valid phone number")
+
+    except Exception as e:
+        import traceback
+        logger.error(f"Failed to send WhatsApp notification for combined payment {tuition_payment.id}: {e}")
+        traceback.print_exc()
+        whatsapp_status = "ERROR"
+        whatsapp_error = str(e)[:500]
 
     # Return combined response
     return {

@@ -3,7 +3,7 @@ WhatsApp Service - Twilio Integration for Fee Payment Notifications
 Sends automated WhatsApp messages to parents/guardians upon successful fee payment
 using approved Twilio WhatsApp templates.
 
-Template: school_fee_receipt_v3
+Template 1: school_fee_receipt_v3 (Detailed Receipt - 13 variables)
 Template SID: HXb36a35dd343b592599705bb677bb7870
 Variables (13):
     {{1}} - School name
@@ -19,6 +19,13 @@ Variables (13):
     {{11}} - Fee Month
     {{12}} - Receipt URL (PDF link - displayed as text)
     {{13}} - Media URL (PDF attachment for download)
+
+Template 2: school_fee_text_receipt_v6 (Simple Text Receipt - 2 variables)
+Template SID: HX130ac4be5a9fca2e380fa87a3d19d37b
+Content: "Dear {{1}}, We have received your fee payment of ₹{{2}} - Sunrise National Public School"
+Variables (2):
+    {{1}} - Student/Parent name
+    {{2}} - Amount paid
 """
 
 import logging
@@ -504,6 +511,120 @@ class WhatsAppService:
             result["status"] = "SENT"
 
             logger.info(f"   ✅ Template message sent! SID: {message.sid}")
+
+        except TwilioRestException as e:
+            error_details = self._log_twilio_error(e, f"payment {payment_id}")
+            result["error"] = f"Twilio error ({e.code}): {e.msg}"
+            result["error_details"] = error_details
+            result["status"] = "TWILIO_ERROR"
+
+        except Exception as e:
+            result["error"] = f"Unexpected error: {str(e)}"
+            result["status"] = "ERROR"
+            logger.error(f"   ❌ Unexpected error: {str(e)}")
+            logger.error(f"   Traceback: {traceback.format_exc()}")
+
+        logger.info("-" * 40)
+        return result
+
+    async def send_fee_text_receipt(
+        self,
+        phone_number: str,
+        student_name: str,
+        amount: float,
+        payment_id: Optional[int] = None
+    ) -> Dict[str, Any]:
+        """
+        Send simple WhatsApp text receipt notification using approved template.
+
+        Uses template: school_fee_text_receipt_v6
+        Template SID: HX130ac4be5a9fca2e380fa87a3d19d37b
+        Content: "Dear {{1}}, We have received your fee payment of ₹{{2}}
+                  - Sunrise National Public School"
+
+        Variables (2):
+            {{1}} - Student name
+            {{2}} - Amount paid
+
+        Args:
+            phone_number: Recipient's phone number (student/parent)
+            student_name: Student's name
+            amount: Payment amount
+            payment_id: Payment record ID for logging
+
+        Returns:
+            Dict with success status, message_sid, and any errors
+        """
+        # Get template SID from config (school_fee_text_receipt_v6)
+        text_receipt_template_sid = settings.TWILIO_WHATSAPP_TEXT_RECEIPT_SID
+
+        result = {
+            "success": False,
+            "message_sid": None,
+            "status": "NOT_SENT",
+            "error": None,
+            "error_details": None,
+            "phone_number": phone_number
+        }
+
+        logger.info("-" * 40)
+        logger.info(f"📱 WhatsApp Text Receipt - Payment #{payment_id}")
+        logger.info(f"   To: {phone_number}")
+        logger.info(f"   Student: {student_name}")
+        logger.info(f"   Amount: ₹{amount}")
+        logger.info(f"   Template SID: {text_receipt_template_sid}")
+
+        # Check if service is available
+        if not self.is_available():
+            result["error"] = "WhatsApp service not configured"
+            result["status"] = "SERVICE_UNAVAILABLE"
+            logger.warning("   ⚠️ WhatsApp service unavailable")
+            return result
+
+        # Check if template SID is configured
+        if not text_receipt_template_sid:
+            result["error"] = "Text receipt template SID not configured"
+            result["status"] = "TEMPLATE_NOT_CONFIGURED"
+            logger.warning("   ⚠️ TWILIO_WHATSAPP_TEXT_RECEIPT_SID not set in environment")
+            return result
+
+        # Format phone number
+        formatted_phone = self.format_phone_number(phone_number)
+        if not formatted_phone:
+            result["error"] = f"Invalid phone number: {phone_number}"
+            result["status"] = "INVALID_PHONE"
+            logger.warning(f"   ⚠️ Invalid phone number: {phone_number}")
+            return result
+
+        from_whatsapp = f"whatsapp:{self.from_number}"
+
+        # Format amount (remove decimals if whole number)
+        amount_display = f"{int(amount)}" if amount == int(amount) else f"{amount:.2f}"
+
+        # Prepare template variables as JSON string
+        content_variables = json.dumps({
+            "1": student_name,      # {{1}} - Student name
+            "2": amount_display     # {{2}} - Amount paid
+        })
+
+        logger.info(f"   From: {from_whatsapp}")
+        logger.info(f"   To (formatted): {formatted_phone}")
+        logger.info(f"   Content Variables: {content_variables}")
+
+        try:
+            # Send WhatsApp message using approved template
+            message = self.client.messages.create(
+                from_=from_whatsapp,
+                to=formatted_phone,
+                content_sid=text_receipt_template_sid,
+                content_variables=content_variables
+            )
+
+            result["success"] = True
+            result["message_sid"] = message.sid
+            result["status"] = "SENT"
+
+            logger.info(f"   ✅ Text receipt sent! SID: {message.sid}")
 
         except TwilioRestException as e:
             error_details = self._log_twilio_error(e, f"payment {payment_id}")
