@@ -545,8 +545,8 @@ async def pay_monthly_transport(
             logger.error(f"Failed to create transport fee payment alert: {e}")
 
         # =====================================================
-        # WhatsApp Notification - Using approved template
-        # Template: school_fee_text_receipt_v6 (2 variables)
+        # WhatsApp Notification - Using approved media template
+        # Template: school_fee_media_template_v2 (3 variables)
         # =====================================================
         whatsapp_result = None
         whatsapp_status = None
@@ -562,11 +562,12 @@ async def pay_monthly_transport(
                         break
 
                 if contact_phone:
-                    # Send WhatsApp notification using simple text receipt template
-                    whatsapp_result = await whatsapp_service.send_fee_text_receipt(
+                    # Send WhatsApp notification using media receipt template (with PDF attachment)
+                    whatsapp_result = await whatsapp_service.send_fee_media_receipt(
                         phone_number=contact_phone,
                         student_name=f"{student.first_name} {student.last_name}",
                         amount=float(payment_data.amount),
+                        receipt_url=receipt_url,
                         payment_id=payment.id
                     )
 

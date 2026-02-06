@@ -1,17 +1,16 @@
 """
 Transport Receipt PDF Generation Service
 Generates professional transport payment receipts with month-wise breakdown
+Matches the combined tuition+transport receipt format from ReceiptGenerator
+Black & white design for WhatsApp UTILITY template compliance
 """
 
 import io
 import os
-import calendar
-from datetime import datetime
-from typing import List, Dict, Any, Optional
-from decimal import Decimal
+from typing import List, Dict, Any
 
 from reportlab.lib import colors
-from reportlab.lib.pagesizes import A4
+from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
@@ -19,16 +18,16 @@ from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 
 
 class TransportReceiptGenerator:
-    """Service for generating PDF receipts for transport payments"""
+    """Service for generating PDF receipts for transport payments (matches ReceiptGenerator format)"""
 
     # School Information
     SCHOOL_NAME = "SUNRISE NATIONAL PUBLIC SCHOOL"
     SCHOOL_ADDRESS = "Sena road, Farsauliyana, Rath, Hamirpur, UP - 210431"
     SCHOOL_EMAIL = "sunrise.nps008@gmail.com"
-    SCHOOL_WEBSITE = "sunrisenps.com"
+    SCHOOL_WEBSITE = "https://sunrisenps.com"
 
-    # Logo path (relative to this file)
-    LOGO_PATH = os.path.join(os.path.dirname(__file__), '..', 'static', 'images', 'school_logo.jpeg')
+    # Logo path (B&W version - same as ReceiptGenerator)
+    LOGO_PATH = os.path.join(os.path.dirname(__file__), '..', 'static', 'images', 'school_logo_bw.jpeg')
 
     def __init__(self):
         """Initialize the transport receipt generator"""
@@ -36,48 +35,50 @@ class TransportReceiptGenerator:
         self._setup_custom_styles()
 
     def _setup_custom_styles(self):
-        """Setup custom paragraph styles for the receipt"""
-        # Title style
+        """Setup paragraph styles for professional B&W receipt (matches ReceiptGenerator)"""
+        # School name style
         self.styles.add(ParagraphStyle(
-            name='SchoolTitle',
-            parent=self.styles['Heading1'],
-            fontSize=18,
-            textColor=colors.HexColor('#1976d2'),
-            spaceAfter=6,
+            name='SchoolName',
+            parent=self.styles['Normal'],
+            fontSize=16,
+            textColor=colors.black,
             alignment=TA_CENTER,
-            fontName='Helvetica-Bold'
+            fontName='Helvetica-Bold',
+            spaceAfter=2
         ))
 
-        # Subtitle style
+        # School address style
         self.styles.add(ParagraphStyle(
-            name='SchoolSubtitle',
+            name='SchoolAddress',
             parent=self.styles['Normal'],
             fontSize=9,
-            textColor=colors.HexColor('#555555'),
-            spaceAfter=3,
-            alignment=TA_CENTER
+            textColor=colors.black,
+            alignment=TA_CENTER,
+            spaceAfter=2
         ))
 
-        # Receipt title
+        # Receipt title style
         self.styles.add(ParagraphStyle(
             name='ReceiptTitle',
-            parent=self.styles['Heading2'],
+            parent=self.styles['Normal'],
             fontSize=14,
-            textColor=colors.HexColor('#d32f2f'),
-            spaceAfter=12,
+            textColor=colors.black,
             alignment=TA_CENTER,
-            fontName='Helvetica-Bold'
+            fontName='Helvetica-Bold',
+            spaceBefore=8,
+            spaceAfter=8
         ))
 
-        # Section header
+        # Section header style - CENTER ALIGNED
         self.styles.add(ParagraphStyle(
             name='SectionHeader',
-            parent=self.styles['Heading3'],
-            fontSize=11,
-            textColor=colors.HexColor('#1976d2'),
-            spaceAfter=6,
-            spaceBefore=12,
-            fontName='Helvetica-Bold'
+            parent=self.styles['Normal'],
+            fontSize=10,
+            textColor=colors.black,
+            fontName='Helvetica-Bold',
+            alignment=TA_CENTER,
+            spaceBefore=6,
+            spaceAfter=4
         ))
 
         # Footer style
@@ -85,8 +86,9 @@ class TransportReceiptGenerator:
             name='Footer',
             parent=self.styles['Normal'],
             fontSize=8,
-            textColor=colors.HexColor('#666666'),
-            alignment=TA_CENTER
+            textColor=colors.gray,
+            alignment=TA_CENTER,
+            spaceBefore=12
         ))
 
     def generate_receipt(
@@ -97,387 +99,343 @@ class TransportReceiptGenerator:
         month_breakdown: List[Dict[str, Any]]
     ) -> io.BytesIO:
         """
-        Generate a PDF receipt for a transport payment
+        Generate a PDF receipt for a transport payment (matches ReceiptGenerator format)
 
         Args:
             payment_data: Payment information (id, amount, payment_method, payment_date, transaction_id, receipt_number)
-            student_data: Student information (name, admission_number, class, roll_number, father_name)
+            student_data: Student information (name, admission_number, class_name, roll_number, father_name, mobile)
             transport_data: Transport information (transport_type, distance, monthly_fee, total_paid, balance)
             month_breakdown: List of months covered with payment details
 
         Returns:
             BytesIO buffer containing the PDF
         """
-        # Create a BytesIO buffer to hold the PDF
         buffer = io.BytesIO()
 
-        # Create the PDF document
         doc = SimpleDocTemplate(
             buffer,
-            pagesize=A4,
+            pagesize=letter,
             rightMargin=0.75*inch,
             leftMargin=0.75*inch,
-            topMargin=0.75*inch,
-            bottomMargin=0.75*inch
+            topMargin=0.5*inch,
+            bottomMargin=0.5*inch
         )
 
-        # Container for the 'Flowable' objects
         elements = []
 
-        # Add school header
+        # === HEADER WITH LOGO ===
         elements.extend(self._create_header())
 
-        # Add receipt title and metadata
-        elements.extend(self._create_receipt_metadata(payment_data))
+        # === RECEIPT TITLE ===
+        elements.append(Spacer(1, 0.1*inch))
+        elements.append(Paragraph("FEE PAYMENT RECEIPT", self.styles['ReceiptTitle']))
+        elements.append(Spacer(1, 0.1*inch))
 
-        # Add student details
-        elements.extend(self._create_student_details(student_data))
+        # === EXTRACT DATA ===
+        amount = float(payment_data.get('amount', 0))
+        payment_method = payment_data.get('payment_method', 'Cash')
+        payment_date = payment_data.get('payment_date')
+        if isinstance(payment_date, str):
+            payment_date_str = payment_date
+        elif payment_date:
+            payment_date_str = payment_date.strftime('%d-%b-%Y')
+        else:
+            payment_date_str = 'N/A'
+        receipt_number = payment_data.get('receipt_number', f"TRANSPORT-{payment_data.get('id', 0):06d}")
 
-        # Add transport details
-        elements.extend(self._create_transport_details(transport_data))
+        student_name = student_data.get('name', 'N/A')
+        father_name = student_data.get('father_name', 'N/A')
+        class_name = student_data.get('class_name', 'N/A')
+        admission_number = student_data.get('admission_number', 'N/A')
+        roll_number = student_data.get('roll_number', 'N/A')
+        mobile = student_data.get('mobile', student_data.get('father_phone', 'N/A'))
 
-        # Add payment details
-        elements.extend(self._create_payment_details(payment_data))
+        # === RECEIPT INFO TABLE ===
+        elements.extend(self._create_receipt_info_table(receipt_number, payment_date_str, amount))
 
-        # Add month-wise breakdown table
-        elements.extend(self._create_month_breakdown_table(month_breakdown))
+        # === STUDENT DETAILS TABLE ===
+        elements.extend(self._create_student_table(
+            student_name, father_name, class_name, roll_number, admission_number, mobile
+        ))
 
-        # Add transport summary
-        elements.extend(self._create_transport_summary(transport_data))
+        # === TUITION FEE MONTH-WISE TABLE (show "-" for transport-only payment) ===
+        elements.extend(self._create_tuition_month_table())
 
-        # Add footer
-        elements.extend(self._create_footer())
+        # === TRANSPORT FEE MONTH-WISE BREAKDOWN TABLE ===
+        elements.extend(self._create_transport_month_breakdown_table(month_breakdown, transport_data))
 
-        # Build the PDF
+        # === SUMMARY TABLE ===
+        elements.extend(self._create_summary_table(transport_data))
+
+        # === FOOTER ===
+        elements.append(Spacer(1, 0.15*inch))
+        elements.append(Paragraph(
+            "System generated receipt. Contact school office for queries.",
+            self.styles['Footer']
+        ))
+
         doc.build(elements)
-
-        # Reset buffer position to the beginning
         buffer.seek(0)
         return buffer
 
     def _create_header(self) -> List:
-        """Create school header section with logo"""
+        """Create header with B&W logo and school info (matches ReceiptGenerator)"""
         elements = []
 
-        # Try to load the school logo
+        # Try to load the B&W logo
         logo_element = None
         if os.path.exists(self.LOGO_PATH):
             try:
-                logo_element = Image(self.LOGO_PATH, width=1.2*inch, height=1.2*inch)
+                logo_element = Image(self.LOGO_PATH, width=0.9*inch, height=0.9*inch)
             except Exception:
                 logo_element = None
 
-        # Fallback to text placeholder if logo not found
-        if logo_element is None:
-            logo_element = Paragraph(
-                "<b>LOGO</b>",
-                ParagraphStyle(
-                    'LogoPlaceholder',
-                    parent=self.styles['Normal'],
-                    fontSize=10,
-                    alignment=TA_CENTER,
-                    textColor=colors.HexColor('#999999')
-                )
-            )
-
-        # School information
+        # School info paragraph - BIGGER school name (18pt)
         school_info = Paragraph(
-            f"<b><font size=18 color='#1976d2'>{self.SCHOOL_NAME}</font></b><br/>"
-            f"<font size=9 color='#555555'>{self.SCHOOL_ADDRESS}</font><br/>"
-            f"<font size=9 color='#666666'>Email: {self.SCHOOL_EMAIL} | "
-            f"Website: {self.SCHOOL_WEBSITE}</font>",
+            f"<b><font size=18>{self.SCHOOL_NAME}</font></b><br/>"
+            f"<font size=9>{self.SCHOOL_ADDRESS}</font><br/>"
+            f"<font size=9>Email: {self.SCHOOL_EMAIL} | Web: {self.SCHOOL_WEBSITE}</font>",
             ParagraphStyle(
-                'SchoolInfo',
+                'HeaderInfo',
                 parent=self.styles['Normal'],
-                fontSize=9,
+                fontSize=10,
                 alignment=TA_CENTER,
-                leading=14
+                leading=16
             )
         )
 
-        # Create header table (logo + school info)
-        header_table = Table(
-            [[logo_element, school_info]],
-            colWidths=[1.4*inch, 5.6*inch]
-        )
-        header_table.setStyle(TableStyle([
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('ALIGN', (0, 0), (0, 0), 'CENTER'),
-            ('ALIGN', (1, 0), (1, 0), 'CENTER'),
-        ]))
-        elements.append(header_table)
+        if logo_element:
+            # Create header table with logo - full width
+            header_data = [[logo_element, school_info]]
+            header_table = Table(header_data, colWidths=[1.1*inch, 5.9*inch])
+            header_table.setStyle(TableStyle([
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                ('ALIGN', (0, 0), (0, 0), 'CENTER'),
+                ('ALIGN', (1, 0), (1, 0), 'CENTER'),
+            ]))
+            elements.append(header_table)
+        else:
+            # No logo - just school info
+            elements.append(Paragraph(self.SCHOOL_NAME, self.styles['SchoolName']))
+            elements.append(Paragraph(self.SCHOOL_ADDRESS, self.styles['SchoolAddress']))
+            elements.append(Paragraph(
+                f"Email: {self.SCHOOL_EMAIL} | Web: {self.SCHOOL_WEBSITE}",
+                self.styles['SchoolAddress']
+            ))
 
-        elements.append(Spacer(1, 0.1*inch))
-
-        # Horizontal line
+        # Horizontal line - full width
+        elements.append(Spacer(1, 0.08*inch))
         line_table = Table([['']], colWidths=[7*inch])
         line_table.setStyle(TableStyle([
-            ('LINEABOVE', (0, 0), (-1, 0), 2, colors.HexColor('#1976d2')),
+            ('LINEBELOW', (0, 0), (-1, 0), 1, colors.black),
         ]))
         elements.append(line_table)
 
         return elements
 
-    def _create_receipt_metadata(self, payment_data: Dict[str, Any]) -> List:
-        """Create receipt title and metadata section"""
+    def _create_receipt_info_table(
+        self, receipt_number: str, payment_date: str, paid_amount: float
+    ) -> List:
+        """Create receipt number, date and paid amount table - full width"""
         elements = []
-
-        elements.append(Spacer(1, 0.2*inch))
-
-        # Receipt title
-        receipt_title = Paragraph("TRANSPORT FEE PAYMENT RECEIPT", self.styles['ReceiptTitle'])
-        elements.append(receipt_title)
-
-        # Receipt number and date in a table
-        receipt_number = payment_data.get('receipt_number', f"TRANSPORT-{payment_data['id']:06d}")
-        payment_date = payment_data.get('payment_date')
-        if isinstance(payment_date, str):
-            payment_date = datetime.fromisoformat(payment_date.replace('Z', '+00:00'))
-        date_str = payment_date.strftime('%d-%b-%Y') if payment_date else 'N/A'
-
-        metadata_data = [
-            ['Receipt No:', receipt_number, 'Date:', date_str]
-        ]
-
-        metadata_table = Table(metadata_data, colWidths=[1.5*inch, 2*inch, 1*inch, 2*inch])
-        metadata_table.setStyle(TableStyle([
-            ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, -1), 10),
-            ('TEXTCOLOR', (0, 0), (0, -1), colors.HexColor('#555555')),
-            ('TEXTCOLOR', (2, 0), (2, -1), colors.HexColor('#555555')),
-            ('ALIGN', (0, 0), (0, -1), 'RIGHT'),
-            ('ALIGN', (2, 0), (2, -1), 'RIGHT'),
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ]))
-        elements.append(metadata_table)
-
-        return elements
-
-    def _create_student_details(self, student_data: Dict[str, Any]) -> List:
-        """Create student details section"""
-        elements = []
-
         elements.append(Spacer(1, 0.1*inch))
 
-        # Section header
-        section_header = Paragraph("Student Details", self.styles['SectionHeader'])
-        elements.append(section_header)
-
-        # Student details table
-        student_name = student_data.get('name', 'N/A')
-        admission_number = student_data.get('admission_number', 'N/A')
-        class_name = student_data.get('class_name', 'N/A')
-        roll_number = student_data.get('roll_number', 'N/A')
-        father_name = student_data.get('father_name', 'N/A')
-
-        student_details_data = [
-            ['Student Name:', student_name, 'Admission No:', admission_number],
-            ['Class:', class_name, 'Roll No:', roll_number],
-            ['Father\'s Name:', father_name, '', '']
+        data = [
+            ['Receipt No:', receipt_number, 'Date:', payment_date],
+            ['Paid Amount:', f'Rs. {paid_amount:,.0f}', '', '']
         ]
 
-        student_table = Table(student_details_data, colWidths=[1.5*inch, 2*inch, 1.5*inch, 1.5*inch])
-        student_table.setStyle(TableStyle([
+        # Full width table (7 inches)
+        table = Table(data, colWidths=[1.2*inch, 2.3*inch, 1*inch, 2.5*inch])
+        table.setStyle(TableStyle([
             ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
-            ('FONTNAME', (2, 0), (2, -1), 'Helvetica-Bold'),
+            ('FONTNAME', (2, 0), (2, 0), 'Helvetica-Bold'),
             ('FONTSIZE', (0, 0), (-1, -1), 9),
-            ('TEXTCOLOR', (0, 0), (-1, -1), colors.HexColor('#333333')),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
             ('TOPPADDING', (0, 0), (-1, -1), 4),
             ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+            # Merge cells for Paid Amount row
+            ('SPAN', (1, 1), (3, 1)),
         ]))
-        elements.append(student_table)
+        elements.append(table)
 
         return elements
 
-    def _create_transport_details(self, transport_data: Dict[str, Any]) -> List:
-        """Create transport details section"""
+    def _create_student_table(
+        self, name: str, guardian: str, class_name: str,
+        roll_number: str, admission_number: str, mobile: str
+    ) -> List:
+        """Create student details table - full width"""
         elements = []
-
         elements.append(Spacer(1, 0.1*inch))
+        elements.append(Paragraph("STUDENT DETAILS", self.styles['SectionHeader']))
 
-        # Section header
-        section_header = Paragraph("Transport Details", self.styles['SectionHeader'])
-        elements.append(section_header)
+        data = [
+            ['Name:', name, 'Guardian:', guardian],
+            ['Class:', class_name, 'Roll No:', roll_number],
+            ['Adm. No:', admission_number, 'Mobile:', mobile],
+        ]
 
-        # Transport details table
-        transport_type = transport_data.get('transport_type', 'N/A')
-        distance = transport_data.get('distance', 'N/A')
+        # Full width table (7 inches)
+        table = Table(data, colWidths=[1.1*inch, 2.4*inch, 1.1*inch, 2.4*inch])
+        table.setStyle(TableStyle([
+            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+            ('FONTNAME', (2, 0), (2, -1), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 9),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('TOPPADDING', (0, 0), (-1, -1), 4),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+        ]))
+        elements.append(table)
+
+        return elements
+
+    def _create_tuition_month_table(self) -> List:
+        """Create tuition fee table with "-" for transport-only payments"""
+        elements = []
+        elements.append(Spacer(1, 0.1*inch))
+        elements.append(Paragraph("TUITION FEE - MONTH WISE", self.styles['SectionHeader']))
+
+        # Show "-" for all columns since this is transport-only payment
+        data = [
+            ['Month', 'Monthly Fee', 'Pre-Paid', 'Paid Now', 'Balance', 'Status'],
+            ['-', '-', '-', '-', '-', '-']
+        ]
+
+        # Full width table (7 inches) - 6 columns
+        col_widths = [1.2*inch, 1.15*inch, 1.15*inch, 1.15*inch, 1.15*inch, 1.2*inch]
+        table = Table(data, colWidths=col_widths)
+        table.setStyle(TableStyle([
+            # Header row styling
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#e0e0e0')),
+            ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+            # Data rows
+            ('FONTSIZE', (0, 0), (-1, -1), 9),
+            ('ALIGN', (0, 1), (-1, -1), 'CENTER'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('TOPPADDING', (0, 0), (-1, -1), 4),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+        ]))
+        elements.append(table)
+
+        return elements
+
+    def _create_transport_month_breakdown_table(
+        self, month_breakdown: List[Dict[str, Any]], transport_data: Dict[str, Any]
+    ) -> List:
+        """Create transport fee month-wise breakdown table - full width"""
+        elements = []
+        elements.append(Spacer(1, 0.1*inch))
+        elements.append(Paragraph("TRANSPORT FEE - MONTH WISE", self.styles['SectionHeader']))
+
+        # Header row with Pre-Paid and Paid Now columns
+        data = [['Month', 'Monthly Fee', 'Pre-Paid', 'Paid Now', 'Balance', 'Status']]
+
         monthly_fee = transport_data.get('monthly_fee', 0)
 
-        transport_details_data = [
-            ['Transport Type:', transport_type, 'Distance:', f"{distance} KM"],
-            ['Monthly Fee:', f"₹ {monthly_fee:,.2f}", '', '']
-        ]
+        if month_breakdown:
+            for month in month_breakdown:
+                month_name = month.get('month_name', '-')
+                # Use transport monthly fee
+                fee = monthly_fee
+                # Previous paid amount before this transaction
+                pre_paid = month.get('previous_paid', 0)
+                # Amount being paid in this transaction
+                paid_now = month.get('allocated_amount', 0)
+                # Calculate balance
+                balance = fee - pre_paid - paid_now
 
-        transport_table = Table(transport_details_data, colWidths=[1.5*inch, 2*inch, 1.5*inch, 1.5*inch])
-        transport_table.setStyle(TableStyle([
-            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
-            ('FONTNAME', (2, 0), (2, -1), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, -1), 9),
-            ('TEXTCOLOR', (0, 0), (-1, -1), colors.HexColor('#333333')),
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('TOPPADDING', (0, 0), (-1, -1), 4),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
-        ]))
-        elements.append(transport_table)
+                # Determine status
+                if balance <= 0.01:
+                    status = 'Paid'
+                elif (pre_paid + paid_now) > 0:
+                    status = 'Partial'
+                else:
+                    status = 'Unpaid'
 
-        return elements
+                data.append([
+                    month_name,
+                    f'Rs. {fee:,.0f}',
+                    f'Rs. {pre_paid:,.0f}',
+                    f'Rs. {paid_now:,.0f}',
+                    f'Rs. {max(0, balance):,.0f}',
+                    status
+                ])
+        else:
+            # No month breakdown, show summary row
+            data.append(['-', '-', '-', '-', '-', '-'])
 
-    def _create_payment_details(self, payment_data: Dict[str, Any]) -> List:
-        """Create payment details section"""
-        elements = []
-
-        elements.append(Spacer(1, 0.1*inch))
-
-        # Section header
-        section_header = Paragraph("Payment Details", self.styles['SectionHeader'])
-        elements.append(section_header)
-
-        # Payment details table
-        amount = payment_data.get('amount', 0)
-        payment_method = payment_data.get('payment_method', 'Cash')
-        transaction_id = payment_data.get('transaction_id', 'N/A')
-
-        payment_details_data = [
-            ['Amount Paid:', f"₹ {amount:,.2f}", 'Payment Method:', payment_method],
-            ['Transaction ID:', transaction_id, '', '']
-        ]
-
-        payment_table = Table(payment_details_data, colWidths=[1.5*inch, 2*inch, 1.5*inch, 1.5*inch])
-        payment_table.setStyle(TableStyle([
-            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
-            ('FONTNAME', (2, 0), (2, -1), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, -1), 9),
-            ('TEXTCOLOR', (0, 0), (-1, -1), colors.HexColor('#333333')),
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('TOPPADDING', (0, 0), (-1, -1), 4),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
-        ]))
-        elements.append(payment_table)
-
-        return elements
-
-    def _create_month_breakdown_table(self, month_breakdown: List[Dict[str, Any]]) -> List:
-        """Create month-wise breakdown table"""
-        elements = []
-
-        if not month_breakdown:
-            return elements
-
-        elements.append(Spacer(1, 0.15*inch))
-
-        # Section header
-        section_header = Paragraph("Month-wise Payment Breakdown", self.styles['SectionHeader'])
-        elements.append(section_header)
-
-        # Table header
-        table_data = [['Month', 'Academic Year', 'Amount Paid']]
-
-        # Add month rows
-        for month_data in month_breakdown:
-            month_name = month_data.get('month_name', 'N/A')
-            academic_year = month_data.get('academic_year', 'N/A')
-            amount = month_data.get('allocated_amount', 0)
-
-            table_data.append([
-                month_name,
-                str(academic_year),
-                f"₹ {amount:,.2f}"
-            ])
-
-        # Create table
-        breakdown_table = Table(table_data, colWidths=[2.5*inch, 2*inch, 2*inch])
-        breakdown_table.setStyle(TableStyle([
-            # Header row
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1976d2')),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        # Full width table (7 inches) - 6 columns
+        col_widths = [1.2*inch, 1.15*inch, 1.15*inch, 1.15*inch, 1.15*inch, 1.2*inch]
+        table = Table(data, colWidths=col_widths)
+        table.setStyle(TableStyle([
+            # Header row styling
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 10),
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#e0e0e0')),
             ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
-
             # Data rows
-            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-            ('FONTSIZE', (0, 1), (-1, -1), 9),
-            ('ALIGN', (0, 1), (0, -1), 'LEFT'),
-            ('ALIGN', (1, 1), (1, -1), 'CENTER'),
-            ('ALIGN', (2, 1), (2, -1), 'RIGHT'),
-
-            # Grid
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+            ('FONTSIZE', (0, 0), (-1, -1), 9),
+            ('ALIGN', (0, 1), (0, -1), 'LEFT'),  # Month name left
+            ('ALIGN', (1, 1), (4, -1), 'RIGHT'),  # Amounts right
+            ('ALIGN', (5, 1), (5, -1), 'CENTER'),  # Status center
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-
-            # Padding
-            ('TOPPADDING', (0, 0), (-1, -1), 6),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
-            ('LEFTPADDING', (0, 0), (-1, -1), 8),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 8),
-
-            # Alternating row colors
-            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f5f5f5')]),
+            ('TOPPADDING', (0, 0), (-1, -1), 4),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
         ]))
-        elements.append(breakdown_table)
+        elements.append(table)
 
         return elements
 
-    def _create_transport_summary(self, transport_data: Dict[str, Any]) -> List:
-        """Create transport fee summary section"""
+    def _create_summary_table(self, transport_data: Dict[str, Any]) -> List:
+        """Create fee summary table - full width, matching ReceiptGenerator format"""
         elements = []
+        elements.append(Spacer(1, 0.1*inch))
+        elements.append(Paragraph("ANNUAL FEE SUMMARY", self.styles['SectionHeader']))
 
-        elements.append(Spacer(1, 0.15*inch))
+        # Transport data
+        total_transport_fee = transport_data.get('total_fee', 0)
+        # If total_fee not provided, calculate from monthly_fee * 12
+        if total_transport_fee == 0:
+            monthly_fee = transport_data.get('monthly_fee', 0)
+            total_transport_fee = monthly_fee * 12
+        total_transport_paid = transport_data.get('total_paid', 0)
+        total_transport_due = transport_data.get('balance', 0)
 
-        # Section header
-        section_header = Paragraph("Transport Fee Summary", self.styles['SectionHeader'])
-        elements.append(section_header)
-
-        # Summary data
-        total_paid = transport_data.get('total_paid', 0)
-        balance = transport_data.get('balance', 0)
-
-        summary_data = [
-            ['Total Paid:', f"₹ {total_paid:,.2f}"],
-            ['Balance Remaining:', f"₹ {balance:,.2f}"]
+        # Build summary data - show "-" for tuition since this is transport-only
+        data = [
+            ['Description', 'Tuition Fee', 'Transport Fee'],
+            ['Total Fee', '-', f'Rs. {total_transport_fee:,.0f}'],
+            ['Total Paid', '-', f'Rs. {total_transport_paid:,.0f}'],
+            ['Balance Due', '-', f'Rs. {total_transport_due:,.0f}'],
         ]
 
-        summary_table = Table(summary_data, colWidths=[4.5*inch, 2*inch])
-        summary_table.setStyle(TableStyle([
-            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
-            ('FONTNAME', (1, 0), (1, -1), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, -1), 10),
-            ('TEXTCOLOR', (0, 0), (-1, -1), colors.HexColor('#333333')),
-            ('ALIGN', (0, 0), (0, -1), 'RIGHT'),
-            ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
+        # Full width table (7 inches)
+        table = Table(data, colWidths=[2.4*inch, 2.3*inch, 2.3*inch])
+        table.setStyle(TableStyle([
+            # Header row styling
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#e0e0e0')),
+            ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+            # Data rows
+            ('FONTNAME', (0, 1), (0, -1), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 9),
+            ('ALIGN', (0, 1), (0, -1), 'LEFT'),
+            ('ALIGN', (1, 1), (-1, -1), 'RIGHT'),
             ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('TOPPADDING', (0, 0), (-1, -1), 6),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
-            ('LINEABOVE', (0, 0), (-1, 0), 1, colors.HexColor('#cccccc')),
-            ('LINEABOVE', (0, -1), (-1, -1), 2, colors.HexColor('#1976d2')),
+            ('TOPPADDING', (0, 0), (-1, -1), 4),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+            # Bold and highlight the balance row
+            ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
+            ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#f0f0f0')),
         ]))
-        elements.append(summary_table)
+        elements.append(table)
 
         return elements
-
-    def _create_footer(self) -> List:
-        """Create footer section"""
-        elements = []
-
-        elements.append(Spacer(1, 0.3*inch))
-
-        # Thank you message
-        thank_you = Paragraph(
-            "Thank you for your payment!",
-            self.styles['Footer']
-        )
-        elements.append(thank_you)
-
-        elements.append(Spacer(1, 0.1*inch))
-
-        # Note
-        note = Paragraph(
-            "This is a computer-generated receipt and does not require a signature.",
-            self.styles['Footer']
-        )
-        elements.append(note)
-
-        return elements
-
