@@ -20,12 +20,18 @@ Variables (13):
     {{12}} - Receipt URL (PDF link - displayed as text)
     {{13}} - Media URL (PDF attachment for download)
 
-Template 2: school_fee_text_receipt_v6 (Simple Text Receipt - 2 variables)
-Template SID: HX130ac4be5a9fca2e380fa87a3d19d37b
-Content: "Dear {{1}}, We have received your fee payment of ₹{{2}} - Sunrise National Public School"
-Variables (2):
+Template 2: school_fee_media_template_v2 (Media Receipt with PDF - 3 variables)
+Template SID: HX3e88965b002f73d5d8723ce82ae7a991
+Content:
+    "Dear {{1}},
+    We have received your fee payment of ₹{{2}}
+
+    - Sunrise National Public School"
+    {{3}} - Media URL (PDF attachment)
+Variables (3):
     {{1}} - Student/Parent name
     {{2}} - Amount paid
+    {{3}} - Media URL (PDF attachment for download)
 """
 
 import logging
@@ -527,36 +533,43 @@ class WhatsAppService:
         logger.info("-" * 40)
         return result
 
-    async def send_fee_text_receipt(
+    async def send_fee_media_receipt(
         self,
         phone_number: str,
         student_name: str,
         amount: float,
+        receipt_url: Optional[str] = None,
         payment_id: Optional[int] = None
     ) -> Dict[str, Any]:
         """
-        Send simple WhatsApp text receipt notification using approved template.
+        Send WhatsApp media receipt notification with PDF attachment.
 
-        Uses template: school_fee_text_receipt_v6
-        Template SID: HX130ac4be5a9fca2e380fa87a3d19d37b
-        Content: "Dear {{1}}, We have received your fee payment of ₹{{2}}
-                  - Sunrise National Public School"
+        Uses template: school_fee_media_template_v2
+        Template SID: HX3e88965b002f73d5d8723ce82ae7a991
+        Content:
+            "Dear {{1}},
+            We have received your fee payment of ₹{{2}}
 
-        Variables (2):
-            {{1}} - Student name
+            - Sunrise National Public School"
+            {{3}} - Media URL (PDF attachment)
+
+        Variables (3):
+            {{1}} - Student/Parent name
             {{2}} - Amount paid
+            {{3}} - Media URL (PDF attachment for download)
 
         Args:
             phone_number: Recipient's phone number (student/parent)
             student_name: Student's name
             amount: Payment amount
+            receipt_url: Cloudinary URL for the PDF receipt
             payment_id: Payment record ID for logging
 
         Returns:
             Dict with success status, message_sid, and any errors
         """
-        # Get template SID from config (school_fee_text_receipt_v6)
-        text_receipt_template_sid = settings.TWILIO_WHATSAPP_TEXT_RECEIPT_SID
+        # Get template SID from config (school_fee_media_template_v1)
+        media_receipt_template_sid = settings.TWILIO_WHATSAPP_MEDIA_RECEIPT_SID
 
         result = {
             "success": False,
@@ -568,11 +581,12 @@ class WhatsAppService:
         }
 
         logger.info("-" * 40)
-        logger.info(f"📱 WhatsApp Text Receipt - Payment #{payment_id}")
+        logger.info(f"📱 WhatsApp Media Receipt - Payment #{payment_id}")
         logger.info(f"   To: {phone_number}")
         logger.info(f"   Student: {student_name}")
         logger.info(f"   Amount: ₹{amount}")
-        logger.info(f"   Template SID: {text_receipt_template_sid}")
+        logger.info(f"   Receipt URL: {receipt_url or 'Not provided'}")
+        logger.info(f"   Template SID: {media_receipt_template_sid}")
 
         # Check if service is available
         if not self.is_available():
@@ -582,10 +596,10 @@ class WhatsAppService:
             return result
 
         # Check if template SID is configured
-        if not text_receipt_template_sid:
-            result["error"] = "Text receipt template SID not configured"
+        if not media_receipt_template_sid:
+            result["error"] = "Media receipt template SID not configured"
             result["status"] = "TEMPLATE_NOT_CONFIGURED"
-            logger.warning("   ⚠️ TWILIO_WHATSAPP_TEXT_RECEIPT_SID not set in environment")
+            logger.warning("   ⚠️ TWILIO_WHATSAPP_MEDIA_RECEIPT_SID not set in environment")
             return result
 
         # Format phone number
@@ -601,10 +615,11 @@ class WhatsAppService:
         # Format amount (remove decimals if whole number)
         amount_display = f"{int(amount)}" if amount == int(amount) else f"{amount:.2f}"
 
-        # Prepare template variables as JSON string
+        # Prepare template variables as JSON string (3 variables for media template v2)
         content_variables = json.dumps({
-            "1": student_name,      # {{1}} - Student name
-            "2": amount_display     # {{2}} - Amount paid
+            "1": student_name,           # {{1}} - Student/Parent name
+            "2": amount_display,         # {{2}} - Amount paid
+            "3": receipt_url or ""       # {{3}} - Media URL (PDF attachment)
         })
 
         logger.info(f"   From: {from_whatsapp}")
@@ -612,11 +627,11 @@ class WhatsAppService:
         logger.info(f"   Content Variables: {content_variables}")
 
         try:
-            # Send WhatsApp message using approved template
+            # Send WhatsApp message using approved media template
             message = self.client.messages.create(
                 from_=from_whatsapp,
                 to=formatted_phone,
-                content_sid=text_receipt_template_sid,
+                content_sid=media_receipt_template_sid,
                 content_variables=content_variables
             )
 
@@ -624,7 +639,7 @@ class WhatsAppService:
             result["message_sid"] = message.sid
             result["status"] = "SENT"
 
-            logger.info(f"   ✅ Text receipt sent! SID: {message.sid}")
+            logger.info(f"   ✅ Media receipt sent! SID: {message.sid}")
 
         except TwilioRestException as e:
             error_details = self._log_twilio_error(e, f"payment {payment_id}")

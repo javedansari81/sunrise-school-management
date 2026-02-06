@@ -1227,52 +1227,40 @@ async def resend_receipt_whatsapp(
             detail="No parent phone number available for this student"
         )
 
-    # TODO: Send WhatsApp notification when WhatsApp service is implemented
-    # For now, return a placeholder response indicating the feature is ready
-    # but WhatsApp service needs to be configured
-
-    # Placeholder response (will be replaced with actual WhatsApp sending logic)
-    from datetime import datetime
-
+    # Send WhatsApp notification using media receipt template
     logger.info(f"WhatsApp resend requested for payment {payment_id} by admin {current_user.id}")
     logger.info(f"Receipt URL: {payment.receipt_cloudinary_url}")
     logger.info(f"Parent phone: {parent_phone}")
 
-    # When WhatsApp service is implemented, uncomment this:
-    # try:
-    #     from app.services.whatsapp_service import whatsapp_service
-    #
-    #     whatsapp_result = await whatsapp_service.send_fee_receipt_notification(
-    #         phone_number=parent_phone,
-    #         student_name=f"{student.first_name} {student.last_name}",
-    #         amount=float(payment.amount),
-    #         payment_date=payment.payment_date.strftime("%d %B %Y"),
-    #         receipt_number=payment.receipt_number or f"FEE-{payment.id:06d}",
-    #         receipt_url=payment.receipt_cloudinary_url,
-    #         payment_id=payment.id
-    #     )
-    #
-    #     return {
-    #         "success": True,
-    #         "message": f"Receipt sent successfully to {parent_phone}",
-    #         "message_sid": whatsapp_result['message_sid'],
-    #         "sent_at": whatsapp_result['sent_at']
-    #     }
-    # except Exception as e:
-    #     logger.error(f"Failed to resend WhatsApp for payment {payment_id}: {str(e)}")
-    #     raise HTTPException(
-    #         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-    #         detail=f"Failed to send WhatsApp: {str(e)}"
-    #     )
+    try:
+        whatsapp_result = await whatsapp_service.send_fee_media_receipt(
+            phone_number=parent_phone,
+            student_name=f"{student.first_name} {student.last_name}",
+            amount=float(payment.amount),
+            receipt_url=payment.receipt_cloudinary_url,
+            payment_id=payment.id
+        )
 
-    # Placeholder response until WhatsApp service is implemented
-    return {
-        "success": True,
-        "message": f"Receipt resend feature is ready. WhatsApp service will be configured in Task 2. Receipt URL: {payment.receipt_cloudinary_url}",
-        "message_sid": "PLACEHOLDER_SID",
-        "sent_at": datetime.now().isoformat(),
-        "note": "This is a placeholder response. Actual WhatsApp sending will be implemented in Task 2."
-    }
+        if whatsapp_result.get("success"):
+            return {
+                "success": True,
+                "message": f"Receipt sent successfully to {parent_phone}",
+                "message_sid": whatsapp_result.get('message_sid'),
+                "sent_at": datetime.now().isoformat()
+            }
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to send WhatsApp: {whatsapp_result.get('error', 'Unknown error')}"
+            )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to resend WhatsApp for payment {payment_id}: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to send WhatsApp: {str(e)}"
+        )
 
 
 @router.get("/dashboard", response_model=FeeDashboard)
@@ -2344,8 +2332,9 @@ async def pay_monthly_enhanced(
         traceback.print_exc()
 
     # =====================================================
-    # WhatsApp Notification - Using approved template
-    # Template: school_fee_text_receipt_v6 (2 variables)
+    # WhatsApp Notification - Using approved media template
+    # Template: school_fee_media_template_v1 (4 variables)
+    # Sends receipt PDF attachment with clickable link
     # =====================================================
     whatsapp_result = None
     whatsapp_status = None
@@ -2360,11 +2349,12 @@ async def pay_monthly_enhanced(
                 break
 
         if contact_phone:
-            # Send WhatsApp notification using simple text receipt template
-            whatsapp_result = await whatsapp_service.send_fee_text_receipt(
+            # Send WhatsApp notification using media receipt template (with PDF attachment)
+            whatsapp_result = await whatsapp_service.send_fee_media_receipt(
                 phone_number=contact_phone,
                 student_name=f"{student.first_name} {student.last_name}",
                 amount=float(actual_amount_to_process),
+                receipt_url=receipt_url,
                 payment_id=payment.id
             )
 
@@ -3031,11 +3021,12 @@ async def pay_combined_tuition_transport(
                 break
 
         if contact_phone:
-            # Send WhatsApp notification using simple text receipt template
-            whatsapp_result = await whatsapp_service.send_fee_text_receipt(
+            # Send WhatsApp notification using media receipt template (with PDF attachment)
+            whatsapp_result = await whatsapp_service.send_fee_media_receipt(
                 phone_number=contact_phone,
                 student_name=f"{student.first_name} {student.last_name}",
                 amount=total_combined_amount,
+                receipt_url=receipt_url,
                 payment_id=tuition_payment.id
             )
 
