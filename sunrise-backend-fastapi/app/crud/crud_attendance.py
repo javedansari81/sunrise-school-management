@@ -383,9 +383,12 @@ class CRUDAttendanceRecord(CRUDBase[AttendanceRecord, AttendanceRecordCreate, At
             COUNT(CASE WHEN ast.name = 'PRESENT' THEN 1 END) as total_present,
             COUNT(CASE WHEN ast.name = 'ABSENT' THEN 1 END) as total_absent,
             COUNT(CASE WHEN ast.name = 'LATE' THEN 1 END) as total_late,
-            ROUND(
-                (COUNT(CASE WHEN ast.name = 'PRESENT' THEN 1 END) * 100.0 /
-                NULLIF(COUNT(CASE WHEN ast.affects_attendance_percentage = TRUE THEN 1 END), 0)), 2
+            COALESCE(
+                ROUND(
+                    (COUNT(CASE WHEN ast.name = 'PRESENT' THEN 1 END) * 100.0 /
+                    NULLIF(COUNT(CASE WHEN ast.affects_attendance_percentage = TRUE THEN 1 END), 0)), 2
+                ),
+                0.0
             ) as overall_attendance_percentage
         FROM attendance_records ar
         LEFT JOIN attendance_statuses ast ON ar.attendance_status_id = ast.id
@@ -404,7 +407,15 @@ class CRUDAttendanceRecord(CRUDBase[AttendanceRecord, AttendanceRecordCreate, At
                 "overall_attendance_percentage": 0.0
             }
 
-        return dict(row._mapping)
+        # Convert row to dict and ensure proper handling of None/NULL values
+        stats = dict(row._mapping)
+        return {
+            "total_records": stats.get("total_records") or 0,
+            "total_present": stats.get("total_present") or 0,
+            "total_absent": stats.get("total_absent") or 0,
+            "total_late": stats.get("total_late") or 0,
+            "overall_attendance_percentage": float(stats.get("overall_attendance_percentage") or 0.0)
+        }
 
 
 # Create singleton instance

@@ -617,24 +617,38 @@ const AdminDashboardContent: React.FC = () => {
         return (
           <Box sx={{ mt: 1.5, pt: 1.5, borderTop: '1px solid #e0e0e0' }}>
             <Typography variant="subtitle2" fontWeight="bold" gutterBottom sx={{ mb: 1, fontSize: '0.875rem' }}>
-              Transport Type Utilization
+              Monthly Transport Fee Collection
             </Typography>
-            {card.details.transport_type_breakdown && card.details.transport_type_breakdown.length > 0 ? (
+            {card.details.monthly_trends && card.details.monthly_trends.length > 0 ? (
               <ResponsiveContainer width="100%" height={140}>
-                <BarChart data={card.details.transport_type_breakdown} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
+                <LineChart data={card.details.monthly_trends} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                  <XAxis dataKey="type" style={{ fontSize: '0.65rem' }} />
-                  <YAxis style={{ fontSize: '0.7rem' }} />
-                  <RechartsTooltip contentStyle={{ fontSize: '0.75rem' }} />
+                  <XAxis dataKey="month" style={{ fontSize: '0.65rem' }} />
+                  <YAxis style={{ fontSize: '0.7rem' }} tickFormatter={(value) => `₹${(value/1000).toFixed(0)}k`} />
+                  <RechartsTooltip
+                    contentStyle={{ fontSize: '0.75rem' }}
+                    formatter={(value: number) => [`₹${value.toLocaleString('en-IN')}`, '']}
+                  />
                   <Legend wrapperStyle={{ fontSize: '0.7rem' }} iconSize={10} />
-                  <Bar dataKey="enrollments" fill={card.color} name="Enrollments" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="capacity" fill="#90caf9" name="Capacity" radius={[4, 4, 0, 0]} />
-                </BarChart>
+                  <Line type="monotone" dataKey="collected" stroke={card.color} name="Collected" strokeWidth={2} dot={{ r: 3 }} />
+                </LineChart>
               </ResponsiveContainer>
             ) : (
-              <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8rem' }}>No transport data available</Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8rem' }}>No monthly data available</Typography>
             )}
-            <Box sx={{ mt: 1.5, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+            {/* Transport Type Counts */}
+            <Box sx={{ mt: 1.5, display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>
+              {card.details.transport_type_breakdown && card.details.transport_type_breakdown.map((type: { name: string; type: string; count: number }) => (
+                <Chip
+                  key={type.name}
+                  label={`${type.type}: ${type.count}`}
+                  size="small"
+                  variant="outlined"
+                  sx={{ height: 24, fontSize: '0.7rem' }}
+                />
+              ))}
+            </Box>
+            <Box sx={{ mt: 1, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
               <Chip label={`Collected: ₹${(card.details.collected_fees || 0).toLocaleString('en-IN')}`} size="small" color="success" sx={{ height: 24, fontSize: '0.7rem' }} />
               <Chip label={`Pending: ₹${(card.details.pending_fees || 0).toLocaleString('en-IN')}`} size="small" color="warning" sx={{ height: 24, fontSize: '0.7rem' }} />
             </Box>

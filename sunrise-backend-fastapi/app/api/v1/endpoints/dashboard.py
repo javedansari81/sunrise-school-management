@@ -837,17 +837,17 @@ async def get_admin_dashboard_enhanced_stats(
             )
             transport_stats = transport_stats_result.fetchone()
 
-            # Get transport type breakdown
+            # Get transport type breakdown (Van, E-Rickshaw counts)
             transport_type_query = text("""
                 SELECT
+                    tt.name as transport_type_name,
                     tt.description as transport_type,
-                    COUNT(ste.id) as enrollment_count,
-                    tt.capacity as capacity
+                    COUNT(ste.id) as enrollment_count
                 FROM sunrise.student_transport_enrollment ste
                 LEFT JOIN sunrise.transport_types tt ON ste.transport_type_id = tt.id
                 WHERE ste.session_year_id = :session_year_id
                     AND ste.is_active = TRUE
-                GROUP BY tt.id, tt.description, tt.capacity
+                GROUP BY tt.id, tt.name, tt.description
                 ORDER BY enrollment_count DESC
             """)
             transport_type_result = await db.execute(
@@ -856,19 +856,46 @@ async def get_admin_dashboard_enhanced_stats(
             )
             transport_type_breakdown = [
                 {
+                    'name': row.transport_type_name or 'Not Specified',
                     'type': row.transport_type or 'Not Specified',
-                    'enrollments': row.enrollment_count,
-                    'capacity': row.capacity or 0
+                    'count': row.enrollment_count
                 }
                 for row in transport_type_result
             ]
 
+            # Get monthly transport fee collection trends
+            transport_monthly_query = text("""
+                SELECT
+                    tmt.month_name,
+                    tmt.academic_month,
+                    COALESCE(SUM(tmt.paid_amount), 0) as collected_amount,
+                    COALESCE(SUM(tmt.monthly_amount), 0) as total_amount
+                FROM sunrise.transport_monthly_tracking tmt
+                JOIN sunrise.student_transport_enrollment ste ON tmt.enrollment_id = ste.id
+                WHERE tmt.session_year_id = :session_year_id
+                    AND ste.is_active = TRUE
+                GROUP BY tmt.month_name, tmt.academic_month
+                ORDER BY tmt.academic_month
+            """)
+            transport_monthly_result = await db.execute(
+                transport_monthly_query,
+                {"session_year_id": session_year_id}
+            )
+            transport_monthly_trends = [
+                {
+                    'month': row.month_name,
+                    'collected': float(row.collected_amount),
+                    'total': float(row.total_amount)
+                }
+                for row in transport_monthly_result
+            ]
+
             response_data['transport_service'] = {
-                'total_routes': transport_stats.transport_types or 0,
                 'students_using_transport': transport_stats.students_using_transport or 0,
                 'pending_fees': float(transport_stats.pending_transport_fees or 0),
                 'collected_fees': float(transport_stats.collected_transport_fees or 0),
                 'transport_type_breakdown': transport_type_breakdown,
+                'monthly_trends': transport_monthly_trends,
                 'is_session_filtered': True
             }
         except Exception as e:

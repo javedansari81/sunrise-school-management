@@ -408,6 +408,9 @@ class CRUDReport:
         all_records = []
 
         # Query Fee Payments
+        # Exclude:
+        # 1. Reversal records (is_reversal == True) - these are the reversal transactions
+        # 2. Payments that have been reversed (reversed_by_payment_id IS NOT NULL) - original payments that were reversed
         fee_query = (
             select(FeePayment)
             .options(
@@ -420,7 +423,8 @@ class CRUDReport:
                 and_(
                     FeePayment.payment_date >= from_date,
                     FeePayment.payment_date <= to_date,
-                    FeePayment.is_reversal == False
+                    FeePayment.is_reversal == False,
+                    FeePayment.reversed_by_payment_id.is_(None)  # Exclude payments that have been reversed
                 )
             )
         )
@@ -473,6 +477,9 @@ class CRUDReport:
             })
 
         # Query Transport Payments
+        # Exclude:
+        # 1. Reversal records (is_reversal == True) - these are the reversal transactions
+        # 2. Payments that have been reversed (reversed_by_payment_id IS NOT NULL) - original payments that were reversed
         try:
             transport_query = (
                 select(TransportPayment)
@@ -486,7 +493,8 @@ class CRUDReport:
                     and_(
                         TransportPayment.payment_date >= from_date,
                         TransportPayment.payment_date <= to_date,
-                        TransportPayment.is_reversal == False
+                        TransportPayment.is_reversal == False,
+                        TransportPayment.reversed_by_payment_id.is_(None)  # Exclude payments that have been reversed
                     )
                 )
             )

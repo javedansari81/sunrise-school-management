@@ -329,7 +329,7 @@ const AttendanceManagementSystem: React.FC = () => {
                           Total Records
                         </Typography>
                         <Typography variant="h4">
-                          {statistics.total_records}
+                          {statistics.total_records || 0}
                         </Typography>
                       </CardContent>
                     </Card>
@@ -341,7 +341,7 @@ const AttendanceManagementSystem: React.FC = () => {
                           Present
                         </Typography>
                         <Typography variant="h4" color="success.main">
-                          {statistics.total_present}
+                          {statistics.total_present || 0}
                         </Typography>
                       </CardContent>
                     </Card>
@@ -353,7 +353,7 @@ const AttendanceManagementSystem: React.FC = () => {
                           Absent
                         </Typography>
                         <Typography variant="h4" color="error.main">
-                          {statistics.total_absent}
+                          {statistics.total_absent || 0}
                         </Typography>
                       </CardContent>
                     </Card>
@@ -365,11 +365,22 @@ const AttendanceManagementSystem: React.FC = () => {
                           Attendance %
                         </Typography>
                         <Typography variant="h4" color="primary.main">
-                          {statistics.overall_attendance_percentage.toFixed(1)}%
+                          {(statistics.overall_attendance_percentage || 0).toFixed(1)}%
                         </Typography>
                       </CardContent>
                     </Card>
                   </Grid>
+                  {statistics.total_records === 0 && (
+                    <Grid size={{ xs: 12 }}>
+                      <Card sx={{ bgcolor: 'info.light' }}>
+                        <CardContent>
+                          <Typography variant="body1" color="info.contrastText">
+                            No attendance records found for the selected period. Try adjusting the date range or filters.
+                          </Typography>
+                        </CardContent>
+                      </Card>
+                    </Grid>
+                  )}
                   <Grid size={{ xs: 12 }}>
                     <Card>
                       <CardContent>
@@ -377,7 +388,7 @@ const AttendanceManagementSystem: React.FC = () => {
                           Date Range
                         </Typography>
                         <Typography variant="body1">
-                          {statistics.date_range}
+                          {statistics.date_range || 'Not specified'}
                         </Typography>
                       </CardContent>
                     </Card>
