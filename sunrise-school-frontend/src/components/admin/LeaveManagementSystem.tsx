@@ -3,8 +3,6 @@ import {
   Box,
   Paper,
   Typography,
-  Tabs,
-  Tab,
   Table,
   TableBody,
   TableCell,
@@ -28,8 +26,6 @@ import {
   Alert,
   CircularProgress,
   Snackbar,
-  Card,
-  CardContent,
   Stack,
   Pagination
 } from '@mui/material';
@@ -40,12 +36,7 @@ import {
   Cancel as RejectIcon,
   Delete as DeleteIcon,
   School,
-  Work,
-  FilterList,
-  EventNote,
-  Schedule,
-  CheckCircle,
-  Cancel
+  Work
 } from '@mui/icons-material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
@@ -80,27 +71,6 @@ interface LeaveRequest {
   created_at: string;
 }
 
-interface TabPanelProps {
-  children?: React.ReactNode;
-  index: number;
-  value: number;
-}
-
-function TabPanel(props: TabPanelProps) {
-  const { children, value, index, ...other } = props;
-  return (
-    <div
-      role="tabpanel"
-      hidden={value !== index}
-      id={`leave-tabpanel-${index}`}
-      aria-labelledby={`leave-tab-${index}`}
-      {...other}
-    >
-      {value === index && <>{children}</>}
-    </div>
-  );
-}
-
 const LeaveManagementSystem: React.FC = () => {
   const { isAuthenticated, user } = useAuth();
   const { isLoading: configLoading, isLoaded: configLoaded, error: configError } = useServiceConfiguration('leave-management');
@@ -108,14 +78,12 @@ const LeaveManagementSystem: React.FC = () => {
 
   // Get the service configuration
   const configuration = getServiceConfiguration('leave-management');
-  const [tabValue, setTabValue] = useState(0);
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
   const [loading, setLoading] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedLeave, setSelectedLeave] = useState<LeaveRequest | null>(null);
   const [isViewMode, setIsViewMode] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
-  const [statistics, setStatistics] = useState<any>({});
   const [searchInput, setSearchInput] = useState('');
 
   // Pagination state
@@ -215,21 +183,8 @@ const LeaveManagementSystem: React.FC = () => {
     }
   }, [filters, isAuthenticated, user, page, perPage]);
 
-  const loadStatistics = useCallback(async () => {
-    if (!isAuthenticated) return;
-
-    try {
-      console.log('🌐 Loading leave statistics...');
-      const stats = await leaveAPI.getLeaveStatistics();
-      console.log('✅ Leave statistics loaded:', stats);
-      setStatistics(stats);
-    } catch (error) {
-      console.error('Error loading statistics:', error);
-    }
-  }, [isAuthenticated]);
-
-  // Load leave requests and statistics
-  // Fixed: Removed 'filters', 'loadLeaveRequests', 'loadStatistics' from dependencies
+  // Load leave requests
+  // Fixed: Removed 'filters', 'loadLeaveRequests' from dependencies
   // to prevent infinite re-render loop. These functions are stable via useCallback.
   useEffect(() => {
     console.log('🔧 LeaveManagementSystem useEffect triggered:', {
@@ -243,7 +198,6 @@ const LeaveManagementSystem: React.FC = () => {
     if (!configLoading && configLoaded && isAuthenticated) {
       console.log('🚀 Triggering data load for leave management');
       loadLeaveRequests();
-      loadStatistics();
     } else if (configError) {
       console.error('❌ Configuration error in leave management:', configError);
       setSnackbar({
@@ -254,14 +208,14 @@ const LeaveManagementSystem: React.FC = () => {
     }
   }, [configLoading, configLoaded, configError, isAuthenticated]);
 
-  // Separate useEffect to reload data when filters, page, or tabValue change
+  // Separate useEffect to reload data when filters or page change
   // This ensures data is refreshed when user interacts with filters/pagination
   useEffect(() => {
     if (configLoaded && isAuthenticated) {
-      console.log('🔄 Reloading leave requests due to filter/page/tab change');
+      console.log('🔄 Reloading leave requests due to filter/page change');
       loadLeaveRequests();
     }
-  }, [filters, page, tabValue, configLoaded, isAuthenticated, loadLeaveRequests]);
+  }, [filters, page, configLoaded, isAuthenticated, loadLeaveRequests]);
 
   // Debounced search effect
   useEffect(() => {
@@ -274,11 +228,6 @@ const LeaveManagementSystem: React.FC = () => {
 
     return () => clearTimeout(timer);
   }, [searchInput]);
-
-  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
-    setTabValue(newValue);
-    setPage(1); // Reset to first page when changing tabs
-  };
 
   // Handle filter changes - reset to page 1
   const handleFilterChange = (newFilters: any) => {
@@ -540,38 +489,8 @@ const LeaveManagementSystem: React.FC = () => {
           </Box>
         </CollapsibleFilterSection>
 
-        {/* Tabs Section */}
-        <Paper sx={{ width: '100%', mb: { xs: 2, sm: 3 } }}>
-          <Tabs
-            value={tabValue}
-            onChange={handleTabChange}
-            aria-label="leave management tabs"
-            variant="scrollable"
-            scrollButtons="auto"
-            allowScrollButtonsMobile
-            sx={{
-              '& .MuiTab-root': {
-                fontSize: { xs: '0.75rem', sm: '0.875rem' },
-                minHeight: { xs: 40, sm: 48 },
-                minWidth: { xs: 80, sm: 120 },
-                textTransform: 'none',
-                fontWeight: 500,
-              },
-              '& .Mui-selected': {
-                fontWeight: 600,
-              }
-            }}
-          >
-            <Tab label="All Requests" />
-            <Tab label="Pending Approval" />
-            <Tab label="My Requests" />
-            <Tab label="Statistics" />
-          </Tabs>
-        </Paper>
-
-        <TabPanel value={tabValue} index={0}>
-          {/* All Requests Tab */}
-          {loading ? (
+        {/* All Requests */}
+        {loading ? (
             <Box display="flex" justifyContent="center" p={{ xs: 2, sm: 4 }}>
               <CircularProgress />
             </Box>
@@ -722,497 +641,6 @@ const LeaveManagementSystem: React.FC = () => {
             )}
             </Paper>
           )}
-        </TabPanel>
-
-        <TabPanel value={tabValue} index={1}>
-          {/* Pending Approval Tab */}
-          {loading ? (
-            <Box display="flex" justifyContent="center" p={{ xs: 2, sm: 4 }}>
-              <CircularProgress />
-            </Box>
-          ) : (
-            <Paper elevation={3} sx={{ p: 3 }}>
-              <TableContainer
-                sx={{
-                  maxHeight: { xs: '60vh', sm: '70vh' },
-                  overflow: 'auto'
-                }}
-              >
-              <Table
-                stickyHeader
-                size="small"
-                sx={{
-                  '& .MuiTableCell-root': {
-                    fontSize: { xs: '0.75rem', sm: '0.875rem' },
-                    padding: { xs: '8px 12px', sm: '12px 16px' },
-                    borderBottom: '1px solid rgba(224, 224, 224, 1)'
-                  },
-                  '& .MuiTableHead-root .MuiTableCell-root': {
-                    backgroundColor: 'grey.50',
-                    fontWeight: 600,
-                    fontSize: { xs: '0.75rem', sm: '0.875rem' }
-                  }
-                }}
-              >
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Applicant</TableCell>
-                    <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>Type</TableCell>
-                    <TableCell>Leave Type</TableCell>
-                    <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>Duration</TableCell>
-                    <TableCell>Days</TableCell>
-                    <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>Submitted</TableCell>
-                    <TableCell align="center">Actions</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {Array.isArray(leaveRequests) && leaveRequests.length > 0 ? (
-                    leaveRequests
-                      .filter(leave => leave && typeof leave === 'object' && leave.id && leave.leave_status_name?.toUpperCase() === 'PENDING')
-                      .map((leave) => (
-                        <TableRow key={leave.id}>
-                          <TableCell>
-                            <Stack spacing={0.5}>
-                              <Typography variant="body2" fontWeight={600} noWrap>
-                                {leave.applicant_name || 'Unknown'}
-                              </Typography>
-                              <Typography variant="caption" color="text.secondary" noWrap>
-                                {leave.applicant_details || ''}
-                              </Typography>
-                            </Stack>
-                          </TableCell>
-                          <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
-                            <Chip
-                              icon={leave.applicant_type === 'student' ? <School /> : <Work />}
-                              label={leave.applicant_type === 'student' ? 'Student' : 'Teacher'}
-                              size="small"
-                              variant="outlined"
-                              sx={{ fontSize: { xs: '0.65rem', sm: '0.75rem' } }}
-                            />
-                          </TableCell>
-                          <TableCell>{leave.leave_type_name || 'Unknown'}</TableCell>
-                          <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
-                            <Stack spacing={0.5}>
-                              <Typography variant="body2" noWrap sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
-                                {leave.start_date ? new Date(leave.start_date).toLocaleDateString() : 'N/A'}
-                              </Typography>
-                              <Typography variant="caption" color="text.secondary" noWrap sx={{ fontSize: { xs: '0.65rem', sm: '0.75rem' } }}>
-                                to {leave.end_date ? new Date(leave.end_date).toLocaleDateString() : 'N/A'}
-                              </Typography>
-                            </Stack>
-                          </TableCell>
-                          <TableCell>{leave.total_days || 0}</TableCell>
-                          <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
-                            <Typography variant="caption" color="textSecondary" sx={{ fontSize: { xs: '0.65rem', sm: '0.75rem' } }}>
-                              {leave.created_at ? new Date(leave.created_at).toLocaleDateString() : 'N/A'}
-                            </Typography>
-                          </TableCell>
-                          <TableCell align="center">
-                            <Stack direction="row" spacing={{ xs: 0.25, sm: 0.5 }} justifyContent="center" flexWrap="wrap">
-                              <Tooltip title="View Details">
-                                <IconButton
-                                  size="small"
-                                  onClick={() => handleOpenDialog(leave, true)}
-                                  sx={{ color: 'primary.main', minWidth: 36, minHeight: 36 }}
-                                >
-                                  <ViewIcon sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
-                                </IconButton>
-                              </Tooltip>
-                              {leave.leave_status_name?.toUpperCase() === 'PENDING' && (
-                                <>
-                                  <Tooltip title="Approve Request">
-                                    <IconButton
-                                      size="small"
-                                      onClick={() => handleApprove(leave.id, 2, 'Approved')}
-                                      sx={{ color: 'success.main', minWidth: 36, minHeight: 36 }}
-                                    >
-                                      <ApproveIcon sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
-                                    </IconButton>
-                                  </Tooltip>
-                                  <Tooltip title="Reject Request">
-                                    <IconButton
-                                      size="small"
-                                      onClick={() => handleApprove(leave.id, 3, 'Rejected')}
-                                      sx={{ color: 'error.main', minWidth: 36, minHeight: 36 }}
-                                    >
-                                      <RejectIcon sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
-                                    </IconButton>
-                                  </Tooltip>
-                                  <Tooltip title="Delete Request">
-                                    <IconButton
-                                      size="small"
-                                      onClick={() => handleDelete(leave.id)}
-                                      sx={{ color: 'error.main', minWidth: 36, minHeight: 36 }}
-                                    >
-                                      <DeleteIcon sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
-                                    </IconButton>
-                                  </Tooltip>
-                                </>
-                              )}
-                            </Stack>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                  ) : (
-                    <TableRow>
-                      <TableCell colSpan={7} align="center">
-                        <Typography variant="body2" color="textSecondary" sx={{ py: 4 }}>
-                          No pending leave requests found
-                        </Typography>
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </TableContainer>
-
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <Box display="flex" justifyContent="center" mt={3}>
-                <Pagination
-                  count={totalPages}
-                  page={page}
-                  onChange={(_, newPage) => setPage(newPage)}
-                  color={PAGINATION_UI_CONFIG.color}
-                  showFirstButton={PAGINATION_UI_CONFIG.showFirstLastButtons}
-                  showLastButton={PAGINATION_UI_CONFIG.showFirstLastButtons}
-                />
-              </Box>
-            )}
-            </Paper>
-          )}
-        </TabPanel>
-
-        <TabPanel value={tabValue} index={2}>
-          {/* My Requests Tab */}
-          {loading ? (
-            <Box display="flex" justifyContent="center" p={{ xs: 2, sm: 4 }}>
-              <CircularProgress />
-            </Box>
-          ) : (
-            <Paper elevation={3} sx={{ p: 3 }}>
-              <TableContainer
-                sx={{
-                  maxHeight: { xs: '60vh', sm: '70vh' },
-                  overflow: 'auto'
-                }}
-              >
-              <Table
-                stickyHeader
-                size="small"
-                sx={{
-                  '& .MuiTableCell-root': {
-                    fontSize: { xs: '0.75rem', sm: '0.875rem' },
-                    padding: { xs: '8px 12px', sm: '12px 16px' },
-                    borderBottom: '1px solid rgba(224, 224, 224, 1)'
-                  },
-                  '& .MuiTableHead-root .MuiTableCell-root': {
-                    backgroundColor: 'grey.50',
-                    fontWeight: 600,
-                    fontSize: { xs: '0.75rem', sm: '0.875rem' }
-                  }
-                }}
-              >
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Leave Type</TableCell>
-                    <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>Duration</TableCell>
-                    <TableCell>Days</TableCell>
-                    <TableCell>Status</TableCell>
-                    <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>Submitted</TableCell>
-                    <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>Reviewed By</TableCell>
-                    <TableCell align="center">Actions</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {Array.isArray(leaveRequests) && leaveRequests.length > 0 ? (
-                    leaveRequests
-                      .filter(leave =>
-                        leave && typeof leave === 'object' && leave.id &&
-                        leave.applicant_id === user?.id &&
-                        ((user?.user_type === 'student' && leave.applicant_type === 'student') ||
-                         (user?.user_type === 'teacher' && leave.applicant_type === 'teacher') ||
-                         (user?.user_type === 'admin'))
-                      )
-                      .map((leave) => (
-                        <TableRow key={leave.id}>
-                          <TableCell>
-                            <Stack spacing={0.5}>
-                              <Typography variant="body2" fontWeight={600} noWrap>
-                                {leave.leave_type_name || 'Unknown'}
-                              </Typography>
-                              <Typography variant="caption" color="text.secondary" noWrap>
-                                {leave.reason ? (leave.reason.length > 50 ? `${leave.reason.substring(0, 50)}...` : leave.reason) : 'No reason provided'}
-                              </Typography>
-                            </Stack>
-                          </TableCell>
-                          <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
-                            <Stack spacing={0.5}>
-                              <Typography variant="body2" noWrap sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
-                                {leave.start_date ? new Date(leave.start_date).toLocaleDateString() : 'N/A'}
-                              </Typography>
-                              <Typography variant="caption" color="text.secondary" noWrap sx={{ fontSize: { xs: '0.65rem', sm: '0.75rem' } }}>
-                                to {leave.end_date ? new Date(leave.end_date).toLocaleDateString() : 'N/A'}
-                              </Typography>
-                            </Stack>
-                          </TableCell>
-                          <TableCell>
-                            <Typography variant="body2" fontWeight="bold" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
-                              {leave.total_days || 0}
-                            </Typography>
-                          </TableCell>
-                          <TableCell>
-                            <Chip
-                              label={leave.leave_status_name || 'Unknown'}
-                              size="small"
-                              sx={{
-                                backgroundColor: getStatusColor(leave.leave_status_name || 'Unknown', leave.leave_status_color),
-                                color: 'white',
-                                fontSize: { xs: '0.65rem', sm: '0.75rem' }
-                              }}
-                            />
-                          </TableCell>
-                          <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
-                            <Typography variant="caption" color="textSecondary" sx={{ fontSize: { xs: '0.65rem', sm: '0.75rem' } }}>
-                              {leave.created_at ? new Date(leave.created_at).toLocaleDateString() : 'N/A'}
-                            </Typography>
-                          </TableCell>
-                          <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
-                            <Typography variant="caption" color="textSecondary" sx={{ fontSize: { xs: '0.65rem', sm: '0.75rem' } }}>
-                              {leave.reviewer_name || (leave.leave_status_name === 'Pending' ? 'Pending' : 'N/A')}
-                            </Typography>
-                          </TableCell>
-                          <TableCell align="center">
-                            <Stack direction="row" spacing={{ xs: 0.25, sm: 0.5 }} justifyContent="center" flexWrap="wrap">
-                              <Tooltip title="View Details">
-                                <IconButton
-                                  size="small"
-                                  onClick={() => handleOpenDialog(leave, true)}
-                                  sx={{ color: 'primary.main', minWidth: 36, minHeight: 36 }}
-                                >
-                                  <ViewIcon sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
-                                </IconButton>
-                              </Tooltip>
-                              {leave.leave_status_name?.toUpperCase() === 'PENDING' && (
-                                <>
-                                  <Tooltip title="Approve Request">
-                                    <IconButton
-                                      size="small"
-                                      onClick={() => handleApprove(leave.id, 2, 'Approved')}
-                                      sx={{ color: 'success.main', minWidth: 36, minHeight: 36 }}
-                                    >
-                                      <ApproveIcon sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
-                                    </IconButton>
-                                  </Tooltip>
-                                  <Tooltip title="Reject Request">
-                                    <IconButton
-                                      size="small"
-                                      onClick={() => handleApprove(leave.id, 3, 'Rejected')}
-                                      sx={{ color: 'error.main', minWidth: 36, minHeight: 36 }}
-                                    >
-                                      <RejectIcon sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
-                                    </IconButton>
-                                  </Tooltip>
-                                  <Tooltip title="Delete Request">
-                                    <IconButton
-                                      size="small"
-                                      onClick={() => handleDelete(leave.id)}
-                                      sx={{ color: 'error.main', minWidth: 36, minHeight: 36 }}
-                                    >
-                                      <DeleteIcon sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }} />
-                                    </IconButton>
-                                  </Tooltip>
-                                </>
-                              )}
-                            </Stack>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                  ) : (
-                    <TableRow>
-                      <TableCell colSpan={7} align="center">
-                        <Typography variant="body2" color="textSecondary" sx={{ py: 4 }}>
-                          You have not submitted any leave requests yet
-                        </Typography>
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </TableContainer>
-
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <Box display="flex" justifyContent="center" mt={3}>
-                <Pagination
-                  count={totalPages}
-                  page={page}
-                  onChange={(_, newPage) => setPage(newPage)}
-                  color={PAGINATION_UI_CONFIG.color}
-                  showFirstButton={PAGINATION_UI_CONFIG.showFirstLastButtons}
-                  showLastButton={PAGINATION_UI_CONFIG.showFirstLastButtons}
-                />
-              </Box>
-            )}
-            </Paper>
-          )}
-        </TabPanel>
-
-        <TabPanel value={tabValue} index={3}>
-          {/* Statistics Tab */}
-          {loading ? (
-            <Box display="flex" justifyContent="center" p={{ xs: 2, sm: 4 }}>
-              <CircularProgress />
-            </Box>
-          ) : (
-            <>
-              {/* Statistics Cards */}
-              <Grid container spacing={3} mb={4}>
-                {[
-                  {
-                    title: 'Total Requests',
-                    value: statistics.total_requests || 0,
-                    icon: <EventNote />,
-                    color: 'primary',
-                    subtitle: `${statistics.total_days || 0} total days`
-                  },
-                  {
-                    title: 'Pending Approval',
-                    value: statistics.pending_requests || 0,
-                    icon: <Schedule />,
-                    color: 'warning',
-                    subtitle: 'Awaiting review'
-                  },
-                  {
-                    title: 'Approved',
-                    value: statistics.approved_requests || 0,
-                    icon: <CheckCircle />,
-                    color: 'success',
-                    subtitle: `${statistics.approval_rate ? statistics.approval_rate.toFixed(1) : 0}% approval rate`
-                  },
-                  {
-                    title: 'Rejected',
-                    value: statistics.rejected_requests || 0,
-                    icon: <Cancel />,
-                    color: 'error',
-                    subtitle: 'Not approved'
-                  }
-                ].map((stat, index) => (
-                  <Grid key={index} size={{ xs: 12, sm: 6, md: 3 }}>
-                    <Card elevation={3}>
-                      <CardContent>
-                        <Box display="flex" alignItems="center" justifyContent="space-between">
-                          <Box>
-                            <Typography variant="h4" fontWeight="bold" color={`${stat.color}.main`}>
-                              {stat.value}
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary">
-                              {stat.title}
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary">
-                              {stat.subtitle}
-                            </Typography>
-                          </Box>
-                          <Box color={`${stat.color}.main`}>
-                            {React.cloneElement(stat.icon, { sx: { fontSize: 40 } })}
-                          </Box>
-                        </Box>
-                      </CardContent>
-                    </Card>
-                  </Grid>
-                ))}
-              </Grid>
-
-              {/* Breakdown Charts */}
-              <Grid container spacing={3}>
-                {/* Leave Type Breakdown */}
-                <Grid size={{ xs: 12, md: 6 }}>
-                  <Card elevation={3}>
-                    <CardContent>
-                      <Typography variant="h6" fontWeight="bold" mb={2}>
-                        Leave Type Breakdown
-                      </Typography>
-                      {statistics.leave_type_breakdown && statistics.leave_type_breakdown.length > 0 ? (
-                        <Box>
-                          {statistics.leave_type_breakdown.map((item: any, index: number) => (
-                            <Box key={index} sx={{ mb: 2 }}>
-                              <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
-                                <Typography variant="body2" fontWeight="bold">
-                                  {item.leave_type}
-                                </Typography>
-                                <Typography variant="body2" color="primary.main">
-                                  {item.count} requests
-                                </Typography>
-                              </Box>
-                              <Box sx={{ width: '100%', bgcolor: 'grey.200', borderRadius: 1, height: 8 }}>
-                                <Box
-                                  sx={{
-                                    width: `${statistics.total_requests ? (item.count / statistics.total_requests) * 100 : 0}%`,
-                                    bgcolor: 'primary.main',
-                                    height: '100%',
-                                    borderRadius: 1,
-                                  }}
-                                />
-                              </Box>
-                            </Box>
-                          ))}
-                        </Box>
-                      ) : (
-                        <Typography variant="body2" color="text.secondary">
-                          No leave type data available
-                        </Typography>
-                      )}
-                    </CardContent>
-                  </Card>
-                </Grid>
-
-                {/* Applicant Type Breakdown */}
-                <Grid size={{ xs: 12, md: 6 }}>
-                  <Card elevation={3}>
-                    <CardContent>
-                      <Typography variant="h6" fontWeight="bold" mb={2}>
-                        Applicant Type Breakdown
-                      </Typography>
-                      {statistics.applicant_type_breakdown && statistics.applicant_type_breakdown.length > 0 ? (
-                        <Box>
-                          {statistics.applicant_type_breakdown.map((item: any, index: number) => (
-                            <Box key={index} sx={{ mb: 2 }}>
-                              <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
-                                <Box display="flex" alignItems="center" gap={1}>
-                                  {item.applicant_type === 'student' ? <School /> : <Work />}
-                                  <Typography variant="body2" fontWeight="bold" sx={{ textTransform: 'capitalize' }}>
-                                    {item.applicant_type}s
-                                  </Typography>
-                                </Box>
-                                <Typography variant="body2" color="primary.main">
-                                  {item.count} requests
-                                </Typography>
-                              </Box>
-                              <Box sx={{ width: '100%', bgcolor: 'grey.200', borderRadius: 1, height: 8 }}>
-                                <Box
-                                  sx={{
-                                    width: `${statistics.total_requests ? (item.count / statistics.total_requests) * 100 : 0}%`,
-                                    bgcolor: item.applicant_type === 'student' ? 'info.main' : 'success.main',
-                                    height: '100%',
-                                    borderRadius: 1,
-                                  }}
-                                />
-                              </Box>
-                            </Box>
-                          ))}
-                        </Box>
-                      ) : (
-                        <Typography variant="body2" color="text.secondary">
-                          No applicant type data available
-                        </Typography>
-                      )}
-                    </CardContent>
-                  </Card>
-                </Grid>
-              </Grid>
-            </>
-          )}
-        </TabPanel>
 
         {/* Leave Request Dialog - View Only */}
         <Dialog open={dialogOpen} onClose={handleCloseDialog} maxWidth="md" fullWidth>

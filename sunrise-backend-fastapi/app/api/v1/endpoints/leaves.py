@@ -72,6 +72,7 @@ async def get_leave_requests(
     to_date: Optional[date] = None,
     class_id: Optional[int] = Query(None, description="Filter by class ID"),
     department: Optional[str] = None,
+    applicant_name: Optional[str] = Query(None, description="Search by applicant name"),
     page: int = Query(1, ge=1),
     per_page: int = Query(25, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
@@ -88,7 +89,8 @@ async def get_leave_requests(
         from_date=from_date,
         to_date=to_date,
         class_id=class_id,
-        department=department
+        department=department,
+        applicant_name=applicant_name
     )
 
     skip = (page - 1) * per_page

@@ -149,6 +149,17 @@ class CRUDLeaveRequest(CRUDBase[LeaveRequest, LeaveRequestCreate, LeaveRequestUp
             where_conditions.append("d.description = :department")
             params["department"] = filters.department
 
+        if filters.applicant_name:
+            # Search by name in both students and teachers tables (case-insensitive)
+            where_conditions.append("""
+                (
+                    (lr.applicant_type = 'student' AND LOWER(s.first_name || ' ' || s.last_name) LIKE LOWER(:applicant_name))
+                    OR
+                    (lr.applicant_type = 'teacher' AND LOWER(t.first_name || ' ' || t.last_name) LIKE LOWER(:applicant_name))
+                )
+            """)
+            params["applicant_name"] = f"%{filters.applicant_name}%"
+
         where_clause = "WHERE " + " AND ".join(where_conditions) if where_conditions else ""
 
         # Count query
