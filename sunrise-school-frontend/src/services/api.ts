@@ -131,15 +131,17 @@ export const enhancedFeesAPI = {
     api.post(`/fees/payments/${paymentId}/reverse-months`, data),
 
   // Admin Dashboard Statistics (moved to dashboard endpoints)
+  // If sessionYearId is not provided, backend will use current session (is_current=true)
   getAdminDashboardStats: (sessionYearId?: number) =>
     api.get('/dashboard/admin-dashboard-stats', {
-      params: { session_year_id: sessionYearId || 4 }
+      params: sessionYearId ? { session_year_id: sessionYearId } : {}
     }),
 
   // Enhanced Admin Dashboard Statistics (moved to dashboard endpoints)
+  // If sessionYearId is not provided, backend will use current session (is_current=true)
   getAdminDashboardEnhancedStats: (sessionYearId?: number) =>
     api.get('/dashboard/admin-dashboard-enhanced-stats', {
-      params: { session_year_id: sessionYearId || 4 }
+      params: sessionYearId ? { session_year_id: sessionYearId } : {}
     }),
 
   // Receipt Management APIs (Phase 2: WhatsApp integration will be added later)

@@ -9,6 +9,11 @@ import {
   Chip,
   Collapse,
   IconButton,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Tooltip as MuiTooltip,
 } from '@mui/material';
 import {
   People,
@@ -19,9 +24,13 @@ import {
   DirectionsBus,
   ExpandMore,
   Notifications as NotificationsIcon,
+  CalendarMonth,
+  Public,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import AdminLayout from '../../components/Layout/AdminLayout';
+import ServiceConfigurationLoader from '../../components/common/ServiceConfigurationLoader';
+import { useConfiguration } from '../../contexts/ConfigurationContext';
 import { enhancedFeesAPI } from '../../services/api';
 import { alertAPI } from '../../services/alertService';
 import { AlertStats } from '../../types/alert';
@@ -35,22 +44,32 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
-  Tooltip,
+  Tooltip as RechartsTooltip,
   Legend,
   ResponsiveContainer,
   Cell,
 } from 'recharts';
 
+interface SessionInfo {
+  id: number;
+  name: string;
+  start_date: string | null;
+  end_date: string | null;
+}
+
 interface DashboardStats {
+  session_info?: SessionInfo;
   students: {
     total: number;
     added_this_month: number;
     change_text: string;
+    is_session_filtered?: boolean;
   };
   teachers: {
     total: number;
     added_this_month: number;
     change_text: string;
+    is_session_filtered?: boolean;
   };
   fees: {
     pending_amount: number;
@@ -58,27 +77,38 @@ interface DashboardStats {
     change_text: string;
     total_collected: number;
     collection_rate: number;
+    is_session_filtered?: boolean;
   };
   leave_requests: {
     total: number;
     pending: number;
     change_text: string;
+    is_session_filtered?: boolean;
   };
   expenses: {
     current_month: number;
     last_month: number;
     change: number;
     change_text: string;
+    is_session_filtered?: boolean;
   };
   revenue_growth: {
     percentage: number;
     current_quarter: number;
     last_quarter: number;
     change_text: string;
+    is_session_filtered?: boolean;
+  };
+  inventory_stock_alerts?: {
+    total_alerts: number;
+    critical_count: number;
+    warning_count: number;
+    is_session_filtered?: boolean;
   };
 }
 
 interface EnhancedDashboardStats {
+  session_info?: SessionInfo;
   student_management: {
     total_students: number;
     active_students: number;
@@ -90,6 +120,7 @@ interface EnhancedDashboardStats {
       male: number;
       female: number;
     }>;
+    is_session_filtered?: boolean;
   };
   fee_management: {
     total_collected: number;
@@ -102,6 +133,7 @@ interface EnhancedDashboardStats {
       amount: number;
       count: number;
     }>;
+    is_session_filtered?: boolean;
   };
   leave_management: {
     total_requests: number;
@@ -115,6 +147,7 @@ interface EnhancedDashboardStats {
       rejected: number;
       pending: number;
     }>;
+    is_session_filtered?: boolean;
   };
   expense_management: {
     total_expenses: number;
@@ -129,6 +162,7 @@ interface EnhancedDashboardStats {
       amount: number;
       count: number;
     }>;
+    is_session_filtered?: boolean;
   };
   staff_management: {
     total_staff: number;
@@ -142,6 +176,7 @@ interface EnhancedDashboardStats {
       qualification: string;
       count: number;
     }>;
+    is_session_filtered?: boolean;
   };
   transport_service: {
     total_routes?: number;
@@ -154,19 +189,39 @@ interface EnhancedDashboardStats {
       capacity: number;
     }>;
     error?: string;
+    is_session_filtered?: boolean;
   };
 }
 
 // Color palette for charts
 const COLORS = ['#1976d2', '#388e3c', '#f57c00', '#7b1fa2', '#d32f2f', '#0288d1', '#00897b', '#c62828'];
 
-const AdminDashboard: React.FC = () => {
+// Session filter indicator component
+const SessionFilterIndicator: React.FC<{ isSessionFiltered: boolean }> = ({ isSessionFiltered }) => (
+  <MuiTooltip title={isSessionFiltered ? "Filtered by selected session" : "Shows all-time data"}>
+    <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', ml: 0.5 }}>
+      {isSessionFiltered ? (
+        <CalendarMonth sx={{ fontSize: '0.9rem', color: 'primary.main' }} />
+      ) : (
+        <Public sx={{ fontSize: '0.9rem', color: 'text.secondary' }} />
+      )}
+    </Box>
+  </MuiTooltip>
+);
+
+const AdminDashboardContent: React.FC = () => {
   const navigate = useNavigate();
+  const { getSessionYears, getCurrentSessionYear } = useConfiguration();
+
   const [dashboardStats, setDashboardStats] = useState<DashboardStats | null>(null);
   const [enhancedStats, setEnhancedStats] = useState<EnhancedDashboardStats | null>(null);
   const [alertStats, setAlertStats] = useState<AlertStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Session year selection - defaults to current session from configuration
+  const [selectedSessionYearId, setSelectedSessionYearId] = useState<number | undefined>(undefined);
+
   // Initialize all cards as expanded by default
   const [expandedCards, setExpandedCards] = useState<{ [key: string]: boolean }>({
     students: true,
@@ -178,16 +233,29 @@ const AdminDashboard: React.FC = () => {
     notifications: true,
   });
 
+  // Get session years from configuration
+  const sessionYears = getSessionYears();
+  const currentSessionYear = getCurrentSessionYear();
+
+  // Set default session year from configuration on mount
+  useEffect(() => {
+    if (currentSessionYear && selectedSessionYearId === undefined) {
+      setSelectedSessionYearId(currentSessionYear.id);
+    }
+  }, [currentSessionYear, selectedSessionYearId]);
+
+  // Load dashboard data when session year changes
   useEffect(() => {
     loadDashboardData();
-  }, []);
+  }, [selectedSessionYearId]);
 
   const loadDashboardData = async () => {
     try {
       setLoading(true);
+      // Pass selected session year to API (undefined = backend uses current session)
       const [statsResponse, enhancedResponse, alertStatsResponse] = await Promise.all([
-        enhancedFeesAPI.getAdminDashboardStats(4), // 2025-26 session year
-        enhancedFeesAPI.getAdminDashboardEnhancedStats(4), // Enhanced stats
+        enhancedFeesAPI.getAdminDashboardStats(selectedSessionYearId),
+        enhancedFeesAPI.getAdminDashboardEnhancedStats(selectedSessionYearId),
         alertAPI.getStats()
       ]);
 
@@ -209,6 +277,10 @@ const AdminDashboard: React.FC = () => {
     }
   };
 
+  const handleSessionYearChange = (event: any) => {
+    setSelectedSessionYearId(event.target.value as number);
+  };
+
   const toggleCardExpansion = (cardKey: string) => {
     setExpandedCards(prev => ({
       ...prev,
@@ -228,6 +300,7 @@ const AdminDashboard: React.FC = () => {
           change: 'Loading...',
           clickable: false,
           onClick: undefined,
+          isSessionFiltered: true,
         },
         {
           key: 'teachers',
@@ -238,6 +311,7 @@ const AdminDashboard: React.FC = () => {
           change: 'Loading...',
           clickable: false,
           onClick: undefined,
+          isSessionFiltered: false,
         },
         {
           key: 'fees',
@@ -248,6 +322,7 @@ const AdminDashboard: React.FC = () => {
           change: 'Loading...',
           clickable: false,
           onClick: undefined,
+          isSessionFiltered: true,
         },
         {
           key: 'leaves',
@@ -258,6 +333,7 @@ const AdminDashboard: React.FC = () => {
           change: 'Loading...',
           clickable: false,
           onClick: undefined,
+          isSessionFiltered: true,
         },
         {
           key: 'expenses',
@@ -268,6 +344,7 @@ const AdminDashboard: React.FC = () => {
           change: 'Loading...',
           clickable: false,
           onClick: undefined,
+          isSessionFiltered: true,
         },
         {
           key: 'transport',
@@ -278,6 +355,7 @@ const AdminDashboard: React.FC = () => {
           change: 'Loading...',
           clickable: false,
           onClick: undefined,
+          isSessionFiltered: true,
         },
         {
           key: 'notifications',
@@ -288,6 +366,7 @@ const AdminDashboard: React.FC = () => {
           change: 'Loading...',
           clickable: false,
           onClick: undefined,
+          isSessionFiltered: false,
         },
       ];
     }
@@ -303,6 +382,7 @@ const AdminDashboard: React.FC = () => {
         clickable: true,
         onClick: () => navigate('/admin/students'),
         details: enhancedStats.student_management,
+        isSessionFiltered: enhancedStats.student_management?.is_session_filtered ?? true,
       },
       {
         key: 'teachers',
@@ -314,6 +394,7 @@ const AdminDashboard: React.FC = () => {
         clickable: true,
         onClick: () => navigate('/admin/teachers'),
         details: enhancedStats.staff_management,
+        isSessionFiltered: enhancedStats.staff_management?.is_session_filtered ?? false,
       },
       {
         key: 'fees',
@@ -325,6 +406,7 @@ const AdminDashboard: React.FC = () => {
         clickable: true,
         onClick: () => navigate('/admin/fees'),
         details: enhancedStats.fee_management,
+        isSessionFiltered: enhancedStats.fee_management?.is_session_filtered ?? true,
       },
       {
         key: 'leaves',
@@ -336,6 +418,7 @@ const AdminDashboard: React.FC = () => {
         clickable: true,
         onClick: () => navigate('/admin/leaves'),
         details: enhancedStats.leave_management,
+        isSessionFiltered: enhancedStats.leave_management?.is_session_filtered ?? true,
       },
       {
         key: 'expenses',
@@ -358,6 +441,7 @@ const AdminDashboard: React.FC = () => {
         clickable: true,
         onClick: () => navigate('/admin/transport'),
         details: enhancedStats.transport_service,
+        isSessionFiltered: enhancedStats.transport_service?.is_session_filtered ?? true,
       },
       {
         key: 'notifications',
@@ -369,6 +453,7 @@ const AdminDashboard: React.FC = () => {
         clickable: true,
         onClick: () => navigate('/admin/alerts'),
         details: alertStats,
+        isSessionFiltered: false, // Notifications are not session-specific
       },
     ];
   };
@@ -392,7 +477,7 @@ const AdminDashboard: React.FC = () => {
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                   <XAxis dataKey="class_name" style={{ fontSize: '0.7rem' }} />
                   <YAxis style={{ fontSize: '0.7rem' }} />
-                  <Tooltip contentStyle={{ fontSize: '0.75rem' }} />
+                  <RechartsTooltip contentStyle={{ fontSize: '0.75rem' }} />
                   <Legend wrapperStyle={{ fontSize: '0.7rem' }} iconSize={10} />
                   <Bar dataKey="total" fill={card.color} name="Total Students" radius={[4, 4, 0, 0]} />
                 </BarChart>
@@ -430,7 +515,7 @@ const AdminDashboard: React.FC = () => {
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip contentStyle={{ fontSize: '0.75rem' }} />
+                <RechartsTooltip contentStyle={{ fontSize: '0.75rem' }} />
               </PieChart>
             </ResponsiveContainer>
           </Box>
@@ -447,7 +532,7 @@ const AdminDashboard: React.FC = () => {
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                 <XAxis dataKey="month" style={{ fontSize: '0.65rem' }} />
                 <YAxis style={{ fontSize: '0.7rem' }} />
-                <Tooltip contentStyle={{ fontSize: '0.75rem' }} />
+                <RechartsTooltip contentStyle={{ fontSize: '0.75rem' }} />
                 <Legend wrapperStyle={{ fontSize: '0.7rem' }} iconSize={10} />
                 <Line type="monotone" dataKey="amount" stroke={card.color} name="Amount Collected" strokeWidth={2} dot={{ r: 3 }} />
               </LineChart>
@@ -470,7 +555,7 @@ const AdminDashboard: React.FC = () => {
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                 <XAxis dataKey="type" style={{ fontSize: '0.65rem' }} />
                 <YAxis style={{ fontSize: '0.7rem' }} />
-                <Tooltip contentStyle={{ fontSize: '0.75rem' }} />
+                <RechartsTooltip contentStyle={{ fontSize: '0.75rem' }} />
                 <Legend wrapperStyle={{ fontSize: '0.7rem' }} iconSize={10} />
                 <Bar dataKey="approved" fill="#4caf50" name="Approved" stackId="a" radius={[4, 4, 0, 0]} />
                 <Bar dataKey="pending" fill="#ff9800" name="Pending" stackId="a" />
@@ -495,7 +580,7 @@ const AdminDashboard: React.FC = () => {
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                 <XAxis dataKey="category" style={{ fontSize: '0.65rem' }} />
                 <YAxis style={{ fontSize: '0.7rem' }} />
-                <Tooltip contentStyle={{ fontSize: '0.75rem' }} />
+                <RechartsTooltip contentStyle={{ fontSize: '0.75rem' }} />
                 <Bar dataKey="amount" fill={card.color} name="Amount" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
@@ -509,7 +594,7 @@ const AdminDashboard: React.FC = () => {
                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                     <XAxis dataKey="month" style={{ fontSize: '0.65rem' }} />
                     <YAxis style={{ fontSize: '0.7rem' }} />
-                    <Tooltip contentStyle={{ fontSize: '0.75rem' }} />
+                    <RechartsTooltip contentStyle={{ fontSize: '0.75rem' }} />
                     <Line type="monotone" dataKey="amount" stroke={card.color} name="Amount" strokeWidth={2} dot={{ r: 3 }} />
                   </LineChart>
                 </ResponsiveContainer>
@@ -540,7 +625,7 @@ const AdminDashboard: React.FC = () => {
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                   <XAxis dataKey="type" style={{ fontSize: '0.65rem' }} />
                   <YAxis style={{ fontSize: '0.7rem' }} />
-                  <Tooltip contentStyle={{ fontSize: '0.75rem' }} />
+                  <RechartsTooltip contentStyle={{ fontSize: '0.75rem' }} />
                   <Legend wrapperStyle={{ fontSize: '0.7rem' }} iconSize={10} />
                   <Bar dataKey="enrollments" fill={card.color} name="Enrollments" radius={[4, 4, 0, 0]} />
                   <Bar dataKey="capacity" fill="#90caf9" name="Capacity" radius={[4, 4, 0, 0]} />
@@ -596,7 +681,7 @@ const AdminDashboard: React.FC = () => {
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>
-                  <Tooltip contentStyle={{ fontSize: '0.75rem' }} />
+                  <RechartsTooltip contentStyle={{ fontSize: '0.75rem' }} />
                 </PieChart>
               </ResponsiveContainer>
             ) : (
@@ -613,7 +698,7 @@ const AdminDashboard: React.FC = () => {
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                   <XAxis type="number" style={{ fontSize: '0.7rem' }} />
                   <YAxis dataKey="name" type="category" style={{ fontSize: '0.7rem' }} width={50} />
-                  <Tooltip contentStyle={{ fontSize: '0.75rem' }} />
+                  <RechartsTooltip contentStyle={{ fontSize: '0.75rem' }} />
                   <Bar dataKey="value" name="Count" radius={[0, 4, 4, 0]}>
                     {priorityData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.color} />
@@ -650,6 +735,51 @@ const AdminDashboard: React.FC = () => {
 
   return (
     <AdminLayout>
+      {/* Session Year Selector Header */}
+      <Box
+        sx={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          mb: 2,
+          flexWrap: 'wrap',
+          gap: 2
+        }}
+      >
+        {/* Session Info as Header */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <CalendarMonth sx={{ color: 'primary.main' }} />
+          <Typography variant="body1" color="text.secondary">
+            Showing data for session{' '}
+            <Typography component="span" fontWeight="bold" color="primary.main">
+              {dashboardStats?.session_info?.name || 'Loading...'}
+            </Typography>
+            {dashboardStats?.session_info?.start_date && dashboardStats?.session_info?.end_date && (
+              <Typography component="span" color="text.secondary">
+                {' '}({new Date(dashboardStats.session_info.start_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} - {new Date(dashboardStats.session_info.end_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })})
+              </Typography>
+            )}
+          </Typography>
+        </Box>
+        <FormControl size="small" sx={{ minWidth: 180 }}>
+          <InputLabel id="session-year-select-label">Academic Session</InputLabel>
+          <Select
+            labelId="session-year-select-label"
+            id="session-year-select"
+            value={selectedSessionYearId || ''}
+            label="Academic Session"
+            onChange={handleSessionYearChange}
+          >
+            {sessionYears.map((session) => (
+              <MenuItem key={session.id} value={session.id}>
+                {session.name}
+                {currentSessionYear?.id === session.id && ' (Current)'}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+      </Box>
+
       {/* Error Alert */}
       {error && (
         <Alert severity="error" sx={{ mb: 2 }}>
@@ -740,10 +870,15 @@ const AdminDashboard: React.FC = () => {
                         sx={{
                           fontSize: { xs: '0.875rem', sm: '0.95rem', md: '1rem' },
                           fontWeight: 500,
-                          mb: { xs: 0.25, sm: 0.5 }
+                          mb: { xs: 0.25, sm: 0.5 },
+                          display: 'flex',
+                          alignItems: 'center'
                         }}
                       >
                         {card.title}
+                        {card.isSessionFiltered !== undefined && (
+                          <SessionFilterIndicator isSessionFiltered={card.isSessionFiltered} />
+                        )}
                       </Typography>
                       <Typography
                         variant="body2"
@@ -786,6 +921,15 @@ const AdminDashboard: React.FC = () => {
           </Box>
         )}
     </AdminLayout>
+  );
+};
+
+// Wrapper component with ServiceConfigurationLoader
+const AdminDashboard: React.FC = () => {
+  return (
+    <ServiceConfigurationLoader service="common">
+      <AdminDashboardContent />
+    </ServiceConfigurationLoader>
   );
 };
 
