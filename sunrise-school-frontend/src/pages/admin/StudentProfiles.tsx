@@ -29,7 +29,7 @@ import {
   Pagination,
   Fab,
 } from '@mui/material';
-import { DEFAULT_PAGE_SIZE, PAGINATION_UI_CONFIG } from '../../config/pagination';
+import { DEFAULT_PAGE_SIZE, PAGINATION_UI_CONFIG, formatRecordCount } from '../../config/pagination';
 import {
   ClassDropdown,
   GenderDropdown,
@@ -788,18 +788,20 @@ const StudentProfilesContent: React.FC = () => {
           </TableContainer>
 
           {/* Pagination */}
-          {totalPages > 1 && (
-            <Box display="flex" justifyContent="center" mt={3}>
-              <Pagination
-                count={totalPages}
-                page={page}
-                onChange={(_, newPage) => setPage(newPage)}
-                color={PAGINATION_UI_CONFIG.color}
-                showFirstButton={PAGINATION_UI_CONFIG.showFirstLastButtons}
-                showLastButton={PAGINATION_UI_CONFIG.showFirstLastButtons}
-              />
-            </Box>
-          )}
+          <Box display="flex" justifyContent="center" alignItems="center" flexDirection="column" gap={1} mt={3}>
+            <Typography variant="body2" color="text.secondary">
+              {formatRecordCount(page, perPage, totalStudents)}
+            </Typography>
+            <Pagination
+              count={totalPages || 1}
+              page={page}
+              onChange={(_, newPage) => setPage(newPage)}
+              color={PAGINATION_UI_CONFIG.color}
+              showFirstButton={PAGINATION_UI_CONFIG.showFirstLastButtons}
+              showLastButton={PAGINATION_UI_CONFIG.showFirstLastButtons}
+              disabled={totalStudents === 0}
+            />
+          </Box>
         </Paper>
 
         {/* Student Form Dialog */}
