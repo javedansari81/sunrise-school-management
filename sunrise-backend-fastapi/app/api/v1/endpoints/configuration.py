@@ -465,7 +465,7 @@ async def get_attendance_management_configuration(
     Get configuration for Attendance Management System
 
     Returns only metadata required for attendance management:
-    - attendance_statuses (Present, Absent, Late, Half Day, Excused, Holiday, Leave)
+    - attendance_statuses (Present, Absent, Leave)
     - attendance_periods (Full Day, Morning, Afternoon)
     - session_years
     - classes

@@ -309,15 +309,11 @@ ON CONFLICT (id) DO UPDATE SET
     updated_at = NOW();
 
 -- =====================================================
--- Attendance Statuses Data
+-- Attendance Statuses Data (Simplified: Present, Absent, Leave)
 -- =====================================================
 INSERT INTO attendance_statuses (id, name, description, color_code, affects_attendance_percentage, is_active) VALUES
 (1, 'PRESENT', 'Present', '#28A745', TRUE, TRUE),
 (2, 'ABSENT', 'Absent', '#DC3545', TRUE, TRUE),
-(3, 'LATE', 'Late', '#FFC107', TRUE, TRUE),
-(4, 'HALF_DAY', 'Half Day', '#17A2B8', TRUE, TRUE),
-(5, 'EXCUSED', 'Excused', '#6C757D', FALSE, TRUE),
-(6, 'HOLIDAY', 'Holiday', '#007BFF', FALSE, TRUE),
 (7, 'LEAVE', 'On Leave', '#6F42C1', FALSE, TRUE)
 ON CONFLICT (id) DO UPDATE SET
     name = EXCLUDED.name,

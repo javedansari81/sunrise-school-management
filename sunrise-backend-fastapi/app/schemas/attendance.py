@@ -5,13 +5,9 @@ from enum import Enum
 
 
 class AttendanceStatusEnum(str, Enum):
-    """Attendance status enumeration"""
+    """Attendance status enumeration - simplified to 3 statuses"""
     PRESENT = "PRESENT"
     ABSENT = "ABSENT"
-    LATE = "LATE"
-    HALF_DAY = "HALF_DAY"
-    EXCUSED = "EXCUSED"
-    HOLIDAY = "HOLIDAY"
     LEAVE = "LEAVE"
 
 

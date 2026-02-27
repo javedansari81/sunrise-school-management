@@ -33,10 +33,6 @@ import {
   ChevronRight as ChevronRightIcon,
   CheckCircle as PresentIcon,
   Cancel as AbsentIcon,
-  Schedule as LateIcon,
-  HourglassEmpty as HalfDayIcon,
-  EventAvailable as ExcusedIcon,
-  BeachAccess as HolidayIcon,
   EventBusy as LeaveIcon,
 } from '@mui/icons-material';
 import { useServiceConfiguration, useConfiguration } from '../../contexts/ConfigurationContext';
@@ -176,14 +172,6 @@ const StudentAttendanceView: React.FC = () => {
         return <PresentIcon sx={{ fontSize: 20 }} />;
       case 'ABSENT':
         return <AbsentIcon sx={{ fontSize: 20 }} />;
-      case 'LATE':
-        return <LateIcon sx={{ fontSize: 20 }} />;
-      case 'HALF_DAY':
-        return <HalfDayIcon sx={{ fontSize: 20 }} />;
-      case 'EXCUSED':
-        return <ExcusedIcon sx={{ fontSize: 20 }} />;
-      case 'HOLIDAY':
-        return <HolidayIcon sx={{ fontSize: 20 }} />;
       case 'LEAVE':
         return <LeaveIcon sx={{ fontSize: 20 }} />;
       default:
@@ -200,15 +188,8 @@ const StudentAttendanceView: React.FC = () => {
         return '#28A745';
       case 'ABSENT':
         return '#DC3545';
-      case 'LATE':
-        return '#FFA500';
-      case 'HALF_DAY':
-        return '#FFD700';
-      case 'EXCUSED':
-        return '#007BFF';
-      case 'HOLIDAY':
       case 'LEAVE':
-        return '#6C757D';
+        return '#6F42C1';
       default:
         return '#6C757D';
     }

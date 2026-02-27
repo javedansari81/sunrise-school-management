@@ -1,9 +1,9 @@
 /**
  * Teacher Attendance Management Component
- * 
+ *
  * Features:
  * - Fast attendance marking with auto-advance workflow
- * - Keyboard shortcuts (P=Present, A=Absent, L=Late, H=Half Day)
+ * - Keyboard shortcuts (P=Present, A=Absent, L=Leave)
  * - Visual progress tracking
  * - Bulk actions for remaining students
  * - Real-time saving
@@ -40,10 +40,6 @@ import {
 import {
   CheckCircle as PresentIcon,
   Cancel as AbsentIcon,
-  Schedule as LateIcon,
-  HourglassEmpty as HalfDayIcon,
-  EventAvailable as ExcusedIcon,
-  BeachAccess as HolidayIcon,
   EventBusy as LeaveIcon,
 } from '@mui/icons-material';
 import { format } from 'date-fns';
@@ -127,13 +123,7 @@ const TeacherAttendance: React.FC = () => {
           statusId = 2; // Absent
           break;
         case 'l':
-          statusId = 3; // Late
-          break;
-        case 'h':
-          statusId = 4; // Half Day
-          break;
-        case 'e':
-          statusId = 5; // Excused
+          statusId = 7; // Leave (status id 7 in database)
           break;
         case 'arrowdown':
           e.preventDefault();
@@ -345,10 +335,6 @@ const TeacherAttendance: React.FC = () => {
     switch (statusId) {
       case 1: return <PresentIcon sx={{ color: '#28A745' }} />;
       case 2: return <AbsentIcon sx={{ color: '#DC3545' }} />;
-      case 3: return <LateIcon sx={{ color: '#FFC107' }} />;
-      case 4: return <HalfDayIcon sx={{ color: '#17A2B8' }} />;
-      case 5: return <ExcusedIcon sx={{ color: '#6C757D' }} />;
-      case 6: return <HolidayIcon sx={{ color: '#007BFF' }} />;
       case 7: return <LeaveIcon sx={{ color: '#6F42C1' }} />;
       default: return undefined;
     }
@@ -519,64 +505,24 @@ const TeacherAttendance: React.FC = () => {
                           <AbsentIcon sx={{ fontSize: { xs: '1.25rem', sm: '1.5rem' } }} />
                         </IconButton>
                       </Tooltip>
-                      <Tooltip title="Late (L)">
+                      <Tooltip title="Leave (L)">
                         <IconButton
                           size="small"
-                          onClick={() => markAttendance(student.id, 3, index)}
+                          onClick={() => markAttendance(student.id, 7, index)}
                           disabled={student.is_saving}
                           sx={{
-                            color: student.attendance_status_id === 3 ? '#FFC107' : 'inherit',
-                            backgroundColor: student.attendance_status_id === 3 ? 'rgba(255, 193, 7, 0.1)' : 'transparent',
+                            color: student.attendance_status_id === 7 ? '#6F42C1' : 'inherit',
+                            backgroundColor: student.attendance_status_id === 7 ? 'rgba(111, 66, 193, 0.1)' : 'transparent',
                             minWidth: { xs: 40, sm: 44 },
                             minHeight: { xs: 40, sm: 44 },
                             transition: 'transform 0.2s ease-in-out, background-color 0.2s ease-in-out',
                             '&:hover': {
                               transform: 'scale(1.15)',
-                              backgroundColor: student.attendance_status_id === 3 ? 'rgba(255, 193, 7, 0.2)' : 'rgba(0, 0, 0, 0.04)',
+                              backgroundColor: student.attendance_status_id === 7 ? 'rgba(111, 66, 193, 0.2)' : 'rgba(0, 0, 0, 0.04)',
                             },
                           }}
                         >
-                          <LateIcon sx={{ fontSize: { xs: '1.25rem', sm: '1.5rem' } }} />
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title="Half Day (H)">
-                        <IconButton
-                          size="small"
-                          onClick={() => markAttendance(student.id, 4, index)}
-                          disabled={student.is_saving}
-                          sx={{
-                            color: student.attendance_status_id === 4 ? '#17A2B8' : 'inherit',
-                            backgroundColor: student.attendance_status_id === 4 ? 'rgba(23, 162, 184, 0.1)' : 'transparent',
-                            minWidth: { xs: 40, sm: 44 },
-                            minHeight: { xs: 40, sm: 44 },
-                            transition: 'transform 0.2s ease-in-out, background-color 0.2s ease-in-out',
-                            '&:hover': {
-                              transform: 'scale(1.15)',
-                              backgroundColor: student.attendance_status_id === 4 ? 'rgba(23, 162, 184, 0.2)' : 'rgba(0, 0, 0, 0.04)',
-                            },
-                          }}
-                        >
-                          <HalfDayIcon sx={{ fontSize: { xs: '1.25rem', sm: '1.5rem' } }} />
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title="Excused (E)">
-                        <IconButton
-                          size="small"
-                          onClick={() => markAttendance(student.id, 5, index)}
-                          disabled={student.is_saving}
-                          sx={{
-                            color: student.attendance_status_id === 5 ? '#6C757D' : 'inherit',
-                            backgroundColor: student.attendance_status_id === 5 ? 'rgba(108, 117, 125, 0.1)' : 'transparent',
-                            minWidth: { xs: 40, sm: 44 },
-                            minHeight: { xs: 40, sm: 44 },
-                            transition: 'transform 0.2s ease-in-out, background-color 0.2s ease-in-out',
-                            '&:hover': {
-                              transform: 'scale(1.15)',
-                              backgroundColor: student.attendance_status_id === 5 ? 'rgba(108, 117, 125, 0.2)' : 'rgba(0, 0, 0, 0.04)',
-                            },
-                          }}
-                        >
-                          <ExcusedIcon sx={{ fontSize: { xs: '1.25rem', sm: '1.5rem' } }} />
+                          <LeaveIcon sx={{ fontSize: { xs: '1.25rem', sm: '1.5rem' } }} />
                         </IconButton>
                       </Tooltip>
                     </Box>
