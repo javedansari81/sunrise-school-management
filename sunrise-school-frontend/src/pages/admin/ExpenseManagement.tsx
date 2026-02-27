@@ -43,6 +43,7 @@ import {
 import { useServiceConfiguration } from '../../contexts/ConfigurationContext';
 import ServiceConfigurationLoader from '../../components/common/ServiceConfigurationLoader';
 import CollapsibleFilterSection from '../../components/common/CollapsibleFilterSection';
+import { SessionYearDropdown } from '../../components/common/MetadataDropdown';
 import { configurationService } from '../../services/configurationService';
 import { expenseAPI } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
@@ -110,6 +111,7 @@ interface ExpenseFormData {
 }
 
 interface ExpenseFilters {
+  session_year_id: number | '';
   expense_category_id: number | '';
   expense_status_id: number | '';
   payment_status_id: number | '';
@@ -160,6 +162,7 @@ const ExpenseManagement: React.FC = () => {
 
   // Filters
   const [filters, setFilters] = useState<ExpenseFilters>({
+    session_year_id: '',
     expense_category_id: '',
     expense_status_id: '',
     payment_status_id: '',
@@ -470,6 +473,14 @@ const ExpenseManagement: React.FC = () => {
   };
 
   // Effects
+  // Set default session year filter when config loads
+  useEffect(() => {
+    if (!configLoading && !filters.session_year_id) {
+      const currentSessionYearId = configurationService.getCurrentSessionYearId();
+      setFilters(prev => ({ ...prev, session_year_id: currentSessionYearId }));
+    }
+  }, [configLoading, filters.session_year_id]);
+
   useEffect(() => {
     if (!configLoading) {
       fetchExpenses();
@@ -504,7 +515,15 @@ const ExpenseManagement: React.FC = () => {
         persistKey="expense-management-filters"
       >
         <Grid container spacing={2} alignItems="center">
-          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+          <Grid size={{ xs: 12, sm: 6, md: 2.4 }}>
+            <SessionYearDropdown
+              value={filters.session_year_id}
+              onChange={(value) => handleFilterChange('session_year_id', value)}
+              size="small"
+              fullWidth
+            />
+          </Grid>
+          <Grid size={{ xs: 12, sm: 6, md: 2.4 }}>
             <FormControl fullWidth size="small">
               <InputLabel>Category</InputLabel>
               <Select
@@ -521,7 +540,7 @@ const ExpenseManagement: React.FC = () => {
               </Select>
             </FormControl>
           </Grid>
-          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+          <Grid size={{ xs: 12, sm: 6, md: 2.4 }}>
             <FormControl fullWidth size="small">
               <InputLabel>Status</InputLabel>
               <Select
@@ -538,7 +557,7 @@ const ExpenseManagement: React.FC = () => {
               </Select>
             </FormControl>
           </Grid>
-          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+          <Grid size={{ xs: 12, sm: 6, md: 2.4 }}>
             <TextField
               fullWidth
               size="small"
@@ -549,7 +568,7 @@ const ExpenseManagement: React.FC = () => {
               InputLabelProps={{ shrink: true }}
             />
           </Grid>
-          <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+          <Grid size={{ xs: 12, sm: 6, md: 2.4 }}>
             <TextField
               fullWidth
               size="small"

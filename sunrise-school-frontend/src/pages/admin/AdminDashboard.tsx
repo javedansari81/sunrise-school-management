@@ -430,6 +430,7 @@ const AdminDashboardContent: React.FC = () => {
         clickable: true,
         onClick: () => navigate('/admin/expenses'),
         details: enhancedStats.expense_management,
+        isSessionFiltered: enhancedStats.expense_management?.is_session_filtered ?? true,
       },
       {
         key: 'transport',

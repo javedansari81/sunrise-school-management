@@ -218,12 +218,12 @@ async def get_admin_dashboard_stats(
             logger.error(f"Traceback: {traceback.format_exc()}")
             response_data["fees"]["error"] = str(e)
 
-        # 4. Get leave request statistics (SESSION FILTERED 📅 by date range)
+        # 4. Get leave request statistics (SESSION FILTERED 📅 by session_year_id)
         try:
-            logger.info("Section 4: Fetching leave request statistics (session filtered by date range)...")
+            logger.info("Section 4: Fetching leave request statistics (session filtered by session_year_id)...")
 
-            # Build leave query with session date range filter
-            if session_start_date and session_end_date:
+            # Build leave query with session_year_id filter
+            if session_year_id:
                 leave_query = text("""
                     SELECT
                         COUNT(*) as total_requests,
@@ -231,11 +231,11 @@ async def get_admin_dashboard_stats(
                         COUNT(CASE WHEN leave_status_id = 2 THEN 1 END) as approved_requests,
                         COUNT(CASE WHEN leave_status_id = 3 THEN 1 END) as rejected_requests
                     FROM sunrise.leave_requests
-                    WHERE start_date >= :start_date AND start_date <= :end_date
+                    WHERE session_year_id = :session_year_id
                 """)
                 leave_result = await db.execute(
                     leave_query,
-                    {"start_date": session_start_date, "end_date": session_end_date}
+                    {"session_year_id": session_year_id}
                 )
                 leave_row = leave_result.fetchone()
                 leave_stats = {
@@ -245,7 +245,7 @@ async def get_admin_dashboard_stats(
                     'rejected_requests': leave_row.rejected_requests or 0
                 }
             else:
-                # Fallback to all-time stats if no session dates available
+                # Fallback to all-time stats if no session_year_id available
                 leave_stats = await leave_request_crud.get_leave_statistics(db)
 
             logger.info(f"Leave stats retrieved: {leave_stats}")
@@ -262,17 +262,16 @@ async def get_admin_dashboard_stats(
             logger.error(f"Traceback: {traceback.format_exc()}")
             response_data["leave_requests"]["error"] = str(e)
 
-        # 5. Calculate expenses (SESSION FILTERED 📅 by date range)
+        # 5. Calculate expenses (SESSION FILTERED 📅 by session_year_id)
         try:
-            logger.info("Section 5: Calculating expense statistics (session filtered by date range)...")
+            logger.info("Section 5: Calculating expense statistics (session filtered by session_year_id)...")
 
-            if session_start_date and session_end_date:
-                # Get total expenses for the session period
-                logger.info(f"Fetching expenses for session period: {session_start_date} to {session_end_date}")
+            if session_year_id:
+                # Get total expenses for the session using session_year_id
+                logger.info(f"Fetching expenses for session_year_id: {session_year_id}")
                 session_expenses_query = select(func.sum(ExpenseModel.amount)).where(
                     and_(
-                        ExpenseModel.expense_date >= session_start_date,
-                        ExpenseModel.expense_date <= session_end_date,
+                        ExpenseModel.session_year_id == session_year_id,
                         ExpenseModel.is_deleted != True,
                         ExpenseModel.expense_status_id.in_([2, 4])  # Approved or Paid
                     )
@@ -285,8 +284,7 @@ async def get_admin_dashboard_stats(
                     and_(
                         ExpenseModel.expense_date >= current_month_start,
                         ExpenseModel.expense_date <= current_date,
-                        ExpenseModel.expense_date >= session_start_date,
-                        ExpenseModel.expense_date <= session_end_date,
+                        ExpenseModel.session_year_id == session_year_id,
                         ExpenseModel.is_deleted != True,
                         ExpenseModel.expense_status_id.in_([2, 4])
                     )
@@ -299,8 +297,7 @@ async def get_admin_dashboard_stats(
                     and_(
                         ExpenseModel.expense_date >= last_month_start,
                         ExpenseModel.expense_date < current_month_start,
-                        ExpenseModel.expense_date >= session_start_date,
-                        ExpenseModel.expense_date <= session_end_date,
+                        ExpenseModel.session_year_id == session_year_id,
                         ExpenseModel.is_deleted != True,
                         ExpenseModel.expense_status_id.in_([2, 4])
                     )
@@ -608,10 +605,10 @@ async def get_admin_dashboard_enhanced_stats(
             logger.error(f"Error fetching fee statistics: {str(e)}")
             response_data['fee_management'] = {'error': str(e), 'is_session_filtered': True}
 
-        # 3. Leave Management - Detailed Statistics (SESSION FILTERED 📅 by date range)
+        # 3. Leave Management - Detailed Statistics (SESSION FILTERED 📅 by session_year_id)
         try:
-            # Build leave query with session date range filter
-            if session_start_date and session_end_date:
+            # Build leave query with session_year_id filter
+            if session_year_id:
                 leave_stats_query = text("""
                     SELECT
                         COUNT(*) as total_requests,
@@ -619,11 +616,11 @@ async def get_admin_dashboard_enhanced_stats(
                         COUNT(CASE WHEN leave_status_id = 2 THEN 1 END) as approved_requests,
                         COUNT(CASE WHEN leave_status_id = 3 THEN 1 END) as rejected_requests
                     FROM sunrise.leave_requests
-                    WHERE start_date >= :start_date AND start_date <= :end_date
+                    WHERE session_year_id = :session_year_id
                 """)
                 leave_stats_result = await db.execute(
                     leave_stats_query,
-                    {"start_date": session_start_date, "end_date": session_end_date}
+                    {"session_year_id": session_year_id}
                 )
                 leave_row = leave_stats_result.fetchone()
                 leave_stats = {
@@ -643,13 +640,13 @@ async def get_admin_dashboard_enhanced_stats(
                         COUNT(CASE WHEN lr.leave_status_id = 1 THEN 1 END) as pending
                     FROM sunrise.leave_requests lr
                     LEFT JOIN sunrise.leave_types lt ON lr.leave_type_id = lt.id
-                    WHERE lr.start_date >= :start_date AND lr.start_date <= :end_date
+                    WHERE lr.session_year_id = :session_year_id
                     GROUP BY lt.id, lt.description
                     ORDER BY count DESC
                 """)
                 leave_type_result = await db.execute(
                     leave_type_query,
-                    {"start_date": session_start_date, "end_date": session_end_date}
+                    {"session_year_id": session_year_id}
                 )
             else:
                 # Fallback to all-time stats if no session dates available
@@ -691,21 +688,21 @@ async def get_admin_dashboard_enhanced_stats(
             logger.error(f"Error fetching leave statistics: {str(e)}")
             response_data['leave_management'] = {'error': str(e), 'is_session_filtered': True}
 
-        # 4. Expense Management - Detailed Statistics (SESSION FILTERED 📅 by date range)
+        # 4. Expense Management - Detailed Statistics (SESSION FILTERED 📅 by session_year_id)
         try:
             # Get expense statistics for the session period
-            if session_start_date and session_end_date:
+            if session_year_id:
                 expense_stats_query = text("""
                     SELECT
                         COALESCE(SUM(total_amount), 0) as total_amount,
                         COUNT(CASE WHEN expense_status_id = 1 THEN 1 END) as pending_expenses
                     FROM sunrise.expenses
-                    WHERE expense_date >= :start_date AND expense_date <= :end_date
+                    WHERE session_year_id = :session_year_id
                         AND is_deleted = FALSE
                 """)
                 expense_stats_result = await db.execute(
                     expense_stats_query,
-                    {"start_date": session_start_date, "end_date": session_end_date}
+                    {"session_year_id": session_year_id}
                 )
                 expense_row = expense_stats_result.fetchone()
 
@@ -716,7 +713,7 @@ async def get_admin_dashboard_enhanced_stats(
                         COALESCE(SUM(e.total_amount), 0) as amount
                     FROM sunrise.expenses e
                     LEFT JOIN sunrise.expense_categories ec ON e.expense_category_id = ec.id
-                    WHERE e.expense_date >= :start_date AND e.expense_date <= :end_date
+                    WHERE e.session_year_id = :session_year_id
                         AND e.is_deleted = FALSE
                         AND e.expense_status_id IN (2, 4)
                     GROUP BY ec.id, ec.description
@@ -724,7 +721,7 @@ async def get_admin_dashboard_enhanced_stats(
                 """)
                 category_result = await db.execute(
                     category_query,
-                    {"start_date": session_start_date, "end_date": session_end_date}
+                    {"session_year_id": session_year_id}
                 )
                 category_breakdown = [
                     {'category': row.category or 'Uncategorized', 'amount': float(row.amount)}
@@ -746,8 +743,7 @@ async def get_admin_dashboard_enhanced_stats(
                         SUM(e.total_amount) as total_amount,
                         COUNT(e.id) as expense_count
                     FROM sunrise.expenses e
-                    WHERE e.expense_date >= :start_date
-                        AND e.expense_date <= :end_date
+                    WHERE e.session_year_id = :session_year_id
                         AND e.is_deleted = FALSE
                         AND e.expense_status_id IN (2, 4)
                     GROUP BY EXTRACT(YEAR FROM e.expense_date), EXTRACT(MONTH FROM e.expense_date), TO_CHAR(e.expense_date, 'Mon YYYY')
@@ -755,7 +751,7 @@ async def get_admin_dashboard_enhanced_stats(
                 """)
                 expense_monthly_result = await db.execute(
                     expense_monthly_query,
-                    {"start_date": session_start_date, "end_date": session_end_date}
+                    {"session_year_id": session_year_id}
                 )
             else:
                 # Fallback to all-time stats
