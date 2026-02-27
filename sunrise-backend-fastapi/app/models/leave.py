@@ -27,6 +27,9 @@ class LeaveRequest(Base):
     applicant_type = Column(String(10), nullable=False)  # 'student' or 'teacher'
     applicant_id = Column(Integer, nullable=False)  # Student ID or Teacher ID for business logic
 
+    # Session Year
+    session_year_id = Column(Integer, ForeignKey("session_years.id"), nullable=True)
+
     # Status and Approval
     leave_status_id = Column(Integer, ForeignKey("leave_statuses.id"), default=1)
     applied_by = Column(Integer, ForeignKey("users.id"), nullable=False)
@@ -50,6 +53,7 @@ class LeaveRequest(Base):
     leave_status = relationship("LeaveStatus", foreign_keys=[leave_status_id])
     applied_by_user = relationship("User", foreign_keys=[applied_by])
     approver = relationship("User", foreign_keys=[approved_by])
+    session_year = relationship("SessionYear", foreign_keys=[session_year_id])
 
 
 class LeaveBalance(Base):

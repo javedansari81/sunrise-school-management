@@ -157,6 +157,7 @@ class LeaveFilters(BaseModel):
     class_id: Optional[int] = None
     department: Optional[str] = None
     applicant_name: Optional[str] = None  # Search by applicant name
+    session_year_id: Optional[int] = None  # Filter by session year
 
 
 class LeaveListResponse(BaseModel):

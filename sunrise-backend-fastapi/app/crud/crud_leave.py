@@ -160,6 +160,10 @@ class CRUDLeaveRequest(CRUDBase[LeaveRequest, LeaveRequestCreate, LeaveRequestUp
             """)
             params["applicant_name"] = f"%{filters.applicant_name}%"
 
+        if filters.session_year_id:
+            where_conditions.append("lr.session_year_id = :session_year_id")
+            params["session_year_id"] = filters.session_year_id
+
         where_clause = "WHERE " + " AND ".join(where_conditions) if where_conditions else ""
 
         # Count query

@@ -23,6 +23,9 @@ CREATE TABLE leave_requests (
     applicant_type VARCHAR(10) CHECK (applicant_type IN ('student', 'teacher')),
     applicant_id INTEGER,
 
+    -- Session Year
+    session_year_id INTEGER,
+
     -- Status and Approval
     leave_status_id INTEGER DEFAULT 1,
     applied_by INTEGER NOT NULL,
@@ -44,7 +47,8 @@ CREATE TABLE leave_requests (
     FOREIGN KEY (leave_type_id) REFERENCES leave_types(id),
     FOREIGN KEY (leave_status_id) REFERENCES leave_statuses(id),
     FOREIGN KEY (applied_by) REFERENCES users(id),
-    FOREIGN KEY (approved_by) REFERENCES users(id)
+    FOREIGN KEY (approved_by) REFERENCES users(id),
+    FOREIGN KEY (session_year_id) REFERENCES session_years(id)
 );
 
 -- Create indexes
@@ -55,6 +59,7 @@ CREATE INDEX IF NOT EXISTS idx_leave_requests_applicant_id ON leave_requests(app
 CREATE INDEX IF NOT EXISTS idx_leave_requests_applicant_id_type ON leave_requests(applicant_id, applicant_type);
 CREATE INDEX IF NOT EXISTS idx_leave_requests_applicant_type ON leave_requests(applicant_type);
 CREATE INDEX IF NOT EXISTS idx_leave_requests_user_applicant_type ON leave_requests(user_id, applicant_type);
+CREATE INDEX IF NOT EXISTS idx_leave_requests_session_year ON leave_requests(session_year_id);
 
 -- Add comments
 COMMENT ON TABLE leave_requests IS 'Leave request records with approval workflow';

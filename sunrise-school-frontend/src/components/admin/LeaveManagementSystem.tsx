@@ -44,8 +44,9 @@ import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { useServiceConfiguration, useConfiguration } from '../../contexts/ConfigurationContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { leaveAPI } from '../../services/api';
-import { ClassDropdown } from '../../components/common/MetadataDropdown';
+import { ClassDropdown, SessionYearDropdown } from '../../components/common/MetadataDropdown';
 import CollapsibleFilterSection from '../common/CollapsibleFilterSection';
+import { configurationService } from '../../services/configurationService';
 
 // Types
 interface LeaveRequest {
@@ -121,7 +122,8 @@ const LeaveManagementSystem: React.FC = () => {
     leave_status_id: '',
     leave_type_id: '',
     applicant_name: '',
-    department: ''
+    department: '',
+    session_year_id: ''
   });
 
   const loadLeaveRequests = useCallback(async () => {
@@ -182,6 +184,15 @@ const LeaveManagementSystem: React.FC = () => {
       setLoading(false);
     }
   }, [filters, isAuthenticated, user, page, perPage]);
+
+  // Set default session year when configuration is loaded
+  useEffect(() => {
+    if (configLoaded && !filters.session_year_id) {
+      // Get current session year from configuration service
+      const currentSessionYearId = configurationService.getCurrentSessionYearId();
+      setFilters(prev => ({ ...prev, session_year_id: currentSessionYearId.toString() }));
+    }
+  }, [configLoaded, filters.session_year_id]);
 
   // Load leave requests
   // Fixed: Removed 'filters', 'loadLeaveRequests' from dependencies
@@ -395,6 +406,18 @@ const LeaveManagementSystem: React.FC = () => {
             flexDirection: { xs: 'column', sm: 'row' }
           }}>
 
+            <Box sx={{ flex: { xs: '1 1 100%', sm: '1 1 auto' }, minWidth: { xs: '100%', sm: 'auto' }, order: { xs: 1, sm: 0 } }}>
+              <SessionYearDropdown
+                value={filters.session_year_id}
+                onChange={(value) => {
+                  setFilters(prev => ({ ...prev, session_year_id: value as string }));
+                  setPage(1);
+                }}
+                size="small"
+                fullWidth
+              />
+            </Box>
+
             <FormControl
               size="small"
               sx={{
@@ -481,10 +504,9 @@ const LeaveManagementSystem: React.FC = () => {
               sx={{
                 flex: { xs: '1 1 100%', sm: '1 1 auto' },
                 minWidth: { xs: '100%', sm: 'auto' },
-                order: { xs: 4, sm: 0 }
+                order: { xs: 5, sm: 0 }
               }}
             />
-
 
           </Box>
         </CollapsibleFilterSection>
