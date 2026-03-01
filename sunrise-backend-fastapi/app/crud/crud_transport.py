@@ -117,13 +117,75 @@ class CRUDTransportEnrollment:
         class_id: Optional[int] = None,
         is_enrolled: Optional[bool] = None
     ) -> List[EnhancedStudentTransportSummary]:
-        """Get enhanced transport summary by querying underlying tables with direct class_id filtering"""
+        """
+        Get enhanced transport summary by querying underlying tables with direct class_id filtering.
+
+        Uses student_session_history to handle historical sessions:
+        - For historical session years: Uses student_session_history to get students who were
+          in that session with their historical class info (same approach as fee management)
+        - For current session: Uses students table for those not yet progressed
+        """
 
         query = """
+            WITH student_session_data AS (
+                -- Get students for the requested session year
+                -- Sources:
+                -- 1. student_session_history where session_year_id matches (students progressed TO this session)
+                -- 2. student_session_history where from_session_year_id matches (students progressed FROM this session)
+                -- 3. students table (for current session students not yet progressed)
+                SELECT DISTINCT ON (student_id)
+                    student_id,
+                    class_id as session_class_id,
+                    session_year_id,
+                    roll_number as session_roll_number
+                FROM (
+                    -- Students who were progressed TO this session year
+                    SELECT
+                        ssh.student_id,
+                        ssh.class_id,
+                        ssh.session_year_id,
+                        ssh.roll_number,
+                        1 as priority
+                    FROM student_session_history ssh
+                    INNER JOIN session_years sy ON ssh.session_year_id = sy.id
+                    WHERE sy.name = :session_year
+
+                    UNION ALL
+
+                    -- Students who were progressed FROM this session year (historical view)
+                    -- Use from_class_id and from_session_year_id to show their state in the source session
+                    SELECT
+                        ssh.student_id,
+                        ssh.from_class_id as class_id,
+                        ssh.from_session_year_id as session_year_id,
+                        ssh.roll_number,
+                        2 as priority
+                    FROM student_session_history ssh
+                    INNER JOIN session_years sy ON ssh.from_session_year_id = sy.id
+                    WHERE sy.name = :session_year
+                      AND ssh.from_class_id IS NOT NULL
+
+                    UNION ALL
+
+                    -- Current students (for those not yet in history or current session)
+                    SELECT
+                        s.id as student_id,
+                        s.class_id,
+                        s.session_year_id,
+                        s.roll_number,
+                        3 as priority
+                    FROM students s
+                    INNER JOIN session_years sy ON s.session_year_id = sy.id
+                    WHERE sy.name = :session_year
+                      AND s.is_active = true
+                      AND (s.is_deleted = FALSE OR s.is_deleted IS NULL)
+                ) combined
+                ORDER BY student_id, priority ASC
+            )
             SELECT
                 s.id AS student_id,
                 s.admission_number,
-                s.roll_number,
+                COALESCE(ssd.session_roll_number, s.roll_number) AS roll_number,
                 CONCAT(s.first_name, ' ', s.last_name) AS student_name,
                 c.description AS class_name,
                 sy.name AS session_year,
@@ -154,18 +216,25 @@ class CRUDTransportEnrollment:
                     WHEN mt.total_months_tracked > 0 THEN TRUE
                     ELSE FALSE
                 END AS has_monthly_tracking
-            FROM students s
-            LEFT JOIN classes c ON s.class_id = c.id
-            LEFT JOIN session_years sy ON s.session_year_id = sy.id
-            LEFT JOIN student_transport_enrollment e ON s.id = e.student_id
-                AND s.session_year_id = e.session_year_id
-                AND e.is_active = TRUE
+            FROM student_session_data ssd
+            INNER JOIN students s ON s.id = ssd.student_id
+            INNER JOIN classes c ON ssd.session_class_id = c.id
+            INNER JOIN session_years sy ON ssd.session_year_id = sy.id
+            LEFT JOIN LATERAL (
+                -- Get one enrollment per student per session (prefer active, then most recent)
+                SELECT * FROM student_transport_enrollment e_inner
+                WHERE e_inner.student_id = s.id
+                  AND e_inner.session_year_id = sy.id
+                ORDER BY e_inner.is_active DESC, e_inner.created_at DESC
+                LIMIT 1
+            ) e ON true
             LEFT JOIN transport_types tt ON e.transport_type_id = tt.id
             LEFT JOIN (
+                -- Aggregate monthly tracking by student and session (not by enrollment)
+                -- This ensures we get complete history even with multiple enrollments
                 SELECT
                     tmt.student_id,
                     tmt.session_year_id,
-                    tmt.enrollment_id,
                     COUNT(*) AS total_months_tracked,
                     COUNT(CASE WHEN tmt.is_service_enabled = TRUE THEN 1 END) AS enabled_months,
                     COUNT(CASE WHEN ps.name = 'PAID' AND tmt.is_service_enabled = TRUE THEN 1 END) AS paid_months,
@@ -176,17 +245,16 @@ class CRUDTransportEnrollment:
                     SUM(CASE WHEN tmt.is_service_enabled = TRUE THEN tmt.balance_amount ELSE 0 END) AS total_balance
                 FROM transport_monthly_tracking tmt
                 LEFT JOIN payment_statuses ps ON tmt.payment_status_id = ps.id
-                GROUP BY tmt.student_id, tmt.session_year_id, tmt.enrollment_id
-            ) mt ON s.id = mt.student_id AND s.session_year_id = mt.session_year_id
+                GROUP BY tmt.student_id, tmt.session_year_id
+            ) mt ON s.id = mt.student_id AND sy.id = mt.session_year_id
             WHERE (s.is_deleted = FALSE OR s.is_deleted IS NULL)
-              AND sy.name = :session_year
         """
 
         params = {"session_year": session_year}
 
-        # Add class filter if provided - filter directly by class_id
+        # Add class filter if provided - filter by session_class_id from the CTE
         if class_id is not None:
-            query += " AND s.class_id = :class_id"
+            query += " AND ssd.session_class_id = :class_id"
             params["class_id"] = class_id
 
         if is_enrolled is not None:
