@@ -245,8 +245,11 @@ const AdminDashboardContent: React.FC = () => {
   }, [currentSessionYear, selectedSessionYearId]);
 
   // Load dashboard data when session year changes
+  // Only load when selectedSessionYearId is set (not undefined)
   useEffect(() => {
-    loadDashboardData();
+    if (selectedSessionYearId !== undefined) {
+      loadDashboardData();
+    }
   }, [selectedSessionYearId]);
 
   const loadDashboardData = async () => {
@@ -256,7 +259,7 @@ const AdminDashboardContent: React.FC = () => {
       const [statsResponse, enhancedResponse, alertStatsResponse] = await Promise.all([
         enhancedFeesAPI.getAdminDashboardStats(selectedSessionYearId),
         enhancedFeesAPI.getAdminDashboardEnhancedStats(selectedSessionYearId),
-        alertAPI.getStats()
+        alertAPI.getStats(selectedSessionYearId)
       ]);
 
       console.log('Enhanced Stats Response:', enhancedResponse.data);
@@ -366,7 +369,7 @@ const AdminDashboardContent: React.FC = () => {
           change: 'Loading...',
           clickable: false,
           onClick: undefined,
-          isSessionFiltered: false,
+          isSessionFiltered: true,
         },
       ];
     }
@@ -454,7 +457,7 @@ const AdminDashboardContent: React.FC = () => {
         clickable: true,
         onClick: () => navigate('/admin/alerts'),
         details: alertStats,
-        isSessionFiltered: false, // Notifications are not session-specific
+        isSessionFiltered: true, // Notifications are now session-filtered
       },
     ];
   };

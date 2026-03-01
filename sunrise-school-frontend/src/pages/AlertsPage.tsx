@@ -41,9 +41,15 @@ import AdminLayout from '../components/Layout/AdminLayout';
 import TeacherLayout from '../components/Layout/TeacherLayout';
 import StudentLayout from '../components/Layout/StudentLayout';
 import CollapsibleFilterSection from '../components/common/CollapsibleFilterSection';
+import { SessionYearDropdown } from '../components/common/MetadataDropdown';
+import ServiceConfigurationLoader from '../components/common/ServiceConfigurationLoader';
+import { useServiceConfiguration } from '../contexts/ConfigurationContext';
+import { configurationService } from '../services/configurationService';
 import { useAuth } from '../contexts/AuthContext';
 
 const AlertManagementSystem: React.FC = () => {
+  const { isLoading: configLoading } = useServiceConfiguration('leave-management');
+
   // State
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [loading, setLoading] = useState(true);
@@ -54,16 +60,29 @@ const AlertManagementSystem: React.FC = () => {
   const [unreadCount, setUnreadCount] = useState(0);
 
   // Filters
+  const [sessionYearId, setSessionYearId] = useState<number | ''>('');
   const [categoryFilter, setCategoryFilter] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [priorityFilter, setPriorityFilter] = useState<string>('');
 
+  // Set default session year when config loads
+  useEffect(() => {
+    if (!configLoading && !sessionYearId) {
+      const currentSessionYearId = configurationService.getCurrentSessionYearId();
+      setSessionYearId(currentSessionYearId);
+    }
+  }, [configLoading, sessionYearId]);
+
   // Fetch alerts
   const fetchAlerts = useCallback(async () => {
+    // Don't fetch until session year is set
+    if (!sessionYearId) return;
+
     setLoading(true);
     setError(null);
     try {
       const params: any = { page, per_page: DEFAULT_PAGE_SIZE };
+      params.session_year_id = sessionYearId;  // Always include session year
       if (categoryFilter) params.category = categoryFilter;
       if (statusFilter === 'unread') params.is_read = false;
       if (statusFilter === 'read') params.is_read = true;
@@ -80,12 +99,14 @@ const AlertManagementSystem: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [page, categoryFilter, statusFilter, priorityFilter]);
+  }, [page, sessionYearId, categoryFilter, statusFilter, priorityFilter]);
 
-  // Initial fetch
+  // Fetch when filters change (only when sessionYearId is set)
   useEffect(() => {
-    fetchAlerts();
-  }, [fetchAlerts]);
+    if (sessionYearId) {
+      fetchAlerts();
+    }
+  }, [fetchAlerts, sessionYearId]);
 
   // Handle mark as read
   const handleMarkAsRead = async (alertId: number) => {
@@ -190,6 +211,18 @@ const AlertManagementSystem: React.FC = () => {
           flexWrap: 'wrap',
           flexDirection: { xs: 'column', sm: 'row' }
         }}>
+          <Box sx={{
+            flex: { xs: '1 1 100%', sm: '1 1 auto' },
+            minWidth: { xs: '100%', sm: 'auto' }
+          }}>
+            <SessionYearDropdown
+              value={sessionYearId}
+              onChange={(value) => { setSessionYearId(value as number | ''); setPage(1); }}
+              size="small"
+              fullWidth
+            />
+          </Box>
+
           <FormControl
             size="small"
             sx={{
@@ -371,7 +404,9 @@ const AlertsPage: React.FC = () => {
   if (user?.user_type?.toLowerCase() === 'teacher') {
     return (
       <TeacherLayout>
-        <AlertManagementSystem />
+        <ServiceConfigurationLoader service="leave-management">
+          <AlertManagementSystem />
+        </ServiceConfigurationLoader>
       </TeacherLayout>
     );
   }
@@ -380,7 +415,9 @@ const AlertsPage: React.FC = () => {
   if (user?.user_type?.toLowerCase() === 'student') {
     return (
       <StudentLayout>
-        <AlertManagementSystem />
+        <ServiceConfigurationLoader service="leave-management">
+          <AlertManagementSystem />
+        </ServiceConfigurationLoader>
       </StudentLayout>
     );
   }
@@ -388,7 +425,9 @@ const AlertsPage: React.FC = () => {
   // For admins, wrap in AdminLayout
   return (
     <AdminLayout>
-      <AlertManagementSystem />
+      <ServiceConfigurationLoader service="leave-management">
+        <AlertManagementSystem />
+      </ServiceConfigurationLoader>
     </AdminLayout>
   );
 };

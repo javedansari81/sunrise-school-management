@@ -93,6 +93,7 @@ class AlertBase(BaseModel):
 class AlertCreate(AlertBase):
     """Schema for creating alerts (internal use by services)"""
     alert_type_id: int = Field(..., description="Alert type ID from metadata")
+    session_year_id: Optional[int] = Field(None, description="Academic session year ID")
     actor_user_id: Optional[int] = Field(None, description="User ID who triggered the action")
     actor_type: Optional[str] = Field(None, max_length=20, description="Actor type: STUDENT, TEACHER, ADMIN, SYSTEM")
     actor_name: Optional[str] = Field(None, max_length=200, description="Actor name for display")
@@ -109,6 +110,7 @@ class AlertResponse(BaseModel):
     id: int
     alert_type_id: int
     alert_status_id: int
+    session_year_id: Optional[int] = None
     title: str
     message: str
     entity_type: str
@@ -159,6 +161,7 @@ class AlertListResponse(BaseModel):
 
 class AlertFilters(BaseModel):
     """Filter parameters for alert queries"""
+    session_year_id: Optional[int] = None
     alert_type_id: Optional[int] = None
     alert_status_id: Optional[int] = None
     category: Optional[str] = None

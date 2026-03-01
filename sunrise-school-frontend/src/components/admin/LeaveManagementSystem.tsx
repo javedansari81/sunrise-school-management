@@ -195,18 +195,18 @@ const LeaveManagementSystem: React.FC = () => {
   }, [configLoaded, filters.session_year_id]);
 
   // Load leave requests
-  // Fixed: Removed 'filters', 'loadLeaveRequests' from dependencies
-  // to prevent infinite re-render loop. These functions are stable via useCallback.
+  // Fixed: Only fetch when session_year_id is set from config to ensure correct filtering
   useEffect(() => {
     console.log('🔧 LeaveManagementSystem useEffect triggered:', {
       configLoading,
       configLoaded,
       configError,
       isAuthenticated,
+      session_year_id: filters.session_year_id,
       timestamp: new Date().toISOString()
     });
 
-    if (!configLoading && configLoaded && isAuthenticated) {
+    if (!configLoading && configLoaded && isAuthenticated && filters.session_year_id) {
       console.log('🚀 Triggering data load for leave management');
       loadLeaveRequests();
     } else if (configError) {
@@ -217,7 +217,7 @@ const LeaveManagementSystem: React.FC = () => {
         severity: 'error'
       });
     }
-  }, [configLoading, configLoaded, configError, isAuthenticated]);
+  }, [configLoading, configLoaded, configError, isAuthenticated, filters.session_year_id]);
 
   // Separate useEffect to reload data when filters or page change
   // This ensures data is refreshed when user interacts with filters/pagination

@@ -308,6 +308,7 @@ export interface InventoryStockProcurementItem {
 export interface InventoryStockProcurement {
   id: number;
   vendor_id?: number;
+  session_year_id?: number;
   procurement_date: string;
   invoice_number?: string;
   total_amount: number;
@@ -318,6 +319,7 @@ export interface InventoryStockProcurement {
   remarks?: string;
   invoice_url?: string;
   vendor_name?: string;
+  session_year_name?: string;
   payment_method_name: string;
   payment_status_name: string;
   items: InventoryStockProcurementItem[];
@@ -382,6 +384,7 @@ export const getStockProcurements = async (params?: {
 
 export const createStockProcurement = async (data: {
   vendor_id?: number;
+  session_year_id?: number;
   procurement_date: string;
   invoice_number?: string;
   payment_method_id: number;

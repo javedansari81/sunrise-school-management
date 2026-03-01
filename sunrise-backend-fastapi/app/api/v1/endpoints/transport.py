@@ -538,7 +538,8 @@ async def pay_monthly_transport(
                     fee_type='TRANSPORT',
                     months_paid=months_paid_str,
                     actor_user_id=current_user.id,
-                    actor_name=actor_name
+                    actor_name=actor_name,
+                    session_year_id=session_year_id
                 )
         except Exception as e:
             # Log error but don't fail the payment
@@ -769,7 +770,8 @@ async def reverse_transport_payment_full(
                         reversal_reason=reversal_reason_desc,
                         fee_type='TRANSPORT',
                         actor_user_id=current_user.id,
-                        actor_name=actor_name
+                        actor_name=actor_name,
+                        session_year_id=result.get("session_year_id")
                     )
         except Exception as e:
             # Log error but don't fail the reversal

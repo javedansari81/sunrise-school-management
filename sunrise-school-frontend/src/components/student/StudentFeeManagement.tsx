@@ -98,20 +98,29 @@ const StudentFeeManagement: React.FC = () => {
   const [feeData, setFeeData] = useState<FeeData | null>(null);
   const [studentProfile, setStudentProfile] = useState<StudentProfile | null>(null);
   const [loading, setLoading] = useState(false);
-  const [sessionYearId, setSessionYearId] = useState<number>(4); // Default to 2025-26
+  const [sessionYearId, setSessionYearId] = useState<number | undefined>(undefined); // Will be set from config when loaded
   const [snackbar, setSnackbar] = useState({
     open: false,
     message: '',
     severity: 'success' as 'success' | 'error' | 'info'
   });
 
+  // Set default session year when configuration is loaded
+  useEffect(() => {
+    if (isLoaded && sessionYearId === undefined) {
+      const currentSessionYearId = configurationService.getCurrentSessionYearId();
+      setSessionYearId(currentSessionYearId);
+    }
+  }, [isLoaded, sessionYearId]);
+
   // Load student profile and fee data
   useEffect(() => {
     loadStudentProfile();
   }, []);
 
+  // Load fee data when sessionYearId is set and student profile is loaded
   useEffect(() => {
-    if (studentProfile) {
+    if (studentProfile && sessionYearId !== undefined) {
       loadFeeData();
     }
   }, [sessionYearId, studentProfile]);

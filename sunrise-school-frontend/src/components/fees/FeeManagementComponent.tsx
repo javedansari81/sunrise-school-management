@@ -226,7 +226,7 @@ const FeeManagementComponent: React.FC = () => {
   const [selectedStudent, setSelectedStudent] = useState<StudentMonthlyFeeHistory | null>(null);
   const [paymentHistory, setPaymentHistory] = useState<any>(null);
   const [filters, setFilters] = useState({
-    session_year_id: DEFAULT_SESSION_YEAR_ID, // Default to 2025-26
+    session_year_id: '', // Will be set from config when loaded
     class_id: 'all',
     payment_status_id: 'all',
     search: '',

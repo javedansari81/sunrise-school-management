@@ -36,6 +36,7 @@ class CRUDAlert(CRUDBase[Alert, AlertCreate, AlertUpdate]):
         message: str,
         entity_type: str,
         entity_id: int,
+        session_year_id: Optional[int] = None,
         actor_user_id: Optional[int] = None,
         actor_type: Optional[str] = None,
         actor_name: Optional[str] = None,
@@ -51,6 +52,7 @@ class CRUDAlert(CRUDBase[Alert, AlertCreate, AlertUpdate]):
         alert = Alert(
             alert_type_id=alert_type_id,
             alert_status_id=1,  # UNREAD
+            session_year_id=session_year_id,
             title=title,
             message=message,
             entity_type=entity_type,
@@ -119,6 +121,8 @@ class CRUDAlert(CRUDBase[Alert, AlertCreate, AlertUpdate]):
 
         # Apply filters if provided
         if filters:
+            if filters.session_year_id:
+                query = query.where(Alert.session_year_id == filters.session_year_id)
             if filters.alert_type_id:
                 query = query.where(Alert.alert_type_id == filters.alert_type_id)
             if filters.alert_status_id:
@@ -308,12 +312,13 @@ class CRUDAlert(CRUDBase[Alert, AlertCreate, AlertUpdate]):
         db: AsyncSession,
         *,
         user_id: int,
-        user_role: str
+        user_role: str,
+        session_year_id: Optional[int] = None
     ) -> Dict[str, Any]:
         """Get alert statistics for dashboard"""
 
         # Base filter for user's visible alerts (same visibility logic as get_alerts_for_user)
-        base_filter = and_(
+        base_conditions = [
             or_(Alert.is_deleted == False, Alert.is_deleted.is_(None)),
             or_(
                 # Case 1: Targeted to specific user
@@ -329,7 +334,13 @@ class CRUDAlert(CRUDBase[Alert, AlertCreate, AlertUpdate]):
                     Alert.target_user_id.is_(None)
                 )
             )
-        )
+        ]
+
+        # Add session year filter if provided
+        if session_year_id:
+            base_conditions.append(Alert.session_year_id == session_year_id)
+
+        base_filter = and_(*base_conditions)
 
         # Total alerts
         total_query = select(func.count(Alert.id)).where(base_filter)

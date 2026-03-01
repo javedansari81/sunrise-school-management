@@ -166,6 +166,7 @@ class InventoryStockProcurement(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     vendor_id = Column(Integer, ForeignKey("vendors.id"), nullable=True)
+    session_year_id = Column(Integer, ForeignKey("session_years.id"), nullable=True)
     procurement_date = Column(Date, nullable=False)
     invoice_number = Column(String(100), nullable=True)
     total_amount = Column(DECIMAL(12, 2), nullable=False)
@@ -187,6 +188,7 @@ class InventoryStockProcurement(Base):
 
     # Relationships
     vendor = relationship("Vendor", foreign_keys=[vendor_id])
+    session_year = relationship("SessionYear", foreign_keys=[session_year_id])
     payment_method = relationship("PaymentMethod", foreign_keys=[payment_method_id])
     payment_status = relationship("PaymentStatus", foreign_keys=[payment_status_id])
     items = relationship("InventoryStockProcurementItem", back_populates="procurement", cascade="all, delete-orphan")

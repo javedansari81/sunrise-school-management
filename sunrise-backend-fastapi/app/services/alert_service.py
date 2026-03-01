@@ -77,11 +77,12 @@ class AlertService:
         end_date: str,
         total_days: int,
         actor_user_id: int,
-        class_info: Optional[str] = None
+        class_info: Optional[str] = None,
+        session_year_id: Optional[int] = None
     ) -> Alert:
         """Create alert when a leave request is submitted"""
         title = f"New Leave Request: {applicant_name}"
-        
+
         if applicant_type.lower() == 'student':
             class_text = f" ({class_info})" if class_info else ""
             message = f"{applicant_name}{class_text} has submitted a {leave_type} leave request for {total_days} day(s) from {start_date} to {end_date}."
@@ -96,6 +97,7 @@ class AlertService:
             entity_type="LEAVE_REQUEST",
             entity_id=leave_request_id,
             entity_display_name=applicant_name,
+            session_year_id=session_year_id,
             actor_user_id=actor_user_id,
             actor_type=applicant_type.upper(),
             actor_name=applicant_name,
@@ -125,7 +127,8 @@ class AlertService:
         fee_type: str,  # 'TUITION', 'TRANSPORT', or 'COMBINED'
         months_paid: Optional[str] = None,
         actor_user_id: int,
-        actor_name: str
+        actor_name: str,
+        session_year_id: Optional[int] = None
     ) -> Alert:
         """Create alert when a fee payment is processed"""
         # Determine alert type ID based on fee type
@@ -155,6 +158,7 @@ class AlertService:
             entity_type=entity_type,
             entity_id=payment_id,
             entity_display_name=student_name,
+            session_year_id=session_year_id,
             actor_user_id=actor_user_id,
             actor_type="ADMIN",
             actor_name=actor_name,
@@ -184,7 +188,8 @@ class AlertService:
         reversal_reason: str,
         fee_type: str,  # 'TUITION' or 'TRANSPORT'
         actor_user_id: int,
-        actor_name: str
+        actor_name: str,
+        session_year_id: Optional[int] = None
     ) -> Alert:
         """Create alert when a payment is reversed"""
         alert_type_id = (
@@ -205,6 +210,7 @@ class AlertService:
             entity_type="FEE_PAYMENT" if fee_type == 'TUITION' else "TRANSPORT_PAYMENT",
             entity_id=reversal_payment_id,
             entity_display_name=student_name,
+            session_year_id=session_year_id,
             actor_user_id=actor_user_id,
             actor_type="ADMIN",
             actor_name=actor_name,
@@ -235,7 +241,8 @@ class AlertService:
         end_date: str,
         reviewer_name: str,
         reviewer_user_id: int,
-        comments: Optional[str] = None
+        comments: Optional[str] = None,
+        session_year_id: Optional[int] = None
     ) -> Alert:
         """Create alert when a leave request is approved or rejected"""
         alert_type_id = (
@@ -259,6 +266,7 @@ class AlertService:
             entity_type="LEAVE_REQUEST",
             entity_id=leave_request_id,
             entity_display_name=applicant_name,
+            session_year_id=session_year_id,
             actor_user_id=reviewer_user_id,
             actor_type="ADMIN",
             actor_name=reviewer_name,
@@ -288,7 +296,8 @@ class AlertService:
         payment_method: str,
         items_summary: str,  # e.g., "2x Shirt (Size 32), 1x Trouser (Size 34)"
         actor_user_id: int,
-        actor_name: str
+        actor_name: str,
+        session_year_id: Optional[int] = None
     ) -> Alert:
         """Create alert when an inventory purchase is made"""
         title = f"Inventory Purchase: ₹{total_amount:,.2f}"
@@ -302,6 +311,7 @@ class AlertService:
             entity_type="INVENTORY_PURCHASE",
             entity_id=purchase_id,
             entity_display_name=student_name,
+            session_year_id=session_year_id,
             actor_user_id=actor_user_id,
             actor_type="ADMIN",
             actor_name=actor_name,
@@ -327,7 +337,8 @@ class AlertService:
         vendor_name: Optional[str],
         items_summary: str,  # e.g., "50x Shirt (Size 32), 30x Trouser (Size 34)"
         actor_user_id: int,
-        actor_name: str
+        actor_name: str,
+        session_year_id: Optional[int] = None
     ) -> Alert:
         """Create alert when inventory stock is procured"""
         vendor_info = f" from {vendor_name}" if vendor_name else ""
@@ -342,6 +353,7 @@ class AlertService:
             entity_type="INVENTORY_PROCUREMENT",
             entity_id=procurement_id,
             entity_display_name=f"Procurement #{procurement_id}",
+            session_year_id=session_year_id,
             actor_user_id=actor_user_id,
             actor_type="ADMIN",
             actor_name=actor_name,
@@ -366,7 +378,8 @@ class AlertService:
         vendor_name: Optional[str],
         requester_name: str,
         requester_user_id: int,
-        priority: str = "Medium"
+        priority: str = "Medium",
+        session_year_id: Optional[int] = None
     ) -> Alert:
         """
         Create alert when a new expense is created.
@@ -385,6 +398,7 @@ class AlertService:
             entity_type="EXPENSE",
             entity_id=expense_id,
             entity_display_name=description[:50],  # Truncate long descriptions
+            session_year_id=session_year_id,
             actor_user_id=requester_user_id,
             actor_type="ADMIN",
             actor_name=requester_name,
@@ -412,7 +426,8 @@ class AlertService:
         vendor_name: Optional[str],
         updater_name: str,
         updater_user_id: int,
-        priority: str = "Medium"
+        priority: str = "Medium",
+        session_year_id: Optional[int] = None
     ) -> Alert:
         """
         Create alert when an expense is updated.
@@ -431,6 +446,7 @@ class AlertService:
             entity_type="EXPENSE",
             entity_id=expense_id,
             entity_display_name=description[:50],  # Truncate long descriptions
+            session_year_id=session_year_id,
             actor_user_id=updater_user_id,
             actor_type="ADMIN",
             actor_name=updater_name,
@@ -459,7 +475,8 @@ class AlertService:
         reviewer_name: str,
         reviewer_user_id: int,
         requester_user_id: Optional[int] = None,
-        comments: Optional[str] = None
+        comments: Optional[str] = None,
+        session_year_id: Optional[int] = None
     ) -> Alert:
         """Create alert when expense status changes (approved/rejected/paid)"""
         # Determine alert type based on new status
@@ -490,6 +507,7 @@ class AlertService:
             entity_type="EXPENSE",
             entity_id=expense_id,
             entity_display_name=description[:50],
+            session_year_id=session_year_id,
             actor_user_id=reviewer_user_id,
             actor_type="ADMIN",
             actor_name=reviewer_name,

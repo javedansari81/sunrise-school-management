@@ -399,7 +399,8 @@ async def reverse_payment_full(
                         reversal_reason=reversal_reason_desc,
                         fee_type='TUITION',
                         actor_user_id=current_user.id,
-                        actor_name=actor_name
+                        actor_name=actor_name,
+                        session_year_id=result.get("session_year_id")
                     )
         except Exception as e:
             # Log error but don't fail the reversal
@@ -499,7 +500,8 @@ async def reverse_payment_partial(
                         reversal_reason=reversal_reason_desc,
                         fee_type='TUITION',
                         actor_user_id=current_user.id,
-                        actor_name=actor_name
+                        actor_name=actor_name,
+                        session_year_id=result.get("session_year_id")
                     )
         except Exception as e:
             # Log error but don't fail the reversal
@@ -2322,7 +2324,8 @@ async def pay_monthly_enhanced(
             fee_type='TUITION',
             months_paid=months_paid_str,
             actor_user_id=current_user.id,
-            actor_name=actor_name
+            actor_name=actor_name,
+            session_year_id=fee_record.session_year_id
         )
         print(f"Fee payment alert created successfully")
     except Exception as e:
@@ -2992,7 +2995,8 @@ async def pay_combined_tuition_transport(
             fee_type='COMBINED',  # Indicate this is a combined payment
             months_paid=months_paid_str,
             actor_user_id=current_user.id,
-            actor_name=actor_name
+            actor_name=actor_name,
+            session_year_id=session_year_id
         )
         print(f"Combined fee payment alert created successfully")
     except Exception as e:

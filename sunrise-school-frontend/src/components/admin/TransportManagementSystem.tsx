@@ -51,7 +51,7 @@ const TransportManagementSystem: React.FC = () => {
   const [success, setSuccess] = useState<string | null>(null);
 
   // Filters
-  const [sessionYear, setSessionYear] = useState<string>('2025-26');
+  const [sessionYear, setSessionYear] = useState<string>(''); // Will be set from config when loaded
   const [sessionYearId, setSessionYearId] = useState<number | null>(null);
   const [classFilter, setClassFilter] = useState<string | number>('all');
   const [enrollmentFilter, setEnrollmentFilter] = useState<string>('all'); // 'all', 'yes', 'no'
@@ -141,13 +141,14 @@ const TransportManagementSystem: React.FC = () => {
       const types = await transportService.getTransportTypes();
       setTransportTypes(types);
 
-      // Set default session year ID if available
+      // Set default session year ID from config - use is_current session year
       if (config?.session_years && config.session_years.length > 0) {
-        const currentYear = config.session_years.find((y: any) => y.name === sessionYear);
+        const currentYear = config.session_years.find((y: any) => y.is_current === true);
         if (currentYear) {
+          setSessionYear(currentYear.name);
           setSessionYearId(currentYear.id);
         } else {
-          // Default to first session year
+          // Fallback to first session year if no is_current found
           setSessionYear(config.session_years[0].name);
           setSessionYearId(config.session_years[0].id);
         }

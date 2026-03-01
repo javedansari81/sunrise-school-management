@@ -267,6 +267,7 @@ class InventoryStockProcurementItemResponse(InventoryStockProcurementItemBase):
 class InventoryStockProcurementBase(BaseModel):
     """Base schema for stock procurement"""
     vendor_id: Optional[int] = Field(None, description="Vendor ID (optional for direct purchases)")
+    session_year_id: Optional[int] = Field(None, description="Session year ID for budgeting/reporting")
     procurement_date: date = Field(..., description="Date of procurement")
     invoice_number: Optional[str] = Field(None, max_length=100, description="Vendor invoice number")
     payment_method_id: int = Field(..., description="Payment method ID")
@@ -302,6 +303,7 @@ class InventoryStockProcurementResponse(InventoryStockProcurementBase):
     id: int
     total_amount: Decimal
     vendor_name: Optional[str] = None
+    session_year_name: Optional[str] = None
     payment_method_name: str
     payment_status_name: str
     items: List[InventoryStockProcurementItemResponse]

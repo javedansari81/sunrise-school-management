@@ -68,6 +68,9 @@ class Alert(Base):
     alert_type_id = Column(Integer, ForeignKey("alert_types.id"), nullable=False)
     alert_status_id = Column(Integer, ForeignKey("alert_statuses.id"), default=1)
 
+    # Session Year (FK to metadata)
+    session_year_id = Column(Integer, ForeignKey("session_years.id"), nullable=True)
+
     # Alert Content
     title = Column(String(255), nullable=False)
     message = Column(Text, nullable=False)
@@ -110,6 +113,7 @@ class Alert(Base):
     # Relationships
     alert_type = relationship("AlertType", back_populates="alerts")
     alert_status = relationship("AlertStatus", back_populates="alerts")
+    session_year = relationship("SessionYear")
     actor = relationship("User", foreign_keys=[actor_user_id])
     target_user = relationship("User", foreign_keys=[target_user_id])
     reader = relationship("User", foreign_keys=[read_by])

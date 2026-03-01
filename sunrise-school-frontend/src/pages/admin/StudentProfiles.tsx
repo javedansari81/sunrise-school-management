@@ -38,6 +38,8 @@ import {
 } from '../../components/common/MetadataDropdown';
 import ServiceConfigurationLoader from '../../components/common/ServiceConfigurationLoader';
 import CollapsibleFilterSection from '../../components/common/CollapsibleFilterSection';
+import { useServiceConfiguration } from '../../contexts/ConfigurationContext';
+import { configurationService } from '../../services/configurationService';
 import DetectedSiblingsDialog from '../../components/common/DetectedSiblingsDialog';
 import SiblingInfoDisplay from '../../components/common/SiblingInfoDisplay';
 import {
@@ -106,12 +108,13 @@ interface Student {
 }
 
 const StudentProfilesContent: React.FC = () => {
+  const { isLoaded: configLoaded } = useServiceConfiguration('student-management');
   const [openDialog, setOpenDialog] = useState(false);
   const [dialogMode, setDialogMode] = useState<'view' | 'edit' | 'create'>('view');
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [filterClass, setFilterClass] = useState('all');
   const [filterSection, setFilterSection] = useState('all');
-  const [filterSessionYear, setFilterSessionYear] = useState('all');
+  const [filterSessionYear, setFilterSessionYear] = useState(''); // Will be set from config when loaded
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive'>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [students, setStudents] = useState<Student[]>([]);
@@ -231,9 +234,19 @@ const StudentProfilesContent: React.FC = () => {
     }
   };
 
-  // Load students when page, filters, or status changes
+  // Set default session year when configuration is loaded
   useEffect(() => {
-    loadStudents();
+    if (configLoaded && !filterSessionYear) {
+      const currentSessionYearId = configurationService.getCurrentSessionYearId();
+      setFilterSessionYear(currentSessionYearId.toString());
+    }
+  }, [configLoaded, filterSessionYear]);
+
+  // Load students when page, filters, or status changes - only when session year is set
+  useEffect(() => {
+    if (filterSessionYear) {
+      loadStudents();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, filterClass, filterSection, filterSessionYear, searchTerm, filterStatus]);
 

@@ -29,6 +29,7 @@ def get_user_role(current_user: User) -> str:
 @router.get("/", response_model=AlertListResponse)
 @router.get("", response_model=AlertListResponse)
 async def get_alerts(
+    session_year_id: Optional[int] = Query(None, description="Filter by session year ID"),
     alert_type_id: Optional[int] = Query(None, description="Filter by alert type ID"),
     alert_status_id: Optional[int] = Query(None, description="Filter by alert status ID"),
     category: Optional[str] = Query(None, description="Filter by category (LEAVE_MANAGEMENT, FINANCIAL, etc.)"),
@@ -42,16 +43,18 @@ async def get_alerts(
 ):
     """
     Get alerts for the current user with filtering and pagination.
-    
+
     Alerts are filtered based on:
     - User's role (ADMIN, TEACHER, STUDENT)
     - Specific user targeting
+    - Session year (optional)
     - Various filter parameters
     """
     user_role = get_user_role(current_user)
-    
+
     # Build filters
     filters = AlertFilters(
+        session_year_id=session_year_id,
         alert_type_id=alert_type_id,
         alert_status_id=alert_status_id,
         category=category,
@@ -82,6 +85,7 @@ async def get_alerts(
             "id": alert.id,
             "alert_type_id": alert.alert_type_id,
             "alert_status_id": alert.alert_status_id,
+            "session_year_id": alert.session_year_id,
             "title": alert.title,
             "message": alert.message,
             "entity_type": alert.entity_type,
@@ -138,13 +142,17 @@ async def get_unread_count(
 
 @router.get("/stats", response_model=AlertStats)
 async def get_alert_stats(
+    session_year_id: Optional[int] = Query(None, description="Filter by session year ID"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
     """Get alert statistics for dashboard"""
     user_role = get_user_role(current_user)
     stats = await alert_crud.get_alert_stats(
-        db, user_id=current_user.id, user_role=user_role
+        db,
+        user_id=current_user.id,
+        user_role=user_role,
+        session_year_id=session_year_id
     )
     return AlertStats(**stats)
 

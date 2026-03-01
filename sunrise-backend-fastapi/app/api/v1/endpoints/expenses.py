@@ -139,7 +139,8 @@ async def create_expense(
                 vendor_name=expense.vendor_name,
                 requester_name=requester_name,
                 requester_user_id=current_user.id,
-                priority=expense.priority or "Medium"
+                priority=expense.priority or "Medium",
+                session_year_id=expense.session_year_id
             )
         except Exception as e:
             # Log error but don't fail the expense creation
@@ -246,7 +247,8 @@ async def update_expense(
             vendor_name=updated_expense.vendor_name,
             updater_name=updater_name,
             updater_user_id=current_user.id,
-            priority=updated_expense.priority or "Medium"
+            priority=updated_expense.priority or "Medium",
+            session_year_id=updated_expense.session_year_id
         )
     except Exception as e:
         # Log error but don't fail the expense update
@@ -385,7 +387,8 @@ async def approve_expense(
             reviewer_name=reviewer_name,
             reviewer_user_id=current_user.id,
             requester_user_id=updated_expense.requested_by,
-            comments=approval_data.approval_comments
+            comments=approval_data.approval_comments,
+            session_year_id=updated_expense.session_year_id
         )
     except Exception as e:
         # Log error but don't fail the approval

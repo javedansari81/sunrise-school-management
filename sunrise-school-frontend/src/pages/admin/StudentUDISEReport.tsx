@@ -97,8 +97,8 @@ const StudentUDISEReport: React.FC = () => {
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
   const [filtersExpanded, setFiltersExpanded] = useState(true);
 
-  // Filters - Initialize with default session year 2025-26 (ID: 4)
-  const [filterSessionYear, setFilterSessionYear] = useState<string>(DEFAULT_SESSION_YEAR_ID);
+  // Filters - Will be set from config when loaded
+  const [filterSessionYear, setFilterSessionYear] = useState<string>('');
   const [filterClass, setFilterClass] = useState<string>('all');
   const [filterSection, setFilterSection] = useState<string>('all');
   const [filterGender, setFilterGender] = useState<string>('all');
@@ -166,8 +166,11 @@ const StudentUDISEReport: React.FC = () => {
     }
   };
 
+  // Only load students when session year is set from config
   useEffect(() => {
-    loadStudents();
+    if (filterSessionYear) {
+      loadStudents();
+    }
   }, [page, filterSessionYear, filterClass, filterSection, filterGender, filterStatus, searchTerm]);
 
   // Reset to page 1 when filters change

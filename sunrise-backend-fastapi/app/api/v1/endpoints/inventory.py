@@ -440,7 +440,8 @@ async def create_purchase(
             payment_method=payment_method_desc,
             items_summary=items_summary,
             actor_user_id=current_user.id,
-            actor_name=actor_name
+            actor_name=actor_name,
+            session_year_id=purchase.session_year_id
         )
     except Exception as e:
         # Log error but don't fail the purchase
@@ -870,7 +871,8 @@ async def create_stock_procurement(
             vendor_name=vendor_name,
             items_summary=items_summary,
             actor_user_id=current_user.id,
-            actor_name=actor_name
+            actor_name=actor_name,
+            session_year_id=procurement.session_year_id
         )
     except Exception as e:
         # Log error but don't fail the procurement

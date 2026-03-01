@@ -54,8 +54,12 @@ export const alertAPI = {
   /**
    * Get alert statistics for dashboard
    */
-  getStats: async (): Promise<AlertStats> => {
-    const response = await api.get('/alerts/stats');
+  getStats: async (sessionYearId?: number): Promise<AlertStats> => {
+    const params: Record<string, any> = {};
+    if (sessionYearId) {
+      params.session_year_id = sessionYearId;
+    }
+    const response = await api.get('/alerts/stats', { params });
     return response.data;
   },
 

@@ -195,7 +195,8 @@ async def create_leave_request(
             end_date=str(leave_data.end_date),
             total_days=leave_data.total_days,
             actor_user_id=current_user.id,
-            class_info=class_info
+            class_info=class_info,
+            session_year_id=leave_request.session_year_id
         )
         print(f"Leave request alert created successfully with id: {alert.id}")
     except Exception as e:
@@ -606,7 +607,8 @@ async def approve_leave_request(
             end_date=str(leave_request.end_date),
             reviewer_name=reviewer_name,
             reviewer_user_id=current_user.id,
-            comments=approval_data.approval_comments
+            comments=approval_data.approval_comments,
+            session_year_id=leave_request.session_year_id
         )
         print(f"Leave {status_str.lower()} alert created successfully with id: {alert.id}")
     except Exception as e:

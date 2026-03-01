@@ -1,9 +1,18 @@
--- Migration: Reduce attendance statuses from 7 to 3 (Present, Absent, Leave)
+-- =====================================================
+-- Version: V032
+-- Description: Reduce attendance statuses from 7 to 3 (Present, Absent, Leave)
 -- Date: 2026-02-27
--- Description: 
+-- Author: System
+-- Dependencies: attendance_statuses and attendance_records tables
+-- =====================================================
+-- Changes:
 --   1. Update attendance records with statuses 3,4,5,6 to status 1 (PRESENT)
 --   2. Delete statuses 3,4,5,6 from attendance_statuses table
 --   3. Keep statuses: 1 (PRESENT), 2 (ABSENT), 7 (LEAVE)
+-- =====================================================
+
+-- Set search path
+SET search_path TO sunrise, public;
 
 -- Step 1: Update attendance records - change status 3,4,5,6 to 1 (PRESENT)
 -- This treats LATE, HALF_DAY, EXCUSED, HOLIDAY as PRESENT

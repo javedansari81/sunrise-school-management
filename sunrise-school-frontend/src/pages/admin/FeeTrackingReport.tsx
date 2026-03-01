@@ -39,7 +39,6 @@ import AdminLayout from '../../components/Layout/AdminLayout';
 import { reportsAPI } from '../../services/api';
 import { configurationService } from '../../services/configurationService';
 import { useServiceConfiguration } from '../../contexts/ConfigurationContext';
-import { DEFAULT_SESSION_YEAR_ID } from '../../constants/sessionYear';
 import * as XLSX from 'xlsx';
 
 interface FeeTrackingData {
@@ -87,8 +86,8 @@ const FeeTrackingReport: React.FC = () => {
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
   const [filtersExpanded, setFiltersExpanded] = useState(true);
 
-  // Filters - Initialize with default session year 2025-26 (ID: 4)
-  const [filterSessionYear, setFilterSessionYear] = useState<string>(DEFAULT_SESSION_YEAR_ID);
+  // Filters - Will be set from config when loaded
+  const [filterSessionYear, setFilterSessionYear] = useState<string>('');
   const [filterClass, setFilterClass] = useState<string>('all');
   const [filterSection, setFilterSection] = useState<string>('all');
   const [filterPaymentStatus, setFilterPaymentStatus] = useState<string>('all');

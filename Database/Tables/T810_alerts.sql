@@ -15,6 +15,9 @@ CREATE TABLE alerts (
     alert_type_id INTEGER NOT NULL REFERENCES alert_types(id),
     alert_status_id INTEGER NOT NULL DEFAULT 1 REFERENCES alert_statuses(id),
 
+    -- Session Year (FK to metadata)
+    session_year_id INTEGER REFERENCES session_years(id),
+
     -- Alert Content
     title VARCHAR(255) NOT NULL,
     message TEXT NOT NULL,
@@ -58,6 +61,7 @@ CREATE TABLE alerts (
 -- Performance Indexes
 CREATE INDEX IF NOT EXISTS idx_alerts_type ON alerts(alert_type_id);
 CREATE INDEX IF NOT EXISTS idx_alerts_status ON alerts(alert_status_id);
+CREATE INDEX IF NOT EXISTS idx_alerts_session_year ON alerts(session_year_id);
 CREATE INDEX IF NOT EXISTS idx_alerts_actor ON alerts(actor_user_id);
 CREATE INDEX IF NOT EXISTS idx_alerts_entity ON alerts(entity_type, entity_id);
 CREATE INDEX IF NOT EXISTS idx_alerts_target_role ON alerts(target_role);
@@ -75,6 +79,7 @@ CREATE INDEX IF NOT EXISTS idx_alerts_role_unread ON alerts(target_role, alert_s
 COMMENT ON TABLE alerts IS 'Central notification/alert storage for all system activities';
 COMMENT ON COLUMN alerts.alert_type_id IS 'FK to alert_types - defines the type of alert';
 COMMENT ON COLUMN alerts.alert_status_id IS 'FK to alert_statuses - current status of the alert';
+COMMENT ON COLUMN alerts.session_year_id IS 'FK to session_years - academic session for this alert';
 COMMENT ON COLUMN alerts.actor_user_id IS 'User ID who triggered the action (can be NULL for system alerts)';
 COMMENT ON COLUMN alerts.actor_type IS 'Type of actor: STUDENT, TEACHER, ADMIN, SYSTEM';
 COMMENT ON COLUMN alerts.actor_name IS 'Denormalized actor name for display efficiency';
