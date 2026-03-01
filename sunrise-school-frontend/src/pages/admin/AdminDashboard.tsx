@@ -764,8 +764,8 @@ const AdminDashboardContent: React.FC = () => {
           gap: 2
         }}
       >
-        {/* Session Info as Header */}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        {/* Session Info as Header - Hidden on mobile */}
+        <Box sx={{ display: { xs: 'none', sm: 'flex' }, alignItems: 'center', gap: 1 }}>
           <CalendarMonth sx={{ color: 'primary.main' }} />
           <Typography variant="body1" color="text.secondary">
             Showing data for session{' '}
@@ -773,7 +773,7 @@ const AdminDashboardContent: React.FC = () => {
               {dashboardStats?.session_info?.name || 'Loading...'}
             </Typography>
             {dashboardStats?.session_info?.start_date && dashboardStats?.session_info?.end_date && (
-              <Typography component="span" color="text.secondary">
+              <Typography component="span" color="text.secondary" sx={{ display: { xs: 'none', md: 'inline' } }}>
                 {' '}({new Date(dashboardStats.session_info.start_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} - {new Date(dashboardStats.session_info.end_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })})
               </Typography>
             )}
