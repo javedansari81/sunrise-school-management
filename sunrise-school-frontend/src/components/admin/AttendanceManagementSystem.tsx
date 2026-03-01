@@ -37,7 +37,8 @@ import { DEFAULT_PAGE_SIZE } from '../../config/pagination';
 import { useServiceConfiguration, useConfiguration } from '../../contexts/ConfigurationContext';
 import { attendanceService, AttendanceRecord, AttendanceFilters } from '../../services/attendanceService';
 import CollapsibleFilterSection from '../common/CollapsibleFilterSection';
-import { ClassDropdown } from '../common/MetadataDropdown';
+import { ClassDropdown, SessionYearDropdown } from '../common/MetadataDropdown';
+import { configurationService } from '../../services/configurationService';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -65,12 +66,23 @@ const AttendanceManagementSystem: React.FC = () => {
   const { getServiceConfiguration } = useConfiguration();
   const configuration = getServiceConfiguration('attendance-management');
 
+  // Get current session year ID from configuration
+  const getCurrentSessionYearId = (): number => {
+    const config = configurationService.getServiceConfiguration('attendance-management') ||
+                   configurationService.getServiceConfiguration('student-management') ||
+                   configurationService.getServiceConfiguration('fee-management');
+    if (config?.session_years && Array.isArray(config.session_years)) {
+      const currentSession = config.session_years.find((sy: any) => sy.is_current === true);
+      if (currentSession) return currentSession.id;
+    }
+    return 4; // Default fallback
+  };
+
   // Debug: Log configuration data
   useEffect(() => {
     if (configuration) {
       console.log('Attendance Configuration:', configuration);
       console.log('Attendance Statuses:', configuration.attendance_statuses);
-      console.log('Attendance Periods:', configuration.attendance_periods);
     }
   }, [configuration]);
 
@@ -85,8 +97,9 @@ const AttendanceManagementSystem: React.FC = () => {
   const [statistics, setStatistics] = useState<any>(null);
 
   // Filters
+  const [sessionYearId, setSessionYearId] = useState<number>(getCurrentSessionYearId());
   const [filters, setFilters] = useState<AttendanceFilters>({
-    session_year_id: 4,
+    session_year_id: getCurrentSessionYearId(),
     page: 1,
     per_page: DEFAULT_PAGE_SIZE
   });
@@ -94,7 +107,6 @@ const AttendanceManagementSystem: React.FC = () => {
   const [toDate, setToDate] = useState<Date | null>(null);
   const [classId, setClassId] = useState('');
   const [statusId, setStatusId] = useState('');
-  const [periodId, setPeriodId] = useState('');
   const [searchInput, setSearchInput] = useState('');
 
   // Load attendance records
@@ -104,15 +116,14 @@ const AttendanceManagementSystem: React.FC = () => {
       // Parse classId - handle "all" value by treating it as undefined
       const parsedClassId = classId && classId !== 'all' ? parseInt(classId) : undefined;
       const parsedStatusId = statusId && statusId !== 'all' ? parseInt(statusId) : undefined;
-      const parsedPeriodId = periodId && periodId !== 'all' ? parseInt(periodId) : undefined;
 
       const filterParams: AttendanceFilters = {
         ...filters,
+        session_year_id: sessionYearId,
         from_date: fromDate ? format(fromDate, 'yyyy-MM-dd') : undefined,
         to_date: toDate ? format(toDate, 'yyyy-MM-dd') : undefined,
         class_id: parsedClassId,
         attendance_status_id: parsedStatusId,
-        attendance_period_id: parsedPeriodId,
         search: searchInput || undefined,
         page,
         per_page: DEFAULT_PAGE_SIZE
@@ -198,7 +209,7 @@ const AttendanceManagementSystem: React.FC = () => {
       loadAttendance();
       loadStatistics();
     }
-  }, [fromDate, toDate, classId, statusId, periodId, searchInput]);
+  }, [fromDate, toDate, classId, statusId, sessionYearId, searchInput]);
 
   const handleDelete = async (id: number) => {
     if (!window.confirm('Are you sure you want to delete this attendance record?')) return;
@@ -237,6 +248,14 @@ const AttendanceManagementSystem: React.FC = () => {
         >
           <Grid container spacing={2}>
             <Grid size={{ xs: 12, sm: 6, md: 2 }}>
+              <SessionYearDropdown
+                value={sessionYearId}
+                onChange={(value) => setSessionYearId(Number(value))}
+                label="Session Year"
+                size="small"
+              />
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6, md: 2 }}>
               <DatePicker
                 label="From Date"
                 value={fromDate}
@@ -274,24 +293,6 @@ const AttendanceManagementSystem: React.FC = () => {
                     configuration.attendance_statuses.map((status: any) => (
                       <MenuItem key={status.id} value={status.id.toString()}>
                         {status.description || status.name}
-                      </MenuItem>
-                    )) : null}
-                </Select>
-              </FormControl>
-            </Grid>
-            <Grid size={{ xs: 12, sm: 6, md: 2 }}>
-              <FormControl fullWidth size="small">
-                <InputLabel>Period</InputLabel>
-                <Select
-                  value={periodId}
-                  label="Period"
-                  onChange={(e) => setPeriodId(e.target.value)}
-                >
-                  <MenuItem value="">All</MenuItem>
-                  {configuration?.attendance_periods && Array.isArray(configuration.attendance_periods) ?
-                    configuration.attendance_periods.map((period: any) => (
-                      <MenuItem key={period.id} value={period.id.toString()}>
-                        {period.description || period.name}
                       </MenuItem>
                     )) : null}
                 </Select>
