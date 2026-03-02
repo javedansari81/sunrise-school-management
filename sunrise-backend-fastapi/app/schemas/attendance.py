@@ -251,3 +251,21 @@ class ConsecutiveAbsenceResponse(BaseModel):
     as_of_date: date
     by_class: List[ClassConsecutiveAbsences]
 
+
+# ============================================
+# Parent Called Tracking Schemas
+# ============================================
+
+class MarkParentCalledRequest(BaseModel):
+    """Schema for marking a student's parent as called"""
+    student_id: int
+    notes: Optional[str] = None
+
+
+class MarkParentCalledResponse(BaseModel):
+    """Schema for response after marking parent as called"""
+    success: bool
+    message: str
+    student_id: int
+    called_at: datetime
+    called_by: int

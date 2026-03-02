@@ -68,14 +68,18 @@ class AttendanceRecord(Base):
     # Additional Information
     remarks = Column(Text, nullable=True)
     marked_by = Column(Integer, ForeignKey("users.id"), nullable=False)
-    
+
     # Leave Integration (Optional)
     leave_request_id = Column(Integer, ForeignKey("leave_requests.id"), nullable=True)
-    
+
+    # Parent Called Tracking (for consecutive absence alerts)
+    parent_called_at = Column(DateTime(timezone=True), nullable=True)
+    parent_called_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-    
+
     # Relationships
     student = relationship("Student", foreign_keys=[student_id])
     class_ref = relationship("Class", foreign_keys=[class_id])
@@ -84,4 +88,5 @@ class AttendanceRecord(Base):
     attendance_period = relationship("AttendancePeriod", foreign_keys=[attendance_period_id])
     marker = relationship("User", foreign_keys=[marked_by])
     leave_request = relationship("LeaveRequest", foreign_keys=[leave_request_id])
+    parent_caller = relationship("User", foreign_keys=[parent_called_by])
 

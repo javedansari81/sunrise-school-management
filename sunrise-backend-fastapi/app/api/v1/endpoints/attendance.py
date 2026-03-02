@@ -307,6 +307,52 @@ async def get_consecutive_absences(
     )
 
 
+@router.post("/mark-parent-called/{student_id}")
+async def mark_parent_called(
+    student_id: int,
+    session_year_id: int = Query(..., description="Session year ID"),
+    notes: Optional[str] = Query(None, description="Optional notes about the call"),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Mark a student's parent as called for consecutive absence tracking.
+    This updates the most recent absence record with:
+    - parent_called_at: Current timestamp
+    - parent_called_by: Current user's ID
+
+    After marking, the student won't appear in consecutive absence list for 3 days.
+    """
+    # Check user permissions (admin or receptionist can mark)
+    if current_user.user_type_id not in [1, 2, 3]:  # Admin, Receptionist, or Super Admin
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only admin or receptionist can mark parent as called"
+        )
+
+    record = await attendance_record_crud.mark_parent_called(
+        db,
+        student_id=student_id,
+        session_year_id=session_year_id,
+        called_by=current_user.id,
+        notes=notes
+    )
+
+    if not record:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No absence record found for student {student_id}"
+        )
+
+    return {
+        "success": True,
+        "message": "Parent marked as called successfully",
+        "student_id": student_id,
+        "called_at": record.parent_called_at,
+        "called_by": current_user.id
+    }
+
+
 # ============================================
 # Individual Record Endpoints
 # ============================================

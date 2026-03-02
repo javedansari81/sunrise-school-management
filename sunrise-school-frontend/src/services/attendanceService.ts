@@ -302,6 +302,34 @@ class AttendanceService {
     const response = await api.get('/attendance/consecutive-absences', { params });
     return response.data;
   }
+
+  // Mark parent as called for consecutive absence tracking
+  async markParentCalled(
+    studentId: number,
+    sessionYearId: number,
+    notes?: string
+  ): Promise<MarkParentCalledResponse> {
+    const params: Record<string, any> = {
+      session_year_id: sessionYearId
+    };
+    if (notes) {
+      params.notes = notes;
+    }
+    const response = await api.post(`/attendance/mark-parent-called/${studentId}`, null, { params });
+    return response.data;
+  }
+}
+
+// ============================================
+// Mark Parent Called Types
+// ============================================
+
+export interface MarkParentCalledResponse {
+  success: boolean;
+  message: string;
+  student_id: number;
+  called_at: string;
+  called_by: number;
 }
 
 // ============================================

@@ -21,6 +21,7 @@ import {
   useTheme,
   useMediaQuery,
   Tooltip,
+  Button,
 } from '@mui/material';
 import {
   ExpandMore,
@@ -29,6 +30,7 @@ import {
   Person as PersonIcon,
   OpenInFull as MaximizeIcon,
   Close as CloseIcon,
+  CheckCircle as CheckCircleIcon,
 } from '@mui/icons-material';
 import attendanceService, {
   ConsecutiveAbsenceResponse,
@@ -57,6 +59,7 @@ const ConsecutiveAbsenceWidget: React.FC<ConsecutiveAbsenceWidgetProps> = ({
   const [selectedClassId, setSelectedClassId] = useState<number | 'all'>('all');
   const [expandedStudent, setExpandedStudent] = useState<number | false>(false);
   const [maximized, setMaximized] = useState(false);
+  const [markingCalled, setMarkingCalled] = useState<number | null>(null);
 
   // Get classes from configuration service - same pattern as MetadataDropdown
   const getClasses = () => {
@@ -115,6 +118,21 @@ const ConsecutiveAbsenceWidget: React.FC<ConsecutiveAbsenceWidgetProps> = ({
     setExpandedStudent(isExpanded ? studentId : false);
   };
 
+  const handleMarkAsCalled = async (studentId: number) => {
+    try {
+      setMarkingCalled(studentId);
+      await attendanceService.markParentCalled(studentId, sessionYearId);
+      // Refresh the data - student should now be removed from the list
+      await loadData();
+      setExpandedStudent(false);
+    } catch (err: any) {
+      console.error('Error marking parent as called:', err);
+      alert(err.response?.data?.detail || 'Failed to mark parent as called');
+    } finally {
+      setMarkingCalled(null);
+    }
+  };
+
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString('en-IN', {
       day: 'numeric',
@@ -154,13 +172,26 @@ const ConsecutiveAbsenceWidget: React.FC<ConsecutiveAbsenceWidgetProps> = ({
         </Box>
       )}
       <Divider sx={{ my: 1 }} />
-      <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-        <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
-          Last Present: {student.last_present_date ? formatDate(student.last_present_date) : 'N/A'}
-        </Typography>
-        <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
-          Absent Since: {formatDate(student.absent_from_date)}
-        </Typography>
+      <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
+        <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+          <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+            Last Present: {student.last_present_date ? formatDate(student.last_present_date) : 'N/A'}
+          </Typography>
+          <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
+            Absent Since: {formatDate(student.absent_from_date)}
+          </Typography>
+        </Box>
+        <Button
+          variant="contained"
+          size="small"
+          color="success"
+          startIcon={markingCalled === student.student_id ? <CircularProgress size={14} color="inherit" /> : <CheckCircleIcon />}
+          onClick={() => handleMarkAsCalled(student.student_id)}
+          disabled={markingCalled !== null}
+          sx={{ fontSize: '0.7rem', py: 0.5, px: 1.5, textTransform: 'none' }}
+        >
+          {markingCalled === student.student_id ? 'Marking...' : 'Mark as Called'}
+        </Button>
       </Box>
     </Box>
   );

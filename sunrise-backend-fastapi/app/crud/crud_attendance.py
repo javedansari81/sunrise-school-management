@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload, joinedload
 from sqlalchemy import and_, or_, func, desc, text
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 from app.crud.base import CRUDBase
 from app.models.attendance import AttendanceRecord, AttendanceStatus, AttendancePeriod
@@ -520,6 +520,15 @@ class CRUDAttendanceRecord(CRUDBase[AttendanceRecord, AttendanceRecordCreate, At
               AND ls.name = 'Pending'
               AND lr.start_date <= :as_of_date
               AND lr.end_date >= :as_of_date
+        ),
+        recently_called AS (
+            -- Find students whose parents were called in last 3 days
+            SELECT DISTINCT
+                ar.student_id
+            FROM attendance_records ar
+            WHERE ar.session_year_id = :session_year_id
+              AND ar.parent_called_at IS NOT NULL
+              AND ar.parent_called_at >= (CURRENT_DATE - INTERVAL '3 days')
         )
         SELECT
             s.id as student_id,
@@ -542,8 +551,10 @@ class CRUDAttendanceRecord(CRUDBase[AttendanceRecord, AttendanceRecordCreate, At
         JOIN classes c ON s.class_id = c.id
         LEFT JOIN last_present lp ON s.id = lp.student_id
         LEFT JOIN pending_leaves pl ON s.id = pl.student_id
+        LEFT JOIN recently_called rc ON s.id = rc.student_id
         WHERE s.is_active = TRUE
           AND (s.is_deleted IS NULL OR s.is_deleted = FALSE)
+          AND rc.student_id IS NULL  -- Exclude students whose parents were recently called
           {class_filter}
         ORDER BY c.id, ca.consecutive_days DESC, s.roll_number
         """
@@ -552,6 +563,65 @@ class CRUDAttendanceRecord(CRUDBase[AttendanceRecord, AttendanceRecordCreate, At
         rows = result.fetchall()
 
         return [dict(row._mapping) for row in rows]
+
+    async def mark_parent_called(
+        self,
+        db: AsyncSession,
+        *,
+        student_id: int,
+        session_year_id: int,
+        called_by: int,
+        notes: Optional[str] = None
+    ) -> Optional[AttendanceRecord]:
+        """
+        Mark the most recent absence record for a student as parent called.
+        Updates the parent_called_at and parent_called_by fields.
+        """
+        # Find the most recent absence record for this student
+        query = select(AttendanceRecord).join(
+            AttendanceStatus, AttendanceRecord.attendance_status_id == AttendanceStatus.id
+        ).where(
+            AttendanceRecord.student_id == student_id,
+            AttendanceRecord.session_year_id == session_year_id,
+            AttendanceStatus.name == 'ABSENT'
+        ).order_by(AttendanceRecord.attendance_date.desc()).limit(1)
+
+        result = await db.execute(query)
+        record = result.scalar_one_or_none()
+
+        if record:
+            record.parent_called_at = datetime.now()
+            record.parent_called_by = called_by
+            if notes:
+                record.remarks = notes
+            await db.commit()
+            await db.refresh(record)
+
+        return record
+
+    async def get_parent_call_status(
+        self,
+        db: AsyncSession,
+        *,
+        student_id: int,
+        session_year_id: int,
+        days_back: int = 3
+    ) -> Optional[datetime]:
+        """
+        Check if parent was called for this student within the last N days.
+        Returns the timestamp of the most recent call, or None if not called.
+        """
+        cutoff_date = datetime.now() - timedelta(days=days_back)
+
+        query = select(AttendanceRecord.parent_called_at).where(
+            AttendanceRecord.student_id == student_id,
+            AttendanceRecord.session_year_id == session_year_id,
+            AttendanceRecord.parent_called_at.isnot(None),
+            AttendanceRecord.parent_called_at >= cutoff_date
+        ).order_by(AttendanceRecord.parent_called_at.desc()).limit(1)
+
+        result = await db.execute(query)
+        return result.scalar_one_or_none()
 
 
 # Create singleton instance
