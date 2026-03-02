@@ -288,14 +288,18 @@ class AttendanceService {
     minAbsentDays: number = 3,
     asOfDate?: string
   ): Promise<ConsecutiveAbsenceResponse> {
-    const response = await api.get('/attendance/consecutive-absences', {
-      params: {
-        session_year_id: sessionYearId,
-        class_id: classId,
-        min_absent_days: minAbsentDays,
-        as_of_date: asOfDate
-      }
-    });
+    const params: Record<string, any> = {
+      session_year_id: sessionYearId,
+      min_absent_days: minAbsentDays
+    };
+    // Only add class_id if it's a valid number
+    if (classId !== undefined && typeof classId === 'number') {
+      params.class_id = classId;
+    }
+    if (asOfDate) {
+      params.as_of_date = asOfDate;
+    }
+    const response = await api.get('/attendance/consecutive-absences', { params });
     return response.data;
   }
 }
@@ -316,8 +320,7 @@ export interface ConsecutiveAbsentStudent {
   last_present_date?: string;
   father_name?: string;
   father_phone?: string;
-  mother_name?: string;
-  mother_phone?: string;
+  phone?: string;
   guardian_name?: string;
   guardian_phone?: string;
   has_pending_leave: boolean;

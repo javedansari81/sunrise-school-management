@@ -15,12 +15,20 @@ import {
   MenuItem,
   Link,
   Divider,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  useTheme,
+  useMediaQuery,
+  Tooltip,
 } from '@mui/material';
 import {
   ExpandMore,
   Warning as WarningIcon,
   Phone as PhoneIcon,
   Person as PersonIcon,
+  OpenInFull as MaximizeIcon,
+  Close as CloseIcon,
 } from '@mui/icons-material';
 import attendanceService, {
   ConsecutiveAbsenceResponse,
@@ -40,24 +48,30 @@ const ConsecutiveAbsenceWidget: React.FC<ConsecutiveAbsenceWidgetProps> = ({
   expanded,
   onToggleExpand,
 }) => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+
   const [data, setData] = useState<ConsecutiveAbsenceResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedClassId, setSelectedClassId] = useState<number | ''>('');
+  const [selectedClassId, setSelectedClassId] = useState<number | 'all'>('all');
   const [expandedStudent, setExpandedStudent] = useState<number | false>(false);
+  const [maximized, setMaximized] = useState(false);
 
   // Get classes from configuration service - same pattern as MetadataDropdown
   const getClasses = () => {
-    // Try to get configuration from different services
-    const feeConfig = configurationService.getServiceConfiguration('fee-management');
-    const studentConfig = configurationService.getServiceConfiguration('student-management');
-    const leaveConfig = configurationService.getServiceConfiguration('leave-management');
-    const expenseConfig = configurationService.getServiceConfiguration('expense-management');
-    const teacherConfig = configurationService.getServiceConfiguration('teacher-management');
-    const attendanceConfig = configurationService.getServiceConfiguration('attendance-management');
+    // Try common config first (loaded by AdminDashboard), then other services
     const commonConfig = configurationService.getServiceConfiguration('common');
+    if (commonConfig && (commonConfig as any).classes) {
+      return (commonConfig as any).classes;
+    }
 
-    const configs = [feeConfig, studentConfig, leaveConfig, expenseConfig, teacherConfig, attendanceConfig, commonConfig].filter(Boolean);
+    // Fallback to other services
+    const configs = [
+      configurationService.getServiceConfiguration('fee-management'),
+      configurationService.getServiceConfiguration('student-management'),
+      configurationService.getServiceConfiguration('attendance-management'),
+    ].filter(Boolean);
 
     for (const config of configs) {
       if (config && (config as any).classes) {
@@ -67,13 +81,15 @@ const ConsecutiveAbsenceWidget: React.FC<ConsecutiveAbsenceWidgetProps> = ({
     return [];
   };
 
+  const classes = getClasses();
+
   const loadData = async () => {
     try {
       setLoading(true);
       setError(null);
       const response = await attendanceService.getConsecutiveAbsences(
         sessionYearId,
-        selectedClassId || undefined,
+        selectedClassId === 'all' ? undefined : selectedClassId,
         3
       );
       setData(response);
@@ -126,9 +142,8 @@ const ConsecutiveAbsenceWidget: React.FC<ConsecutiveAbsenceWidgetProps> = ({
           {renderPhoneLink(student.father_phone)}
         </Box>
         <Box>
-          <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>Mother</Typography>
-          <Typography variant="body2" fontWeight="medium" sx={{ fontSize: '0.8rem' }}>{student.mother_name || '--'}</Typography>
-          {renderPhoneLink(student.mother_phone)}
+          <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>Phone</Typography>
+          {renderPhoneLink(student.phone)}
         </Box>
       </Box>
       {student.guardian_name && (
@@ -239,14 +254,24 @@ const ConsecutiveAbsenceWidget: React.FC<ConsecutiveAbsenceWidgetProps> = ({
               </Typography>
             </Box>
           </Box>
-          {/* Expand/Collapse Button */}
-          <IconButton
-            size="small"
-            onClick={(e) => { e.stopPropagation(); onToggleExpand(); }}
-            sx={{ transition: 'transform 0.3s ease', transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)', flexShrink: 0, ml: 1 }}
-          >
-            <ExpandMore />
-          </IconButton>
+          {/* Action Buttons */}
+          <Box sx={{ display: 'flex', alignItems: 'center', flexShrink: 0, ml: 1 }}>
+            <Tooltip title="Maximize">
+              <IconButton
+                size="small"
+                onClick={(e) => { e.stopPropagation(); setMaximized(true); }}
+              >
+                <MaximizeIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+            <IconButton
+              size="small"
+              onClick={(e) => { e.stopPropagation(); onToggleExpand(); }}
+              sx={{ transition: 'transform 0.3s ease', transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)' }}
+            >
+              <ExpandMore />
+            </IconButton>
+          </Box>
         </Box>
 
         {/* Expandable Details Section */}
@@ -258,12 +283,12 @@ const ConsecutiveAbsenceWidget: React.FC<ConsecutiveAbsenceWidgetProps> = ({
                 select
                 label="Filter by Class"
                 value={selectedClassId}
-                onChange={(e) => setSelectedClassId(e.target.value === '' ? '' : Number(e.target.value))}
+                onChange={(e) => setSelectedClassId(e.target.value === 'all' ? 'all' : Number(e.target.value))}
                 size="small"
                 sx={{ minWidth: 140 }}
               >
-                <MenuItem value="">All Classes</MenuItem>
-                {getClasses().map((cls: any) => (
+                <MenuItem value="all">All Classes</MenuItem>
+                {classes.map((cls: any) => (
                   <MenuItem key={cls.id} value={cls.id}>{cls.description || cls.name}</MenuItem>
                 ))}
               </TextField>
@@ -286,6 +311,83 @@ const ConsecutiveAbsenceWidget: React.FC<ConsecutiveAbsenceWidgetProps> = ({
           </Box>
         </Collapse>
       </CardContent>
+
+      {/* Maximize Dialog */}
+      <Dialog
+        open={maximized}
+        onClose={() => setMaximized(false)}
+        maxWidth="md"
+        fullWidth
+        fullScreen={isMobile}
+        slotProps={{
+          paper: {
+            sx: {
+              m: { xs: 0, sm: 2 },
+              maxHeight: { xs: '100%', sm: '90vh' },
+              borderRadius: { xs: 0, sm: 2 }
+            }
+          }
+        }}
+      >
+        <DialogTitle sx={{
+          bgcolor: '#d32f2f',
+          color: 'white',
+          py: { xs: 1.5, sm: 2 },
+          px: { xs: 2, sm: 3 },
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between'
+        }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <WarningIcon />
+            <Typography variant="h6" sx={{ fontSize: { xs: '1.125rem', sm: '1.25rem' } }}>
+              Consecutive Absence Alerts
+            </Typography>
+            {totalStudents > 0 && (
+              <Chip label={totalStudents} size="small" sx={{ bgcolor: 'white', color: '#d32f2f', fontWeight: 'bold' }} />
+            )}
+          </Box>
+          <IconButton onClick={() => setMaximized(false)} sx={{ color: 'white' }} size="small">
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent sx={{ p: { xs: 2, sm: 3 }, bgcolor: '#fafafa' }}>
+          {/* Class Filter in Dialog */}
+          <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
+            <Typography variant="body2" color="text.secondary">
+              Students absent for 3+ consecutive days without leave request
+            </Typography>
+            <TextField
+              select
+              label="Filter by Class"
+              value={selectedClassId}
+              onChange={(e) => setSelectedClassId(e.target.value === 'all' ? 'all' : Number(e.target.value))}
+              size="small"
+              sx={{ minWidth: 160 }}
+            >
+              <MenuItem value="all">All Classes</MenuItem>
+              {classes.map((cls: any) => (
+                <MenuItem key={cls.id} value={cls.id}>{cls.description || cls.name}</MenuItem>
+              ))}
+            </TextField>
+          </Box>
+
+          {/* Dialog Content */}
+          {loading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+              <CircularProgress size={32} />
+            </Box>
+          ) : totalStudents === 0 ? (
+            <Typography variant="body1" color="success.main" sx={{ textAlign: 'center', py: 4 }}>
+              ✓ No students with 3+ consecutive absences. All good!
+            </Typography>
+          ) : (
+            <Box sx={{ maxHeight: { xs: 'calc(100vh - 200px)', sm: '60vh' }, overflow: 'auto' }}>
+              {data?.by_class.map(renderClassGroup)}
+            </Box>
+          )}
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 };

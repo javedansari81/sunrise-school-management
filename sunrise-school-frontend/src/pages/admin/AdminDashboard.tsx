@@ -14,6 +14,11 @@ import {
   Select,
   MenuItem,
   Tooltip as MuiTooltip,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  useTheme,
+  useMediaQuery,
 } from '@mui/material';
 import {
   People,
@@ -26,6 +31,8 @@ import {
   Notifications as NotificationsIcon,
   CalendarMonth,
   Public,
+  OpenInFull as MaximizeIcon,
+  Close as CloseIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import AdminLayout from '../../components/Layout/AdminLayout';
@@ -212,6 +219,8 @@ const SessionFilterIndicator: React.FC<{ isSessionFiltered: boolean }> = ({ isSe
 
 const AdminDashboardContent: React.FC = () => {
   const navigate = useNavigate();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const { getSessionYears, getCurrentSessionYear } = useConfiguration();
 
   const [dashboardStats, setDashboardStats] = useState<DashboardStats | null>(null);
@@ -234,6 +243,9 @@ const AdminDashboardContent: React.FC = () => {
     notifications: true,
     absenceAlerts: true,
   });
+
+  // Track which card is maximized (null if none)
+  const [maximizedCard, setMaximizedCard] = useState<string | null>(null);
 
   // Get session years from configuration
   const sessionYears = getSessionYears();
@@ -913,22 +925,33 @@ const AdminDashboardContent: React.FC = () => {
                     </Box>
                   </Box>
 
-                  {/* Right Side: Expand/Collapse Button */}
-                  <IconButton
-                    size="small"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      toggleCardExpansion(card.key);
-                    }}
-                    sx={{
-                      transition: 'transform 0.3s ease',
-                      transform: expandedCards[card.key] ? 'rotate(180deg)' : 'rotate(0deg)',
-                      flexShrink: 0,
-                      ml: 1
-                    }}
-                  >
-                    <ExpandMore />
-                  </IconButton>
+                  {/* Right Side: Action Buttons */}
+                  <Box sx={{ display: 'flex', alignItems: 'center', flexShrink: 0, ml: 1 }}>
+                    <MuiTooltip title="Maximize">
+                      <IconButton
+                        size="small"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setMaximizedCard(card.key);
+                        }}
+                      >
+                        <MaximizeIcon fontSize="small" />
+                      </IconButton>
+                    </MuiTooltip>
+                    <IconButton
+                      size="small"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleCardExpansion(card.key);
+                      }}
+                      sx={{
+                        transition: 'transform 0.3s ease',
+                        transform: expandedCards[card.key] ? 'rotate(180deg)' : 'rotate(0deg)',
+                      }}
+                    >
+                      <ExpandMore />
+                    </IconButton>
+                  </Box>
                 </Box>
 
                 {/* Expandable Details Section */}
@@ -949,6 +972,75 @@ const AdminDashboardContent: React.FC = () => {
           )}
           </Box>
         )}
+
+        {/* Maximize Dialog for Dashboard Cards */}
+        {(() => {
+          const cards = getDashboardCards() as Array<{
+            key: string;
+            title: string;
+            value: string;
+            icon: React.ReactNode;
+            color: string;
+            change: string;
+            clickable: boolean;
+            onClick?: () => void;
+            isSessionFiltered?: boolean;
+          }>;
+          const maximizedCardData = cards.find(c => c.key === maximizedCard);
+          if (!maximizedCardData) return null;
+
+          return (
+            <Dialog
+              open={Boolean(maximizedCard)}
+              onClose={() => setMaximizedCard(null)}
+              maxWidth="md"
+              fullWidth
+              fullScreen={isMobile}
+              slotProps={{
+                paper: {
+                  sx: {
+                    m: { xs: 0, sm: 2 },
+                    maxHeight: { xs: '100%', sm: '90vh' },
+                    borderRadius: { xs: 0, sm: 2 }
+                  }
+                }
+              }}
+            >
+              <DialogTitle sx={{
+                bgcolor: maximizedCardData.color,
+                color: 'white',
+                py: { xs: 1.5, sm: 2 },
+                px: { xs: 2, sm: 3 },
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between'
+              }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', '& .MuiSvgIcon-root': { fontSize: '1.75rem' } }}>
+                    {maximizedCardData.icon}
+                  </Box>
+                  <Box>
+                    <Typography variant="h6" sx={{ fontSize: { xs: '1rem', sm: '1.25rem' }, fontWeight: 600 }}>
+                      {maximizedCardData.title}
+                    </Typography>
+                    <Typography variant="body2" sx={{ opacity: 0.9, fontSize: { xs: '0.75rem', sm: '0.85rem' } }}>
+                      {maximizedCardData.value}
+                    </Typography>
+                  </Box>
+                </Box>
+                <IconButton onClick={() => setMaximizedCard(null)} sx={{ color: 'white' }} size="small">
+                  <CloseIcon />
+                </IconButton>
+              </DialogTitle>
+              <DialogContent sx={{ p: { xs: 2, sm: 3 }, bgcolor: '#fafafa' }}>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  {maximizedCardData.change}
+                </Typography>
+                {renderCardDetails(maximizedCardData)}
+              </DialogContent>
+            </Dialog>
+          );
+        })()}
     </AdminLayout>
   );
 };

@@ -427,13 +427,16 @@ class CRUDAttendanceRecord(CRUDBase[AttendanceRecord, AttendanceRecordCreate, At
         as_of_date: Optional[date] = None
     ) -> List[Dict[str, Any]]:
         """
-        Find students who have been absent for consecutive days without approved leave.
+        Find students who have been absent for consecutive attendance days without approved leave.
 
         This query:
         1. Looks at attendance records up to as_of_date (defaults to today)
-        2. Finds students marked ABSENT for min_absent_days or more consecutive days
+        2. Finds students whose last N attendance records are ABSENT (skipping holidays/weekends)
         3. Excludes students who have approved leave requests covering those dates
         4. Returns student details with parent contact information
+
+        Note: "Consecutive" means consecutive attendance records, not calendar days.
+        This handles weekends/holidays where no attendance is taken.
         """
         from datetime import date as date_type
 
@@ -454,66 +457,57 @@ class CRUDAttendanceRecord(CRUDBase[AttendanceRecord, AttendanceRecordCreate, At
             params["class_id"] = class_id
 
         # Query to find students with consecutive absences
-        # Uses a window function to identify consecutive absence streaks
+        # Counts consecutive ABSENT records (ignoring gaps from holidays/weekends)
+        # Simpler approach: rank attendance records and find where the streak of absences breaks
         query = f"""
-        WITH recent_attendance AS (
-            -- Get attendance records for the session, ordered by date desc
+        WITH ranked_attendance AS (
+            -- Get attendance records ranked by date (most recent first) for each student
             SELECT
                 ar.student_id,
                 ar.attendance_date,
-                ar.attendance_status_id,
                 ast.name as status_name,
-                ar.leave_request_id
+                ar.leave_request_id,
+                ROW_NUMBER() OVER (
+                    PARTITION BY ar.student_id
+                    ORDER BY ar.attendance_date DESC
+                ) as rn
             FROM attendance_records ar
             JOIN attendance_statuses ast ON ar.attendance_status_id = ast.id
             WHERE ar.session_year_id = :session_year_id
               AND ar.attendance_date <= :as_of_date
         ),
+        first_non_absent AS (
+            -- Find the first record that is NOT absent (or has leave) for each student
+            -- This tells us where the consecutive absence streak ends
+            SELECT
+                student_id,
+                MIN(rn) as first_break_rn
+            FROM ranked_attendance
+            WHERE status_name != :absent_status OR leave_request_id IS NOT NULL
+            GROUP BY student_id
+        ),
         consecutive_absences AS (
-            -- Find consecutive absent days for each student (from most recent)
+            -- Count absences from rn=1 up to (but not including) the first break
             SELECT
                 ra.student_id,
-                MIN(ra.attendance_date) as absent_from_date,
-                COUNT(*) as consecutive_days
-            FROM (
-                SELECT
-                    student_id,
-                    attendance_date,
-                    status_name,
-                    leave_request_id,
-                    -- Create groups for consecutive dates
-                    attendance_date - (ROW_NUMBER() OVER (
-                        PARTITION BY student_id
-                        ORDER BY attendance_date DESC
-                    ))::int as grp
-                FROM recent_attendance
-                WHERE status_name = :absent_status
-                  AND leave_request_id IS NULL  -- No leave linked
-            ) ra
-            -- Only consider the most recent consecutive group (grp with max date)
-            WHERE ra.grp = (
-                SELECT ra2.attendance_date - (ROW_NUMBER() OVER (
-                    PARTITION BY ra2.student_id
-                    ORDER BY ra2.attendance_date DESC
-                ))::int
-                FROM recent_attendance ra2
-                WHERE ra2.student_id = ra.student_id
-                  AND ra2.status_name = :absent_status
-                  AND ra2.leave_request_id IS NULL
-                ORDER BY ra2.attendance_date DESC
-                LIMIT 1
-            )
-            GROUP BY ra.student_id, ra.grp
+                COUNT(*) as consecutive_days,
+                MIN(ra.attendance_date) as absent_from_date
+            FROM ranked_attendance ra
+            LEFT JOIN first_non_absent fna ON ra.student_id = fna.student_id
+            WHERE ra.status_name = :absent_status
+              AND ra.leave_request_id IS NULL
+              AND ra.rn < COALESCE(fna.first_break_rn, 999999)
+            GROUP BY ra.student_id
             HAVING COUNT(*) >= :min_days
         ),
         last_present AS (
             -- Find last present date for each student
             SELECT
-                ra.student_id,
-                MAX(ra.attendance_date) as last_present_date
-            FROM recent_attendance ra
-            WHERE ra.status_name = 'PRESENT'
-            GROUP BY ra.student_id
+                student_id,
+                MAX(attendance_date) as last_present_date
+            FROM ranked_attendance
+            WHERE status_name = 'PRESENT'
+            GROUP BY student_id
         ),
         pending_leaves AS (
             -- Check for pending leave requests
@@ -539,8 +533,7 @@ class CRUDAttendanceRecord(CRUDBase[AttendanceRecord, AttendanceRecordCreate, At
             lp.last_present_date,
             s.father_name,
             s.father_phone,
-            s.mother_name,
-            s.mother_phone,
+            s.phone,
             s.guardian_name,
             s.guardian_phone,
             COALESCE(pl.has_pending_leave, FALSE) as has_pending_leave

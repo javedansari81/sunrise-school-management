@@ -229,8 +229,7 @@ class ConsecutiveAbsentStudent(BaseModel):
     # Parent/Guardian contact information
     father_name: Optional[str] = None
     father_phone: Optional[str] = None
-    mother_name: Optional[str] = None
-    mother_phone: Optional[str] = None
+    phone: Optional[str] = None
     guardian_name: Optional[str] = None
     guardian_phone: Optional[str] = None
     # Leave status

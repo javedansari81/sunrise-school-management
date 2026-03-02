@@ -203,6 +203,111 @@ async def get_my_attendance_summary(
 
 
 # ============================================
+# Consecutive Absence Alert Endpoint
+# (Must come before /{id} routes to avoid route conflict)
+# ============================================
+
+@router.get("/consecutive-absences", response_model=ConsecutiveAbsenceResponse)
+async def get_consecutive_absences(
+    session_year_id: int = Query(..., description="Session year ID"),
+    class_id: Optional[int] = Query(None, description="Filter by class ID (optional)"),
+    min_absent_days: int = Query(3, ge=1, le=30, description="Minimum consecutive absent days"),
+    as_of_date: Optional[date] = Query(None, description="Check absences as of this date (default: today)"),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Get students with consecutive absences without approved leave request.
+
+    This endpoint is useful for:
+    - Identifying students who need follow-up calls
+    - Receptionist workflow to contact parents
+    - Attendance monitoring and alerts
+
+    Returns:
+    - List of students grouped by class
+    - Parent/guardian contact information
+    - Number of consecutive absent days
+    - Pending leave request status
+    """
+    from datetime import date as date_type
+    import logging
+    logger = logging.getLogger(__name__)
+
+    # Default to today if no date provided
+    check_date = as_of_date or date_type.today()
+
+    # Get consecutive absences from CRUD
+    try:
+        logger.info(f"Fetching consecutive absences for session_year_id={session_year_id}, min_days={min_absent_days}, as_of_date={check_date}")
+        absences = await attendance_record_crud.get_consecutive_absences(
+            db,
+            session_year_id=session_year_id,
+            min_absent_days=min_absent_days,
+            class_id=class_id,
+            as_of_date=check_date
+        )
+        logger.info(f"Query returned {len(absences)} records")
+        if absences:
+            logger.info(f"First record: {absences[0]}")
+    except Exception as e:
+        logger.error(f"Error fetching consecutive absences: {e}")
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+    # Group by class
+    class_groups: dict = {}
+    for record in absences:
+        cid = record["class_id"]
+        if cid not in class_groups:
+            class_groups[cid] = {
+                "class_id": cid,
+                "class_name": record["class_name"],
+                "students": []
+            }
+
+        class_groups[cid]["students"].append(
+            ConsecutiveAbsentStudent(
+                student_id=record["student_id"],
+                student_name=record["student_name"],
+                roll_number=record.get("roll_number"),
+                class_id=record["class_id"],
+                class_name=record["class_name"],
+                section=record.get("section"),
+                consecutive_absent_days=record["consecutive_absent_days"],
+                absent_from_date=record["absent_from_date"],
+                last_present_date=record.get("last_present_date"),
+                father_name=record.get("father_name"),
+                father_phone=record.get("father_phone"),
+                phone=record.get("phone"),
+                guardian_name=record.get("guardian_name"),
+                guardian_phone=record.get("guardian_phone"),
+                has_pending_leave=record.get("has_pending_leave", False)
+            )
+        )
+
+    # Build response with class counts
+    by_class = [
+        ClassConsecutiveAbsences(
+            class_id=data["class_id"],
+            class_name=data["class_name"],
+            student_count=len(data["students"]),
+            students=data["students"]
+        )
+        for data in class_groups.values()
+    ]
+
+    # Sort by class_id
+    by_class.sort(key=lambda x: x.class_id)
+
+    return ConsecutiveAbsenceResponse(
+        total_students=len(absences),
+        min_absent_days=min_absent_days,
+        as_of_date=check_date,
+        by_class=by_class
+    )
+
+
+# ============================================
 # Individual Record Endpoints
 # ============================================
 
@@ -444,99 +549,4 @@ async def get_attendance_statistics(
         total_late=stats.get("total_late", 0),
         overall_attendance_percentage=stats.get("overall_attendance_percentage", 0.0),
         date_range=date_range
-    )
-
-
-# ============================================
-# Consecutive Absence Alert Endpoint
-# ============================================
-
-@router.get("/consecutive-absences", response_model=ConsecutiveAbsenceResponse)
-async def get_consecutive_absences(
-    session_year_id: int = Query(..., description="Session year ID"),
-    class_id: Optional[int] = Query(None, description="Filter by class ID (optional)"),
-    min_absent_days: int = Query(3, ge=1, le=30, description="Minimum consecutive absent days"),
-    as_of_date: Optional[date] = Query(None, description="Check absences as of this date (default: today)"),
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
-):
-    """
-    Get students with consecutive absences without approved leave request.
-
-    This endpoint is useful for:
-    - Identifying students who need follow-up calls
-    - Receptionist workflow to contact parents
-    - Attendance monitoring and alerts
-
-    Returns:
-    - List of students grouped by class
-    - Parent/guardian contact information
-    - Number of consecutive absent days
-    - Pending leave request status
-    """
-    from datetime import date as date_type
-
-    # Default to today if no date provided
-    check_date = as_of_date or date_type.today()
-
-    # Get consecutive absences from CRUD
-    absences = await attendance_record_crud.get_consecutive_absences(
-        db,
-        session_year_id=session_year_id,
-        min_absent_days=min_absent_days,
-        class_id=class_id,
-        as_of_date=check_date
-    )
-
-    # Group by class
-    class_groups: dict = {}
-    for record in absences:
-        cid = record["class_id"]
-        if cid not in class_groups:
-            class_groups[cid] = {
-                "class_id": cid,
-                "class_name": record["class_name"],
-                "students": []
-            }
-
-        class_groups[cid]["students"].append(
-            ConsecutiveAbsentStudent(
-                student_id=record["student_id"],
-                student_name=record["student_name"],
-                roll_number=record.get("roll_number"),
-                class_id=record["class_id"],
-                class_name=record["class_name"],
-                section=record.get("section"),
-                consecutive_absent_days=record["consecutive_absent_days"],
-                absent_from_date=record["absent_from_date"],
-                last_present_date=record.get("last_present_date"),
-                father_name=record.get("father_name"),
-                father_phone=record.get("father_phone"),
-                mother_name=record.get("mother_name"),
-                mother_phone=record.get("mother_phone"),
-                guardian_name=record.get("guardian_name"),
-                guardian_phone=record.get("guardian_phone"),
-                has_pending_leave=record.get("has_pending_leave", False)
-            )
-        )
-
-    # Build response with class counts
-    by_class = [
-        ClassConsecutiveAbsences(
-            class_id=data["class_id"],
-            class_name=data["class_name"],
-            student_count=len(data["students"]),
-            students=data["students"]
-        )
-        for data in class_groups.values()
-    ]
-
-    # Sort by class_id
-    by_class.sort(key=lambda x: x.class_id)
-
-    return ConsecutiveAbsenceResponse(
-        total_students=len(absences),
-        min_absent_days=min_absent_days,
-        as_of_date=check_date,
-        by_class=by_class
     )
