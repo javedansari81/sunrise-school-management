@@ -76,7 +76,7 @@ SERVICE_METADATA_MAPPINGS = {
         "progression_actions", "session_years", "classes"
     ],
     "common": [
-        "session_years", "user_types"
+        "session_years", "user_types", "classes"
     ]
 }
 

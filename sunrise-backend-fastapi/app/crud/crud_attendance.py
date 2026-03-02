@@ -417,6 +417,149 @@ class CRUDAttendanceRecord(CRUDBase[AttendanceRecord, AttendanceRecordCreate, At
             "overall_attendance_percentage": float(stats.get("overall_attendance_percentage") or 0.0)
         }
 
+    async def get_consecutive_absences(
+        self,
+        db: AsyncSession,
+        *,
+        session_year_id: int,
+        min_absent_days: int = 3,
+        class_id: Optional[int] = None,
+        as_of_date: Optional[date] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Find students who have been absent for consecutive days without approved leave.
+
+        This query:
+        1. Looks at attendance records up to as_of_date (defaults to today)
+        2. Finds students marked ABSENT for min_absent_days or more consecutive days
+        3. Excludes students who have approved leave requests covering those dates
+        4. Returns student details with parent contact information
+        """
+        from datetime import date as date_type
+
+        if as_of_date is None:
+            as_of_date = date_type.today()
+
+        # Build optional class filter
+        class_filter = ""
+        params = {
+            "session_year_id": session_year_id,
+            "min_days": min_absent_days,
+            "as_of_date": as_of_date,
+            "absent_status": "ABSENT"  # Attendance status name for absent
+        }
+
+        if class_id:
+            class_filter = "AND s.class_id = :class_id"
+            params["class_id"] = class_id
+
+        # Query to find students with consecutive absences
+        # Uses a window function to identify consecutive absence streaks
+        query = f"""
+        WITH recent_attendance AS (
+            -- Get attendance records for the session, ordered by date desc
+            SELECT
+                ar.student_id,
+                ar.attendance_date,
+                ar.attendance_status_id,
+                ast.name as status_name,
+                ar.leave_request_id
+            FROM attendance_records ar
+            JOIN attendance_statuses ast ON ar.attendance_status_id = ast.id
+            WHERE ar.session_year_id = :session_year_id
+              AND ar.attendance_date <= :as_of_date
+        ),
+        consecutive_absences AS (
+            -- Find consecutive absent days for each student (from most recent)
+            SELECT
+                ra.student_id,
+                MIN(ra.attendance_date) as absent_from_date,
+                COUNT(*) as consecutive_days
+            FROM (
+                SELECT
+                    student_id,
+                    attendance_date,
+                    status_name,
+                    leave_request_id,
+                    -- Create groups for consecutive dates
+                    attendance_date - (ROW_NUMBER() OVER (
+                        PARTITION BY student_id
+                        ORDER BY attendance_date DESC
+                    ))::int as grp
+                FROM recent_attendance
+                WHERE status_name = :absent_status
+                  AND leave_request_id IS NULL  -- No leave linked
+            ) ra
+            -- Only consider the most recent consecutive group (grp with max date)
+            WHERE ra.grp = (
+                SELECT ra2.attendance_date - (ROW_NUMBER() OVER (
+                    PARTITION BY ra2.student_id
+                    ORDER BY ra2.attendance_date DESC
+                ))::int
+                FROM recent_attendance ra2
+                WHERE ra2.student_id = ra.student_id
+                  AND ra2.status_name = :absent_status
+                  AND ra2.leave_request_id IS NULL
+                ORDER BY ra2.attendance_date DESC
+                LIMIT 1
+            )
+            GROUP BY ra.student_id, ra.grp
+            HAVING COUNT(*) >= :min_days
+        ),
+        last_present AS (
+            -- Find last present date for each student
+            SELECT
+                ra.student_id,
+                MAX(ra.attendance_date) as last_present_date
+            FROM recent_attendance ra
+            WHERE ra.status_name = 'PRESENT'
+            GROUP BY ra.student_id
+        ),
+        pending_leaves AS (
+            -- Check for pending leave requests
+            SELECT DISTINCT
+                lr.applicant_id as student_id,
+                TRUE as has_pending_leave
+            FROM leave_requests lr
+            JOIN leave_statuses ls ON lr.leave_status_id = ls.id
+            WHERE lr.applicant_type = 'student'
+              AND ls.name = 'Pending'
+              AND lr.start_date <= :as_of_date
+              AND lr.end_date >= :as_of_date
+        )
+        SELECT
+            s.id as student_id,
+            s.first_name || ' ' || s.last_name as student_name,
+            s.roll_number,
+            s.class_id,
+            c.description as class_name,
+            s.section,
+            ca.consecutive_days as consecutive_absent_days,
+            ca.absent_from_date,
+            lp.last_present_date,
+            s.father_name,
+            s.father_phone,
+            s.mother_name,
+            s.mother_phone,
+            s.guardian_name,
+            s.guardian_phone,
+            COALESCE(pl.has_pending_leave, FALSE) as has_pending_leave
+        FROM consecutive_absences ca
+        JOIN students s ON ca.student_id = s.id
+        JOIN classes c ON s.class_id = c.id
+        LEFT JOIN last_present lp ON s.id = lp.student_id
+        LEFT JOIN pending_leaves pl ON s.id = pl.student_id
+        WHERE s.is_active = TRUE
+          AND (s.is_deleted IS NULL OR s.is_deleted = FALSE)
+          {class_filter}
+        ORDER BY c.id, ca.consecutive_days DESC, s.roll_number
+        """
+
+        result = await db.execute(text(query), params)
+        rows = result.fetchall()
+
+        return [dict(row._mapping) for row in rows]
+
 
 # Create singleton instance
 attendance_record_crud = CRUDAttendanceRecord(AttendanceRecord)

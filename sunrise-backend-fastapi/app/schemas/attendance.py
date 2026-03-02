@@ -210,3 +210,45 @@ class AttendanceStatistics(BaseModel):
     overall_attendance_percentage: float
     date_range: str
 
+
+# ============================================
+# Consecutive Absence Alert Schemas
+# ============================================
+
+class ConsecutiveAbsentStudent(BaseModel):
+    """Schema for a student with consecutive absences"""
+    student_id: int
+    student_name: str
+    roll_number: Optional[str] = None
+    class_id: int
+    class_name: str
+    section: Optional[str] = None
+    consecutive_absent_days: int
+    absent_from_date: date
+    last_present_date: Optional[date] = None
+    # Parent/Guardian contact information
+    father_name: Optional[str] = None
+    father_phone: Optional[str] = None
+    mother_name: Optional[str] = None
+    mother_phone: Optional[str] = None
+    guardian_name: Optional[str] = None
+    guardian_phone: Optional[str] = None
+    # Leave status
+    has_pending_leave: bool = False
+
+
+class ClassConsecutiveAbsences(BaseModel):
+    """Schema for consecutive absences grouped by class"""
+    class_id: int
+    class_name: str
+    student_count: int
+    students: List[ConsecutiveAbsentStudent]
+
+
+class ConsecutiveAbsenceResponse(BaseModel):
+    """Schema for consecutive absence alert response"""
+    total_students: int
+    min_absent_days: int
+    as_of_date: date
+    by_class: List[ClassConsecutiveAbsences]
+

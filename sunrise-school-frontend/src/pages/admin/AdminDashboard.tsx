@@ -31,6 +31,7 @@ import { useNavigate } from 'react-router-dom';
 import AdminLayout from '../../components/Layout/AdminLayout';
 import ServiceConfigurationLoader from '../../components/common/ServiceConfigurationLoader';
 import { useConfiguration } from '../../contexts/ConfigurationContext';
+import ConsecutiveAbsenceWidget from '../../components/admin/ConsecutiveAbsenceWidget';
 import { enhancedFeesAPI } from '../../services/api';
 import { alertAPI } from '../../services/alertService';
 import { AlertStats } from '../../types/alert';
@@ -231,6 +232,7 @@ const AdminDashboardContent: React.FC = () => {
     expenses: true,
     transport: true,
     notifications: true,
+    absenceAlerts: true,
   });
 
   // Get session years from configuration
@@ -936,6 +938,15 @@ const AdminDashboardContent: React.FC = () => {
               </CardContent>
             </Card>
           ))}
+
+          {/* Consecutive Absence Alert Widget - Same grid placement as other cards */}
+          {selectedSessionYearId && (
+            <ConsecutiveAbsenceWidget
+              sessionYearId={selectedSessionYearId}
+              expanded={expandedCards['absenceAlerts']}
+              onToggleExpand={() => toggleCardExpansion('absenceAlerts')}
+            />
+          )}
           </Box>
         )}
     </AdminLayout>

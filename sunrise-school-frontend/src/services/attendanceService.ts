@@ -276,6 +276,65 @@ class AttendanceService {
     });
     return response.data;
   }
+
+  // ============================================
+  // Consecutive Absence Alert Methods
+  // ============================================
+
+  // Get students with consecutive absences
+  async getConsecutiveAbsences(
+    sessionYearId: number,
+    classId?: number,
+    minAbsentDays: number = 3,
+    asOfDate?: string
+  ): Promise<ConsecutiveAbsenceResponse> {
+    const response = await api.get('/attendance/consecutive-absences', {
+      params: {
+        session_year_id: sessionYearId,
+        class_id: classId,
+        min_absent_days: minAbsentDays,
+        as_of_date: asOfDate
+      }
+    });
+    return response.data;
+  }
+}
+
+// ============================================
+// Consecutive Absence Types
+// ============================================
+
+export interface ConsecutiveAbsentStudent {
+  student_id: number;
+  student_name: string;
+  roll_number?: string;
+  class_id: number;
+  class_name: string;
+  section?: string;
+  consecutive_absent_days: number;
+  absent_from_date: string;
+  last_present_date?: string;
+  father_name?: string;
+  father_phone?: string;
+  mother_name?: string;
+  mother_phone?: string;
+  guardian_name?: string;
+  guardian_phone?: string;
+  has_pending_leave: boolean;
+}
+
+export interface ClassConsecutiveAbsences {
+  class_id: number;
+  class_name: string;
+  student_count: number;
+  students: ConsecutiveAbsentStudent[];
+}
+
+export interface ConsecutiveAbsenceResponse {
+  total_students: number;
+  min_absent_days: number;
+  as_of_date: string;
+  by_class: ClassConsecutiveAbsences[];
 }
 
 // Export singleton instance
