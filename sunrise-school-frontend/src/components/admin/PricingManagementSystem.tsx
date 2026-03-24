@@ -39,7 +39,7 @@ const PricingManagementSystem: React.FC<PricingManagementSystemProps> = ({ confi
 
   // Filter state
   const [sessionYearId, setSessionYearId] = useState<number | null>(null);
-  const [category, setCategory] = useState<string>('');
+  const [categoryId, setCategoryId] = useState<number | null>(null);
   const [itemTypeId, setItemTypeId] = useState<number | null>(null);
   const [pricingStatus, setPricingStatus] = useState<boolean>(true);
 
@@ -82,6 +82,9 @@ const PricingManagementSystem: React.FC<PricingManagementSystemProps> = ({ confi
       if (sessionYearId) {
         params.session_year_id = sessionYearId;
       }
+      if (categoryId) {
+        params.category_id = categoryId;
+      }
       if (itemTypeId) {
         params.item_type_id = itemTypeId;
       }
@@ -93,7 +96,7 @@ const PricingManagementSystem: React.FC<PricingManagementSystemProps> = ({ confi
     } finally {
       setPricingLoading(false);
     }
-  }, [sessionYearId, pricingStatus, itemTypeId]);
+  }, [sessionYearId, categoryId, pricingStatus, itemTypeId]);
 
   useEffect(() => {
     loadPricing();
@@ -147,21 +150,28 @@ const PricingManagementSystem: React.FC<PricingManagementSystemProps> = ({ confi
           <TextField
             select
             label="Category"
-            value={category}
+            value={categoryId ?? ''}
             onChange={(e) => {
-              setCategory(e.target.value);
+              const value = e.target.value;
+              setCategoryId(value === '' ? null : Number(value));
               setItemTypeId(null); // Reset item type when category changes
             }}
             sx={{ minWidth: { xs: '100%', sm: 200 } }}
             size="small"
             fullWidth={isMobile}
+            slotProps={{
+              select: {
+                displayEmpty: true
+              },
+              inputLabel: {
+                shrink: true
+              }
+            }}
           >
             <MenuItem value="">All Categories</MenuItem>
-            {(Array.from(
-              new Set(configuration?.inventory_item_types?.map((type: any) => type.category as string) || [])
-            ).sort() as string[]).map((cat) => (
-              <MenuItem key={cat} value={cat}>
-                {cat}
+            {configuration?.inventory_item_categories?.map((cat: any) => (
+              <MenuItem key={cat.id} value={cat.id}>
+                {cat.description || cat.name}
               </MenuItem>
             ))}
           </TextField>
@@ -176,8 +186,8 @@ const PricingManagementSystem: React.FC<PricingManagementSystemProps> = ({ confi
             fullWidth={isMobile}
           >
             <MenuItem value="">All Items</MenuItem>
-            {(category
-              ? configuration?.inventory_item_types?.filter((item: any) => item.category === category)
+            {(categoryId !== null && categoryId !== undefined
+              ? configuration?.inventory_item_types?.filter((item: any) => item.inventory_item_category_id === categoryId)
               : configuration?.inventory_item_types
             )?.map((item: any) => (
               <MenuItem key={item.id} value={item.id}>

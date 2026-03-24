@@ -10,7 +10,7 @@ from decimal import Decimal
 
 from app.models.inventory import (
     InventoryItemType, InventorySizeType, InventoryPricing,
-    InventoryPurchase, InventoryPurchaseItem
+    InventoryPurchase, InventoryPurchaseItem, InventoryItemCategory
 )
 from app.models.student import Student
 from app.models.metadata import SessionYear, Class, PaymentMethod
@@ -29,11 +29,12 @@ class CRUDInventoryPricing:
         session_year_id: Optional[int] = None,
         item_type_id: Optional[int] = None,
         class_id: Optional[int] = None,
+        category_id: Optional[int] = None,
         is_active: bool = True
     ) -> List[InventoryPricing]:
         """Get pricing list with filters"""
         query = select(InventoryPricing).options(
-            joinedload(InventoryPricing.item_type),
+            joinedload(InventoryPricing.item_type).joinedload(InventoryItemType.category_ref),
             joinedload(InventoryPricing.size_type),
             joinedload(InventoryPricing.class_ref),
             joinedload(InventoryPricing.session_year)
@@ -46,6 +47,10 @@ class CRUDInventoryPricing:
             filters.append(InventoryPricing.inventory_item_type_id == item_type_id)
         if class_id:
             filters.append(InventoryPricing.class_id == class_id)
+        if category_id:
+            # Join with item_type to filter by category
+            query = query.join(InventoryItemType)
+            filters.append(InventoryItemType.inventory_item_category_id == category_id)
         if is_active is not None:
             filters.append(InventoryPricing.is_active == is_active)
         

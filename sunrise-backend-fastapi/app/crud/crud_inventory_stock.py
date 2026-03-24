@@ -9,7 +9,7 @@ from datetime import date
 
 from app.models.inventory import (
     InventoryStock, InventoryStockProcurement, InventoryStockProcurementItem,
-    InventoryItemType, InventorySizeType
+    InventoryItemType, InventorySizeType, InventoryItemCategory
 )
 from app.models.expense import Vendor
 from app.schemas.inventory import (
@@ -26,13 +26,14 @@ class CRUDInventoryStock:
         db: AsyncSession,
         item_type_id: Optional[int] = None,
         size_type_id: Optional[int] = None,
+        category_id: Optional[int] = None,
         low_stock_only: bool = False,
         skip: int = 0,
         limit: int = 100
     ) -> Tuple[List[InventoryStock], int]:
         """Get stock list with filters and pagination"""
         query = select(InventoryStock).options(
-            joinedload(InventoryStock.item_type),
+            joinedload(InventoryStock.item_type).joinedload(InventoryItemType.category_ref),
             joinedload(InventoryStock.size_type)
         )
         
@@ -41,6 +42,10 @@ class CRUDInventoryStock:
             filters.append(InventoryStock.inventory_item_type_id == item_type_id)
         if size_type_id:
             filters.append(InventoryStock.size_type_id == size_type_id)
+        if category_id:
+            # Join with item_type to filter by category
+            query = query.join(InventoryItemType)
+            filters.append(InventoryItemType.inventory_item_category_id == category_id)
         if low_stock_only:
             filters.append(InventoryStock.current_quantity <= InventoryStock.minimum_threshold)
         
@@ -68,7 +73,7 @@ class CRUDInventoryStock:
     ) -> Optional[InventoryStock]:
         """Get stock by ID"""
         query = select(InventoryStock).options(
-            joinedload(InventoryStock.item_type),
+            joinedload(InventoryStock.item_type).joinedload(InventoryItemType.category_ref),
             joinedload(InventoryStock.size_type)
         ).where(InventoryStock.id == stock_id)
         
@@ -166,7 +171,7 @@ class CRUDInventoryStock:
     ) -> List[InventoryStock]:
         """Get items with stock below minimum threshold"""
         query = select(InventoryStock).options(
-            joinedload(InventoryStock.item_type),
+            joinedload(InventoryStock.item_type).joinedload(InventoryItemType.category_ref),
             joinedload(InventoryStock.size_type)
         ).where(
             InventoryStock.current_quantity <= InventoryStock.minimum_threshold

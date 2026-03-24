@@ -62,7 +62,7 @@ SERVICE_METADATA_MAPPINGS = {
         "gallery_categories"
     ],
     "inventory-management": [
-        "inventory_item_types", "inventory_size_types",
+        "inventory_item_categories", "inventory_item_types", "inventory_size_types",
         "payment_methods", "session_years", "classes"
     ],
     "attendance-management": [
@@ -141,8 +141,10 @@ async def get_service_metadata_configuration(db: AsyncSession, service_name: str
                 configuration[metadata_type] = [{"id": item.id, "name": item.name, "description": item.description, "is_active": item.is_active} for item in items]
             elif metadata_type == "gallery_categories":
                 configuration[metadata_type] = [{"id": item.id, "name": item.name, "description": item.description, "icon": item.icon, "display_order": item.display_order, "is_active": item.is_active} for item in items]
+            elif metadata_type == "inventory_item_categories":
+                configuration[metadata_type] = [{"id": item.id, "name": item.name, "description": item.description, "display_order": item.display_order if hasattr(item, 'display_order') else None, "is_active": item.is_active} for item in items]
             elif metadata_type == "inventory_item_types":
-                configuration[metadata_type] = [{"id": item.id, "name": item.name, "description": item.description, "category": item.category, "is_active": item.is_active} for item in items]
+                configuration[metadata_type] = [{"id": item.id, "name": item.name, "description": item.description, "inventory_item_category_id": item.inventory_item_category_id if hasattr(item, 'inventory_item_category_id') else None, "is_active": item.is_active} for item in items]
             elif metadata_type == "inventory_size_types":
                 configuration[metadata_type] = [{"id": item.id, "name": item.name, "description": item.description, "sort_order": item.sort_order, "is_active": item.is_active} for item in items]
             elif metadata_type == "attendance_statuses":

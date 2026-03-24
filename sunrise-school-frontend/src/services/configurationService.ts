@@ -94,6 +94,19 @@ export interface ProgressionAction extends MetadataItem {
   creates_new_session: boolean;
 }
 
+export interface InventoryItemCategory extends MetadataItem {
+  display_order?: number;
+}
+
+export interface InventoryItemType extends MetadataItem {
+  category?: string;
+  image_url?: string;
+}
+
+export interface InventorySizeType extends MetadataItem {
+  sort_order?: number;
+}
+
 export interface Configuration {
   user_types?: UserType[];
   session_years?: SessionYear[];
@@ -115,6 +128,9 @@ export interface Configuration {
   attendance_statuses?: AttendanceStatus[];
   attendance_periods?: AttendancePeriod[];
   progression_actions?: ProgressionAction[];
+  inventory_item_categories?: InventoryItemCategory[];
+  inventory_item_types?: InventoryItemType[];
+  inventory_size_types?: InventorySizeType[];
   metadata: {
     service?: string;
     last_updated?: string;
@@ -589,6 +605,36 @@ class ConfigurationService {
   public getProgressionActionById(id: number): ProgressionAction | null {
     const actions = this.getMetadataFromServices<ProgressionAction>('progression_actions');
     return actions.find(action => action.id === id) || null;
+  }
+
+  /**
+   * Get inventory item categories as dropdown options (service-aware)
+   */
+  public getInventoryItemCategories(): DropdownOption[] {
+    const categories = this.getMetadataFromServices<InventoryItemCategory>('inventory_item_categories');
+    return categories
+      .sort((a, b) => (a.display_order || 0) - (b.display_order || 0))
+      .map(cat => ({
+        id: cat.id,
+        name: cat.name,
+        description: cat.description,
+        is_active: cat.is_active
+      }));
+  }
+
+  /**
+   * Get inventory item types as dropdown options (service-aware)
+   */
+  public getInventoryItemTypes(): InventoryItemType[] {
+    return this.getMetadataFromServices<InventoryItemType>('inventory_item_types');
+  }
+
+  /**
+   * Get inventory size types as dropdown options (service-aware)
+   */
+  public getInventorySizeTypes(): InventorySizeType[] {
+    const sizes = this.getMetadataFromServices<InventorySizeType>('inventory_size_types');
+    return sizes.sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
   }
 
   /**

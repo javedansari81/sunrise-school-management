@@ -26,6 +26,7 @@ import {
 import { Add as AddIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import { createPurchase, getPricing } from '../../../services/inventoryService';
 import { API_BASE_URL } from '../../../config/apiConfig';
+import { configurationService } from '../../../services/configurationService';
 
 interface NewPurchaseDialogProps {
   open: boolean;
@@ -36,7 +37,7 @@ interface NewPurchaseDialogProps {
 }
 
 interface PurchaseItem {
-  category?: string;
+  inventory_item_category_id?: number;
   inventory_item_type_id: number;
   size_type_id?: number;
   quantity: number;
@@ -57,10 +58,13 @@ const NewPurchaseDialog: React.FC<NewPurchaseDialogProps> = ({
   const [students, setStudents] = useState<any[]>([]);
   const [loadingStudents, setLoadingStudents] = useState(false);
 
+  // Get current session year from configuration service
+  const currentSessionYearId = configurationService.getCurrentSessionYearId();
+
   // Form state
   const [classId, setClassId] = useState<number | null>(null);
   const [studentId, setStudentId] = useState<number | null>(null);
-  const [sessionYearId, setSessionYearId] = useState<number>(4); // Default to current session
+  const [sessionYearId, setSessionYearId] = useState<number>(currentSessionYearId || 4);
   const [purchaseDate, setPurchaseDate] = useState<string>(
     new Date().toISOString().split('T')[0]
   );
@@ -73,7 +77,7 @@ const NewPurchaseDialog: React.FC<NewPurchaseDialogProps> = ({
   const [contactNumber, setContactNumber] = useState<string>('');
   const [remarks, setRemarks] = useState<string>('');
   const [items, setItems] = useState<PurchaseItem[]>([
-    { category: '', inventory_item_type_id: 0, size_type_id: undefined, quantity: 1, unit_price: 0 }
+    { inventory_item_category_id: undefined, inventory_item_type_id: 0, size_type_id: undefined, quantity: 1, unit_price: 0 }
   ]);
 
   // Reset form when dialog opens
@@ -86,7 +90,7 @@ const NewPurchaseDialog: React.FC<NewPurchaseDialogProps> = ({
   const resetForm = () => {
     setClassId(null);
     setStudentId(null);
-    setSessionYearId(4);
+    setSessionYearId(currentSessionYearId || 4);
     setPurchaseDate(new Date().toISOString().split('T')[0]);
     setPaymentMethodId(0);
     setPaymentDate(new Date().toISOString().split('T')[0]);
@@ -94,7 +98,7 @@ const NewPurchaseDialog: React.FC<NewPurchaseDialogProps> = ({
     setPurchasedBy('');
     setContactNumber('');
     setRemarks('');
-    setItems([{ category: '', inventory_item_type_id: 0, size_type_id: undefined, quantity: 1, unit_price: 0 }]);
+    setItems([{ inventory_item_category_id: undefined, inventory_item_type_id: 0, size_type_id: undefined, quantity: 1, unit_price: 0 }]);
   };
 
   const loadStudentsByClass = async (selectedClassId: number) => {
@@ -156,7 +160,7 @@ const NewPurchaseDialog: React.FC<NewPurchaseDialogProps> = ({
   };
 
   const handleAddItem = () => {
-    setItems([...items, { category: '', inventory_item_type_id: 0, size_type_id: undefined, quantity: 1, unit_price: 0 }]);
+    setItems([...items, { inventory_item_category_id: undefined, inventory_item_type_id: 0, size_type_id: undefined, quantity: 1, unit_price: 0 }]);
   };
 
   const handleRemoveItem = (index: number) => {
@@ -169,8 +173,8 @@ const NewPurchaseDialog: React.FC<NewPurchaseDialogProps> = ({
     const newItems = [...items];
 
     // If category changes, reset the item selection
-    if (field === 'category') {
-      newItems[index] = { ...newItems[index], category: value, inventory_item_type_id: 0, unit_price: 0 };
+    if (field === 'inventory_item_category_id') {
+      newItems[index] = { ...newItems[index], inventory_item_category_id: value, inventory_item_type_id: 0, size_type_id: undefined, unit_price: 0 };
     } else {
       newItems[index] = { ...newItems[index], [field]: value };
     }
@@ -182,32 +186,64 @@ const NewPurchaseDialog: React.FC<NewPurchaseDialogProps> = ({
       // Only fetch if we have an item type selected
       if (item.inventory_item_type_id && item.inventory_item_type_id !== 0) {
         try {
-          // Fetch pricing based on item type, size, and session year
-          const pricingList = await getPricing({
-            session_year_id: sessionYearId,
-            item_type_id: item.inventory_item_type_id,
-            is_active: true
-          });
+          // Get the selected item type details to check if it requires a size
+          const selectedItemType = configuration?.inventory_item_types?.find(
+            (type: any) => type.id === item.inventory_item_type_id
+          );
 
-          // Find matching price based on size (if size is selected)
-          let matchingPrice = null;
-          if (item.size_type_id) {
-            // Try to find exact match with size
-            matchingPrice = pricingList.find(
-              (p: any) => p.size_type_id === item.size_type_id
-            );
-          }
+          // Check if item is UNIFORM category (category_id = 1)
+          const isUniformCategory = selectedItemType?.inventory_item_category_id === 1;
 
-          // If no size-specific price found, try to find a general price (no size requirement)
-          if (!matchingPrice) {
-            matchingPrice = pricingList.find(
-              (p: any) => !p.size_type_id || p.size_type_id === null
-            );
-          }
+          // For UNIFORM items, only fetch price if size is also selected
+          // For other items (BOOKS, NOTEBOOKS, STATIONERY, ACCESSORY), fetch immediately
+          const shouldFetchPrice = !isUniformCategory || (isUniformCategory && item.size_type_id);
 
-          // If we found a matching price, update the unit_price
-          if (matchingPrice) {
-            newItems[index].unit_price = Number(matchingPrice.unit_price);
+          if (shouldFetchPrice) {
+            // Fetch pricing based on item type, size, and session year
+            const pricingList = await getPricing({
+              session_year_id: sessionYearId,
+              item_type_id: item.inventory_item_type_id,
+              is_active: true
+            });
+
+            console.log('Fetching price for:', {
+              item_type_id: item.inventory_item_type_id,
+              size_type_id: item.size_type_id,
+              session_year_id: sessionYearId,
+              isUniformCategory,
+              pricingList
+            });
+
+            // Find matching price based on size (if size is selected)
+            let matchingPrice = null;
+            if (item.size_type_id) {
+              // Try to find exact match with size
+              matchingPrice = pricingList.find(
+                (p: any) => p.size_type_id === item.size_type_id
+              );
+            }
+
+            // If no size-specific price found, try to find a general price (no size requirement)
+            // This is for items like BOOKS, NOTEBOOKS, STATIONERY that don't have sizes
+            if (!matchingPrice) {
+              matchingPrice = pricingList.find(
+                (p: any) => !p.size_type_id || p.size_type_id === null
+              );
+            }
+
+            // If we found a matching price, update the unit_price
+            if (matchingPrice) {
+              console.log('Found matching price:', matchingPrice.unit_price);
+              newItems[index].unit_price = Number(matchingPrice.unit_price);
+            } else {
+              console.log('No matching price found');
+              // Reset price to 0 if no matching price found
+              newItems[index].unit_price = 0;
+            }
+          } else {
+            // For UNIFORM items without size selected, reset price to 0
+            console.log('Waiting for size selection for UNIFORM item');
+            newItems[index].unit_price = 0;
           }
         } catch (err) {
           console.error('Error fetching price:', err);
@@ -418,17 +454,28 @@ const NewPurchaseDialog: React.FC<NewPurchaseDialogProps> = ({
                 sx={{
                   maxHeight: { xs: '300px', sm: '400px' },
                   overflowX: 'auto',
-                  overflowY: 'auto'
+                  overflowY: 'auto',
+                  '&::-webkit-scrollbar': {
+                    height: '8px',
+                  },
+                  '&::-webkit-scrollbar-track': {
+                    backgroundColor: 'grey.100',
+                  },
+                  '&::-webkit-scrollbar-thumb': {
+                    backgroundColor: 'grey.400',
+                    borderRadius: '4px',
+                  },
                 }}
               >
-                <Table size={isMobile ? 'small' : 'small'} stickyHeader>
+                <Table size={isMobile ? 'small' : 'small'} stickyHeader sx={{ minWidth: 800 }}>
                   <TableHead>
                     <TableRow sx={{ bgcolor: 'white' }}>
                       <TableCell
                         sx={{
                           fontSize: { xs: '0.75rem', sm: '0.875rem' },
                           py: { xs: 1, sm: 1.5 },
-                          minWidth: { xs: 100, sm: 130 }
+                          width: 140,
+                          minWidth: 140
                         }}
                       >
                         Category *
@@ -437,7 +484,8 @@ const NewPurchaseDialog: React.FC<NewPurchaseDialogProps> = ({
                         sx={{
                           fontSize: { xs: '0.75rem', sm: '0.875rem' },
                           py: { xs: 1, sm: 1.5 },
-                          minWidth: { xs: 120, sm: 150 }
+                          width: 220,
+                          minWidth: 220
                         }}
                       >
                         Item *
@@ -446,88 +494,99 @@ const NewPurchaseDialog: React.FC<NewPurchaseDialogProps> = ({
                         sx={{
                           fontSize: { xs: '0.75rem', sm: '0.875rem' },
                           py: { xs: 1, sm: 1.5 },
-                          minWidth: { xs: 80, sm: 100 }
+                          width: 110,
+                          minWidth: 110
                         }}
                       >
                         Size
                       </TableCell>
                       <TableCell
-                        width={isMobile ? 70 : 100}
                         sx={{
                           fontSize: { xs: '0.75rem', sm: '0.875rem' },
-                          py: { xs: 1, sm: 1.5 }
+                          py: { xs: 1, sm: 1.5 },
+                          width: 90,
+                          minWidth: 90
                         }}
                       >
                         Qty *
                       </TableCell>
                       <TableCell
-                        width={isMobile ? 90 : 120}
                         sx={{
                           fontSize: { xs: '0.75rem', sm: '0.875rem' },
-                          py: { xs: 1, sm: 1.5 }
+                          py: { xs: 1, sm: 1.5 },
+                          width: 110,
+                          minWidth: 110
                         }}
                       >
                         Price *
                       </TableCell>
                       <TableCell
-                        width={isMobile ? 80 : 120}
                         sx={{
                           fontSize: { xs: '0.75rem', sm: '0.875rem' },
-                          py: { xs: 1, sm: 1.5 }
+                          py: { xs: 1, sm: 1.5 },
+                          width: 110,
+                          minWidth: 110
                         }}
                       >
                         Total
                       </TableCell>
                       <TableCell
-                        width={isMobile ? 50 : 60}
-                        sx={{ py: { xs: 1, sm: 1.5 } }}
+                        sx={{
+                          py: { xs: 1, sm: 1.5 },
+                          width: 60,
+                          minWidth: 60
+                        }}
                       >
                       </TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
                     {items.map((item, index) => {
-                      // Get unique categories
-                      const categories = Array.from(
-                        new Set(configuration?.inventory_item_types?.map((type: any) => type.category as string) || [])
-                      ).sort() as string[];
-
                       // Filter items by selected category
-                      const filteredItems = item.category
-                        ? configuration?.inventory_item_types?.filter((type: any) => type.category === item.category) || []
+                      const filteredItems = (item.inventory_item_category_id !== null && item.inventory_item_category_id !== undefined)
+                        ? configuration?.inventory_item_types?.filter((type: any) => type.inventory_item_category_id === item.inventory_item_category_id) || []
                         : configuration?.inventory_item_types || [];
 
                       // Check if the selected item needs size (only UNIFORM items need sizes)
                       const selectedItemType = configuration?.inventory_item_types?.find(
                         (type: any) => type.id === item.inventory_item_type_id
                       );
-                      const showSize = selectedItemType?.category === 'UNIFORM';
+                      const showSize = selectedItemType?.inventory_item_category_id === 1; // UNIFORM category
 
                       return (
                         <TableRow key={index}>
-                          <TableCell sx={{ py: { xs: 0.5, sm: 1 } }}>
+                          <TableCell sx={{ py: { xs: 0.5, sm: 1 }, width: 140, minWidth: 140 }}>
                             <TextField
                               select
                               fullWidth
                               size="small"
-                              value={item.category || ''}
-                              onChange={(e) => handleItemChange(index, 'category', e.target.value)}
+                              placeholder="Category"
+                              value={item.inventory_item_category_id ?? ''}
+                              onChange={(e) => {
+                                const value = e.target.value;
+                                handleItemChange(index, 'inventory_item_category_id', value === '' ? undefined : Number(value));
+                              }}
                               sx={{
                                 '& .MuiInputBase-input': {
                                   fontSize: { xs: '0.75rem', sm: '0.875rem' },
                                   py: { xs: 0.75, sm: 1 }
                                 }
                               }}
+                              slotProps={{
+                                select: {
+                                  displayEmpty: true
+                                }
+                              }}
                             >
                               <MenuItem value="">All Categories</MenuItem>
-                              {categories.map((category) => (
-                                <MenuItem key={category} value={category}>
-                                  {category}
+                              {configuration?.inventory_item_categories?.map((cat: any) => (
+                                <MenuItem key={cat.id} value={cat.id}>
+                                  {cat.description || cat.name}
                                 </MenuItem>
                               ))}
                             </TextField>
                           </TableCell>
-                          <TableCell sx={{ py: { xs: 0.5, sm: 1 } }}>
+                          <TableCell sx={{ py: { xs: 0.5, sm: 1 }, width: 220, minWidth: 220 }}>
                             <TextField
                               select
                               fullWidth
@@ -549,7 +608,7 @@ const NewPurchaseDialog: React.FC<NewPurchaseDialogProps> = ({
                               ))}
                             </TextField>
                           </TableCell>
-                        <TableCell sx={{ py: { xs: 0.5, sm: 1 } }}>
+                        <TableCell sx={{ py: { xs: 0.5, sm: 1 }, width: 110, minWidth: 110 }}>
                           {showSize ? (
                             <TextField
                               select
@@ -576,14 +635,15 @@ const NewPurchaseDialog: React.FC<NewPurchaseDialogProps> = ({
                               sx={{
                                 fontSize: { xs: '0.75rem', sm: '0.875rem' },
                                 color: 'text.secondary',
-                                fontStyle: 'italic'
+                                fontStyle: 'italic',
+                                textAlign: 'center'
                               }}
                             >
                               N/A
                             </Typography>
                           )}
                         </TableCell>
-                        <TableCell sx={{ py: { xs: 0.5, sm: 1 } }}>
+                        <TableCell sx={{ py: { xs: 0.5, sm: 1 }, width: 90, minWidth: 90 }}>
                           <TextField
                             type="number"
                             size="small"
@@ -598,7 +658,7 @@ const NewPurchaseDialog: React.FC<NewPurchaseDialogProps> = ({
                             }}
                           />
                         </TableCell>
-                        <TableCell sx={{ py: { xs: 0.5, sm: 1 } }}>
+                        <TableCell sx={{ py: { xs: 0.5, sm: 1 }, width: 110, minWidth: 110 }}>
                           <TextField
                             type="number"
                             size="small"
@@ -615,11 +675,13 @@ const NewPurchaseDialog: React.FC<NewPurchaseDialogProps> = ({
                         </TableCell>
                         <TableCell sx={{
                           py: { xs: 0.5, sm: 1 },
-                          fontSize: { xs: '0.75rem', sm: '0.875rem' }
+                          fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                          width: 110,
+                          minWidth: 110
                         }}>
                           ₹{(item.quantity * item.unit_price).toFixed(2)}
                         </TableCell>
-                        <TableCell sx={{ py: { xs: 0.5, sm: 1 } }}>
+                        <TableCell sx={{ py: { xs: 0.5, sm: 1 }, width: 60, minWidth: 60 }}>
                           <IconButton
                             size="small"
                             onClick={() => handleRemoveItem(index)}

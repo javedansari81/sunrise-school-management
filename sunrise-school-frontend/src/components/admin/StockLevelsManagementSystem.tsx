@@ -20,6 +20,7 @@ const StockLevelsManagementSystem: React.FC<StockLevelsManagementSystemProps> = 
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
   // Filter state
+  const [categoryId, setCategoryId] = useState<number | null>(null);
   const [itemTypeId, setItemTypeId] = useState<number | null>(null);
   const [sizeTypeId, setSizeTypeId] = useState<number | null>(null);
   const [stockStatus, setStockStatus] = useState<string>('all');
@@ -55,6 +56,35 @@ const StockLevelsManagementSystem: React.FC<StockLevelsManagementSystemProps> = 
         }}>
           <TextField
             select
+            label="Category"
+            value={categoryId ?? ''}
+            onChange={(e) => {
+              const value = e.target.value;
+              setCategoryId(value === '' ? null : Number(value));
+              setItemTypeId(null); // Reset item type when category changes
+            }}
+            sx={{ minWidth: { xs: '100%', sm: 200 } }}
+            size="small"
+            fullWidth={isMobile}
+            slotProps={{
+              select: {
+                displayEmpty: true
+              },
+              inputLabel: {
+                shrink: true
+              }
+            }}
+          >
+            <MenuItem value="">All Categories</MenuItem>
+            {configuration?.inventory_item_categories?.map((cat: any) => (
+              <MenuItem key={cat.id} value={cat.id}>
+                {cat.description || cat.name}
+              </MenuItem>
+            ))}
+          </TextField>
+
+          <TextField
+            select
             label="Item Type"
             value={itemTypeId || ''}
             onChange={(e) => setItemTypeId(e.target.value ? Number(e.target.value) : null)}
@@ -63,7 +93,10 @@ const StockLevelsManagementSystem: React.FC<StockLevelsManagementSystemProps> = 
             fullWidth={isMobile}
           >
             <MenuItem value="">All Items</MenuItem>
-            {configuration?.inventory_item_types?.map((item: any) => (
+            {(categoryId !== null && categoryId !== undefined
+              ? configuration?.inventory_item_types?.filter((item: any) => item.inventory_item_category_id === categoryId)
+              : configuration?.inventory_item_types
+            )?.map((item: any) => (
               <MenuItem key={item.id} value={item.id}>
                 {item.description}
               </MenuItem>
@@ -106,6 +139,7 @@ const StockLevelsManagementSystem: React.FC<StockLevelsManagementSystemProps> = 
       <StockLevelsTab
         configuration={configuration}
         onError={(message: string) => setSnackbar({ open: true, message, severity: 'error' })}
+        categoryId={categoryId}
         itemTypeId={itemTypeId}
         sizeTypeId={sizeTypeId}
         stockStatus={stockStatus}

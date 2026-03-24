@@ -8,6 +8,22 @@ from sqlalchemy.sql import func
 from app.core.database import Base
 
 
+class InventoryItemCategory(Base):
+    """Inventory item category metadata"""
+    __tablename__ = "inventory_item_category"
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String(50), nullable=False, unique=True)
+    description = Column(Text, nullable=True)
+    display_order = Column(Integer, nullable=True)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships
+    item_types = relationship("InventoryItemType", back_populates="category_ref")
+
+
 class InventoryItemType(Base):
     """Inventory item type metadata"""
     __tablename__ = "inventory_item_types"
@@ -15,13 +31,14 @@ class InventoryItemType(Base):
     id = Column(Integer, primary_key=True)
     name = Column(String(50), nullable=False, unique=True)
     description = Column(Text, nullable=True)
-    category = Column(String(50), nullable=True)  # 'UNIFORM', 'ACCESSORY'
+    inventory_item_category_id = Column(Integer, ForeignKey("inventory_item_category.id"), nullable=False)
     image_url = Column(String(500))  # URL/path to item image
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     # Relationships
+    category_ref = relationship("InventoryItemCategory", back_populates="item_types", foreign_keys=[inventory_item_category_id])
     pricing = relationship("InventoryPricing", back_populates="item_type")
     purchase_items = relationship("InventoryPurchaseItem", back_populates="item_type")
     stock = relationship("InventoryStock", back_populates="item_type")

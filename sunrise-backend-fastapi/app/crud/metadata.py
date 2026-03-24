@@ -299,10 +299,19 @@ async def get_all_metadata_async(db: AsyncSession) -> Dict[str, List[Any]]:
 
         UNION ALL
 
+        SELECT 'inventory_item_category' as table_name, id, name, description,
+               display_order as sort_order, NULL::DATE as start_date, NULL::DATE as end_date, NULL::BOOLEAN as is_current,
+               NULL::INTEGER as max_days_per_year, NULL::BOOLEAN as requires_medical_certificate, NULL::DECIMAL as budget_limit,
+               NULL::BOOLEAN as requires_approval, NULL::VARCHAR as color_code, NULL::BOOLEAN as is_final, NULL::INTEGER as level_order,
+               NULL::BOOLEAN as requires_reference, is_active, created_at, updated_at
+        FROM inventory_item_category WHERE is_active = true
+
+        UNION ALL
+
         SELECT 'inventory_item_types' as table_name, id, name, description,
                NULL::INTEGER as sort_order, NULL::DATE as start_date, NULL::DATE as end_date, NULL::BOOLEAN as is_current,
                NULL::INTEGER as max_days_per_year, NULL::BOOLEAN as requires_medical_certificate, NULL::DECIMAL as budget_limit,
-               NULL::BOOLEAN as requires_approval, category as color_code, NULL::BOOLEAN as is_final, NULL::INTEGER as level_order,
+               NULL::BOOLEAN as requires_approval, NULL::VARCHAR as color_code, NULL::BOOLEAN as is_final, inventory_item_category_id as level_order,
                NULL::BOOLEAN as requires_reference, is_active, created_at, updated_at
         FROM inventory_item_types WHERE is_active = true
 
@@ -396,6 +405,7 @@ async def get_all_metadata_async(db: AsyncSession) -> Dict[str, List[Any]]:
         "positions": [],
         "transport_types": [],
         "gallery_categories": [],
+        "inventory_item_categories": [],
         "inventory_item_types": [],
         "inventory_size_types": [],
         "reversal_reasons": [],
@@ -409,6 +419,8 @@ async def get_all_metadata_async(db: AsyncSession) -> Dict[str, List[Any]]:
     # Process results efficiently
     for row in rows:
         table_name = row.table_name
+        # Map singular table names to plural dictionary keys
+        dict_key = "inventory_item_categories" if table_name == "inventory_item_category" else table_name
 
         # Create object based on table type
         if table_name == 'user_types':
@@ -506,10 +518,15 @@ async def get_all_metadata_async(db: AsyncSession) -> Dict[str, List[Any]]:
                 'icon': row.color_code, 'display_order': row.sort_order,
                 'is_active': row.is_active
             })()
+        elif table_name == 'inventory_item_category':
+            obj = type('InventoryItemCategory', (), {
+                'id': row.id, 'name': row.name, 'description': row.description,
+                'display_order': row.sort_order, 'is_active': row.is_active
+            })()
         elif table_name == 'inventory_item_types':
             obj = type('InventoryItemType', (), {
                 'id': row.id, 'name': row.name, 'description': row.description,
-                'category': row.color_code, 'is_active': row.is_active
+                'inventory_item_category_id': row.level_order, 'is_active': row.is_active
             })()
         elif table_name == 'inventory_size_types':
             obj = type('InventorySizeType', (), {
@@ -553,7 +570,7 @@ async def get_all_metadata_async(db: AsyncSession) -> Dict[str, List[Any]]:
         else:
             continue
 
-        metadata[table_name].append(obj)
+        metadata[dict_key].append(obj)
 
     # Supplemental query for progression_actions to get icon field
     # (icon is not included in the UNION query due to column limitations)

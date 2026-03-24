@@ -31,6 +31,7 @@ interface StockLevelsTabProps {
   configuration: any;
   onError: (message: string) => void;
   // Filters passed from parent
+  categoryId?: number | null;
   itemTypeId?: number | null;
   sizeTypeId?: number | null;
   stockStatus?: string;
@@ -39,6 +40,7 @@ interface StockLevelsTabProps {
 const StockLevelsTab: React.FC<StockLevelsTabProps> = ({
   configuration,
   onError,
+  categoryId: parentCategoryId,
   itemTypeId: parentItemTypeId,
   sizeTypeId: parentSizeTypeId,
   stockStatus: parentStockStatus
@@ -55,13 +57,14 @@ const StockLevelsTab: React.FC<StockLevelsTabProps> = ({
   const [thresholdDialogOpen, setThresholdDialogOpen] = useState(false);
 
   // Use parent filters if provided
+  const categoryFilter = parentCategoryId ?? null;
   const itemTypeFilter = parentItemTypeId ?? '';
   const sizeTypeFilter = parentSizeTypeId ?? '';
   const lowStockFilter = parentStockStatus ?? 'all';
 
   useEffect(() => {
     fetchStocks();
-  }, [itemTypeFilter, sizeTypeFilter, lowStockFilter]);
+  }, [categoryFilter, itemTypeFilter, sizeTypeFilter, lowStockFilter]);
 
   const fetchStocks = async () => {
     setLoading(true);
@@ -71,6 +74,7 @@ const StockLevelsTab: React.FC<StockLevelsTabProps> = ({
         per_page: 500 // Get all for client-side pagination
       };
 
+      if (categoryFilter !== null && categoryFilter !== undefined) params.category_id = categoryFilter;
       if (itemTypeFilter) params.item_type_id = itemTypeFilter;
       if (sizeTypeFilter) params.size_type_id = sizeTypeFilter;
       if (lowStockFilter === 'low') params.low_stock_only = true;

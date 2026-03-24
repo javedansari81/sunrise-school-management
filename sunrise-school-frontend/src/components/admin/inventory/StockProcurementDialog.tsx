@@ -35,6 +35,7 @@ interface StockProcurementDialogProps {
 }
 
 interface ProcurementItem {
+  inventory_item_category_id?: number;
   inventory_item_type_id: number;
   size_type_id?: number;
   quantity: number;
@@ -65,7 +66,7 @@ const StockProcurementDialog: React.FC<StockProcurementDialogProps> = ({
   const [paymentReference, setPaymentReference] = useState<string>('');
   const [remarks, setRemarks] = useState<string>('');
   const [items, setItems] = useState<ProcurementItem[]>([
-    { inventory_item_type_id: 0, size_type_id: undefined, quantity: 1, unit_cost: 0 }
+    { inventory_item_category_id: undefined, inventory_item_type_id: 0, size_type_id: undefined, quantity: 1, unit_cost: 0 }
   ]);
 
   // Fetch vendors
@@ -94,11 +95,11 @@ const StockProcurementDialog: React.FC<StockProcurementDialogProps> = ({
     setPaymentDate('');
     setPaymentReference('');
     setRemarks('');
-    setItems([{ inventory_item_type_id: 0, size_type_id: undefined, quantity: 1, unit_cost: 0 }]);
+    setItems([{ inventory_item_category_id: undefined, inventory_item_type_id: 0, size_type_id: undefined, quantity: 1, unit_cost: 0 }]);
   };
 
   const handleAddItem = () => {
-    setItems([...items, { inventory_item_type_id: 0, size_type_id: undefined, quantity: 1, unit_cost: 0 }]);
+    setItems([...items, { inventory_item_category_id: undefined, inventory_item_type_id: 0, size_type_id: undefined, quantity: 1, unit_cost: 0 }]);
   };
 
   const handleRemoveItem = (index: number) => {
@@ -109,7 +110,14 @@ const StockProcurementDialog: React.FC<StockProcurementDialogProps> = ({
 
   const handleItemChange = (index: number, field: keyof ProcurementItem, value: any) => {
     const newItems = [...items];
-    newItems[index] = { ...newItems[index], [field]: value };
+
+    // If category changes, reset the item selection
+    if (field === 'inventory_item_category_id') {
+      newItems[index] = { ...newItems[index], inventory_item_category_id: value, inventory_item_type_id: 0, size_type_id: undefined };
+    } else {
+      newItems[index] = { ...newItems[index], [field]: value };
+    }
+
     setItems(newItems);
   };
 
@@ -330,6 +338,7 @@ const StockProcurementDialog: React.FC<StockProcurementDialogProps> = ({
               <Table size="small">
                 <TableHead>
                   <TableRow>
+                    <TableCell>Category</TableCell>
                     <TableCell>Item</TableCell>
                     <TableCell>Size</TableCell>
                     <TableCell align="right">Qty</TableCell>
@@ -339,8 +348,39 @@ const StockProcurementDialog: React.FC<StockProcurementDialogProps> = ({
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {items.map((item, index) => (
+                  {items.map((item, index) => {
+                    // Filter items by selected category
+                    const filteredItems = (item.inventory_item_category_id !== null && item.inventory_item_category_id !== undefined)
+                      ? configuration?.inventory_item_types?.filter((type: any) => type.inventory_item_category_id === item.inventory_item_category_id) || []
+                      : configuration?.inventory_item_types || [];
+
+                    return (
                     <TableRow key={index}>
+                      <TableCell>
+                        <TextField
+                          select
+                          fullWidth
+                          placeholder="Category"
+                          value={item.inventory_item_category_id ?? ''}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            handleItemChange(index, 'inventory_item_category_id', value === '' ? undefined : Number(value));
+                          }}
+                          size="small"
+                          slotProps={{
+                            select: {
+                              displayEmpty: true
+                            }
+                          }}
+                        >
+                          <MenuItem value="">All Categories</MenuItem>
+                          {configuration?.inventory_item_categories?.map((cat: any) => (
+                            <MenuItem key={cat.id} value={cat.id}>
+                              {cat.description || cat.name}
+                            </MenuItem>
+                          ))}
+                        </TextField>
+                      </TableCell>
                       <TableCell>
                         <TextField
                           select
@@ -351,7 +391,7 @@ const StockProcurementDialog: React.FC<StockProcurementDialogProps> = ({
                           required
                         >
                           <MenuItem value={0}>Select Item</MenuItem>
-                          {configuration?.inventory_item_types?.map((type: any) => (
+                          {filteredItems.map((type: any) => (
                             <MenuItem key={type.id} value={type.id}>
                               {type.description}
                             </MenuItem>
@@ -408,7 +448,8 @@ const StockProcurementDialog: React.FC<StockProcurementDialogProps> = ({
                         </IconButton>
                       </TableCell>
                     </TableRow>
-                  ))}
+                    );
+                  })}
                 </TableBody>
               </Table>
             </TableContainer>

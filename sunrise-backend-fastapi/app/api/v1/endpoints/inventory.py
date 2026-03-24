@@ -45,6 +45,7 @@ async def get_pricing(
     session_year_id: Optional[int] = None,
     item_type_id: Optional[int] = None,
     class_id: Optional[int] = None,
+    category_id: Optional[int] = None,
     is_active: bool = True,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_admin_user)
@@ -58,6 +59,7 @@ async def get_pricing(
         session_year_id=session_year_id,
         item_type_id=item_type_id,
         class_id=class_id,
+        category_id=category_id,
         is_active=is_active
     )
     
@@ -640,6 +642,7 @@ async def get_statistics(
 async def get_stock_levels(
     item_type_id: Optional[int] = None,
     size_type_id: Optional[int] = None,
+    category_id: Optional[int] = None,
     low_stock_only: bool = False,
     page: int = Query(1, ge=1),
     per_page: int = Query(100, ge=1, le=500),
@@ -655,6 +658,7 @@ async def get_stock_levels(
         db,
         item_type_id=item_type_id,
         size_type_id=size_type_id,
+        category_id=category_id,
         low_stock_only=low_stock_only,
         skip=skip,
         limit=per_page
@@ -671,7 +675,7 @@ async def get_stock_levels(
             reorder_quantity=stock.reorder_quantity,
             item_type_name=stock.item_type.name,
             item_type_description=stock.item_type.description,
-            item_category=stock.item_type.category,
+            item_category=stock.item_type.category_ref.name if stock.item_type.category_ref else None,
             item_image_url=stock.item_type.image_url,
             size_name=stock.size_type.name if stock.size_type else None,
             last_restocked_date=stock.last_restocked_date,
@@ -746,7 +750,7 @@ async def update_stock_threshold(
         reorder_quantity=stock.reorder_quantity,
         item_type_name=stock.item_type.name,
         item_type_description=stock.item_type.description,
-        item_category=stock.item_type.category,
+        item_category=stock.item_type.category_ref.name if stock.item_type.category_ref else None,
         item_image_url=stock.item_type.image_url,
         size_name=stock.size_type.name if stock.size_type else None,
         last_restocked_date=stock.last_restocked_date,

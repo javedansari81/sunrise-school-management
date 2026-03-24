@@ -44,6 +44,7 @@ const PricingDialog: React.FC<PricingDialogProps> = ({
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
   const [formData, setFormData] = useState({
+    inventory_item_category_id: '',
     inventory_item_type_id: '',
     size_type_id: '',
     class_id: '',
@@ -65,7 +66,13 @@ const PricingDialog: React.FC<PricingDialogProps> = ({
 
   useEffect(() => {
     if (pricing) {
+      // Find the category for the selected item type
+      const selectedItemType = configuration?.inventory_item_types?.find(
+        (item: any) => item.id === pricing.inventory_item_type_id
+      );
+
       setFormData({
+        inventory_item_category_id: selectedItemType?.inventory_item_category_id?.toString() || '',
         inventory_item_type_id: pricing.inventory_item_type_id.toString(),
         size_type_id: pricing.size_type_id?.toString() || '',
         class_id: pricing.class_id?.toString() || '',
@@ -83,6 +90,7 @@ const PricingDialog: React.FC<PricingDialogProps> = ({
       // Reset form for new pricing
       const today = new Date().toISOString().split('T')[0];
       setFormData({
+        inventory_item_category_id: '',
         inventory_item_type_id: '',
         size_type_id: '',
         class_id: '',
@@ -97,10 +105,16 @@ const PricingDialog: React.FC<PricingDialogProps> = ({
       setImagePreview(null);
     }
     setError(null);
-  }, [pricing, open]);
+  }, [pricing, open, configuration]);
 
   const handleChange = (field: string, value: any) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
+    setFormData((prev) => {
+      // If category changes, reset item type
+      if (field === 'inventory_item_category_id') {
+        return { ...prev, [field]: value, inventory_item_type_id: '' };
+      }
+      return { ...prev, [field]: value };
+    });
   };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -249,16 +263,39 @@ const PricingDialog: React.FC<PricingDialogProps> = ({
         )}
 
         <Grid container spacing={{ xs: 1.5, sm: 2 }}>
-          {/* Item Type */}
+          {/* Category */}
           <Grid size={{ xs: 12, sm: 6 }}>
             <FormControl fullWidth required disabled={isEditMode}>
+              <InputLabel>Category</InputLabel>
+              <Select
+                value={formData.inventory_item_category_id}
+                onChange={(e) => handleChange('inventory_item_category_id', e.target.value)}
+                label="Category"
+              >
+                {configuration?.inventory_item_categories?.map((cat: any) => (
+                  <MenuItem key={cat.id} value={cat.id}>
+                    {cat.description || cat.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
+
+          {/* Item Type */}
+          <Grid size={{ xs: 12, sm: 6 }}>
+            <FormControl fullWidth required disabled={isEditMode || !formData.inventory_item_category_id}>
               <InputLabel>Item Type</InputLabel>
               <Select
                 value={formData.inventory_item_type_id}
                 onChange={(e) => handleChange('inventory_item_type_id', e.target.value)}
                 label="Item Type"
               >
-                {configuration?.inventory_item_types?.map((item: any) => (
+                {(formData.inventory_item_category_id
+                  ? configuration?.inventory_item_types?.filter(
+                      (item: any) => item.inventory_item_category_id === Number(formData.inventory_item_category_id)
+                    )
+                  : configuration?.inventory_item_types
+                )?.map((item: any) => (
                   <MenuItem key={item.id} value={item.id}>
                     {item.description}
                   </MenuItem>
