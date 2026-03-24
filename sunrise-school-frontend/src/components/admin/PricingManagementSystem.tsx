@@ -38,6 +38,8 @@ const PricingManagementSystem: React.FC<PricingManagementSystemProps> = ({ confi
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
   // Filter state
+  const [sessionYearId, setSessionYearId] = useState<number | null>(null);
+  const [category, setCategory] = useState<string>('');
   const [itemTypeId, setItemTypeId] = useState<number | null>(null);
   const [pricingStatus, setPricingStatus] = useState<boolean>(true);
 
@@ -51,6 +53,13 @@ const PricingManagementSystem: React.FC<PricingManagementSystemProps> = ({ confi
 
   // Get current session year ID from centralized configuration service
   const currentSessionYearId = configurationService.getCurrentSessionYearId();
+
+  // Initialize session year filter with current session year
+  useEffect(() => {
+    if (currentSessionYearId && sessionYearId === null) {
+      setSessionYearId(currentSessionYearId);
+    }
+  }, [currentSessionYearId, sessionYearId]);
 
   // Snackbar
   const [snackbar, setSnackbar] = useState<{
@@ -68,9 +77,11 @@ const PricingManagementSystem: React.FC<PricingManagementSystemProps> = ({ confi
     try {
       setPricingLoading(true);
       const params: any = {
-        session_year_id: currentSessionYearId,
         is_active: pricingStatus,
       };
+      if (sessionYearId) {
+        params.session_year_id = sessionYearId;
+      }
       if (itemTypeId) {
         params.item_type_id = itemTypeId;
       }
@@ -82,7 +93,7 @@ const PricingManagementSystem: React.FC<PricingManagementSystemProps> = ({ confi
     } finally {
       setPricingLoading(false);
     }
-  }, [currentSessionYearId, pricingStatus, itemTypeId]);
+  }, [sessionYearId, pricingStatus, itemTypeId]);
 
   useEffect(() => {
     loadPricing();
@@ -118,6 +129,45 @@ const PricingManagementSystem: React.FC<PricingManagementSystemProps> = ({ confi
         }}>
           <TextField
             select
+            label="Session Year"
+            value={sessionYearId || ''}
+            onChange={(e) => setSessionYearId(e.target.value ? Number(e.target.value) : null)}
+            sx={{ minWidth: { xs: '100%', sm: 200 } }}
+            size="small"
+            fullWidth={isMobile}
+          >
+            <MenuItem value="">All Session Years</MenuItem>
+            {configuration?.session_years?.map((year: any) => (
+              <MenuItem key={year.id} value={year.id}>
+                {year.description}
+              </MenuItem>
+            ))}
+          </TextField>
+
+          <TextField
+            select
+            label="Category"
+            value={category}
+            onChange={(e) => {
+              setCategory(e.target.value);
+              setItemTypeId(null); // Reset item type when category changes
+            }}
+            sx={{ minWidth: { xs: '100%', sm: 200 } }}
+            size="small"
+            fullWidth={isMobile}
+          >
+            <MenuItem value="">All Categories</MenuItem>
+            {(Array.from(
+              new Set(configuration?.inventory_item_types?.map((type: any) => type.category as string) || [])
+            ).sort() as string[]).map((cat) => (
+              <MenuItem key={cat} value={cat}>
+                {cat}
+              </MenuItem>
+            ))}
+          </TextField>
+
+          <TextField
+            select
             label="Item Type"
             value={itemTypeId || ''}
             onChange={(e) => setItemTypeId(e.target.value ? Number(e.target.value) : null)}
@@ -126,7 +176,10 @@ const PricingManagementSystem: React.FC<PricingManagementSystemProps> = ({ confi
             fullWidth={isMobile}
           >
             <MenuItem value="">All Items</MenuItem>
-            {configuration?.inventory_item_types?.map((item: any) => (
+            {(category
+              ? configuration?.inventory_item_types?.filter((item: any) => item.category === category)
+              : configuration?.inventory_item_types
+            )?.map((item: any) => (
               <MenuItem key={item.id} value={item.id}>
                 {item.description}
               </MenuItem>

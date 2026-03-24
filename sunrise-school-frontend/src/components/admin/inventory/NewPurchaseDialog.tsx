@@ -36,6 +36,7 @@ interface NewPurchaseDialogProps {
 }
 
 interface PurchaseItem {
+  category?: string;
   inventory_item_type_id: number;
   size_type_id?: number;
   quantity: number;
@@ -72,7 +73,7 @@ const NewPurchaseDialog: React.FC<NewPurchaseDialogProps> = ({
   const [contactNumber, setContactNumber] = useState<string>('');
   const [remarks, setRemarks] = useState<string>('');
   const [items, setItems] = useState<PurchaseItem[]>([
-    { inventory_item_type_id: 0, size_type_id: undefined, quantity: 1, unit_price: 0 }
+    { category: '', inventory_item_type_id: 0, size_type_id: undefined, quantity: 1, unit_price: 0 }
   ]);
 
   // Reset form when dialog opens
@@ -93,7 +94,7 @@ const NewPurchaseDialog: React.FC<NewPurchaseDialogProps> = ({
     setPurchasedBy('');
     setContactNumber('');
     setRemarks('');
-    setItems([{ inventory_item_type_id: 0, size_type_id: undefined, quantity: 1, unit_price: 0 }]);
+    setItems([{ category: '', inventory_item_type_id: 0, size_type_id: undefined, quantity: 1, unit_price: 0 }]);
   };
 
   const loadStudentsByClass = async (selectedClassId: number) => {
@@ -155,7 +156,7 @@ const NewPurchaseDialog: React.FC<NewPurchaseDialogProps> = ({
   };
 
   const handleAddItem = () => {
-    setItems([...items, { inventory_item_type_id: 0, size_type_id: undefined, quantity: 1, unit_price: 0 }]);
+    setItems([...items, { category: '', inventory_item_type_id: 0, size_type_id: undefined, quantity: 1, unit_price: 0 }]);
   };
 
   const handleRemoveItem = (index: number) => {
@@ -166,7 +167,13 @@ const NewPurchaseDialog: React.FC<NewPurchaseDialogProps> = ({
 
   const handleItemChange = async (index: number, field: keyof PurchaseItem, value: any) => {
     const newItems = [...items];
-    newItems[index] = { ...newItems[index], [field]: value };
+
+    // If category changes, reset the item selection
+    if (field === 'category') {
+      newItems[index] = { ...newItems[index], category: value, inventory_item_type_id: 0, unit_price: 0 };
+    } else {
+      newItems[index] = { ...newItems[index], [field]: value };
+    }
 
     // Auto-fetch price when item type or size changes
     if (field === 'inventory_item_type_id' || field === 'size_type_id') {
@@ -315,55 +322,6 @@ const NewPurchaseDialog: React.FC<NewPurchaseDialogProps> = ({
       <DialogContent sx={{ px: { xs: 2, sm: 3 }, py: { xs: 2, sm: 2 } }}>
         <Box sx={{ mt: { xs: 1, sm: 2 } }}>
           <Grid container spacing={2}>
-            {/* Class Selection */}
-            <Grid size={{ xs: 12 }}>
-              <TextField
-                select
-                fullWidth
-                label="Class *"
-                value={classId || ''}
-                onChange={(e) => handleClassChange(e.target.value ? Number(e.target.value) : null)}
-              >
-                <MenuItem value="">Select Class</MenuItem>
-                {configuration?.classes?.map((cls: any) => (
-                  <MenuItem key={cls.id} value={cls.id}>
-                    {cls.description}
-                  </MenuItem>
-                ))}
-              </TextField>
-            </Grid>
-
-            {/* Student Selection */}
-            <Grid size={{ xs: 12 }}>
-              <Autocomplete
-                options={students}
-                getOptionLabel={(option) =>
-                  `Roll ${option.roll_number || 'N/A'}: ${option.first_name} ${option.last_name} (${option.class_name})`
-                }
-                value={students.find(s => s.id === studentId) || null}
-                onChange={(_, newValue) => setStudentId(newValue?.id || null)}
-                loading={loadingStudents}
-                disabled={!classId}
-                noOptionsText={classId ? "No students found" : "Please select a class first"}
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    label="Student *"
-                    placeholder={classId ? "Search by name or roll number" : "Select a class first"}
-                    InputProps={{
-                      ...params.InputProps,
-                      endAdornment: (
-                        <>
-                          {loadingStudents ? <CircularProgress size={20} /> : null}
-                          {params.InputProps.endAdornment}
-                        </>
-                      ),
-                    }}
-                  />
-                )}
-              />
-            </Grid>
-
             {/* Session Year */}
             <Grid size={{ xs: 12, sm: 6 }}>
               <TextField
@@ -393,6 +351,55 @@ const NewPurchaseDialog: React.FC<NewPurchaseDialogProps> = ({
               />
             </Grid>
 
+            {/* Class Selection */}
+            <Grid size={{ xs: 12, sm: 6 }}>
+              <TextField
+                select
+                fullWidth
+                label="Class *"
+                value={classId || ''}
+                onChange={(e) => handleClassChange(e.target.value ? Number(e.target.value) : null)}
+              >
+                <MenuItem value="">Select Class</MenuItem>
+                {configuration?.classes?.map((cls: any) => (
+                  <MenuItem key={cls.id} value={cls.id}>
+                    {cls.description}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Grid>
+
+            {/* Student Selection */}
+            <Grid size={{ xs: 12, sm: 6 }}>
+              <Autocomplete
+                options={students}
+                getOptionLabel={(option) =>
+                  `Roll ${option.roll_number || 'N/A'}: ${option.first_name} ${option.last_name} (${option.class_name})`
+                }
+                value={students.find(s => s.id === studentId) || null}
+                onChange={(_, newValue) => setStudentId(newValue?.id || null)}
+                loading={loadingStudents}
+                disabled={!classId}
+                noOptionsText={classId ? "No students found" : "Please select a class first"}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Student *"
+                    placeholder={classId ? "Search by name or roll number" : "Select a class first"}
+                    InputProps={{
+                      ...params.InputProps,
+                      endAdornment: (
+                        <>
+                          {loadingStudents ? <CircularProgress size={20} /> : null}
+                          {params.InputProps.endAdornment}
+                        </>
+                      ),
+                    }}
+                  />
+                )}
+              />
+            </Grid>
+
             {/* Items Section */}
             <Grid size={{ xs: 12 }}>
               <Typography
@@ -417,6 +424,15 @@ const NewPurchaseDialog: React.FC<NewPurchaseDialogProps> = ({
                 <Table size={isMobile ? 'small' : 'small'} stickyHeader>
                   <TableHead>
                     <TableRow sx={{ bgcolor: 'white' }}>
+                      <TableCell
+                        sx={{
+                          fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                          py: { xs: 1, sm: 1.5 },
+                          minWidth: { xs: 100, sm: 130 }
+                        }}
+                      >
+                        Category *
+                      </TableCell>
                       <TableCell
                         sx={{
                           fontSize: { xs: '0.75rem', sm: '0.875rem' },
@@ -470,8 +486,47 @@ const NewPurchaseDialog: React.FC<NewPurchaseDialogProps> = ({
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {items.map((item, index) => (
+                    {items.map((item, index) => {
+                      // Get unique categories
+                      const categories = Array.from(
+                        new Set(configuration?.inventory_item_types?.map((type: any) => type.category as string) || [])
+                      ).sort() as string[];
+
+                      // Filter items by selected category
+                      const filteredItems = item.category
+                        ? configuration?.inventory_item_types?.filter((type: any) => type.category === item.category) || []
+                        : configuration?.inventory_item_types || [];
+
+                      // Check if the selected item needs size (only UNIFORM items need sizes)
+                      const selectedItemType = configuration?.inventory_item_types?.find(
+                        (type: any) => type.id === item.inventory_item_type_id
+                      );
+                      const showSize = selectedItemType?.category === 'UNIFORM';
+
+                      return (
                         <TableRow key={index}>
+                          <TableCell sx={{ py: { xs: 0.5, sm: 1 } }}>
+                            <TextField
+                              select
+                              fullWidth
+                              size="small"
+                              value={item.category || ''}
+                              onChange={(e) => handleItemChange(index, 'category', e.target.value)}
+                              sx={{
+                                '& .MuiInputBase-input': {
+                                  fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                                  py: { xs: 0.75, sm: 1 }
+                                }
+                              }}
+                            >
+                              <MenuItem value="">All Categories</MenuItem>
+                              {categories.map((category) => (
+                                <MenuItem key={category} value={category}>
+                                  {category}
+                                </MenuItem>
+                              ))}
+                            </TextField>
+                          </TableCell>
                           <TableCell sx={{ py: { xs: 0.5, sm: 1 } }}>
                             <TextField
                               select
@@ -487,7 +542,7 @@ const NewPurchaseDialog: React.FC<NewPurchaseDialogProps> = ({
                               }}
                             >
                               <MenuItem value={0}>Select Item</MenuItem>
-                              {configuration?.inventory_item_types?.map((type: any) => (
+                              {filteredItems.map((type: any) => (
                                 <MenuItem key={type.id} value={type.id}>
                                   {type.description}
                                 </MenuItem>
@@ -495,26 +550,38 @@ const NewPurchaseDialog: React.FC<NewPurchaseDialogProps> = ({
                             </TextField>
                           </TableCell>
                         <TableCell sx={{ py: { xs: 0.5, sm: 1 } }}>
-                          <TextField
-                            select
-                            fullWidth
-                            size="small"
-                            value={item.size_type_id || ''}
-                            onChange={(e) => handleItemChange(index, 'size_type_id', e.target.value ? Number(e.target.value) : undefined)}
-                            sx={{
-                              '& .MuiInputBase-input': {
+                          {showSize ? (
+                            <TextField
+                              select
+                              fullWidth
+                              size="small"
+                              value={item.size_type_id || ''}
+                              onChange={(e) => handleItemChange(index, 'size_type_id', e.target.value ? Number(e.target.value) : undefined)}
+                              sx={{
+                                '& .MuiInputBase-input': {
+                                  fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                                  py: { xs: 0.75, sm: 1 }
+                                }
+                              }}
+                            >
+                              <MenuItem value="">Select Size</MenuItem>
+                              {configuration?.inventory_size_types?.map((size: any) => (
+                                <MenuItem key={size.id} value={size.id}>
+                                  {size.description}
+                                </MenuItem>
+                              ))}
+                            </TextField>
+                          ) : (
+                            <Typography
+                              sx={{
                                 fontSize: { xs: '0.75rem', sm: '0.875rem' },
-                                py: { xs: 0.75, sm: 1 }
-                              }
-                            }}
-                          >
-                            <MenuItem value="">N/A</MenuItem>
-                            {configuration?.inventory_size_types?.map((size: any) => (
-                              <MenuItem key={size.id} value={size.id}>
-                                {size.description}
-                              </MenuItem>
-                            ))}
-                          </TextField>
+                                color: 'text.secondary',
+                                fontStyle: 'italic'
+                              }}
+                            >
+                              N/A
+                            </Typography>
+                          )}
                         </TableCell>
                         <TableCell sx={{ py: { xs: 0.5, sm: 1 } }}>
                           <TextField
@@ -567,7 +634,8 @@ const NewPurchaseDialog: React.FC<NewPurchaseDialogProps> = ({
                           </IconButton>
                         </TableCell>
                       </TableRow>
-                    ))}
+                    );
+                    })}
                   </TableBody>
                 </Table>
               </TableContainer>
@@ -628,15 +696,6 @@ const NewPurchaseDialog: React.FC<NewPurchaseDialogProps> = ({
                 value={paymentDate}
                 onChange={(e) => setPaymentDate(e.target.value)}
                 InputLabelProps={{ shrink: true }}
-              />
-            </Grid>
-
-            <Grid size={{ xs: 12, sm: 6 }}>
-              <TextField
-                fullWidth
-                label="Transaction ID"
-                value={transactionId}
-                onChange={(e) => setTransactionId(e.target.value)}
               />
             </Grid>
 

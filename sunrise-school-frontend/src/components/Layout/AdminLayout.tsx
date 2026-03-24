@@ -127,7 +127,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
         shortLabel: 'Shop',
         icon: <StorefrontIcon />,
         children: [
-          { label: 'Shop Sales', icon: <PointOfSaleIcon />, path: '/admin/shop-sales' },
+          { label: 'Shop Here', icon: <PointOfSaleIcon />, path: '/admin/shop-sales' },
           { label: 'Stock Procurements', icon: <LocalShippingIcon />, path: '/admin/stock-procurement' },
           { label: 'Pricing Management', icon: <PriceChangeIcon />, path: '/admin/pricing' },
           { label: 'Stock Levels', icon: <InventoryIcon />, path: '/admin/stock-levels' },
