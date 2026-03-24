@@ -404,6 +404,23 @@ export const createStockProcurement = async (data: {
   return response.data;
 };
 
+export const updateStockProcurement = async (
+  procurementId: number,
+  data: {
+    payment_status_id?: number;
+    payment_date?: string;
+    payment_reference?: string;
+    remarks?: string;
+  }
+): Promise<InventoryStockProcurement> => {
+  const response = await api.put(`/inventory/stock/procurements/${procurementId}`, data);
+  return response.data;
+};
+
+export const deleteStockProcurement = async (procurementId: number): Promise<void> => {
+  await api.delete(`/inventory/stock/procurements/${procurementId}`);
+};
+
 export const calculatePurchaseTotal = (items: Array<{ quantity: number; unit_price: number }>): number => {
   return items.reduce((total, item) => total + (item.quantity * item.unit_price), 0);
 };

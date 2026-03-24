@@ -23,7 +23,7 @@ import {
   useTheme
 } from '@mui/material';
 import { Add as AddIcon, Delete as DeleteIcon } from '@mui/icons-material';
-import { createStockProcurement } from '../../../services/inventoryService';
+import { createStockProcurement, updateStockProcurement, InventoryStockProcurement } from '../../../services/inventoryService';
 import { vendorAPI } from '../../../services/api';
 
 interface StockProcurementDialogProps {
@@ -32,6 +32,7 @@ interface StockProcurementDialogProps {
   configuration: any;
   onSuccess: () => void;
   onError: (message: string) => void;
+  procurement?: InventoryStockProcurement | null;  // For edit mode
 }
 
 interface ProcurementItem {
@@ -47,10 +48,14 @@ const StockProcurementDialog: React.FC<StockProcurementDialogProps> = ({
   onClose,
   configuration,
   onSuccess,
-  onError
+  onError,
+  procurement
 }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+
+  // Determine if we're in edit mode
+  const isEditMode = !!procurement;
 
   // State
   const [loading, setLoading] = useState(false);
@@ -69,13 +74,17 @@ const StockProcurementDialog: React.FC<StockProcurementDialogProps> = ({
     { inventory_item_category_id: undefined, inventory_item_type_id: 0, size_type_id: undefined, quantity: 1, unit_cost: 0 }
   ]);
 
-  // Fetch vendors
+  // Fetch vendors and initialize form
   useEffect(() => {
     if (open) {
       fetchVendors();
-      resetForm();
+      if (procurement) {
+        initializeFormWithProcurement(procurement);
+      } else {
+        resetForm();
+      }
     }
-  }, [open]);
+  }, [open, procurement]);
 
   const fetchVendors = async () => {
     try {
@@ -83,6 +92,30 @@ const StockProcurementDialog: React.FC<StockProcurementDialogProps> = ({
       setVendors(data);
     } catch (err) {
       console.error('Error fetching vendors:', err);
+    }
+  };
+
+  const initializeFormWithProcurement = (proc: InventoryStockProcurement) => {
+    setVendorId(proc.vendor_id || '');
+    setProcurementDate(proc.procurement_date);
+    setInvoiceNumber(proc.invoice_number || '');
+    setPaymentMethodId(proc.payment_method_id);
+    setPaymentStatusId(proc.payment_status_id);
+    setPaymentDate(proc.payment_date || '');
+    setPaymentReference(proc.payment_reference || '');
+    setRemarks(proc.remarks || '');
+
+    // Note: In edit mode, we only allow updating payment details, not items
+    // Items are displayed as read-only
+    if (proc.items && proc.items.length > 0) {
+      const procItems = proc.items.map((item: any) => ({
+        inventory_item_category_id: undefined, // We don't have category in the response
+        inventory_item_type_id: item.inventory_item_type_id,
+        size_type_id: item.size_type_id,
+        quantity: item.quantity,
+        unit_cost: item.unit_cost
+      }));
+      setItems(procItems);
     }
   };
 
@@ -131,57 +164,78 @@ const StockProcurementDialog: React.FC<StockProcurementDialogProps> = ({
 
   const handleSubmit = async () => {
     // Validation
-    if (!procurementDate) {
-      onError('Procurement date is required');
-      return;
-    }
-
-    if (paymentMethodId === 0) {
-      onError('Please select a payment method');
-      return;
-    }
-
-    if (items.length === 0) {
-      onError('Please add at least one item');
-      return;
-    }
-
-    for (const item of items) {
-      if (item.inventory_item_type_id === 0) {
-        onError('Please select an item type for all items');
+    if (isEditMode) {
+      // In edit mode, only validate payment fields
+      if (paymentMethodId === 0) {
+        onError('Please select a payment method');
         return;
       }
-      if (item.quantity <= 0) {
-        onError('Quantity must be greater than 0');
+    } else {
+      // In create mode, validate all fields
+      if (!procurementDate) {
+        onError('Procurement date is required');
         return;
       }
-      if (item.unit_cost <= 0) {
-        onError('Unit cost must be greater than 0');
+
+      if (paymentMethodId === 0) {
+        onError('Please select a payment method');
         return;
+      }
+
+      if (items.length === 0) {
+        onError('Please add at least one item');
+        return;
+      }
+
+      for (const item of items) {
+        if (item.inventory_item_type_id === 0) {
+          onError('Please select an item type for all items');
+          return;
+        }
+        if (item.quantity <= 0) {
+          onError('Quantity must be greater than 0');
+          return;
+        }
+        if (item.unit_cost <= 0) {
+          onError('Unit cost must be greater than 0');
+          return;
+        }
       }
     }
 
     setLoading(true);
     try {
-      const procurementData: any = {
-        procurement_date: procurementDate,
-        payment_method_id: paymentMethodId,
-        items: items.map(item => ({
-          inventory_item_type_id: item.inventory_item_type_id,
-          size_type_id: item.size_type_id || undefined,
-          quantity: item.quantity,
-          unit_cost: item.unit_cost
-        }))
-      };
+      if (isEditMode && procurement) {
+        // Update mode - only update payment details
+        const updateData: any = {};
+        if (paymentStatusId) updateData.payment_status_id = paymentStatusId;
+        if (paymentDate) updateData.payment_date = paymentDate;
+        if (paymentReference) updateData.payment_reference = paymentReference;
+        if (remarks) updateData.remarks = remarks;
 
-      if (vendorId) procurementData.vendor_id = vendorId;
-      if (invoiceNumber) procurementData.invoice_number = invoiceNumber;
-      if (paymentStatusId) procurementData.payment_status_id = paymentStatusId;
-      if (paymentDate) procurementData.payment_date = paymentDate;
-      if (paymentReference) procurementData.payment_reference = paymentReference;
-      if (remarks) procurementData.remarks = remarks;
+        await updateStockProcurement(procurement.id, updateData);
+      } else {
+        // Create mode - create new procurement
+        const procurementData: any = {
+          procurement_date: procurementDate,
+          payment_method_id: paymentMethodId,
+          items: items.map(item => ({
+            inventory_item_type_id: item.inventory_item_type_id,
+            size_type_id: item.size_type_id || undefined,
+            quantity: item.quantity,
+            unit_cost: item.unit_cost
+          }))
+        };
 
-      await createStockProcurement(procurementData);
+        if (vendorId) procurementData.vendor_id = vendorId;
+        if (invoiceNumber) procurementData.invoice_number = invoiceNumber;
+        if (paymentStatusId) procurementData.payment_status_id = paymentStatusId;
+        if (paymentDate) procurementData.payment_date = paymentDate;
+        if (paymentReference) procurementData.payment_reference = paymentReference;
+        if (remarks) procurementData.remarks = remarks;
+
+        await createStockProcurement(procurementData);
+      }
 
       resetForm();
       onSuccess();
@@ -216,7 +270,7 @@ const StockProcurementDialog: React.FC<StockProcurementDialogProps> = ({
         px: { xs: 2, sm: 3 }
       }}>
         <Typography variant="h6" sx={{ fontSize: { xs: '1.125rem', sm: '1.25rem' } }}>
-          New Stock Procurement
+          {isEditMode ? 'Edit Stock Procurement' : 'New Stock Procurement'}
         </Typography>
       </DialogTitle>
       <DialogContent sx={{ px: { xs: 2, sm: 3 }, py: { xs: 2, sm: 2 } }}>
@@ -231,6 +285,7 @@ const StockProcurementDialog: React.FC<StockProcurementDialogProps> = ({
                 value={vendorId}
                 onChange={(e) => setVendorId(e.target.value === '' ? '' : Number(e.target.value))}
                 size={isMobile ? 'small' : 'medium'}
+                disabled={isEditMode}
               >
                 <MenuItem value="">No Vendor</MenuItem>
                 {vendors.map((vendor) => (
@@ -251,6 +306,7 @@ const StockProcurementDialog: React.FC<StockProcurementDialogProps> = ({
                 InputLabelProps={{ shrink: true }}
                 required
                 size={isMobile ? 'small' : 'medium'}
+                disabled={isEditMode}
               />
             </Grid>
 
@@ -261,6 +317,7 @@ const StockProcurementDialog: React.FC<StockProcurementDialogProps> = ({
                 value={invoiceNumber}
                 onChange={(e) => setInvoiceNumber(e.target.value)}
                 size={isMobile ? 'small' : 'medium'}
+                disabled={isEditMode}
               />
             </Grid>
 
@@ -273,6 +330,7 @@ const StockProcurementDialog: React.FC<StockProcurementDialogProps> = ({
                 onChange={(e) => setPaymentMethodId(Number(e.target.value))}
                 required
                 size={isMobile ? 'small' : 'medium'}
+                disabled={isEditMode}
               >
                 <MenuItem value={0}>Select Payment Method</MenuItem>
                 {configuration?.payment_methods?.map((method: any) => (
@@ -322,16 +380,18 @@ const StockProcurementDialog: React.FC<StockProcurementDialogProps> = ({
           <Box sx={{ mt: 3 }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
               <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                Items
+                Items {isEditMode && <Typography component="span" variant="caption" color="text.secondary">(Read-only in edit mode)</Typography>}
               </Typography>
-              <Button
-                startIcon={<AddIcon />}
-                onClick={handleAddItem}
-                size="small"
-                variant="outlined"
-              >
-                Add Item
-              </Button>
+              {!isEditMode && (
+                <Button
+                  startIcon={<AddIcon />}
+                  onClick={handleAddItem}
+                  size="small"
+                  variant="outlined"
+                >
+                  Add Item
+                </Button>
+              )}
             </Box>
 
             <TableContainer component={Paper} variant="outlined">
@@ -367,6 +427,7 @@ const StockProcurementDialog: React.FC<StockProcurementDialogProps> = ({
                             handleItemChange(index, 'inventory_item_category_id', value === '' ? undefined : Number(value));
                           }}
                           size="small"
+                          disabled={isEditMode}
                           slotProps={{
                             select: {
                               displayEmpty: true
@@ -389,6 +450,7 @@ const StockProcurementDialog: React.FC<StockProcurementDialogProps> = ({
                           onChange={(e) => handleItemChange(index, 'inventory_item_type_id', Number(e.target.value))}
                           size="small"
                           required
+                          disabled={isEditMode}
                         >
                           <MenuItem value={0}>Select Item</MenuItem>
                           {filteredItems.map((type: any) => (
@@ -405,6 +467,7 @@ const StockProcurementDialog: React.FC<StockProcurementDialogProps> = ({
                           value={item.size_type_id || ''}
                           onChange={(e) => handleItemChange(index, 'size_type_id', e.target.value ? Number(e.target.value) : undefined)}
                           size="small"
+                          disabled={isEditMode}
                         >
                           <MenuItem value="">N/A</MenuItem>
                           {configuration?.inventory_size_types?.map((size: any) => (
@@ -422,6 +485,7 @@ const StockProcurementDialog: React.FC<StockProcurementDialogProps> = ({
                           inputProps={{ min: 1 }}
                           size="small"
                           sx={{ width: 80 }}
+                          disabled={isEditMode}
                         />
                       </TableCell>
                       <TableCell>
@@ -432,20 +496,23 @@ const StockProcurementDialog: React.FC<StockProcurementDialogProps> = ({
                           inputProps={{ min: 0, step: 0.01 }}
                           size="small"
                           sx={{ width: 100 }}
+                          disabled={isEditMode}
                         />
                       </TableCell>
                       <TableCell align="right">
                         ₹{calculateItemTotal(item).toFixed(2)}
                       </TableCell>
                       <TableCell align="center">
-                        <IconButton
-                          size="small"
-                          onClick={() => handleRemoveItem(index)}
-                          disabled={items.length === 1}
-                          color="error"
-                        >
-                          <DeleteIcon fontSize="small" />
-                        </IconButton>
+                        {!isEditMode && (
+                          <IconButton
+                            size="small"
+                            onClick={() => handleRemoveItem(index)}
+                            disabled={items.length === 1}
+                            color="error"
+                          >
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        )}
                       </TableCell>
                     </TableRow>
                     );

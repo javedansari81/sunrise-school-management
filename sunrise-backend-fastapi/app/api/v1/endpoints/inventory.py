@@ -918,3 +918,105 @@ async def create_stock_procurement(
         created_at=procurement.created_at
     )
 
+
+@router.put("/stock/procurements/{procurement_id}", response_model=InventoryStockProcurementResponse)
+async def update_stock_procurement(
+    procurement_id: int,
+    procurement_data: InventoryStockProcurementUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_admin_user)
+):
+    """
+    Update stock procurement (payment details only)
+    Admin only
+    """
+    procurement = await crud_inventory_stock_procurement.update_procurement(
+        db,
+        procurement_id=procurement_id,
+        procurement_data=procurement_data
+    )
+
+    if not procurement:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Procurement not found"
+        )
+
+    # Refresh to load relationships
+    await db.refresh(procurement, ['vendor', 'payment_method', 'payment_status', 'items'])
+
+    # Build items response
+    items = []
+    for item in procurement.items:
+        await db.refresh(item, ['item_type', 'size_type'])
+        items.append({
+            "id": item.id,
+            "inventory_item_type_id": item.inventory_item_type_id,
+            "size_type_id": item.size_type_id,
+            "quantity": item.quantity,
+            "unit_cost": item.unit_cost,
+            "total_cost": item.total_cost,
+            "item_type_name": item.item_type.name,
+            "item_type_description": item.item_type.description,
+            "item_image_url": item.item_type.image_url,
+            "size_name": item.size_type.name if item.size_type else None,
+            "created_at": item.created_at
+        })
+
+    return InventoryStockProcurementResponse(
+        id=procurement.id,
+        vendor_id=procurement.vendor_id,
+        procurement_date=procurement.procurement_date,
+        invoice_number=procurement.invoice_number,
+        total_amount=procurement.total_amount,
+        payment_method_id=procurement.payment_method_id,
+        payment_status_id=procurement.payment_status_id,
+        payment_date=procurement.payment_date,
+        payment_reference=procurement.payment_reference,
+        remarks=procurement.remarks,
+        invoice_url=procurement.invoice_url,
+        vendor_name=procurement.vendor.vendor_name if procurement.vendor else None,
+        payment_method_name=procurement.payment_method.description,
+        payment_status_name=procurement.payment_status.name,
+        items=items,
+        created_at=procurement.created_at
+    )
+
+
+@router.delete("/stock/procurements/{procurement_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_stock_procurement(
+    procurement_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_admin_user)
+):
+    """
+    Delete stock procurement and reverse stock adjustments
+    Admin only
+    WARNING: This will reverse the stock quantities that were added during procurement
+    """
+    procurement = await crud_inventory_stock_procurement.get_procurement_by_id(db, procurement_id)
+
+    if not procurement:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Procurement not found"
+        )
+
+    # Reverse stock adjustments for each item
+    stock_crud = crud_inventory_stock
+    for item in procurement.items:
+        # Subtract the quantity that was added during procurement
+        await stock_crud.adjust_stock_quantity(
+            db=db,
+            item_type_id=item.inventory_item_type_id,
+            size_type_id=item.size_type_id,
+            quantity_change=-item.quantity,  # Negative to reverse the addition
+            restock_date=None
+        )
+
+    # Delete the procurement (cascade will delete items)
+    await db.delete(procurement)
+    await db.commit()
+
+    return None
+

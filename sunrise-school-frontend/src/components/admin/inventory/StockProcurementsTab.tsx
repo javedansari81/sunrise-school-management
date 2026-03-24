@@ -18,7 +18,9 @@ import {
   useTheme
 } from '@mui/material';
 import {
-  Visibility as VisibilityIcon
+  Visibility as VisibilityIcon,
+  Edit as EditIcon,
+  Delete as DeleteIcon
 } from '@mui/icons-material';
 import {
   getStockProcurements,
@@ -62,6 +64,7 @@ const StockProcurementsTab: React.FC<StockProcurementsTabProps> = ({
   const [procurementDialogOpen, setProcurementDialogOpen] = useState(false);
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
   const [selectedProcurement, setSelectedProcurement] = useState<InventoryStockProcurement | null>(null);
+  const [editProcurement, setEditProcurement] = useState<InventoryStockProcurement | null>(null);
 
   // Use parent filters if provided
   const fromDate = parentFromDate ?? '';
@@ -105,6 +108,28 @@ const StockProcurementsTab: React.FC<StockProcurementsTabProps> = ({
     setDetailsDialogOpen(true);
   };
 
+  const handleEditProcurement = (procurement: InventoryStockProcurement) => {
+    // Open procurement dialog in edit mode
+    setEditProcurement(procurement);
+    setProcurementDialogOpen(true);
+  };
+
+  const handleDeleteProcurement = async (procurement: InventoryStockProcurement) => {
+    if (!window.confirm(`Are you sure you want to delete procurement ${procurement.invoice_number || 'this record'}?\n\nWARNING: This will reverse the stock quantities that were added during this procurement. This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      const { deleteStockProcurement } = await import('../../../services/inventoryService');
+      await deleteStockProcurement(procurement.id);
+      onSuccess('Procurement deleted successfully and stock quantities reversed');
+      fetchProcurements();
+    } catch (err: any) {
+      console.error('Error deleting procurement:', err);
+      onError(err.response?.data?.detail || 'Failed to delete procurement');
+    }
+  };
+
   const handleChangePage = (_event: unknown, newPage: number) => {
     setPage(newPage);
   };
@@ -125,6 +150,7 @@ const StockProcurementsTab: React.FC<StockProcurementsTabProps> = ({
 
   const handleDialogClose = () => {
     setProcurementDialogOpen(false);
+    setEditProcurement(null); // Clear edit procurement when closing
     if (parentOnDialogClose) {
       parentOnDialogClose();
     }
@@ -221,15 +247,37 @@ const StockProcurementsTab: React.FC<StockProcurementsTabProps> = ({
                         />
                       </TableCell>
                       <TableCell sx={{ py: { xs: 0.5, sm: 1 } }} align="center">
-                        <Tooltip title="View Details">
-                          <IconButton
-                            size="small"
-                            onClick={() => handleViewDetails(procurement)}
-                            sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }}
-                          >
-                            <VisibilityIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
+                        <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'center' }}>
+                          <Tooltip title="View Details">
+                            <IconButton
+                              size="small"
+                              onClick={() => handleViewDetails(procurement)}
+                              sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }}
+                            >
+                              <VisibilityIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="Edit">
+                            <IconButton
+                              size="small"
+                              onClick={() => handleEditProcurement(procurement)}
+                              color="primary"
+                              sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }}
+                            >
+                              <EditIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="Delete">
+                            <IconButton
+                              size="small"
+                              onClick={() => handleDeleteProcurement(procurement)}
+                              color="error"
+                              sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }}
+                            >
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        </Box>
                       </TableCell>
                     </TableRow>
                   ))
@@ -249,13 +297,14 @@ const StockProcurementsTab: React.FC<StockProcurementsTabProps> = ({
         </Paper>
       )}
 
-      {/* New Procurement Dialog */}
+      {/* New/Edit Procurement Dialog */}
       <StockProcurementDialog
         open={procurementDialogOpen}
         onClose={handleDialogClose}
         configuration={configuration}
         onSuccess={handleProcurementSuccess}
         onError={onError}
+        procurement={editProcurement}
       />
 
       {/* Procurement Details Dialog */}

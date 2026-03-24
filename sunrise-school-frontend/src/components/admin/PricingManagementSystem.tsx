@@ -22,7 +22,8 @@ import {
 } from '@mui/material';
 import {
   Add as AddIcon,
-  Visibility as VisibilityIcon
+  Edit as EditIcon,
+  Delete as DeleteIcon
 } from '@mui/icons-material';
 import PricingDialog from './inventory/PricingDialog';
 import CollapsibleFilterSection from '../common/CollapsibleFilterSection';
@@ -109,6 +110,22 @@ const PricingManagementSystem: React.FC<PricingManagementSystemProps> = ({ confi
   const handleEditPricing = (pricing: InventoryPricing) => {
     setSelectedPricing(pricing);
     setPricingDialogOpen(true);
+  };
+
+  const handleDeletePricing = async (pricing: InventoryPricing) => {
+    if (!window.confirm(`Are you sure you want to delete pricing for ${pricing.item_type_description}?`)) {
+      return;
+    }
+
+    try {
+      const { updatePricing } = await import('../../services/inventoryService');
+      await updatePricing(pricing.id, { is_active: false });
+      setSnackbar({ open: true, message: 'Pricing deleted successfully', severity: 'success' });
+      loadPricing();
+    } catch (err: any) {
+      console.error('Error deleting pricing:', err);
+      setSnackbar({ open: true, message: err.response?.data?.detail || 'Failed to delete pricing', severity: 'error' });
+    }
   };
 
   const handlePricingSuccess = () => {
@@ -401,18 +418,34 @@ const PricingManagementSystem: React.FC<PricingManagementSystemProps> = ({ confi
                       align="center"
                       sx={{ py: { xs: 0.75, sm: 1.5 } }}
                     >
-                      <IconButton
-                        size="small"
-                        onClick={() => handleEditPricing(pricing)}
-                        title="Edit"
-                        sx={{
-                          p: { xs: 0.5, sm: 1 },
-                          minWidth: { xs: 36, sm: 40 },
-                          minHeight: { xs: 36, sm: 40 }
-                        }}
-                      >
-                        <VisibilityIcon fontSize="small" />
-                      </IconButton>
+                      <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'center' }}>
+                        <IconButton
+                          size="small"
+                          onClick={() => handleEditPricing(pricing)}
+                          title="Edit"
+                          color="primary"
+                          sx={{
+                            p: { xs: 0.5, sm: 1 },
+                            minWidth: { xs: 32, sm: 36 },
+                            minHeight: { xs: 32, sm: 36 }
+                          }}
+                        >
+                          <EditIcon fontSize="small" />
+                        </IconButton>
+                        <IconButton
+                          size="small"
+                          onClick={() => handleDeletePricing(pricing)}
+                          title="Delete"
+                          color="error"
+                          sx={{
+                            p: { xs: 0.5, sm: 1 },
+                            minWidth: { xs: 32, sm: 36 },
+                            minHeight: { xs: 32, sm: 36 }
+                          }}
+                        >
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </Box>
                     </TableCell>
                   </TableRow>
                 ))
