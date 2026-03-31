@@ -22,6 +22,7 @@ from app.models.teacher import Teacher
 from app.models.metadata import SessionYear
 from app.models.expense import Expense as ExpenseModel
 from app.models.fee import FeeRecord as FeeRecordModel, FeePayment as FeePaymentModel
+from app.models.student_session_history import StudentSessionHistory
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -30,12 +31,12 @@ logger = logging.getLogger(__name__)
 async def get_session_year_details(
     db: AsyncSession,
     session_year_id: Optional[int] = None
-) -> Tuple[int, str, Optional[date], Optional[date]]:
+) -> Tuple[int, str, Optional[date], Optional[date], bool]:
     """
     Get session year details from database.
     If session_year_id is None, fetches the current session (is_current=True).
 
-    Returns: (session_year_id, session_year_name, start_date, end_date)
+    Returns: (session_year_id, session_year_name, start_date, end_date, is_current)
     """
     if session_year_id is None:
         # Fetch current session year (where is_current = True)
@@ -50,11 +51,11 @@ async def get_session_year_details(
     session = result.scalar_one_or_none()
 
     if session:
-        return (session.id, session.name, session.start_date, session.end_date)
+        return (session.id, session.name, session.start_date, session.end_date, session.is_current)
 
     # Fallback if no session found (should not happen in normal operation)
     logger.warning(f"Session year not found for id={session_year_id}, using defaults")
-    return (4, "2025-26", None, None)
+    return (4, "2025-26", None, None, False)
 
 
 @router.get("/admin-dashboard-stats")
@@ -76,12 +77,12 @@ async def get_admin_dashboard_stats(
     - Inventory: Not filtered - operational data (🌐)
     """
     # Get session year details from database (uses is_current=True if session_year_id is None)
-    session_year_id, session_year_name, session_start_date, session_end_date = await get_session_year_details(
+    session_year_id, session_year_name, session_start_date, session_end_date, is_current_session = await get_session_year_details(
         db, session_year_id
     )
 
     logger.info(f"=== Starting get_admin_dashboard_stats ===")
-    logger.info(f"Session: id={session_year_id}, name={session_year_name}, start={session_start_date}, end={session_end_date}")
+    logger.info(f"Session: id={session_year_id}, name={session_year_name}, start={session_start_date}, end={session_end_date}, is_current={is_current_session}")
 
     try:
         # Get current date for time-based calculations
@@ -112,36 +113,79 @@ async def get_admin_dashboard_stats(
         try:
             logger.info("Section 1: Fetching student statistics (session filtered)...")
 
-            # Get total students for the selected session year
-            total_students_query = select(func.count(Student.id)).where(
-                and_(
-                    Student.is_active == True,
-                    or_(Student.is_deleted == False, Student.is_deleted.is_(None)),
-                    Student.session_year_id == session_year_id
+            # Check if this is the current session or a past session
+            if is_current_session:
+                # Current session: Query from students table directly
+                logger.info(f"Querying current session students from students table")
+                total_students_query = select(func.count(Student.id)).where(
+                    and_(
+                        Student.is_active == True,
+                        or_(Student.is_deleted == False, Student.is_deleted.is_(None)),
+                        Student.session_year_id == session_year_id
+                    )
                 )
-            )
-            total_students_result = await db.execute(total_students_query)
-            total_students = total_students_result.scalar() or 0
-            logger.info(f"Total students for session {session_year_name}: {total_students}")
+                total_students_result = await db.execute(total_students_query)
+                total_students = total_students_result.scalar() or 0
 
-            # Calculate students added this month for the session
-            students_this_month_query = select(func.count(Student.id)).where(
-                and_(
-                    Student.is_active == True,
-                    or_(Student.is_deleted == False, Student.is_deleted.is_(None)),
-                    Student.session_year_id == session_year_id,
-                    Student.created_at >= current_month_start
+                # Calculate students added this month for the session
+                students_this_month_query = select(func.count(Student.id)).where(
+                    and_(
+                        Student.is_active == True,
+                        or_(Student.is_deleted == False, Student.is_deleted.is_(None)),
+                        Student.session_year_id == session_year_id,
+                        Student.created_at >= current_month_start
+                    )
                 )
-            )
-            students_this_month_result = await db.execute(students_this_month_query)
-            students_this_month = students_this_month_result.scalar() or 0
+                students_this_month_result = await db.execute(students_this_month_query)
+                students_this_month = students_this_month_result.scalar() or 0
+            else:
+                # Past session: Query from BOTH student_session_history AND students table
+                # to include students who were promoted AND students who were never promoted
+                logger.info(f"Querying past session students from student_session_history AND students table")
+
+                # Count students from history (those who were promoted, exclude deleted students)
+                history_students_query = select(
+                    func.count(func.distinct(StudentSessionHistory.student_id))
+                ).select_from(
+                    StudentSessionHistory
+                ).join(
+                    Student, StudentSessionHistory.student_id == Student.id
+                ).where(
+                    and_(
+                        StudentSessionHistory.session_year_id == session_year_id,
+                        or_(Student.is_deleted == False, Student.is_deleted.is_(None))
+                    )
+                )
+                history_students_result = await db.execute(history_students_query)
+                history_students = history_students_result.scalar() or 0
+
+                # Count students still in students table with this session (never promoted)
+                remaining_students_query = select(func.count(Student.id)).where(
+                    and_(
+                        Student.session_year_id == session_year_id,
+                        or_(Student.is_deleted == False, Student.is_deleted.is_(None))
+                    )
+                )
+                remaining_students_result = await db.execute(remaining_students_query)
+                remaining_students = remaining_students_result.scalar() or 0
+
+                # Total = students in history + students still in that session
+                total_students = history_students + remaining_students
+
+                logger.info(f"Past session breakdown: {history_students} from history + {remaining_students} remaining = {total_students} total")
+
+                # For past sessions, "added this month" doesn't make sense, so set to 0
+                students_this_month = 0
+
+            logger.info(f"Total students for session {session_year_name}: {total_students}")
             logger.info(f"Students added this month: {students_this_month}")
 
             response_data["students"] = {
                 "total": total_students,
                 "added_this_month": students_this_month,
-                "change_text": f"+{students_this_month} this month",
-                "is_session_filtered": True
+                "change_text": f"+{students_this_month} this month" if is_current_session else "Historical data",
+                "is_session_filtered": True,
+                "is_historical": not is_current_session
             }
             logger.info("✓ Section 1 completed successfully")
         except Exception as e:
@@ -477,12 +521,12 @@ async def get_admin_dashboard_enhanced_stats(
     - Transport: Filtered by session_year_id (📅)
     """
     # Get session year details from database (uses is_current=True if session_year_id is None)
-    session_year_id, session_year_name, session_start_date, session_end_date = await get_session_year_details(
+    session_year_id, session_year_name, session_start_date, session_end_date, is_current_session = await get_session_year_details(
         db, session_year_id
     )
 
     logger.info(f"=== Starting get_admin_dashboard_enhanced_stats ===")
-    logger.info(f"Session: id={session_year_id}, name={session_year_name}, start={session_start_date}, end={session_end_date}")
+    logger.info(f"Session: id={session_year_id}, name={session_year_name}, start={session_start_date}, end={session_end_date}, is_current={is_current_session}")
 
     try:
         # Get current date for time-based calculations
@@ -500,49 +544,147 @@ async def get_admin_dashboard_enhanced_stats(
 
         # 1. Student Management - Detailed Statistics (SESSION FILTERED 📅)
         try:
-            # Get class-wise breakdown for the selected session (excluding soft deleted)
-            class_breakdown_query = text("""
-                SELECT
-                    c.description as class_name,
-                    COUNT(s.id) as total_students,
-                    COUNT(CASE WHEN s.gender_id = 1 THEN 1 END) as male_count,
-                    COUNT(CASE WHEN s.gender_id = 2 THEN 1 END) as female_count
-                FROM sunrise.students s
-                LEFT JOIN sunrise.classes c ON s.class_id = c.id
-                WHERE s.is_active = TRUE
-                    AND (s.is_deleted = FALSE OR s.is_deleted IS NULL)
-                    AND s.session_year_id = :session_year_id
-                GROUP BY c.id, c.description
-                ORDER BY c.id
-            """)
-            class_result = await db.execute(class_breakdown_query, {"session_year_id": session_year_id})
-            class_breakdown = [
-                {
-                    'class_name': row.class_name or 'Not Assigned',
-                    'total': row.total_students,
-                    'male': row.male_count,
-                    'female': row.female_count
-                }
-                for row in class_result
-            ]
+            if is_current_session:
+                # Current session: Query from students table
+                logger.info("Querying current session student details from students table")
+                class_breakdown_query = text("""
+                    SELECT
+                        c.description as class_name,
+                        COUNT(s.id) as total_students,
+                        COUNT(CASE WHEN s.gender_id = 1 THEN 1 END) as male_count,
+                        COUNT(CASE WHEN s.gender_id = 2 THEN 1 END) as female_count
+                    FROM sunrise.students s
+                    LEFT JOIN sunrise.classes c ON s.class_id = c.id
+                    WHERE s.is_active = TRUE
+                        AND (s.is_deleted = FALSE OR s.is_deleted IS NULL)
+                        AND s.session_year_id = :session_year_id
+                    GROUP BY c.id, c.description
+                    ORDER BY c.id
+                """)
+                class_result = await db.execute(class_breakdown_query, {"session_year_id": session_year_id})
+                class_breakdown = [
+                    {
+                        'class_name': row.class_name or 'Not Assigned',
+                        'total': row.total_students,
+                        'male': row.male_count,
+                        'female': row.female_count
+                    }
+                    for row in class_result
+                ]
 
-            # Get total and active/inactive counts for the session (excluding soft deleted)
-            # Note: total_students counts only active students (is_active=TRUE) to match the basic stats
-            student_stats_query = text("""
-                SELECT
-                    COUNT(CASE WHEN is_active = TRUE THEN 1 END) as total_students,
-                    COUNT(CASE WHEN is_active = TRUE THEN 1 END) as active_students,
-                    COUNT(CASE WHEN is_active = FALSE THEN 1 END) as inactive_students,
-                    COUNT(CASE WHEN is_active = TRUE AND created_at >= :month_start THEN 1 END) as recent_enrollments
-                FROM sunrise.students
-                WHERE (is_deleted = FALSE OR is_deleted IS NULL)
-                    AND session_year_id = :session_year_id
-            """)
-            student_stats_result = await db.execute(
-                student_stats_query,
-                {"month_start": current_month_start, "session_year_id": session_year_id}
-            )
-            student_stats = student_stats_result.fetchone()
+                # Get total and active/inactive counts for the session (excluding soft deleted)
+                student_stats_query = text("""
+                    SELECT
+                        COUNT(CASE WHEN is_active = TRUE THEN 1 END) as total_students,
+                        COUNT(CASE WHEN is_active = TRUE THEN 1 END) as active_students,
+                        COUNT(CASE WHEN is_active = FALSE THEN 1 END) as inactive_students,
+                        COUNT(CASE WHEN is_active = TRUE AND created_at >= :month_start THEN 1 END) as recent_enrollments
+                    FROM sunrise.students
+                    WHERE (is_deleted = FALSE OR is_deleted IS NULL)
+                        AND session_year_id = :session_year_id
+                """)
+                student_stats_result = await db.execute(
+                    student_stats_query,
+                    {"month_start": current_month_start, "session_year_id": session_year_id}
+                )
+                student_stats = student_stats_result.fetchone()
+            else:
+                # Past session: Query from BOTH student_session_history AND students table
+                # to include students who were promoted AND students who were never promoted
+                logger.info("Querying past session student details from student_session_history AND students table")
+
+                # Class breakdown using UNION ALL to combine history + remaining students
+                class_breakdown_query = text("""
+                    SELECT
+                        class_name,
+                        SUM(total_students) as total_students,
+                        SUM(male_count) as male_count,
+                        SUM(female_count) as female_count
+                    FROM (
+                        -- Students from history (promoted)
+                        SELECT
+                            c.description as class_name,
+                            COUNT(DISTINCT ssh.student_id) as total_students,
+                            COUNT(DISTINCT CASE WHEN s.gender_id = 1 THEN ssh.student_id END) as male_count,
+                            COUNT(DISTINCT CASE WHEN s.gender_id = 2 THEN ssh.student_id END) as female_count
+                        FROM sunrise.student_session_history ssh
+                        LEFT JOIN sunrise.classes c ON ssh.class_id = c.id
+                        LEFT JOIN sunrise.students s ON ssh.student_id = s.id
+                        WHERE ssh.session_year_id = :session_year_id
+                            AND (s.is_deleted = FALSE OR s.is_deleted IS NULL)
+                        GROUP BY c.id, c.description
+
+                        UNION ALL
+
+                        -- Students still in students table (not promoted)
+                        SELECT
+                            c.description as class_name,
+                            COUNT(s.id) as total_students,
+                            COUNT(CASE WHEN s.gender_id = 1 THEN 1 END) as male_count,
+                            COUNT(CASE WHEN s.gender_id = 2 THEN 1 END) as female_count
+                        FROM sunrise.students s
+                        LEFT JOIN sunrise.classes c ON s.class_id = c.id
+                        WHERE s.session_year_id = :session_year_id
+                            AND (s.is_deleted = FALSE OR s.is_deleted IS NULL)
+                        GROUP BY c.id, c.description
+                    ) combined
+                    GROUP BY class_name
+                    ORDER BY class_name
+                """)
+                class_result = await db.execute(class_breakdown_query, {"session_year_id": session_year_id})
+                class_breakdown = [
+                    {
+                        'class_name': row.class_name or 'Not Assigned',
+                        'total': row.total_students,
+                        'male': row.male_count,
+                        'female': row.female_count
+                    }
+                    for row in class_result
+                ]
+
+                # Total student count: history + remaining students
+                student_stats_query = text("""
+                    SELECT
+                        (
+                            -- Count from history (exclude deleted students)
+                            SELECT COUNT(DISTINCT ssh.student_id)
+                            FROM sunrise.student_session_history ssh
+                            INNER JOIN sunrise.students s ON ssh.student_id = s.id
+                            WHERE ssh.session_year_id = :session_year_id
+                                AND (s.is_deleted = FALSE OR s.is_deleted IS NULL)
+                        ) + (
+                            -- Count from students table
+                            SELECT COUNT(s.id)
+                            FROM sunrise.students s
+                            WHERE s.session_year_id = :session_year_id
+                                AND (s.is_deleted = FALSE OR s.is_deleted IS NULL)
+                        ) as total_students,
+
+                        -- Active students (from remaining students only, history students were "active" then)
+                        (
+                            SELECT COUNT(s.id)
+                            FROM sunrise.students s
+                            WHERE s.session_year_id = :session_year_id
+                                AND s.is_active = TRUE
+                                AND (s.is_deleted = FALSE OR s.is_deleted IS NULL)
+                        ) as active_students,
+
+                        -- Inactive students (from remaining students only)
+                        (
+                            SELECT COUNT(s.id)
+                            FROM sunrise.students s
+                            WHERE s.session_year_id = :session_year_id
+                                AND s.is_active = FALSE
+                                AND (s.is_deleted = FALSE OR s.is_deleted IS NULL)
+                        ) as inactive_students,
+
+                        0 as recent_enrollments
+                """)
+                student_stats_result = await db.execute(
+                    student_stats_query,
+                    {"session_year_id": session_year_id}
+                )
+                student_stats = student_stats_result.fetchone()
 
             response_data['student_management'] = {
                 'total_students': student_stats.total_students,
@@ -550,7 +692,8 @@ async def get_admin_dashboard_enhanced_stats(
                 'inactive_students': student_stats.inactive_students,
                 'recent_enrollments': student_stats.recent_enrollments,
                 'class_breakdown': class_breakdown,
-                'is_session_filtered': True
+                'is_session_filtered': True,
+                'is_historical': not is_current_session
             }
         except Exception as e:
             logger.error(f"Error fetching student statistics: {str(e)}")
