@@ -43,6 +43,7 @@ async def get_students(
     gender_filter: Optional[int] = Query(None, description="Filter by gender ID"),
     search: Optional[str] = Query(None, description="Search by name, admission number, or parent name"),
     is_active: Optional[bool] = Query(None, description="Filter by active status (None = all, True = active only, False = inactive only)"),
+    session_year_id: Optional[int] = Query(None, description="Filter by session year ID"),
     page: int = Query(1, ge=1),
     per_page: int = Query(25, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
@@ -60,7 +61,8 @@ async def get_students(
         section_filter=section_filter,
         gender_filter=gender_filter,
         search=search,
-        is_active=is_active
+        is_active=is_active,
+        session_year_id=session_year_id
     )
 
     # Convert to response schema with metadata

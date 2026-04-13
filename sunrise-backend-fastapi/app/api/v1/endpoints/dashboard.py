@@ -160,19 +160,26 @@ async def get_admin_dashboard_stats(
                 history_students = history_students_result.scalar() or 0
 
                 # Count students still in students table with this session (never promoted)
+                # EXCLUDE students who are already in history to avoid double counting
                 remaining_students_query = select(func.count(Student.id)).where(
                     and_(
                         Student.session_year_id == session_year_id,
-                        or_(Student.is_deleted == False, Student.is_deleted.is_(None))
+                        or_(Student.is_deleted == False, Student.is_deleted.is_(None)),
+                        # Exclude students already in history
+                        ~Student.id.in_(
+                            select(StudentSessionHistory.student_id).where(
+                                StudentSessionHistory.session_year_id == session_year_id
+                            )
+                        )
                     )
                 )
                 remaining_students_result = await db.execute(remaining_students_query)
                 remaining_students = remaining_students_result.scalar() or 0
 
-                # Total = students in history + students still in that session
+                # Total = students in history + students still in that session (not in history)
                 total_students = history_students + remaining_students
 
-                logger.info(f"Past session breakdown: {history_students} from history + {remaining_students} remaining = {total_students} total")
+                logger.info(f"Past session breakdown: {history_students} from history + {remaining_students} remaining (not in history) = {total_students} total")
 
                 # For past sessions, "added this month" doesn't make sense, so set to 0
                 students_this_month = 0
@@ -617,6 +624,7 @@ async def get_admin_dashboard_enhanced_stats(
                         UNION ALL
 
                         -- Students still in students table (not promoted)
+                        -- EXCLUDE students already in history to avoid double counting
                         SELECT
                             c.description as class_name,
                             COUNT(s.id) as total_students,
@@ -626,6 +634,11 @@ async def get_admin_dashboard_enhanced_stats(
                         LEFT JOIN sunrise.classes c ON s.class_id = c.id
                         WHERE s.session_year_id = :session_year_id
                             AND (s.is_deleted = FALSE OR s.is_deleted IS NULL)
+                            AND s.id NOT IN (
+                                SELECT student_id
+                                FROM sunrise.student_session_history
+                                WHERE session_year_id = :session_year_id
+                            )
                         GROUP BY c.id, c.description
                     ) combined
                     GROUP BY class_name
@@ -642,7 +655,7 @@ async def get_admin_dashboard_enhanced_stats(
                     for row in class_result
                 ]
 
-                # Total student count: history + remaining students
+                # Total student count: history + remaining students (excluding duplicates)
                 student_stats_query = text("""
                     SELECT
                         (
@@ -653,11 +666,16 @@ async def get_admin_dashboard_enhanced_stats(
                             WHERE ssh.session_year_id = :session_year_id
                                 AND (s.is_deleted = FALSE OR s.is_deleted IS NULL)
                         ) + (
-                            -- Count from students table
+                            -- Count from students table (exclude students already in history)
                             SELECT COUNT(s.id)
                             FROM sunrise.students s
                             WHERE s.session_year_id = :session_year_id
                                 AND (s.is_deleted = FALSE OR s.is_deleted IS NULL)
+                                AND s.id NOT IN (
+                                    SELECT student_id
+                                    FROM sunrise.student_session_history
+                                    WHERE session_year_id = :session_year_id
+                                )
                         ) as total_students,
 
                         -- Active students (from remaining students only, history students were "active" then)
@@ -667,6 +685,11 @@ async def get_admin_dashboard_enhanced_stats(
                             WHERE s.session_year_id = :session_year_id
                                 AND s.is_active = TRUE
                                 AND (s.is_deleted = FALSE OR s.is_deleted IS NULL)
+                                AND s.id NOT IN (
+                                    SELECT student_id
+                                    FROM sunrise.student_session_history
+                                    WHERE session_year_id = :session_year_id
+                                )
                         ) as active_students,
 
                         -- Inactive students (from remaining students only)
@@ -676,6 +699,11 @@ async def get_admin_dashboard_enhanced_stats(
                             WHERE s.session_year_id = :session_year_id
                                 AND s.is_active = FALSE
                                 AND (s.is_deleted = FALSE OR s.is_deleted IS NULL)
+                                AND s.id NOT IN (
+                                    SELECT student_id
+                                    FROM sunrise.student_session_history
+                                    WHERE session_year_id = :session_year_id
+                                )
                         ) as inactive_students,
 
                         0 as recent_enrollments

@@ -226,13 +226,15 @@ async def progress_student(
         student.is_active = False
 
     # Create session history record
+    # IMPORTANT: session_year_id should be the FROM session (where student WAS)
+    # The history table stores historical records of past sessions
     await create_session_history_record(
         db=db,
         student_id=student_id,
-        session_year_id=to_session_year_id,
-        class_id=target_class_id,
-        section=section,
-        roll_number=roll_number,
+        session_year_id=from_session_year_id,  # Fixed: Use FROM session, not TO session
+        class_id=from_class_id,  # Fixed: Use FROM class, not target class
+        section=current_section,  # Fixed: Use current section, not new section
+        roll_number=current_roll_number,  # Fixed: Use current roll number, not new roll number
         progression_action_id=progression_action_id,
         from_session_year_id=from_session_year_id,
         from_class_id=from_class_id,

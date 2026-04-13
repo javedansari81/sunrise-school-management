@@ -456,7 +456,8 @@ class CRUDStudent(CRUDBase[Student, StudentCreate, StudentUpdate]):
         section_filter: Optional[str] = None,
         gender_filter: Optional[int] = None,
         search: Optional[str] = None,
-        is_active: Optional[bool] = None
+        is_active: Optional[bool] = None,
+        session_year_id: Optional[int] = None
     ) -> tuple[List[Student], int]:
         query = select(Student)
 
@@ -483,6 +484,10 @@ class CRUDStudent(CRUDBase[Student, StudentCreate, StudentUpdate]):
         if gender_filter:
             # Filter by gender ID
             conditions.append(Student.gender_id == gender_filter)
+
+        if session_year_id:
+            # Filter by session year ID
+            conditions.append(Student.session_year_id == session_year_id)
 
         if search:
             search_conditions = [
