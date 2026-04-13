@@ -158,7 +158,10 @@ export const enhancedFeesAPI = {
 // Students API (to be implemented in backend)
 export const studentsAPI = {
   getStudents: (params?: URLSearchParams) => api.get(`/students${params ? `?${params.toString()}` : ''}`),
-  getStudent: (id: number) => api.get(`/students/${id}`),
+  getStudent: (id: number, sessionYearId?: number) => {
+    const url = `/students/${id}${sessionYearId ? `?session_year_id=${sessionYearId}` : ''}`;
+    return api.get(url);
+  },
   getNextAdmissionNumber: () => api.get('/students/next-admission-number'),
   createStudent: (studentData: any) => api.post('/students', studentData),
   updateStudent: (id: number, studentData: any) => api.put(`/students/${id}`, studentData),

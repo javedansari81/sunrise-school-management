@@ -1,7 +1,8 @@
 from typing import Optional, List, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, Query, status, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import text
+from sqlalchemy import text, select, and_
+from sqlalchemy.orm import selectinload
 import math
 
 from app.core.database import get_db
@@ -51,7 +52,11 @@ async def get_students(
 ):
     """
     Get all students with comprehensive filters and metadata
+    Returns historical class/session data when querying past sessions
     """
+    from app.models.student_session_history import StudentSessionHistory
+    from app.models.metadata import SessionYear
+
     skip = (page - 1) * per_page
     students, total = await student_crud.get_multi_with_filters(
         db,
@@ -65,10 +70,48 @@ async def get_students(
         session_year_id=session_year_id
     )
 
+    # Check if this is a past session query
+    is_past_session = False
+    if session_year_id:
+        current_session_query = select(SessionYear).where(
+            and_(
+                SessionYear.id == session_year_id,
+                SessionYear.is_current == True
+            )
+        )
+        current_session_result = await db.execute(current_session_query)
+        current_session = current_session_result.scalar_one_or_none()
+        is_past_session = current_session is None
+
     # Convert to response schema with metadata
     result_students = []
     for student in students:
         student_with_metadata = await student_crud.get_with_metadata(db, id=student.id)
+
+        # If querying past session, override with historical data from student_session_history
+        if is_past_session and session_year_id:
+            history_query = select(StudentSessionHistory).where(
+                and_(
+                    StudentSessionHistory.student_id == student.id,
+                    StudentSessionHistory.session_year_id == session_year_id
+                )
+            ).options(
+                selectinload(StudentSessionHistory.session_year),
+                selectinload(StudentSessionHistory.class_ref)
+            )
+
+            history_result = await db.execute(history_query)
+            history_record = history_result.scalar_one_or_none()
+
+            if history_record:
+                # Override with historical data
+                student_with_metadata.class_id = history_record.class_id
+                student_with_metadata.class_ref = history_record.class_ref
+                student_with_metadata.session_year_id = history_record.session_year_id
+                student_with_metadata.session_year = history_record.session_year
+                student_with_metadata.section = history_record.section
+                student_with_metadata.roll_number = history_record.roll_number
+
         result_students.append(Student.from_orm_with_metadata(student_with_metadata))
 
     total_pages = math.ceil(total / per_page)
@@ -539,20 +582,72 @@ async def get_my_class_students(
 @router.get("/{student_id}", response_model=Student)
 async def get_student(
     student_id: int,
+    session_year_id: Optional[int] = Query(None, description="Session year ID for historical view"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
     """
     Get student details by ID with metadata
+    If session_year_id is provided and differs from student's current session,
+    fetches historical data from student_session_history
     """
-    student = await student_crud.get_with_metadata(db, id=student_id)
+    from app.models.student_session_history import StudentSessionHistory
+    from app.models.metadata import SessionYear, Class as ClassModel
+    from app.models.gender import Gender
+
+    # First, get the student to verify they exist
+    student = await student_crud.get(db, id=student_id)
     if not student:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Student not found"
         )
 
-    return Student.from_orm_with_metadata(student)
+    # If no session_year_id provided or it matches current session, return current data
+    if not session_year_id or session_year_id == student.session_year_id:
+        student_with_metadata = await student_crud.get_with_metadata(db, id=student_id)
+        return Student.from_orm_with_metadata(student_with_metadata)
+
+    # Otherwise, fetch historical data from student_session_history
+    # Query the history for this student in the requested session year
+    history_query = select(StudentSessionHistory).where(
+        and_(
+            StudentSessionHistory.student_id == student_id,
+            StudentSessionHistory.session_year_id == session_year_id
+        )
+    ).options(
+        selectinload(StudentSessionHistory.session_year),
+        selectinload(StudentSessionHistory.class_ref)
+    )
+
+    history_result = await db.execute(history_query)
+    history_record = history_result.scalar_one_or_none()
+
+    if history_record:
+        # Found historical data - use class and session from history
+        # Get the student with current metadata for other fields
+        student_with_metadata = await student_crud.get_with_metadata(db, id=student_id)
+
+        # Override class and session year with historical data
+        student_with_metadata.class_id = history_record.class_id
+        student_with_metadata.class_ref = history_record.class_ref
+        student_with_metadata.session_year_id = history_record.session_year_id
+        student_with_metadata.session_year = history_record.session_year
+        student_with_metadata.section = history_record.section
+        student_with_metadata.roll_number = history_record.roll_number
+
+        return Student.from_orm_with_metadata(student_with_metadata)
+    else:
+        # No history found - student wasn't in that session year
+        # Check if student's current session matches (not promoted yet)
+        if student.session_year_id == session_year_id:
+            student_with_metadata = await student_crud.get_with_metadata(db, id=student_id)
+            return Student.from_orm_with_metadata(student_with_metadata)
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Student was not enrolled in the requested session year"
+            )
 
 
 @router.put("/{student_id}", response_model=Student)
