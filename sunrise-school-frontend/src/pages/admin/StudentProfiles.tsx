@@ -182,6 +182,11 @@ const StudentProfilesContent: React.FC = () => {
       params.append('page', page.toString());
       params.append('per_page', perPage.toString());
 
+      // Add session year filter
+      if (filterSessionYear && filterSessionYear !== 'all') {
+        params.append('session_year_id', filterSessionYear);
+      }
+
       // Add filters
       if (filterClass !== 'all') params.append('class_filter', filterClass);
       if (filterSection !== 'all') params.append('section_filter', filterSection);
@@ -194,6 +199,15 @@ const StudentProfilesContent: React.FC = () => {
         params.append('is_active', 'false');
       }
 
+      console.log('🔍 Loading students with params:', {
+        sessionYearId: filterSessionYear,
+        classFilter: filterClass,
+        sectionFilter: filterSection,
+        status: filterStatus,
+        search: searchTerm,
+        paramsString: params.toString()
+      });
+
       const response = await studentsAPI.getStudents(params);
       const studentsData = response.data.students || [];
       setStudents(studentsData);
@@ -201,19 +215,17 @@ const StudentProfilesContent: React.FC = () => {
       setTotalStudents(response.data.total || 0);
 
       // Debug student data structure
-      if (studentsData.length > 0) {
-        console.log('👨‍🎓 Student Data Debug:', {
-          totalStudents: response.data.total,
-          currentPage: page,
-          totalPages: response.data.total_pages,
-          studentsOnPage: studentsData.length,
-          firstStudent: studentsData[0],
-          studentFields: Object.keys(studentsData[0]),
-          classIds: Array.from(new Set(studentsData.map((s: any) => s.class_id))),
-          sessionYearIds: Array.from(new Set(studentsData.map((s: any) => s.session_year_id))),
-          sections: Array.from(new Set(studentsData.map((s: any) => s.section)))
-        });
-      }
+      console.log('👨‍🎓 Student Data Debug:', {
+        totalStudents: response.data.total,
+        currentPage: page,
+        totalPages: response.data.total_pages,
+        studentsOnPage: studentsData.length,
+        firstStudent: studentsData.length > 0 ? studentsData[0] : null,
+        studentFields: studentsData.length > 0 ? Object.keys(studentsData[0]) : [],
+        classIds: Array.from(new Set(studentsData.map((s: any) => s.class_id))),
+        sessionYearIds: Array.from(new Set(studentsData.map((s: any) => s.session_year_id))),
+        sections: Array.from(new Set(studentsData.map((s: any) => s.section)))
+      });
     } catch (error) {
       console.error('Error loading students:', error);
       setSnackbar({ open: true, message: 'Error loading students', severity: 'error' });
@@ -556,6 +568,9 @@ const StudentProfilesContent: React.FC = () => {
   const bloodGroups = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
   // Filter students based on search and filters
+  // NOTE: session_year filtering is already done by the backend API
+  // We should NOT filter by session_year on frontend as it will incorrectly filter out
+  // students from past sessions who have been promoted (their current session_year_id is different)
   const filteredStudents = students.filter(student => {
     // Exclude soft deleted students
     if (student.is_deleted) {
@@ -571,7 +586,7 @@ const StudentProfilesContent: React.FC = () => {
 
     const matchesClass = filterClass === 'all' || student.class_id.toString() === filterClass.toString();
     const matchesSection = filterSection === 'all' || student.section === filterSection;
-    const matchesSessionYear = filterSessionYear === 'all' || student.session_year_id.toString() === filterSessionYear.toString();
+    // REMOVED: session year filter - handled by backend
     const matchesStatus = filterStatus === 'all' || (filterStatus === 'active' && student.is_active) || (filterStatus === 'inactive' && !student.is_active);
 
     // Debug logging for first student
@@ -592,14 +607,13 @@ const StudentProfilesContent: React.FC = () => {
         student_is_active: student.is_active,
         matchesClass,
         matchesSection,
-        matchesSessionYear,
         matchesSearch,
         matchesStatus,
-        finalResult: matchesSearch && matchesClass && matchesSection && matchesSessionYear && matchesStatus
+        finalResult: matchesSearch && matchesClass && matchesSection && matchesStatus
       });
     }
 
-    return matchesSearch && matchesClass && matchesSection && matchesSessionYear && matchesStatus;
+    return matchesSearch && matchesClass && matchesSection && matchesStatus;
   });
 
   // Debug filtered results

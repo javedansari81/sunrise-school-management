@@ -459,7 +459,50 @@ class CRUDStudent(CRUDBase[Student, StudentCreate, StudentUpdate]):
         is_active: Optional[bool] = None,
         session_year_id: Optional[int] = None
     ) -> tuple[List[Student], int]:
-        query = select(Student)
+        from app.models.student_session_history import StudentSessionHistory
+        from app.models.metadata import SessionYear
+
+        # Check if querying for a past session (not current)
+        is_past_session = False
+        if session_year_id:
+            # Check if this is the current session
+            current_session_query = select(SessionYear).where(
+                and_(
+                    SessionYear.id == session_year_id,
+                    SessionYear.is_current == True
+                )
+            )
+            current_session_result = await db.execute(current_session_query)
+            current_session = current_session_result.scalar_one_or_none()
+            is_past_session = current_session is None
+
+        # If querying past session, get student IDs from both students and history tables
+        if is_past_session and session_year_id:
+            # Get student IDs from history table (those who were promoted)
+            history_query = select(StudentSessionHistory.student_id).where(
+                StudentSessionHistory.session_year_id == session_year_id
+            ).distinct()
+            history_result = await db.execute(history_query)
+            history_student_ids = [row[0] for row in history_result.all()]
+
+            # Get student IDs from students table (those never promoted from that session)
+            remaining_query = select(Student.id).where(
+                and_(
+                    Student.session_year_id == session_year_id,
+                    ~Student.id.in_(history_student_ids) if history_student_ids else True
+                )
+            )
+            remaining_result = await db.execute(remaining_query)
+            remaining_student_ids = [row[0] for row in remaining_result.all()]
+
+            # Combine both lists
+            all_student_ids = list(set(history_student_ids + remaining_student_ids))
+
+            # Now query students table with these IDs
+            query = select(Student).where(Student.id.in_(all_student_ids))
+        else:
+            # Current session or no session filter - normal query
+            query = select(Student)
 
         # Apply filters
         conditions = []
@@ -485,8 +528,8 @@ class CRUDStudent(CRUDBase[Student, StudentCreate, StudentUpdate]):
             # Filter by gender ID
             conditions.append(Student.gender_id == gender_filter)
 
-        if session_year_id:
-            # Filter by session year ID
+        # Only add session_year_id filter for current session queries
+        if session_year_id and not is_past_session:
             conditions.append(Student.session_year_id == session_year_id)
 
         if search:
