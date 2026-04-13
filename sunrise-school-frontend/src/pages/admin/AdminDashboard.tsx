@@ -189,12 +189,20 @@ interface EnhancedDashboardStats {
   transport_service: {
     total_routes?: number;
     students_using_transport?: number;
+    total_enrollments?: number;
     pending_fees?: number;
     collected_fees?: number;
+    total_fees?: number;
+    collection_percentage?: number;
     transport_type_breakdown?: Array<{
       type: string;
       enrollments: number;
       capacity: number;
+    }>;
+    monthly_trends?: Array<{
+      month: string;
+      collected: number;
+      total: number;
     }>;
     error?: string;
     is_session_filtered?: boolean;
@@ -452,10 +460,14 @@ const AdminDashboardContent: React.FC = () => {
       {
         key: 'transport',
         title: 'Transport Service',
-        value: enhancedStats.transport_service?.error ? 'N/A' : (enhancedStats.transport_service?.students_using_transport || 0).toString(),
+        value: enhancedStats.transport_service?.error
+          ? 'N/A'
+          : `₹${(enhancedStats.transport_service?.collected_fees || 0).toLocaleString('en-IN')}`,
         icon: <DirectionsBus fontSize="large" />,
         color: '#00897b',
-        change: enhancedStats.transport_service?.error ? 'Data unavailable' : `${enhancedStats.transport_service?.total_routes || 0} Routes Active`,
+        change: enhancedStats.transport_service?.error
+          ? 'Data unavailable'
+          : `Pending: ₹${(enhancedStats.transport_service?.pending_fees || 0).toLocaleString('en-IN')} • ${(enhancedStats.transport_service?.collection_percentage || 0).toFixed(1)}% Collected`,
         clickable: true,
         onClick: () => navigate('/admin/transport'),
         details: enhancedStats.transport_service,
@@ -543,7 +555,7 @@ const AdminDashboardContent: React.FC = () => {
         return (
           <Box sx={{ mt: 1.5, pt: 1.5, borderTop: '1px solid #e0e0e0' }}>
             <Typography variant="subtitle2" fontWeight="bold" gutterBottom sx={{ mb: 1, fontSize: '0.875rem' }}>
-              Collection Trends (Last 12 Months)
+              Collection Trends
             </Typography>
             <ResponsiveContainer width="100%" height={140}>
               <LineChart data={card.details.monthly_trends} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
@@ -557,7 +569,6 @@ const AdminDashboardContent: React.FC = () => {
             </ResponsiveContainer>
             <Box sx={{ mt: 1.5, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
               <Chip label={`Pending: ₹${card.details.pending_fees.toLocaleString('en-IN')}`} size="small" color="warning" sx={{ height: 24, fontSize: '0.7rem' }} />
-              <Chip label={`Paid Records: ${card.details.paid_records}/${card.details.total_records}`} size="small" color="success" sx={{ height: 24, fontSize: '0.7rem' }} />
             </Box>
           </Box>
         );
@@ -655,21 +666,19 @@ const AdminDashboardContent: React.FC = () => {
               <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8rem' }}>No monthly data available</Typography>
             )}
             {/* Transport Type Counts */}
-            <Box sx={{ mt: 1.5, display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>
-              {card.details.transport_type_breakdown && card.details.transport_type_breakdown.map((type: { name: string; type: string; count: number }) => (
-                <Chip
-                  key={type.name}
-                  label={`${type.type}: ${type.count}`}
-                  size="small"
-                  variant="outlined"
-                  sx={{ height: 24, fontSize: '0.7rem' }}
-                />
-              ))}
-            </Box>
-            <Box sx={{ mt: 1, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-              <Chip label={`Collected: ₹${(card.details.collected_fees || 0).toLocaleString('en-IN')}`} size="small" color="success" sx={{ height: 24, fontSize: '0.7rem' }} />
-              <Chip label={`Pending: ₹${(card.details.pending_fees || 0).toLocaleString('en-IN')}`} size="small" color="warning" sx={{ height: 24, fontSize: '0.7rem' }} />
-            </Box>
+            {card.details.transport_type_breakdown && card.details.transport_type_breakdown.length > 0 && (
+              <Box sx={{ mt: 1.5, display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>
+                {card.details.transport_type_breakdown.map((type: { name: string; type: string; count: number }) => (
+                  <Chip
+                    key={type.name}
+                    label={`${type.type}: ${type.count}`}
+                    size="small"
+                    variant="outlined"
+                    sx={{ height: 24, fontSize: '0.7rem' }}
+                  />
+                ))}
+              </Box>
+            )}
           </Box>
         );
 

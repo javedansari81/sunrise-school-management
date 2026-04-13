@@ -732,27 +732,39 @@ async def get_admin_dashboard_enhanced_stats(
             # Get collection summary using session_year_name from database
             fee_summary = await fee_record_crud.get_collection_summary(db, session_year=session_year_name)
 
-            # Get monthly collection trends (last 12 months)
+            # Get monthly collection trends (session-based academic months: April to March)
+            # Orders by academic year where April=1, May=2, ..., March=12
             monthly_trends_query = text("""
                 SELECT
                     TO_CHAR(fp.payment_date, 'Mon YYYY') as month,
                     EXTRACT(YEAR FROM fp.payment_date) as year,
                     EXTRACT(MONTH FROM fp.payment_date) as month_num,
+                    -- Calculate academic month: April=1, May=2, ..., March=12
+                    CASE
+                        WHEN EXTRACT(MONTH FROM fp.payment_date) >= 4 THEN EXTRACT(MONTH FROM fp.payment_date) - 3
+                        ELSE EXTRACT(MONTH FROM fp.payment_date) + 9
+                    END as academic_month,
+                    -- Calculate academic year
+                    CASE
+                        WHEN EXTRACT(MONTH FROM fp.payment_date) >= 4 THEN EXTRACT(YEAR FROM fp.payment_date)
+                        ELSE EXTRACT(YEAR FROM fp.payment_date) - 1
+                    END as academic_year,
                     SUM(fp.amount) as total_collected,
                     COUNT(DISTINCT fp.fee_record_id) as payment_count
                 FROM sunrise.fee_payments fp
                 JOIN sunrise.fee_records fr ON fp.fee_record_id = fr.id
-                WHERE fp.payment_date >= :start_date
-                    AND fr.session_year_id = :session_year_id
-                GROUP BY EXTRACT(YEAR FROM fp.payment_date), EXTRACT(MONTH FROM fp.payment_date), TO_CHAR(fp.payment_date, 'Mon YYYY')
-                ORDER BY year, month_num
+                WHERE fr.session_year_id = :session_year_id
+                GROUP BY
+                    EXTRACT(YEAR FROM fp.payment_date),
+                    EXTRACT(MONTH FROM fp.payment_date),
+                    TO_CHAR(fp.payment_date, 'Mon YYYY'),
+                    academic_month,
+                    academic_year
+                ORDER BY academic_year, academic_month
             """)
             monthly_result = await db.execute(
                 monthly_trends_query,
-                {
-                    "start_date": current_date - timedelta(days=365),
-                    "session_year_id": session_year_id
-                }
+                {"session_year_id": session_year_id}
             )
             monthly_trends = [
                 {
@@ -1030,19 +1042,27 @@ async def get_admin_dashboard_enhanced_stats(
                 for row in transport_type_result
             ]
 
-            # Get monthly transport fee collection trends
+            # Get monthly transport fee collection trends (ordered April to March)
+            # academic_month stores calendar month (4=April, 5=May, ..., 12=December, 1=January, 2=February, 3=March)
+            # We need to order by academic year sequence: April (4) first, then May (5), ..., March (3) last
             transport_monthly_query = text("""
                 SELECT
                     tmt.month_name,
                     tmt.academic_month,
+                    tmt.academic_year,
+                    -- Convert calendar month to academic sequence (April=1, May=2, ..., March=12)
+                    CASE
+                        WHEN tmt.academic_month >= 4 THEN tmt.academic_month - 3
+                        ELSE tmt.academic_month + 9
+                    END as academic_sequence,
                     COALESCE(SUM(tmt.paid_amount), 0) as collected_amount,
                     COALESCE(SUM(tmt.monthly_amount), 0) as total_amount
                 FROM sunrise.transport_monthly_tracking tmt
                 JOIN sunrise.student_transport_enrollment ste ON tmt.enrollment_id = ste.id
                 WHERE tmt.session_year_id = :session_year_id
                     AND ste.is_active = TRUE
-                GROUP BY tmt.month_name, tmt.academic_month
-                ORDER BY tmt.academic_month
+                GROUP BY tmt.month_name, tmt.academic_month, tmt.academic_year, academic_sequence
+                ORDER BY tmt.academic_year, academic_sequence
             """)
             transport_monthly_result = await db.execute(
                 transport_monthly_query,
@@ -1057,10 +1077,19 @@ async def get_admin_dashboard_enhanced_stats(
                 for row in transport_monthly_result
             ]
 
+            # Calculate collection percentage
+            collected_fees = float(transport_stats.collected_transport_fees or 0)
+            pending_fees = float(transport_stats.pending_transport_fees or 0)
+            total_fees = collected_fees + pending_fees
+            collection_percentage = (collected_fees / total_fees * 100) if total_fees > 0 else 0
+
             response_data['transport_service'] = {
                 'students_using_transport': transport_stats.students_using_transport or 0,
-                'pending_fees': float(transport_stats.pending_transport_fees or 0),
-                'collected_fees': float(transport_stats.collected_transport_fees or 0),
+                'total_enrollments': transport_stats.total_enrollments or 0,
+                'pending_fees': pending_fees,
+                'collected_fees': collected_fees,
+                'total_fees': total_fees,
+                'collection_percentage': round(collection_percentage, 2),
                 'transport_type_breakdown': transport_type_breakdown,
                 'monthly_trends': transport_monthly_trends,
                 'is_session_filtered': True
