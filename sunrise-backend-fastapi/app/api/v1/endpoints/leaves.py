@@ -161,6 +161,7 @@ async def create_leave_request(
         'reason': leave_data.reason,
         'applicant_type': leave_data.applicant_type.value,
         'applicant_id': leave_data.applicant_id,
+        'session_year_id': leave_data.session_year_id,
         'is_half_day': leave_data.is_half_day,
         'half_day_period': leave_data.half_day_period,
         'medical_certificate_url': leave_data.medical_certificate_url,

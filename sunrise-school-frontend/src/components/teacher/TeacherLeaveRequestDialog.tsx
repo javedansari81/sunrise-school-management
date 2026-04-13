@@ -11,8 +11,6 @@ import {
   InputLabel,
   Select,
   MenuItem,
-  FormControlLabel,
-  Checkbox,
   Box,
   CircularProgress,
   Alert,
@@ -23,9 +21,10 @@ import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { useServiceConfiguration } from '../../contexts/ConfigurationContext';
-import { leaveAPI, teachersAPI } from '../../services/api';
+import { leaveAPI } from '../../services/api';
 import { configurationService } from '../../services/configurationService';
 import { formatDateForAPI } from '../../utils/dateUtils';
+import { SessionYearDropdown } from '../common/MetadataDropdown';
 
 interface TeacherLeaveRequestDialogProps {
   open: boolean;
@@ -37,14 +36,11 @@ interface TeacherLeaveRequestDialogProps {
 }
 
 interface LeaveFormData {
+  session_year_id: string;
   leave_type_id: string;
   start_date: Date | null;
   end_date: Date | null;
   reason: string;
-  substitute_teacher_id: string;
-  substitute_arranged: boolean;
-  medical_certificate_url: string;
-  supporting_document_url: string;
 }
 
 const TeacherLeaveRequestDialog: React.FC<TeacherLeaveRequestDialogProps> = ({
@@ -62,66 +58,38 @@ const TeacherLeaveRequestDialog: React.FC<TeacherLeaveRequestDialogProps> = ({
 
   // Form state
   const [formData, setFormData] = useState<LeaveFormData>({
+    session_year_id: '',
     leave_type_id: '',
     start_date: null,
     end_date: null,
-    reason: '',
-    substitute_teacher_id: '',
-    substitute_arranged: false,
-    medical_certificate_url: '',
-    supporting_document_url: ''
+    reason: ''
   });
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [teachers, setTeachers] = useState<any[]>([]);
-  const [loadingTeachers, setLoadingTeachers] = useState(false);
-
-  // Load teachers for substitute selection
-  useEffect(() => {
-    const loadTeachers = async () => {
-      if (!open) return;
-      
-      try {
-        setLoadingTeachers(true);
-        const response = await teachersAPI.getTeachers();
-        setTeachers(response.data?.teachers || []);
-      } catch (error) {
-        console.error('Error loading teachers:', error);
-      } finally {
-        setLoadingTeachers(false);
-      }
-    };
-
-    loadTeachers();
-  }, [open]);
 
   // Initialize form data when dialog opens
   useEffect(() => {
     if (open) {
+      const currentSessionYearId = configurationService.getCurrentSessionYearId();
+
       if (selectedLeave) {
         // Populate form with existing leave data for viewing or editing
         setFormData({
+          session_year_id: selectedLeave.session_year_id?.toString() || currentSessionYearId?.toString() || '',
           leave_type_id: selectedLeave.leave_type_id?.toString() || '',
           start_date: selectedLeave.start_date ? new Date(selectedLeave.start_date) : null,
           end_date: selectedLeave.end_date ? new Date(selectedLeave.end_date) : null,
-          reason: selectedLeave.reason || '',
-          substitute_teacher_id: selectedLeave.substitute_teacher_id?.toString() || '',
-          substitute_arranged: selectedLeave.substitute_arranged || false,
-          medical_certificate_url: selectedLeave.medical_certificate_url || '',
-          supporting_document_url: selectedLeave.supporting_document_url || ''
+          reason: selectedLeave.reason || ''
         });
       } else {
-        // Reset form for new leave request
+        // Reset form for new leave request with default session year
         setFormData({
+          session_year_id: currentSessionYearId?.toString() || '',
           leave_type_id: '',
           start_date: null,
           end_date: null,
-          reason: '',
-          substitute_teacher_id: '',
-          substitute_arranged: false,
-          medical_certificate_url: '',
-          supporting_document_url: ''
+          reason: ''
         });
       }
       setError('');
@@ -148,6 +116,7 @@ const TeacherLeaveRequestDialog: React.FC<TeacherLeaveRequestDialogProps> = ({
 
   // Validate form
   const validateForm = () => {
+    if (!formData.session_year_id) return 'Please select a session year';
     if (!formData.leave_type_id) return 'Please select a leave type';
     if (!formData.start_date) return 'Please select start date';
     if (!formData.end_date) return 'Please select end date';
@@ -179,15 +148,12 @@ const TeacherLeaveRequestDialog: React.FC<TeacherLeaveRequestDialogProps> = ({
       setError('');
 
       const leaveData = {
+        session_year_id: parseInt(formData.session_year_id),
         leave_type_id: parseInt(formData.leave_type_id),
         start_date: formatDateForAPI(formData.start_date),
         end_date: formatDateForAPI(formData.end_date),
         total_days: calculateTotalDays(),
-        reason: formData.reason.trim(),
-        substitute_teacher_id: formData.substitute_teacher_id ? parseInt(formData.substitute_teacher_id) : null,
-        substitute_arranged: formData.substitute_arranged,
-        medical_certificate_url: formData.medical_certificate_url || null,
-        supporting_document_url: formData.supporting_document_url || null
+        reason: formData.reason.trim()
       };
 
       if (selectedLeave) {
@@ -269,6 +235,18 @@ const TeacherLeaveRequestDialog: React.FC<TeacherLeaveRequestDialogProps> = ({
               Leave Details
             </Typography>
 
+            {/* Session Year - First Field */}
+            <Box mb={2}>
+              <SessionYearDropdown
+                value={formData.session_year_id}
+                onChange={(value) => handleFieldChange('session_year_id', value)}
+                required
+                disabled={isViewMode}
+                size="small"
+                fullWidth
+              />
+            </Box>
+
             <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} gap={2} mb={2}>
               <Box flex={1}>
                 <FormControl fullWidth required disabled={isViewMode} size="small">
@@ -340,74 +318,6 @@ const TeacherLeaveRequestDialog: React.FC<TeacherLeaveRequestDialogProps> = ({
                 required
                 disabled={isViewMode}
                 placeholder="Please provide a detailed reason for your leave request..."
-              />
-            </Box>
-
-            {/* Substitute Information Section */}
-            <Typography variant="h6" color="primary" gutterBottom>
-              Substitute Information
-            </Typography>
-
-            <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} gap={2} mb={3}>
-              <Box flex={1}>
-                <FormControl fullWidth size="small" disabled={isViewMode || loadingTeachers}>
-                  <InputLabel>Substitute Teacher</InputLabel>
-                  <Select
-                    value={formData.substitute_teacher_id}
-                    onChange={(e) => handleFieldChange('substitute_teacher_id', e.target.value)}
-                    label="Substitute Teacher"
-                  >
-                    <MenuItem value="">
-                      <em>None</em>
-                    </MenuItem>
-                    {teachers
-                      .filter(teacher => teacher.id !== teacherProfile?.id)
-                      .map((teacher: any) => (
-                      <MenuItem key={teacher.id} value={teacher.id.toString()}>
-                        {teacher.first_name} {teacher.last_name} ({teacher.employee_id})
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Box>
-              <Box flex={1} display="flex" alignItems="center">
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      checked={formData.substitute_arranged}
-                      onChange={(e) => handleFieldChange('substitute_arranged', e.target.checked)}
-                      disabled={isViewMode}
-                      size="small"
-                    />
-                  }
-                  label="Substitute arrangement confirmed"
-                />
-              </Box>
-            </Box>
-
-            {/* Supporting Documents Section */}
-            <Typography variant="h6" color="primary" gutterBottom>
-              Supporting Documents (Optional)
-            </Typography>
-
-            <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} gap={2} mb={2}>
-              <TextField
-                fullWidth
-                size="small"
-                label="Medical Certificate URL"
-                value={formData.medical_certificate_url}
-                onChange={(e) => handleFieldChange('medical_certificate_url', e.target.value)}
-                disabled={isViewMode}
-                placeholder="https://..."
-              />
-              <TextField
-                fullWidth
-                size="small"
-                label="Supporting Document URL"
-                value={formData.supporting_document_url}
-                onChange={(e) => handleFieldChange('supporting_document_url', e.target.value)}
-                disabled={isViewMode}
-                placeholder="https://..."
               />
             </Box>
 

@@ -20,6 +20,9 @@ class LeaveRequestBase(BaseModel):
     total_days: int = Field(..., description="Total number of leave days")
     reason: str = Field(..., min_length=3, max_length=1000, description="Reason for leave")
 
+    # Session Year
+    session_year_id: Optional[int] = Field(None, description="Session year ID from metadata")
+
     # Supporting Documents
     medical_certificate_url: Optional[str] = Field(None, description="URL to medical certificate")
 
@@ -68,6 +71,9 @@ class LeaveRequestCreateFriendly(BaseModel):
     total_days: int = Field(..., description="Total number of leave days")
     reason: str = Field(..., min_length=3, max_length=1000, description="Reason for leave")
 
+    # Session Year
+    session_year_id: Optional[int] = Field(None, description="Session year ID from metadata")
+
     # Supporting Documents
     medical_certificate_url: Optional[str] = Field(None, description="URL to medical certificate")
 
@@ -100,6 +106,7 @@ class LeaveRequestUpdate(BaseModel):
     end_date: Optional[date] = None
     total_days: Optional[int] = None
     reason: Optional[str] = None
+    session_year_id: Optional[int] = None
     medical_certificate_url: Optional[str] = None
     emergency_contact: Optional[str] = None
     is_half_day: Optional[bool] = None

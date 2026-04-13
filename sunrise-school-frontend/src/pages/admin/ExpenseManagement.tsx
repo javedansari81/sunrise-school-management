@@ -346,6 +346,16 @@ const ExpenseManagement: React.FC = () => {
         return;
       }
 
+      if (!expenseForm.session_year_id) {
+        setSnackbar({
+          open: true,
+          message: 'Please select a session year',
+          severity: 'error'
+        });
+        setLoading(false);
+        return;
+      }
+
       if (!expenseForm.description || expenseForm.description.length < 5) {
         setSnackbar({
           open: true,
@@ -771,6 +781,17 @@ const ExpenseManagement: React.FC = () => {
             </Grid>
 
             <Grid size={{ xs: 12, sm: 6 }}>
+              <SessionYearDropdown
+                value={expenseForm.session_year_id}
+                onChange={(value) => handleFormChange({ target: { name: 'session_year_id', value } } as any)}
+                required
+                disabled={dialogMode === 'view'}
+                size="medium"
+                fullWidth
+              />
+            </Grid>
+
+            <Grid size={{ xs: 12, sm: 6 }}>
               <TextField
                 fullWidth
                 type="date"
@@ -918,18 +939,6 @@ const ExpenseManagement: React.FC = () => {
                   ))}
                 </Select>
               </FormControl>
-            </Grid>
-
-            <Grid size={{ xs: 12, sm: 6 }}>
-              <TextField
-                fullWidth
-                label="Payment Reference"
-                name="payment_reference"
-                value={expenseForm.payment_reference}
-                onChange={handleFormChange}
-                disabled={dialogMode === 'view'}
-                placeholder="Transaction ID, Cheque No, etc."
-              />
             </Grid>
           </Grid>
         </DialogContent>
