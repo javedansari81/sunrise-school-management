@@ -355,7 +355,8 @@ const ConsecutiveAbsenceWidget: React.FC<ConsecutiveAbsenceWidgetProps> = ({
             sx: {
               m: { xs: 0, sm: 2 },
               maxHeight: { xs: '100%', sm: '90vh' },
-              borderRadius: { xs: 0, sm: 2 }
+              borderRadius: { xs: 0, sm: 2 },
+              overflow: 'hidden'
             }
           }
         }}
@@ -382,9 +383,39 @@ const ConsecutiveAbsenceWidget: React.FC<ConsecutiveAbsenceWidgetProps> = ({
             <CloseIcon />
           </IconButton>
         </DialogTitle>
-        <DialogContent sx={{ p: { xs: 2, sm: 3 }, bgcolor: '#fafafa' }}>
+        <DialogContent
+          sx={{
+            p: { xs: 2.5, sm: 3.5 },
+            bgcolor: '#fafafa',
+            overflow: 'auto',
+            '&::-webkit-scrollbar': {
+              width: '8px',
+            },
+            '&::-webkit-scrollbar-track': {
+              backgroundColor: '#f1f1f1',
+            },
+            '&::-webkit-scrollbar-thumb': {
+              backgroundColor: '#888',
+              borderRadius: '4px',
+            },
+            '&::-webkit-scrollbar-thumb:hover': {
+              backgroundColor: '#555',
+            }
+          }}
+        >
           {/* Class Filter in Dialog */}
-          <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
+          <Box sx={{
+            p: { xs: 1.5, sm: 2 },
+            bgcolor: 'white',
+            borderRadius: 2,
+            border: '1px solid #e0e0e0',
+            mb: 2,
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: 1
+          }}>
             <Typography variant="body2" color="text.secondary">
               Students absent for 3+ consecutive days without leave request
             </Typography>
@@ -405,15 +436,50 @@ const ConsecutiveAbsenceWidget: React.FC<ConsecutiveAbsenceWidgetProps> = ({
 
           {/* Dialog Content */}
           {loading ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+            <Box sx={{
+              p: { xs: 1.5, sm: 2 },
+              bgcolor: 'white',
+              borderRadius: 2,
+              border: '1px solid #e0e0e0',
+              display: 'flex',
+              justifyContent: 'center',
+              py: 4
+            }}>
               <CircularProgress size={32} />
             </Box>
           ) : totalStudents === 0 ? (
-            <Typography variant="body1" color="success.main" sx={{ textAlign: 'center', py: 4 }}>
-              ✓ No students with 3+ consecutive absences. All good!
-            </Typography>
+            <Box sx={{
+              p: { xs: 1.5, sm: 2 },
+              bgcolor: 'white',
+              borderRadius: 2,
+              border: '1px solid #e0e0e0'
+            }}>
+              <Typography variant="body1" color="success.main" sx={{ textAlign: 'center', py: 4 }}>
+                ✓ No students with 3+ consecutive absences. All good!
+              </Typography>
+            </Box>
           ) : (
-            <Box sx={{ maxHeight: { xs: 'calc(100vh - 200px)', sm: '60vh' }, overflow: 'auto' }}>
+            <Box sx={{
+              p: { xs: 1.5, sm: 2 },
+              bgcolor: 'white',
+              borderRadius: 2,
+              border: '1px solid #e0e0e0',
+              maxHeight: { xs: 'calc(100vh - 280px)', sm: '60vh' },
+              overflow: 'auto',
+              '&::-webkit-scrollbar': {
+                width: '8px',
+              },
+              '&::-webkit-scrollbar-track': {
+                backgroundColor: '#f5f5f5',
+              },
+              '&::-webkit-scrollbar-thumb': {
+                backgroundColor: '#ccc',
+                borderRadius: '4px',
+              },
+              '&::-webkit-scrollbar-thumb:hover': {
+                backgroundColor: '#999',
+              }
+            }}>
               {data?.by_class.map(renderClassGroup)}
             </Box>
           )}

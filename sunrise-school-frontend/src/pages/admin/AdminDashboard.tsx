@@ -491,13 +491,18 @@ const AdminDashboardContent: React.FC = () => {
 
 
   // Render detailed statistics for each card
-  const renderCardDetails = (card: any) => {
+  const renderCardDetails = (card: any, isMaximized = false) => {
     if (!card.details) return null;
+
+    // Container style - different for maximized vs collapsed view
+    const containerStyle = isMaximized
+      ? {}
+      : { mt: 1.5, pt: 1.5, borderTop: '1px solid #e0e0e0' };
 
     switch (card.key) {
       case 'students':
         return (
-          <Box sx={{ mt: 1.5, pt: 1.5, borderTop: '1px solid #e0e0e0' }}>
+          <Box sx={containerStyle}>
             <Typography variant="subtitle2" fontWeight="bold" gutterBottom sx={{ mb: 1, fontSize: '0.875rem' }}>
               Class Distribution
             </Typography>
@@ -524,7 +529,7 @@ const AdminDashboardContent: React.FC = () => {
 
       case 'teachers':
         return (
-          <Box sx={{ mt: 1.5, pt: 1.5, borderTop: '1px solid #e0e0e0' }}>
+          <Box sx={containerStyle}>
             <Typography variant="subtitle2" fontWeight="bold" gutterBottom sx={{ mb: 1, fontSize: '0.875rem' }}>
               Department Distribution
             </Typography>
@@ -553,7 +558,7 @@ const AdminDashboardContent: React.FC = () => {
 
       case 'fees':
         return (
-          <Box sx={{ mt: 1.5, pt: 1.5, borderTop: '1px solid #e0e0e0' }}>
+          <Box sx={containerStyle}>
             <Typography variant="subtitle2" fontWeight="bold" gutterBottom sx={{ mb: 1, fontSize: '0.875rem' }}>
               Collection Trends
             </Typography>
@@ -575,7 +580,7 @@ const AdminDashboardContent: React.FC = () => {
 
       case 'leaves':
         return (
-          <Box sx={{ mt: 1.5, pt: 1.5, borderTop: '1px solid #e0e0e0' }}>
+          <Box sx={containerStyle}>
             <Typography variant="subtitle2" fontWeight="bold" gutterBottom sx={{ mb: 1, fontSize: '0.875rem' }}>
               Leave Type Breakdown
             </Typography>
@@ -600,7 +605,7 @@ const AdminDashboardContent: React.FC = () => {
 
       case 'expenses':
         return (
-          <Box sx={{ mt: 1.5, pt: 1.5, borderTop: '1px solid #e0e0e0' }}>
+          <Box sx={containerStyle}>
             <Typography variant="subtitle2" fontWeight="bold" gutterBottom sx={{ mb: 1, fontSize: '0.875rem' }}>
               Category Breakdown (Top 5)
             </Typography>
@@ -636,7 +641,7 @@ const AdminDashboardContent: React.FC = () => {
         // Check if there's an error in transport service data
         if (card.details.error) {
           return (
-            <Box sx={{ mt: 1.5, pt: 1.5, borderTop: '1px solid #e0e0e0' }}>
+            <Box sx={containerStyle}>
               <Typography variant="body2" color="error" sx={{ fontSize: '0.8rem' }}>
                 Transport service data unavailable. Please check the database configuration.
               </Typography>
@@ -644,7 +649,7 @@ const AdminDashboardContent: React.FC = () => {
           );
         }
         return (
-          <Box sx={{ mt: 1.5, pt: 1.5, borderTop: '1px solid #e0e0e0' }}>
+          <Box sx={containerStyle}>
             <Typography variant="subtitle2" fontWeight="bold" gutterBottom sx={{ mb: 1, fontSize: '0.875rem' }}>
               Monthly Transport Fee Collection
             </Typography>
@@ -699,7 +704,7 @@ const AdminDashboardContent: React.FC = () => {
         ].filter(item => item.value > 0);
 
         return (
-          <Box sx={{ mt: 1.5, pt: 1.5, borderTop: '1px solid #e0e0e0' }}>
+          <Box sx={containerStyle}>
             {/* Category Distribution */}
             <Typography variant="subtitle2" fontWeight="bold" gutterBottom sx={{ mb: 1, fontSize: '0.875rem' }}>
               By Category
@@ -1010,7 +1015,8 @@ const AdminDashboardContent: React.FC = () => {
                   sx: {
                     m: { xs: 0, sm: 2 },
                     maxHeight: { xs: '100%', sm: '90vh' },
-                    borderRadius: { xs: 0, sm: 2 }
+                    borderRadius: { xs: 0, sm: 2 },
+                    overflow: 'hidden'
                   }
                 }
               }}
@@ -1041,11 +1047,45 @@ const AdminDashboardContent: React.FC = () => {
                   <CloseIcon />
                 </IconButton>
               </DialogTitle>
-              <DialogContent sx={{ p: { xs: 2, sm: 3 }, bgcolor: '#fafafa' }}>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                  {maximizedCardData.change}
-                </Typography>
-                {renderCardDetails(maximizedCardData)}
+              <DialogContent
+                sx={{
+                  p: { xs: 2.5, sm: 3.5 },
+                  bgcolor: '#fafafa',
+                  overflow: 'auto',
+                  '&::-webkit-scrollbar': {
+                    width: '8px',
+                  },
+                  '&::-webkit-scrollbar-track': {
+                    backgroundColor: '#f1f1f1',
+                  },
+                  '&::-webkit-scrollbar-thumb': {
+                    backgroundColor: '#888',
+                    borderRadius: '4px',
+                  },
+                  '&::-webkit-scrollbar-thumb:hover': {
+                    backgroundColor: '#555',
+                  }
+                }}
+              >
+                <Box sx={{
+                  p: { xs: 1.5, sm: 2 },
+                  bgcolor: 'white',
+                  borderRadius: 2,
+                  border: '1px solid #e0e0e0',
+                  mb: 2
+                }}>
+                  <Typography variant="body2" color="text.secondary">
+                    {maximizedCardData.change}
+                  </Typography>
+                </Box>
+                <Box sx={{
+                  p: { xs: 1.5, sm: 2 },
+                  bgcolor: 'white',
+                  borderRadius: 2,
+                  border: '1px solid #e0e0e0'
+                }}>
+                  {renderCardDetails(maximizedCardData, true)}
+                </Box>
               </DialogContent>
             </Dialog>
           );
