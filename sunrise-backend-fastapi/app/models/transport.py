@@ -16,7 +16,7 @@ class TransportType(Base):
     id = Column(Integer, primary_key=True)
     name = Column(String(50), nullable=False, unique=True)
     description = Column(Text, nullable=True)
-    base_monthly_fee = Column(DECIMAL(10, 2), nullable=False, default=0.00)
+    base_monthly_fee = Column(DECIMAL(10, 2), nullable=False, default=0.00)  # Deprecated: Use TransportTypePricing instead
     capacity = Column(Integer, nullable=True)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -25,6 +25,24 @@ class TransportType(Base):
     # Relationships
     enrollments = relationship("StudentTransportEnrollment", back_populates="transport_type")
     distance_slabs = relationship("TransportDistanceSlab", back_populates="transport_type")
+    pricing = relationship("TransportTypePricing", back_populates="transport_type")
+
+
+class TransportTypePricing(Base):
+    """Session-based pricing for transport types"""
+    __tablename__ = "transport_type_pricing"
+
+    id = Column(Integer, primary_key=True, index=True)
+    transport_type_id = Column(Integer, ForeignKey("transport_types.id"), nullable=False)
+    session_year_id = Column(Integer, ForeignKey("session_years.id"), nullable=False)
+    base_monthly_fee = Column(DECIMAL(10, 2), nullable=False)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships
+    transport_type = relationship("TransportType", back_populates="pricing")
+    session_year = relationship("SessionYear")
 
 
 class TransportDistanceSlab(Base):

@@ -13,14 +13,14 @@ import logging
 from app.core.database import get_db
 from app.api.deps import get_current_active_user
 from app.models.user import User
-from app.models.transport import TransportType, TransportDistanceSlab
+from app.models.transport import TransportType, TransportDistanceSlab, TransportTypePricing
 from app.crud.crud_transport import (
     transport_enrollment_crud, transport_monthly_tracking_crud, transport_payment_crud
 )
 from app.crud import student_crud
 from app.crud.metadata import payment_method_crud
 from app.schemas.transport import (
-    TransportTypeResponse, TransportDistanceSlabResponse,
+    TransportTypeResponse, TransportDistanceSlabResponse, TransportTypePricingResponse,
     StudentTransportEnrollmentCreate, StudentTransportEnrollmentResponse,
     StudentTransportEnrollmentUpdate, EnhancedStudentTransportSummary,
     EnableTransportMonthlyTrackingRequest, StudentTransportMonthlyHistory,
@@ -54,6 +54,25 @@ async def get_transport_types(
     )
     transport_types = result.scalars().all()
     return transport_types
+
+
+@router.get("/transport-pricing/{session_year_id}", response_model=List[TransportTypePricingResponse])
+async def get_transport_pricing(
+    session_year_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """Get transport type pricing for a specific session year"""
+    result = await db.execute(
+        select(TransportTypePricing)
+        .where(
+            TransportTypePricing.session_year_id == session_year_id,
+            TransportTypePricing.is_active == True
+        )
+        .order_by(TransportTypePricing.transport_type_id)
+    )
+    pricing = result.scalars().all()
+    return pricing
 
 
 @router.get("/distance-slabs/{transport_type_id}", response_model=List[TransportDistanceSlabResponse])

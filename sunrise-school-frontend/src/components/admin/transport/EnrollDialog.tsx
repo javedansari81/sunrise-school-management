@@ -19,7 +19,8 @@ import {
 import transportService, {
   EnhancedStudentTransportSummary,
   TransportType,
-  TransportDistanceSlab
+  TransportDistanceSlab,
+  TransportTypePricing
 } from '../../../services/transportService';
 
 interface EnrollDialogProps {
@@ -45,6 +46,7 @@ const EnrollDialog: React.FC<EnrollDialogProps> = ({
 }) => {
   const [loading, setLoading] = useState(false);
   const [distanceSlabs, setDistanceSlabs] = useState<TransportDistanceSlab[]>([]);
+  const [transportPricing, setTransportPricing] = useState<TransportTypePricing[]>([]);
 
   // Form state
   const [transportTypeId, setTransportTypeId] = useState<number>(0);
@@ -57,6 +59,16 @@ const EnrollDialog: React.FC<EnrollDialogProps> = ({
   const [calculatedFee, setCalculatedFee] = useState<number>(0);
   const [enableMonthlyTracking, setEnableMonthlyTracking] = useState<boolean>(true);
 
+  // Load transport pricing when dialog opens
+  useEffect(() => {
+    if (open && sessionYear && configuration?.session_years) {
+      const sessionYearObj = configuration.session_years.find((y: any) => y.name === sessionYear);
+      if (sessionYearObj) {
+        loadTransportPricing(sessionYearObj.id);
+      }
+    }
+  }, [open, sessionYear, configuration]);
+
   // Load distance slabs when transport type changes
   useEffect(() => {
     if (transportTypeId) {
@@ -67,7 +79,16 @@ const EnrollDialog: React.FC<EnrollDialogProps> = ({
   // Calculate fee when distance or transport type changes
   useEffect(() => {
     calculateFee();
-  }, [transportTypeId, distanceKm, distanceSlabs]);
+  }, [transportTypeId, distanceKm, distanceSlabs, transportPricing]);
+
+  const loadTransportPricing = async (sessionYearId: number) => {
+    try {
+      const pricing = await transportService.getTransportPricing(sessionYearId);
+      setTransportPricing(pricing);
+    } catch (err) {
+      console.error('Error loading transport pricing:', err);
+    }
+  };
 
   const loadDistanceSlabs = async (typeId: number) => {
     try {
@@ -79,22 +100,25 @@ const EnrollDialog: React.FC<EnrollDialogProps> = ({
   };
 
   const calculateFee = useCallback(() => {
-    const selectedType = transportTypes.find(t => t.id === transportTypeId);
-    if (!selectedType) {
+    if (!transportTypeId) {
       setCalculatedFee(0);
       return;
     }
 
-    // If no distance slabs (E-Rickshaw), use base fee
+    // Get session-based pricing for this transport type
+    const pricing = transportPricing.find(p => p.transport_type_id === transportTypeId);
+    const baseFee = pricing ? Number(pricing.base_monthly_fee) : 0;
+
+    // If no distance slabs (E-Rickshaw), use session-based base fee
     if (distanceSlabs.length === 0) {
-      setCalculatedFee(Number(selectedType.base_monthly_fee || 0));
+      setCalculatedFee(baseFee);
       return;
     }
 
-    // Find applicable slab based on distance
+    // Find applicable slab based on distance (for Van)
     const distance = parseFloat(distanceKm) || 0;
     if (distance === 0) {
-      setCalculatedFee(Number(selectedType.base_monthly_fee || 0));
+      setCalculatedFee(baseFee);
       return;
     }
 
@@ -111,7 +135,7 @@ const EnrollDialog: React.FC<EnrollDialogProps> = ({
       );
       setCalculatedFee(Number(maxSlab.monthly_fee || 0));
     }
-  }, [transportTypes, transportTypeId, distanceSlabs, distanceKm]);
+  }, [transportTypeId, distanceSlabs, distanceKm, transportPricing]);
 
   const handleSubmit = async () => {
     if (!student || !transportTypeId) {
@@ -187,6 +211,12 @@ const EnrollDialog: React.FC<EnrollDialogProps> = ({
     }
   };
 
+  // Helper function to get session-based price for display
+  const getSessionPrice = (typeId: number): string => {
+    const pricing = transportPricing.find(p => p.transport_type_id === typeId);
+    return pricing ? pricing.base_monthly_fee.toString() : '0';
+  };
+
   const handleClose = () => {
     if (!loading) {
       // Reset form
@@ -234,7 +264,7 @@ const EnrollDialog: React.FC<EnrollDialogProps> = ({
                 <MenuItem value={0}>Select Transport Type</MenuItem>
                 {transportTypes.map((type) => (
                   <MenuItem key={type.id} value={type.id}>
-                    {type.description} (Base: ₹{type.base_monthly_fee})
+                    {type.description} (Base: ₹{getSessionPrice(type.id)})
                   </MenuItem>
                 ))}
               </Select>

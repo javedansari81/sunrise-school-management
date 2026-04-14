@@ -28,6 +28,15 @@ export interface TransportType {
   is_active: boolean;
 }
 
+// Transport Type Pricing
+export interface TransportTypePricing {
+  id: number;
+  transport_type_id: number;
+  session_year_id: number;
+  base_monthly_fee: number;
+  is_active: boolean;
+}
+
 // Distance Slabs
 export interface TransportDistanceSlab {
   id: number;
@@ -167,6 +176,12 @@ const transportService = {
   // Get all transport types
   getTransportTypes: async (): Promise<TransportType[]> => {
     const response = await api.get('/transport/transport-types');
+    return response.data;
+  },
+
+  // Get transport pricing for a session year
+  getTransportPricing: async (sessionYearId: number): Promise<TransportTypePricing[]> => {
+    const response = await api.get(`/transport/transport-pricing/${sessionYearId}`);
     return response.data;
   },
 

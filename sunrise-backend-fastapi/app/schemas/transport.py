@@ -42,6 +42,35 @@ class TransportTypeResponse(TransportTypeBase):
 
 
 # =====================================================
+# Transport Type Pricing Schemas
+# =====================================================
+
+class TransportTypePricingBase(BaseModel):
+    transport_type_id: int
+    session_year_id: int
+    base_monthly_fee: Decimal = Field(..., ge=0)
+
+
+class TransportTypePricingCreate(TransportTypePricingBase):
+    pass
+
+
+class TransportTypePricingUpdate(BaseModel):
+    base_monthly_fee: Optional[Decimal] = Field(None, ge=0)
+    is_active: Optional[bool] = None
+
+
+class TransportTypePricingResponse(TransportTypePricingBase):
+    id: int
+    is_active: bool
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+# =====================================================
 # Transport Distance Slab Schemas
 # =====================================================
 
