@@ -47,6 +47,7 @@ import { ClassDropdown } from '../common/MetadataDropdown';
 import { useServiceConfiguration, useConfiguration } from '../../contexts/ConfigurationContext';
 import { useAuth } from '../../contexts/AuthContext';
 import attendanceService from '../../services/attendanceService';
+import configurationService from '../../services/configurationService';
 
 interface Student {
   id: number;
@@ -71,7 +72,7 @@ const TeacherAttendance: React.FC = () => {
   const [classId, setClassId] = useState('');
   const [attendanceDate, setAttendanceDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
   const [periodId, setPeriodId] = useState('1'); // Default: Full Day
-  const sessionYearId = 4; // Current session year
+  const [sessionYearId, setSessionYearId] = useState<number>(0); // Will be set from configuration
 
   // Data state
   const [students, setStudents] = useState<Student[]>([]);
@@ -88,6 +89,15 @@ const TeacherAttendance: React.FC = () => {
   // Refs for keyboard navigation
   const rowRefs = useRef<{ [key: number]: HTMLTableRowElement | null }>({});
 
+  // Initialize session year from centralized configuration service
+  useEffect(() => {
+    if (configLoaded) {
+      // Use centralized session year service
+      const currentSessionYearId = configurationService.getCurrentSessionYearId();
+      setSessionYearId(currentSessionYearId);
+    }
+  }, [configLoaded]);
+
   // Pre-select class if teacher has assigned class
   useEffect(() => {
     if (user?.teacher_profile?.class_teacher_of_id && !classId && configLoaded) {
@@ -97,10 +107,10 @@ const TeacherAttendance: React.FC = () => {
 
   // Load students when filters change
   useEffect(() => {
-    if (classId && attendanceDate && configLoaded) {
+    if (classId && attendanceDate && sessionYearId && configLoaded) {
       loadStudents();
     }
-  }, [classId, attendanceDate, periodId, configLoaded]);
+  }, [classId, attendanceDate, periodId, sessionYearId, configLoaded]);
 
   // Keyboard shortcuts
   useEffect(() => {
