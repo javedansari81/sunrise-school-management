@@ -20,13 +20,10 @@ Variables (13):
     {{12}} - Receipt URL (PDF link - displayed as text)
     {{13}} - Media URL (PDF attachment for download)
 
-Template 2: school_fee_media_template_v2 (Media Receipt with PDF - 3 variables)
-Template SID: HX3e88965b002f73d5d8723ce82ae7a991
+Template 2: school_fee_media_template_v4 (Media Receipt with PDF - 3 variables)
+Template SID: HX15Ib79a0cfdd1dc1fd6G23ec5b50a71c
 Content:
-    "Dear {{1}},
-    We have received your fee payment of ₹{{2}}
-
-    - Sunrise National Public School"
+    Updated template with improved language formatting
     {{3}} - Media URL (PDF attachment)
 Variables (3):
     {{1}} - Student/Parent name
@@ -544,13 +541,10 @@ class WhatsAppService:
         """
         Send WhatsApp media receipt notification with PDF attachment.
 
-        Uses template: school_fee_media_template_v2
-        Template SID: HX3e88965b002f73d5d8723ce82ae7a991
+        Uses template: school_fee_media_template_v4
+        Template SID: HX15Ib79a0cfdd1dc1fd6G23ec5b50a71c
         Content:
-            "Dear {{1}},
-            We have received your fee payment of ₹{{2}}
-
-            - Sunrise National Public School"
+            Updated template with improved language formatting
             {{3}} - Media URL (PDF attachment)
 
         Variables (3):
@@ -568,7 +562,7 @@ class WhatsAppService:
         Returns:
             Dict with success status, message_sid, and any errors
         """
-        # Get template SID from config (school_fee_media_template_v1)
+        # Get template SID from config (school_fee_media_template_v4)
         media_receipt_template_sid = settings.TWILIO_WHATSAPP_MEDIA_RECEIPT_SID
 
         result = {
@@ -615,7 +609,7 @@ class WhatsAppService:
         # Format amount (remove decimals if whole number)
         amount_display = f"{int(amount)}" if amount == int(amount) else f"{amount:.2f}"
 
-        # Prepare template variables as JSON string (3 variables for media template v2)
+        # Prepare template variables as JSON string (3 variables for media template v4)
         content_variables = json.dumps({
             "1": student_name,           # {{1}} - Student/Parent name
             "2": amount_display,         # {{2}} - Amount paid
