@@ -479,19 +479,38 @@ class CRUDStudent(CRUDBase[Student, StudentCreate, StudentUpdate]):
         # If querying past session, get student IDs from both students and history tables
         if is_past_session and session_year_id:
             # Get student IDs from history table (those who were promoted)
+            # Apply class/section filter against historical values from history table
+            history_conditions = [StudentSessionHistory.session_year_id == session_year_id]
+            if class_filter:
+                history_conditions.append(StudentSessionHistory.class_id == class_filter)
+            if section_filter:
+                history_conditions.append(StudentSessionHistory.section == section_filter)
+
             history_query = select(StudentSessionHistory.student_id).where(
-                StudentSessionHistory.session_year_id == session_year_id
+                and_(*history_conditions)
             ).distinct()
             history_result = await db.execute(history_query)
             history_student_ids = [row[0] for row in history_result.all()]
 
+            # Get all history student_ids (without class/section filter) to identify
+            # students who were promoted from this session vs never promoted
+            all_history_query = select(StudentSessionHistory.student_id).where(
+                StudentSessionHistory.session_year_id == session_year_id
+            ).distinct()
+            all_history_result = await db.execute(all_history_query)
+            all_history_student_ids = [row[0] for row in all_history_result.all()]
+
             # Get student IDs from students table (those never promoted from that session)
-            remaining_query = select(Student.id).where(
-                and_(
-                    Student.session_year_id == session_year_id,
-                    ~Student.id.in_(history_student_ids) if history_student_ids else True
-                )
-            )
+            # For these students, class/section filter applies against current Student fields
+            remaining_conditions = [Student.session_year_id == session_year_id]
+            if all_history_student_ids:
+                remaining_conditions.append(~Student.id.in_(all_history_student_ids))
+            if class_filter:
+                remaining_conditions.append(Student.class_id == class_filter)
+            if section_filter:
+                remaining_conditions.append(Student.section == section_filter)
+
+            remaining_query = select(Student.id).where(and_(*remaining_conditions))
             remaining_result = await db.execute(remaining_query)
             remaining_student_ids = [row[0] for row in remaining_result.all()]
 
@@ -511,17 +530,22 @@ class CRUDStudent(CRUDBase[Student, StudentCreate, StudentUpdate]):
         if is_active is not None:
             conditions.append(Student.is_active == is_active)
 
-        # Always exclude soft deleted records
-        if hasattr(Student, 'is_deleted'):
+        # Exclude soft deleted records ONLY for current session
+        # For past sessions, we include deleted students because they were part of that session
+        # (e.g., a student promoted from 2025-26 to 2026-27 who later left in 2026-27
+        # should still appear in 2025-26 historical view)
+        if hasattr(Student, 'is_deleted') and not is_past_session:
             conditions.append(
                 (Student.is_deleted == False) | (Student.is_deleted.is_(None))
             )
 
-        if class_filter:
-            # Filter by class ID
+        # For past sessions, class/section filter is applied above (against history or
+        # current fields based on whether student was promoted). Skip here to avoid
+        # double-filtering against current Student.class_id/section.
+        if class_filter and not is_past_session:
             conditions.append(Student.class_id == class_filter)
 
-        if section_filter:
+        if section_filter and not is_past_session:
             conditions.append(Student.section == section_filter)
 
         if gender_filter:
@@ -544,8 +568,11 @@ class CRUDStudent(CRUDBase[Student, StudentCreate, StudentUpdate]):
 
         query = query.where(and_(*conditions))
 
-        # Get total count
-        count_query = select(func.count(Student.id)).where(and_(*conditions))
+        # Get total count - include the same base filter as main query
+        count_query = select(func.count(Student.id))
+        if is_past_session and session_year_id:
+            count_query = count_query.where(Student.id.in_(all_student_ids))
+        count_query = count_query.where(and_(*conditions))
         total_result = await db.execute(count_query)
         total = total_result.scalar()
 

@@ -115,7 +115,6 @@ const StudentProfilesContent: React.FC = () => {
   const [filterClass, setFilterClass] = useState('all');
   const [filterSection, setFilterSection] = useState('all');
   const [filterSessionYear, setFilterSessionYear] = useState(''); // Will be set from config when loaded
-  const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive'>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(false);
@@ -192,18 +191,10 @@ const StudentProfilesContent: React.FC = () => {
       if (filterSection !== 'all') params.append('section_filter', filterSection);
       if (searchTerm) params.append('search', searchTerm);
 
-      // Add is_active filter based on status filter
-      if (filterStatus === 'active') {
-        params.append('is_active', 'true');
-      } else if (filterStatus === 'inactive') {
-        params.append('is_active', 'false');
-      }
-
       console.log('🔍 Loading students with params:', {
         sessionYearId: filterSessionYear,
         classFilter: filterClass,
         sectionFilter: filterSection,
-        status: filterStatus,
         search: searchTerm,
         paramsString: params.toString()
       });
@@ -254,21 +245,20 @@ const StudentProfilesContent: React.FC = () => {
     }
   }, [configLoaded, filterSessionYear]);
 
-  // Load students when page, filters, or status changes - only when session year is set
+  // Load students when page or filters change - only when session year is set
   useEffect(() => {
     if (filterSessionYear) {
       loadStudents();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, filterClass, filterSection, filterSessionYear, searchTerm, filterStatus]);
+  }, [page, filterClass, filterSection, filterSessionYear, searchTerm]);
 
   // Reset to page 1 when filters change
-  const handleFilterChange = (filterType: 'class' | 'section' | 'sessionYear' | 'status', value: string) => {
+  const handleFilterChange = (filterType: 'class' | 'section' | 'sessionYear', value: string) => {
     setPage(1);
     if (filterType === 'class') setFilterClass(value);
     else if (filterType === 'section') setFilterSection(value);
     else if (filterType === 'sessionYear') setFilterSessionYear(value);
-    else if (filterType === 'status') setFilterStatus(value as 'all' | 'active' | 'inactive');
   };
 
   // Reset to page 1 when search term changes (with debounce)
@@ -572,10 +562,8 @@ const StudentProfilesContent: React.FC = () => {
   // We should NOT filter by session_year on frontend as it will incorrectly filter out
   // students from past sessions who have been promoted (their current session_year_id is different)
   const filteredStudents = students.filter(student => {
-    // Exclude soft deleted students
-    if (student.is_deleted) {
-      return false;
-    }
+    // is_deleted visibility is handled by the backend based on current vs past session
+    // (current session excludes deleted, past session includes them with Terminated chip)
 
     const matchesSearch = searchTerm === '' ||
       student.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -587,7 +575,8 @@ const StudentProfilesContent: React.FC = () => {
     const matchesClass = filterClass === 'all' || student.class_id.toString() === filterClass.toString();
     const matchesSection = filterSection === 'all' || student.section === filterSection;
     // REMOVED: session year filter - handled by backend
-    const matchesStatus = filterStatus === 'all' || (filterStatus === 'active' && student.is_active) || (filterStatus === 'inactive' && !student.is_active);
+    // REMOVED: status filter - is_deleted visibility is handled by backend based on
+    // current vs past session (current excludes deleted, past includes them)
 
     // Debug logging for first student
     if (student.id === students[0]?.id) {
@@ -598,29 +587,28 @@ const StudentProfilesContent: React.FC = () => {
         filterSection,
         filterSessionYear,
         filterSessionYearType: typeof filterSessionYear,
-        filterStatus,
         student_class_id: student.class_id,
         student_class_id_type: typeof student.class_id,
         student_section: student.section,
         student_session_year_id: student.session_year_id,
         student_session_year_id_type: typeof student.session_year_id,
         student_is_active: student.is_active,
+        student_is_deleted: student.is_deleted,
         matchesClass,
         matchesSection,
         matchesSearch,
-        matchesStatus,
-        finalResult: matchesSearch && matchesClass && matchesSection && matchesStatus
+        finalResult: matchesSearch && matchesClass && matchesSection
       });
     }
 
-    return matchesSearch && matchesClass && matchesSection && matchesStatus;
+    return matchesSearch && matchesClass && matchesSection;
   });
 
   // Debug filtered results
   console.log('🔍 Filter Results Debug:', {
     totalStudents: students.length,
     filteredStudents: filteredStudents.length,
-    currentFilters: { filterClass, filterSection, filterSessionYear, searchTerm, filterStatus }
+    currentFilters: { filterClass, filterSection, filterSessionYear, searchTerm }
   });
 
 
@@ -634,7 +622,7 @@ const StudentProfilesContent: React.FC = () => {
           persistKey="student-profiles-filters"
         >
           <Grid container spacing={2} alignItems="center">
-            <Grid size={{ xs: 12, sm: 6, md: 2.4 }}>
+            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
               <FilterDropdown
                 metadataType="sessionYears"
                 label="Session Year"
@@ -646,7 +634,7 @@ const StudentProfilesContent: React.FC = () => {
                 allLabel="All Session Years"
               />
             </Grid>
-            <Grid size={{ xs: 12, sm: 6, md: 2.4 }}>
+            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
               <FilterDropdown
                 metadataType="classes"
                 label="Class"
@@ -658,7 +646,7 @@ const StudentProfilesContent: React.FC = () => {
                 allLabel="All Classes"
               />
             </Grid>
-            <Grid size={{ xs: 12, sm: 6, md: 2.4 }}>
+            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
               <FormControl fullWidth>
                 <InputLabel>Section</InputLabel>
                 <Select
@@ -675,21 +663,7 @@ const StudentProfilesContent: React.FC = () => {
                 </Select>
               </FormControl>
             </Grid>
-            <Grid size={{ xs: 12, sm: 6, md: 2.4 }}>
-              <FormControl fullWidth>
-                <InputLabel>Status</InputLabel>
-                <Select
-                  value={filterStatus}
-                  label="Status"
-                  onChange={(e) => handleFilterChange('status', e.target.value)}
-                >
-                  <MenuItem value="all">All</MenuItem>
-                  <MenuItem value="active">Active</MenuItem>
-                  <MenuItem value="inactive">Inactive</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
-            <Grid size={{ xs: 12, sm: 6, md: 2.4 }}>
+            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
               <TextField
                 fullWidth
                 label="Search Students"
@@ -740,7 +714,7 @@ const StudentProfilesContent: React.FC = () => {
                         <Box display="flex" alignItems="center" gap={2}>
                           <Avatar
                             src={student.profile_picture_url || undefined}
-                            sx={{ bgcolor: student.is_active ? 'primary.main' : 'grey.500' }}
+                            sx={{ bgcolor: student.is_deleted ? 'error.main' : (student.is_active ? 'primary.main' : 'grey.500') }}
                           >
                             {!student.profile_picture_url && `${student.first_name[0]}${student.last_name[0]}`}
                           </Avatar>
@@ -782,8 +756,8 @@ const StudentProfilesContent: React.FC = () => {
                       </TableCell>
                       <TableCell>
                         <Chip
-                          label={student.is_active ? 'Active' : 'Inactive'}
-                          color={student.is_active ? 'success' : 'default'}
+                          label={student.is_deleted ? 'Terminated' : (student.is_active ? 'Active' : 'Inactive')}
+                          color={student.is_deleted ? 'error' : (student.is_active ? 'success' : 'default')}
                           size="small"
                         />
                       </TableCell>
@@ -791,19 +765,29 @@ const StudentProfilesContent: React.FC = () => {
                         <IconButton size="small" onClick={() => handleOpenDialog('view', student)}>
                           <Visibility />
                         </IconButton>
-                        <IconButton size="small" onClick={() => handleOpenDialog('edit', student)}>
+                        <IconButton
+                          size="small"
+                          onClick={() => handleOpenDialog('edit', student)}
+                          disabled={student.is_deleted}
+                        >
                           <Edit />
                         </IconButton>
                         <IconButton
                           size="small"
                           color="primary"
                           onClick={() => handleResetPassword(student)}
-                          disabled={!student.user_id}
-                          title={!student.user_id ? 'No user account' : 'Reset password'}
+                          disabled={!student.user_id || student.is_deleted}
+                          title={student.is_deleted ? 'Student terminated' : (!student.user_id ? 'No user account' : 'Reset password')}
                         >
                           <KeyIcon />
                         </IconButton>
-                        <IconButton size="small" color="error" onClick={() => handleDelete(student.id)}>
+                        <IconButton
+                          size="small"
+                          color="error"
+                          onClick={() => handleDelete(student.id)}
+                          disabled={student.is_deleted}
+                          title={student.is_deleted ? 'Already terminated' : 'Delete student'}
+                        >
                           <Delete />
                         </IconButton>
                       </TableCell>

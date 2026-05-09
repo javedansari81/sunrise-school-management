@@ -141,30 +141,28 @@ async def get_admin_dashboard_stats(
             else:
                 # Past session: Query from BOTH student_session_history AND students table
                 # to include students who were promoted AND students who were never promoted
+                # NOTE: For historical sessions, we do NOT filter by is_deleted because:
+                # - Students were part of that session when it was active
+                # - They may have been deleted in a later session (e.g., left school)
+                # - Historical data should reflect who was enrolled during that session
                 logger.info(f"Querying past session students from student_session_history AND students table")
 
-                # Count students from history (those who were promoted, exclude deleted students)
+                # Count students from history (those who were promoted)
+                # DO NOT filter by is_deleted - these students were part of the historical session
                 history_students_query = select(
                     func.count(func.distinct(StudentSessionHistory.student_id))
-                ).select_from(
-                    StudentSessionHistory
-                ).join(
-                    Student, StudentSessionHistory.student_id == Student.id
                 ).where(
-                    and_(
-                        StudentSessionHistory.session_year_id == session_year_id,
-                        or_(Student.is_deleted == False, Student.is_deleted.is_(None))
-                    )
+                    StudentSessionHistory.session_year_id == session_year_id
                 )
                 history_students_result = await db.execute(history_students_query)
                 history_students = history_students_result.scalar() or 0
 
                 # Count students still in students table with this session (never promoted)
                 # EXCLUDE students who are already in history to avoid double counting
+                # DO NOT filter by is_deleted for historical sessions
                 remaining_students_query = select(func.count(Student.id)).where(
                     and_(
                         Student.session_year_id == session_year_id,
-                        or_(Student.is_deleted == False, Student.is_deleted.is_(None)),
                         # Exclude students already in history
                         ~Student.id.in_(
                             select(StudentSessionHistory.student_id).where(
@@ -598,9 +596,14 @@ async def get_admin_dashboard_enhanced_stats(
             else:
                 # Past session: Query from BOTH student_session_history AND students table
                 # to include students who were promoted AND students who were never promoted
+                # NOTE: For historical sessions, we do NOT filter by is_deleted because:
+                # - Students were part of that session when it was active
+                # - They may have been deleted in a later session (e.g., left school)
+                # - Historical data should reflect who was enrolled during that session
                 logger.info("Querying past session student details from student_session_history AND students table")
 
                 # Class breakdown using UNION ALL to combine history + remaining students
+                # DO NOT filter by is_deleted for historical sessions
                 class_breakdown_query = text("""
                     SELECT
                         class_name,
@@ -608,7 +611,7 @@ async def get_admin_dashboard_enhanced_stats(
                         SUM(male_count) as male_count,
                         SUM(female_count) as female_count
                     FROM (
-                        -- Students from history (promoted)
+                        -- Students from history (promoted) - no is_deleted filter for historical data
                         SELECT
                             c.description as class_name,
                             COUNT(DISTINCT ssh.student_id) as total_students,
@@ -618,13 +621,11 @@ async def get_admin_dashboard_enhanced_stats(
                         LEFT JOIN sunrise.classes c ON ssh.class_id = c.id
                         LEFT JOIN sunrise.students s ON ssh.student_id = s.id
                         WHERE ssh.session_year_id = :session_year_id
-                            AND (s.is_deleted = FALSE OR s.is_deleted IS NULL)
                         GROUP BY c.id, c.description
 
                         UNION ALL
 
-                        -- Students still in students table (not promoted)
-                        -- EXCLUDE students already in history to avoid double counting
+                        -- Students still in students table (not promoted) - no is_deleted filter for historical data
                         SELECT
                             c.description as class_name,
                             COUNT(s.id) as total_students,
@@ -633,7 +634,6 @@ async def get_admin_dashboard_enhanced_stats(
                         FROM sunrise.students s
                         LEFT JOIN sunrise.classes c ON s.class_id = c.id
                         WHERE s.session_year_id = :session_year_id
-                            AND (s.is_deleted = FALSE OR s.is_deleted IS NULL)
                             AND s.id NOT IN (
                                 SELECT student_id
                                 FROM sunrise.student_session_history
@@ -655,64 +655,52 @@ async def get_admin_dashboard_enhanced_stats(
                     for row in class_result
                 ]
 
-                # Total student count: history + remaining students (excluding duplicates)
+                # Total student count: history + remaining students (no is_deleted filter for historical)
+                # For historical sessions: all students were "active" during that session
+                # Active/Inactive doesn't make sense for past sessions, so we set:
+                # - active_students = total_students (all were active during that session)
+                # - inactive_students = 0
                 student_stats_query = text("""
                     SELECT
                         (
-                            -- Count from history (exclude deleted students)
+                            -- Count from history (no is_deleted filter for historical data)
                             SELECT COUNT(DISTINCT ssh.student_id)
                             FROM sunrise.student_session_history ssh
-                            INNER JOIN sunrise.students s ON ssh.student_id = s.id
                             WHERE ssh.session_year_id = :session_year_id
-                                AND (s.is_deleted = FALSE OR s.is_deleted IS NULL)
                         ) + (
                             -- Count from students table (exclude students already in history)
                             SELECT COUNT(s.id)
                             FROM sunrise.students s
                             WHERE s.session_year_id = :session_year_id
-                                AND (s.is_deleted = FALSE OR s.is_deleted IS NULL)
                                 AND s.id NOT IN (
                                     SELECT student_id
                                     FROM sunrise.student_session_history
                                     WHERE session_year_id = :session_year_id
                                 )
-                        ) as total_students,
-
-                        -- Active students (from remaining students only, history students were "active" then)
-                        (
-                            SELECT COUNT(s.id)
-                            FROM sunrise.students s
-                            WHERE s.session_year_id = :session_year_id
-                                AND s.is_active = TRUE
-                                AND (s.is_deleted = FALSE OR s.is_deleted IS NULL)
-                                AND s.id NOT IN (
-                                    SELECT student_id
-                                    FROM sunrise.student_session_history
-                                    WHERE session_year_id = :session_year_id
-                                )
-                        ) as active_students,
-
-                        -- Inactive students (from remaining students only)
-                        (
-                            SELECT COUNT(s.id)
-                            FROM sunrise.students s
-                            WHERE s.session_year_id = :session_year_id
-                                AND s.is_active = FALSE
-                                AND (s.is_deleted = FALSE OR s.is_deleted IS NULL)
-                                AND s.id NOT IN (
-                                    SELECT student_id
-                                    FROM sunrise.student_session_history
-                                    WHERE session_year_id = :session_year_id
-                                )
-                        ) as inactive_students,
-
-                        0 as recent_enrollments
+                        ) as total_students
                 """)
                 student_stats_result = await db.execute(
                     student_stats_query,
                     {"session_year_id": session_year_id}
                 )
-                student_stats = student_stats_result.fetchone()
+                total_students_row = student_stats_result.fetchone()
+                total_students_count = total_students_row.total_students if total_students_row else 0
+
+                # Create a named tuple-like object for consistency with the current session branch
+                class StudentStatsResult:
+                    def __init__(self, total, active, inactive, recent):
+                        self.total_students = total
+                        self.active_students = active
+                        self.inactive_students = inactive
+                        self.recent_enrollments = recent
+
+                # For historical sessions: all were active, none inactive
+                student_stats = StudentStatsResult(
+                    total=total_students_count,
+                    active=total_students_count,  # All were active during that session
+                    inactive=0,  # No inactive for historical
+                    recent=0
+                )
 
             response_data['student_management'] = {
                 'total_students': student_stats.total_students,

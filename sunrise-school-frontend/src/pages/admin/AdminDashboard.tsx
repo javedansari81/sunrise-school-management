@@ -129,6 +129,7 @@ interface EnhancedDashboardStats {
       female: number;
     }>;
     is_session_filtered?: boolean;
+    is_historical?: boolean;
   };
   fee_management: {
     total_collected: number;
@@ -403,7 +404,9 @@ const AdminDashboardContent: React.FC = () => {
         value: (enhancedStats.student_management?.total_students || 0).toString(),
         icon: <People fontSize="large" />,
         color: '#1976d2',
-        change: `${enhancedStats.student_management?.active_students || 0} Active • ${enhancedStats.student_management?.recent_enrollments || 0} New`,
+        change: enhancedStats.student_management?.is_historical
+          ? 'Historical data'
+          : `${enhancedStats.student_management?.active_students || 0} Active • ${enhancedStats.student_management?.recent_enrollments || 0} New`,
         clickable: true,
         onClick: () => navigate('/admin/students'),
         details: enhancedStats.student_management,
@@ -521,8 +524,14 @@ const AdminDashboardContent: React.FC = () => {
               <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8rem' }}>No data available</Typography>
             )}
             <Box sx={{ mt: 1.5, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-              <Chip label={`Active: ${card.details.active_students || 0}`} size="small" color="success" sx={{ height: 24, fontSize: '0.7rem' }} />
-              <Chip label={`Inactive: ${card.details.inactive_students || 0}`} size="small" color="default" sx={{ height: 24, fontSize: '0.7rem' }} />
+              {card.details.is_historical ? (
+                <Chip label="Historical Data" size="small" color="info" sx={{ height: 24, fontSize: '0.7rem' }} />
+              ) : (
+                <>
+                  <Chip label={`Active: ${card.details.active_students || 0}`} size="small" color="success" sx={{ height: 24, fontSize: '0.7rem' }} />
+                  <Chip label={`Inactive: ${card.details.inactive_students || 0}`} size="small" color="default" sx={{ height: 24, fontSize: '0.7rem' }} />
+                </>
+              )}
             </Box>
           </Box>
         );
