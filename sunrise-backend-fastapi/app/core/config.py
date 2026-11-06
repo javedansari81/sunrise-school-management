@@ -69,6 +69,9 @@ class Settings:
     # single-domain deployment). Set to empty in production once subdomains are live
     # so that unidentified requests are rejected.
     DEFAULT_SCHOOL_CODE: str = os.getenv("DEFAULT_SCHOOL_CODE", "sunrise").strip().lower()
+    # When a platform admin creates a school, its lists (classes, session years,
+    # departments, ...) are copied from this school unless the request names another
+    TEMPLATE_SCHOOL_CODE: str = os.getenv("TEMPLATE_SCHOOL_CODE", "sunrise").strip().lower()
     # Subdomain labels that are never school codes
     RESERVED_SUBDOMAINS = frozenset(
         s.strip().lower()

@@ -22,14 +22,14 @@ We will turn the Sunrise School backend into a multi-school (multi-tenant) servi
 
 ## Progress
 
-Phase 1 is in progress on the `multi-tenant` branch. The app now lives in the `school` schema of the shared `warsi_db` database, built from a clean 3.0 baseline, and its 29 isolation tests pass (Nov 6, 2026). Next step: set the `warsi_user` password in `.env`, deploy the baseline to local `warsi_db`, then build the platform admin role and school management endpoints.
+Phase 1 is done (Nov 6, 2026). Every school's data is isolated in the `school` schema of the shared `warsi_db`, platform admins manage schools through `/api/v1/platform`, and 43 isolation and platform tests pass. Next step: Phase 2, the unified fee module. Deploying to DigitalOcean is deferred to go-live.
 
 Status values: Not started, In progress, Done, Blocked.
 
 | Phase | Status | Notes |
 | --- | --- | --- |
 | 0. Preparation | Done | Branch `multi-tenant` created. Tenant test suite runs against local Postgres in a rolled-back transaction |
-| 1. Tenant foundation | In progress | Baseline 3.0 with school_id, models, automatic session scoping, school-aware login and tokens done. Local deployment, platform admin and school management pending |
+| 1. Tenant foundation | Done | School isolation, school-aware login, clean 3.0 baseline in `warsi_db`, migration runner, platform admin and school management. DigitalOcean deployment deferred to go-live |
 | 2. Unified fee module core | Not started | Payment gateway deferred (decision 11) |
 | 3. Transport operations module | Not started | |
 | 4. Switch dependents and remove old code | Not started | |
@@ -230,10 +230,14 @@ There are eight phases, run in order. Each phase ends with the app running and i
 - [x] SSL support for DigitalOcean (`?sslmode=require` in `DATABASE_URL`)
 - [x] Removed unused database objects: 5 views, `calculate_age`, `get_academic_year`
 - [x] `migrate_database.py`: applies each `Database/Versioning/` migration once, recorded in `schema_migrations` with a checksum; stops on edited or failing migrations
-- [ ] Set the `warsi_user` password in `sunrise-backend-fastapi/.env`, then run `python redeploy_database.py` to deploy to local `warsi_db`
-- [ ] Deploy to DigitalOcean `warsi_db` (schema `school`), and set `DATABASE_URL`, `DB_SCHEMA`, `BASE_DOMAIN` and `DEFAULT_SCHOOL_CODE` on the backend host
+- [x] Deployed to local `warsi_db` (schema `school`) and verified login
+- Deferred to go-live: deploy to DigitalOcean `warsi_db` (schema `school`), then set `DATABASE_URL`, `DB_SCHEMA`, `BASE_DOMAIN` and `DEFAULT_SCHOOL_CODE` on the backend host
 - [x] Delete the unauthenticated `POST /api/v1/database/deploy`. `redeploy_database.py` now deploys local databases directly from the complete `deploy_database.sql` list
-- [ ] Platform admin role and school management endpoints (create, edit, suspend), seeding default lists for a new school
+- [x] Platform admin role (`PLATFORM_ADMIN`, user type 7, no school), migration `V001_add_platform_admin.sql`
+- [x] Platform API `/api/v1/platform`: login, list, create, view, edit, suspend and activate schools, manage platform admins. Creating a school creates its admin and copies the template school's lists
+- [x] `/database/status` and `/database/deploy-function` require a platform admin
+- [x] `scripts/create_platform_admin.py` creates the first platform admin; `scripts/create_test_school.py` kept for quick local tests
+- [x] 14 platform tests (token separation, school creation and list copying, validation, edit, suspend and activate)
 
 ### Phase 2: Unified fee module core
 

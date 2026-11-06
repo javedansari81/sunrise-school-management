@@ -17,6 +17,7 @@ from pathlib import Path
 
 import pytest
 import pytest_asyncio
+from httpx import AsyncClient
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 
@@ -115,3 +116,25 @@ async def schools(make_session):
     }
     await session.close()
     return data
+
+
+@pytest.fixture
+def client_factory(make_session):
+    from main import app
+    from app.core.database import get_db
+
+    async def _override_get_db():
+        session = make_session()
+        try:
+            yield session
+        finally:
+            await session.close()
+
+    app.dependency_overrides[get_db] = _override_get_db
+
+    def _make(school_code=None):
+        headers = {"X-School-Code": school_code} if school_code else {}
+        return AsyncClient(app=app, base_url="http://testserver", headers=headers)
+
+    yield _make
+    app.dependency_overrides.pop(get_db, None)

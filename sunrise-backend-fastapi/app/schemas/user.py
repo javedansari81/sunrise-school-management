@@ -15,6 +15,7 @@ class UserTypeEnum(str, Enum):
     STAFF = "STAFF"
     PARENT = "PARENT"
     SUPER_ADMIN = "SUPER_ADMIN"
+    PLATFORM_ADMIN = "PLATFORM_ADMIN"
 
     # Metadata table ID mappings
     class VALUE:

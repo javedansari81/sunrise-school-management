@@ -7,11 +7,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.school_resolver import resolve_school_code
-from app.core.security import decode_access_token
-from app.core.tenant import set_session_school
+from app.core.security import decode_access_token, decode_platform_token
+from app.core.tenant import bind_platform_session, set_session_school
 from app.crud.crud_user import CRUDUser
 from app.models.school import School
-from app.models.user import User
+from app.models.user import PLATFORM_ADMIN_USER_TYPE_ID, User
 
 security = HTTPBearer()
 
@@ -122,3 +122,32 @@ async def get_current_admin_user(
             detail="Not enough permissions. Admin access required."
         )
     return current_user
+
+
+async def get_current_platform_admin(
+    db: AsyncSession = Depends(get_db),
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+) -> User:
+    """
+    Platform admin from a platform token (scope=platform, no school).
+    Turns the request's DB session into a platform session that works across
+    schools. School tokens are rejected, and platform tokens are rejected by
+    get_current_user, so the two kinds of login never mix.
+    """
+    user_id = decode_platform_token(credentials.credentials)
+    if user_id is None:
+        raise _CREDENTIALS_ERROR
+    bind_platform_session(db)
+    user = (
+        await db.execute(
+            select(User).where(
+                User.id == int(user_id),
+                User.school_id.is_(None),
+                User.user_type_id == PLATFORM_ADMIN_USER_TYPE_ID,
+                (User.is_deleted == False) | (User.is_deleted.is_(None)),  # noqa: E712
+            )
+        )
+    ).scalar_one_or_none()
+    if user is None or not user.is_active:
+        raise _CREDENTIALS_ERROR
+    return user

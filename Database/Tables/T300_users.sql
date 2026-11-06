@@ -10,7 +10,7 @@ DROP TABLE IF EXISTS users CASCADE;
 -- Create table
 CREATE TABLE users (
     id SERIAL PRIMARY KEY,
-    school_id INTEGER NOT NULL REFERENCES schools(id),
+    school_id INTEGER REFERENCES schools(id),  -- NULL only for platform admins
     first_name VARCHAR(100) NOT NULL,
     last_name VARCHAR(100) NOT NULL,
     phone VARCHAR(20),
@@ -23,7 +23,10 @@ CREATE TABLE users (
     password_last_changed TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE,
-    FOREIGN KEY (user_type_id) REFERENCES user_types(id)
+    FOREIGN KEY (user_type_id) REFERENCES user_types(id),
+
+    -- Platform admins (user type 7) belong to no school; every other user belongs to one
+    CONSTRAINT users_school_matches_user_type CHECK ((user_type_id = 7) = (school_id IS NULL))
 );
 
 -- Create indexes
@@ -49,4 +52,9 @@ COMMENT ON COLUMN users.password_last_changed IS 'Timestamp of last password cha
 
 -- Multi-tenancy: every row belongs to one school
 CREATE INDEX IF NOT EXISTS idx_users_school_id ON users (school_id);
-COMMENT ON COLUMN users.school_id IS 'School (tenant) this row belongs to';
+COMMENT ON COLUMN users.school_id IS 'School (tenant) this user belongs to. NULL only for platform admins (user type 7)';
+
+-- Platform admin emails are unique among platform admins
+CREATE UNIQUE INDEX IF NOT EXISTS users_platform_email_active_unique
+ON users (email)
+WHERE school_id IS NULL AND (is_deleted = FALSE OR is_deleted IS NULL);

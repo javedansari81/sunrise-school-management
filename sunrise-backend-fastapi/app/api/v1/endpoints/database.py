@@ -6,20 +6,22 @@ Full database redeployment is no longer exposed over HTTP (it dropped the whole
 schema without authentication). Use redeploy_database.py at the repository root
 to redeploy a local database.
 """
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 import asyncpg
 import os
 from pathlib import Path
 import logging
 
+from app.api.deps import get_current_platform_admin
 from app.core.config import settings
+from app.models.user import User
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
 @router.get("/status")
-async def get_database_status():
+async def get_database_status(admin: User = Depends(get_current_platform_admin)):
     """
     Get current database status and statistics
 
@@ -121,7 +123,7 @@ async def get_database_status():
 
 
 @router.post("/deploy-function")
-async def deploy_monthly_tracking_function():
+async def deploy_monthly_tracking_function(admin: User = Depends(get_current_platform_admin)):
     """
     Deploy only the enable_monthly_tracking_complete function
 

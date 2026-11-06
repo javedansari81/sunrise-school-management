@@ -18,6 +18,7 @@ class UserTypeEnum(str, enum.Enum):
     STAFF = "STAFF"
     PARENT = "PARENT"
     SUPER_ADMIN = "SUPER_ADMIN"
+    PLATFORM_ADMIN = "PLATFORM_ADMIN"
 
     @classmethod
     def _missing_(cls, value):
@@ -29,10 +30,17 @@ class UserTypeEnum(str, enum.Enum):
         return None
 
 
+PLATFORM_ADMIN_USER_TYPE_ID = 7
+
+
 class User(TenantMixin, Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
+    # Overrides TenantMixin: NULL for platform admins (user type 7), who belong to no
+    # school. A database CHECK keeps NULL school and platform admin type together.
+    # Tenant sessions filter on school_id = <school>, so they never see platform admins.
+    school_id = Column(Integer, ForeignKey("schools.id"), nullable=True, index=True)
     email = Column(String(255), index=True, nullable=False)
     password = Column(String(255), nullable=False)  # Changed from hashed_password to match DB schema
     first_name = Column(String(100), nullable=False)

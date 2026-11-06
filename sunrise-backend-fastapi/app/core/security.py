@@ -10,6 +10,8 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 SCHOOL_CLAIM = "sid"
+SCOPE_CLAIM = "scope"
+PLATFORM_SCOPE = "platform"
 
 
 def create_access_token(
@@ -58,6 +60,28 @@ def get_password_hash(password: str) -> str:
     """
     _validate_password_length(password)
     return pwd_context.hash(password)
+
+
+def create_platform_token(subject: Union[str, Any], expires_delta: timedelta = None) -> str:
+    """
+    JWT for a platform admin. It carries scope=platform and no school claim, so
+    school routes (get_current_user) reject it, and platform routes reject school tokens.
+    """
+    expire = datetime.utcnow() + (expires_delta or timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES))
+    to_encode = {"exp": expire, "sub": str(subject), SCOPE_CLAIM: PLATFORM_SCOPE}
+    return jwt.encode(to_encode, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
+
+
+def decode_platform_token(token: str) -> Optional[str]:
+    """User id from a platform admin token, or None for any other token."""
+    try:
+        payload = jwt.decode(token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])
+    except jwt.JWTError:
+        return None
+    if payload.get(SCOPE_CLAIM) != PLATFORM_SCOPE or payload.get(SCHOOL_CLAIM) is not None:
+        return None
+    user_id = payload.get("sub")
+    return str(user_id) if user_id is not None else None
 
 
 def decode_access_token(token: str) -> Optional[Tuple[str, Optional[int]]]:

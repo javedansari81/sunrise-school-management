@@ -3,7 +3,7 @@ from fastapi import APIRouter
 from app.api.v1.endpoints import (
     auth, teachers, students, leaves, expenses, fees, configuration,
     public, database, transport, dashboard, gallery, reports, inventory,
-    student_siblings, users, attendance, alerts, session_progression
+    student_siblings, users, attendance, alerts, session_progression, platform
 )
 
 api_router = APIRouter()
@@ -11,8 +11,11 @@ api_router = APIRouter()
 # Public endpoints (no authentication required)
 api_router.include_router(public.router, prefix="/public", tags=["public"])
 
-# Database management endpoints (admin only - no auth for initial deployment)
+# Database management endpoints (platform admin only)
 api_router.include_router(database.router, prefix="/database", tags=["database"])
+
+# Platform admin: school management (platform admin token only)
+api_router.include_router(platform.router, prefix="/platform", tags=["platform"])
 
 # Authenticated endpoints
 api_router.include_router(auth.router, prefix="/auth", tags=["authentication"])

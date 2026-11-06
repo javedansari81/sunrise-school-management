@@ -50,6 +50,7 @@ The database user needs permission to create a schema in the database. `warsi_us
 | --- | --- | --- |
 | School-owned data | users, students, teachers, attendance_records, leave_requests, expenses, vendors, inventory (pricing, purchases, stock, procurements and their items), gallery_images, alerts, student_siblings, student_session_history, school_settings | `school_id NOT NULL`. Admission numbers, employee IDs and emails are unique per school |
 | School-configurable lists | classes, session_years, departments, positions, expense_categories, gallery_categories, inventory_item_category, inventory_item_types, inventory_size_types, leave_types | `school_id NOT NULL`, `name` unique per school, auto-increment ids |
+| Platform admins | users with `user_type_id = 7` (PLATFORM_ADMIN) | `school_id` is NULL. A CHECK constraint allows NULL only for this user type. They manage schools through `/api/v1/platform` and are invisible to every school |
 | Shared system lists | user_types, genders, payment_types, payment_statuses, payment_methods, leave_statuses, expense_statuses, employment_statuses, qualifications, reversal_reasons, attendance_statuses, attendance_periods, progression_actions, alert_types, alert_statuses | No `school_id`. Same for every school |
 | Legacy fee and transport | fee_structures, fee_records, fee_payments, monthly_fee_tracking, transport tables | No `school_id` yet. Being replaced by the unified fee module (redesign plan Phases 2 to 4) |
 

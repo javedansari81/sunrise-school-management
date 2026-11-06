@@ -41,9 +41,31 @@ def _info(session: AnySession) -> dict:
     return session.info  # AsyncSession.info proxies the underlying Session.info
 
 
+PLATFORM_KEY = "platform_session"
+
+
+def bind_platform_session(session: AnySession) -> None:
+    """
+    Make a request's session a platform session: it works across schools (tenant
+    scoping off) for the whole request. Only platform admin routes call this, after
+    the platform admin token is verified. A session bound to a school cannot become one.
+    """
+    info = _info(session)
+    if info.get(SCHOOL_ID_KEY) is not None:
+        raise TenantContextError("Session is bound to a school and cannot become a platform session")
+    info[PLATFORM_KEY] = True
+    info[BYPASS_KEY] = True
+
+
+def is_platform_session(session: AnySession) -> bool:
+    return bool(_info(session).get(PLATFORM_KEY))
+
+
 def set_session_school(session: AnySession, school_id: int) -> None:
     """Bind a session to one school. Rebinding to a different school is refused."""
     info = _info(session)
+    if info.get(PLATFORM_KEY):
+        raise TenantContextError("A platform session cannot be bound to a school")
     current = info.get(SCHOOL_ID_KEY)
     if current is not None and current != school_id:
         raise TenantContextError(
@@ -65,7 +87,8 @@ def tenant_bypass(session: AnySession) -> Iterator[None]:
     try:
         yield
     finally:
-        info[BYPASS_KEY] = previous
+        # A platform session stays unscoped for its whole life
+        info[BYPASS_KEY] = previous or bool(info.get(PLATFORM_KEY))
 
 
 def _is_tenant_class(cls) -> bool:

@@ -158,27 +158,6 @@ async def test_write_without_school_context_is_refused(make_session, schools):
 # API: login and tokens
 # ---------------------------------------------------------------------------
 
-@pytest.fixture
-def client_factory(make_session):
-    from main import app
-
-    async def _override_get_db():
-        session = make_session()
-        try:
-            yield session
-        finally:
-            await session.close()
-
-    app.dependency_overrides[get_db] = _override_get_db
-
-    def _make(school_code=None):
-        headers = {"X-School-Code": school_code} if school_code else {}
-        return AsyncClient(app=app, base_url="http://testserver", headers=headers)
-
-    yield _make
-    app.dependency_overrides.pop(get_db, None)
-
-
 async def _login(client, email):
     return await client.post("/api/v1/auth/login-json", json={"email": email, "password": TEST_PASSWORD})
 

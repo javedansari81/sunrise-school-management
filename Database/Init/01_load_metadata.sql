@@ -19,7 +19,8 @@ INSERT INTO user_types (id, name, description, is_active) VALUES
 (3, 'STUDENT', 'Enrolled Student', TRUE),
 (4, 'STAFF', 'Non-Teaching Staff', TRUE),
 (5, 'PARENT', 'Parent/Guardian', TRUE),
-(6, 'SUPER_ADMIN', 'Super Administrator with elevated privileges', TRUE)
+(6, 'SUPER_ADMIN', 'Super Administrator with elevated privileges', TRUE),
+(7, 'PLATFORM_ADMIN', 'Platform administrator: manages schools, belongs to no school', TRUE)
 ON CONFLICT (id) DO UPDATE SET
     name = EXCLUDED.name,
     description = EXCLUDED.description,
