@@ -10,6 +10,7 @@ DROP TABLE IF EXISTS student_siblings CASCADE;
 -- Create table
 CREATE TABLE student_siblings (
     id SERIAL PRIMARY KEY,
+    school_id INTEGER NOT NULL REFERENCES schools(id),
     
     -- Student References
     student_id INTEGER NOT NULL,
@@ -54,3 +55,6 @@ COMMENT ON COLUMN student_siblings.birth_order IS 'Birth order among all sibling
 COMMENT ON COLUMN student_siblings.fee_waiver_percentage IS 'Fee waiver percentage applied (0-100)';
 COMMENT ON COLUMN student_siblings.is_active IS 'Whether this sibling relationship is currently active';
 
+-- Multi-tenancy: every row belongs to one school
+CREATE INDEX IF NOT EXISTS idx_student_siblings_school_id ON student_siblings (school_id);
+COMMENT ON COLUMN student_siblings.school_id IS 'School (tenant) this row belongs to';

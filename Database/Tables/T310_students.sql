@@ -10,6 +10,7 @@ DROP TABLE IF EXISTS students CASCADE;
 -- Create table
 CREATE TABLE students (
     id SERIAL PRIMARY KEY,
+    school_id INTEGER NOT NULL REFERENCES schools(id),
     user_id INTEGER UNIQUE,
     admission_number VARCHAR(50) NOT NULL,
     first_name VARCHAR(100) NOT NULL,
@@ -62,12 +63,12 @@ CREATE TABLE students (
 
 -- Create indexes
 -- Note: Using partial unique indexes instead of UNIQUE constraints to support soft delete
-CREATE UNIQUE INDEX IF NOT EXISTS students_admission_number_active_unique
-ON students (admission_number)
+CREATE UNIQUE INDEX IF NOT EXISTS students_school_admission_number_active_unique
+ON students (school_id, admission_number)
 WHERE (is_deleted = FALSE OR is_deleted IS NULL);
 
-CREATE UNIQUE INDEX IF NOT EXISTS students_email_active_unique
-ON students (email)
+CREATE UNIQUE INDEX IF NOT EXISTS students_school_email_active_unique
+ON students (school_id, email)
 WHERE (is_deleted = FALSE OR is_deleted IS NULL) AND email IS NOT NULL;
 
 CREATE INDEX IF NOT EXISTS idx_students_admission ON students(admission_number);
@@ -87,3 +88,6 @@ COMMENT ON COLUMN students.profile_picture_cloudinary_id IS 'Cloudinary public I
 COMMENT ON COLUMN students.is_deleted IS 'Soft delete flag';
 COMMENT ON COLUMN students.deleted_date IS 'Timestamp when record was soft deleted';
 
+-- Multi-tenancy: every row belongs to one school
+CREATE INDEX IF NOT EXISTS idx_students_school_id ON students (school_id);
+COMMENT ON COLUMN students.school_id IS 'School (tenant) this row belongs to';

@@ -10,6 +10,7 @@ DROP TABLE IF EXISTS inventory_stock CASCADE;
 -- Create table
 CREATE TABLE inventory_stock (
     id SERIAL PRIMARY KEY,
+    school_id INTEGER NOT NULL REFERENCES schools(id),
     inventory_item_type_id INTEGER NOT NULL,
     size_type_id INTEGER,
     
@@ -45,3 +46,6 @@ COMMENT ON COLUMN inventory_stock.reorder_quantity IS 'Suggested reorder quantit
 COMMENT ON COLUMN inventory_stock.last_restocked_date IS 'Date of last stock replenishment';
 COMMENT ON COLUMN inventory_stock.last_updated IS 'Timestamp of last stock update';
 
+-- Multi-tenancy: every row belongs to one school
+CREATE INDEX IF NOT EXISTS idx_inventory_stock_school_id ON inventory_stock (school_id);
+COMMENT ON COLUMN inventory_stock.school_id IS 'School (tenant) this row belongs to';

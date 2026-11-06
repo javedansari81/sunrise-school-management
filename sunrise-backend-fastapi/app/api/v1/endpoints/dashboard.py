@@ -279,7 +279,7 @@ async def get_admin_dashboard_stats(
                         COUNT(CASE WHEN leave_status_id = 1 THEN 1 END) as pending_requests,
                         COUNT(CASE WHEN leave_status_id = 2 THEN 1 END) as approved_requests,
                         COUNT(CASE WHEN leave_status_id = 3 THEN 1 END) as rejected_requests
-                    FROM sunrise.leave_requests
+                    FROM leave_requests
                     WHERE session_year_id = :session_year_id
                 """)
                 leave_result = await db.execute(
@@ -558,8 +558,8 @@ async def get_admin_dashboard_enhanced_stats(
                         COUNT(s.id) as total_students,
                         COUNT(CASE WHEN s.gender_id = 1 THEN 1 END) as male_count,
                         COUNT(CASE WHEN s.gender_id = 2 THEN 1 END) as female_count
-                    FROM sunrise.students s
-                    LEFT JOIN sunrise.classes c ON s.class_id = c.id
+                    FROM students s
+                    LEFT JOIN classes c ON s.class_id = c.id
                     WHERE s.is_active = TRUE
                         AND (s.is_deleted = FALSE OR s.is_deleted IS NULL)
                         AND s.session_year_id = :session_year_id
@@ -584,7 +584,7 @@ async def get_admin_dashboard_enhanced_stats(
                         COUNT(CASE WHEN is_active = TRUE THEN 1 END) as active_students,
                         COUNT(CASE WHEN is_active = FALSE THEN 1 END) as inactive_students,
                         COUNT(CASE WHEN is_active = TRUE AND created_at >= :month_start THEN 1 END) as recent_enrollments
-                    FROM sunrise.students
+                    FROM students
                     WHERE (is_deleted = FALSE OR is_deleted IS NULL)
                         AND session_year_id = :session_year_id
                 """)
@@ -617,9 +617,9 @@ async def get_admin_dashboard_enhanced_stats(
                             COUNT(DISTINCT ssh.student_id) as total_students,
                             COUNT(DISTINCT CASE WHEN s.gender_id = 1 THEN ssh.student_id END) as male_count,
                             COUNT(DISTINCT CASE WHEN s.gender_id = 2 THEN ssh.student_id END) as female_count
-                        FROM sunrise.student_session_history ssh
-                        LEFT JOIN sunrise.classes c ON ssh.class_id = c.id
-                        LEFT JOIN sunrise.students s ON ssh.student_id = s.id
+                        FROM student_session_history ssh
+                        LEFT JOIN classes c ON ssh.class_id = c.id
+                        LEFT JOIN students s ON ssh.student_id = s.id
                         WHERE ssh.session_year_id = :session_year_id
                         GROUP BY c.id, c.description
 
@@ -631,12 +631,12 @@ async def get_admin_dashboard_enhanced_stats(
                             COUNT(s.id) as total_students,
                             COUNT(CASE WHEN s.gender_id = 1 THEN 1 END) as male_count,
                             COUNT(CASE WHEN s.gender_id = 2 THEN 1 END) as female_count
-                        FROM sunrise.students s
-                        LEFT JOIN sunrise.classes c ON s.class_id = c.id
+                        FROM students s
+                        LEFT JOIN classes c ON s.class_id = c.id
                         WHERE s.session_year_id = :session_year_id
                             AND s.id NOT IN (
                                 SELECT student_id
-                                FROM sunrise.student_session_history
+                                FROM student_session_history
                                 WHERE session_year_id = :session_year_id
                             )
                         GROUP BY c.id, c.description
@@ -665,16 +665,16 @@ async def get_admin_dashboard_enhanced_stats(
                         (
                             -- Count from history (no is_deleted filter for historical data)
                             SELECT COUNT(DISTINCT ssh.student_id)
-                            FROM sunrise.student_session_history ssh
+                            FROM student_session_history ssh
                             WHERE ssh.session_year_id = :session_year_id
                         ) + (
                             -- Count from students table (exclude students already in history)
                             SELECT COUNT(s.id)
-                            FROM sunrise.students s
+                            FROM students s
                             WHERE s.session_year_id = :session_year_id
                                 AND s.id NOT IN (
                                     SELECT student_id
-                                    FROM sunrise.student_session_history
+                                    FROM student_session_history
                                     WHERE session_year_id = :session_year_id
                                 )
                         ) as total_students
@@ -739,8 +739,8 @@ async def get_admin_dashboard_enhanced_stats(
                     END as academic_year,
                     SUM(fp.amount) as total_collected,
                     COUNT(DISTINCT fp.fee_record_id) as payment_count
-                FROM sunrise.fee_payments fp
-                JOIN sunrise.fee_records fr ON fp.fee_record_id = fr.id
+                FROM fee_payments fp
+                JOIN fee_records fr ON fp.fee_record_id = fr.id
                 WHERE fr.session_year_id = :session_year_id
                 GROUP BY
                     EXTRACT(YEAR FROM fp.payment_date),
@@ -786,7 +786,7 @@ async def get_admin_dashboard_enhanced_stats(
                         COUNT(CASE WHEN leave_status_id = 1 THEN 1 END) as pending_requests,
                         COUNT(CASE WHEN leave_status_id = 2 THEN 1 END) as approved_requests,
                         COUNT(CASE WHEN leave_status_id = 3 THEN 1 END) as rejected_requests
-                    FROM sunrise.leave_requests
+                    FROM leave_requests
                     WHERE session_year_id = :session_year_id
                 """)
                 leave_stats_result = await db.execute(
@@ -809,8 +809,8 @@ async def get_admin_dashboard_enhanced_stats(
                         COUNT(CASE WHEN lr.leave_status_id = 2 THEN 1 END) as approved,
                         COUNT(CASE WHEN lr.leave_status_id = 3 THEN 1 END) as rejected,
                         COUNT(CASE WHEN lr.leave_status_id = 1 THEN 1 END) as pending
-                    FROM sunrise.leave_requests lr
-                    LEFT JOIN sunrise.leave_types lt ON lr.leave_type_id = lt.id
+                    FROM leave_requests lr
+                    LEFT JOIN leave_types lt ON lr.leave_type_id = lt.id
                     WHERE lr.session_year_id = :session_year_id
                     GROUP BY lt.id, lt.description
                     ORDER BY count DESC
@@ -829,8 +829,8 @@ async def get_admin_dashboard_enhanced_stats(
                         COUNT(CASE WHEN lr.leave_status_id = 2 THEN 1 END) as approved,
                         COUNT(CASE WHEN lr.leave_status_id = 3 THEN 1 END) as rejected,
                         COUNT(CASE WHEN lr.leave_status_id = 1 THEN 1 END) as pending
-                    FROM sunrise.leave_requests lr
-                    LEFT JOIN sunrise.leave_types lt ON lr.leave_type_id = lt.id
+                    FROM leave_requests lr
+                    LEFT JOIN leave_types lt ON lr.leave_type_id = lt.id
                     GROUP BY lt.id, lt.description
                     ORDER BY count DESC
                 """)
@@ -867,7 +867,7 @@ async def get_admin_dashboard_enhanced_stats(
                     SELECT
                         COALESCE(SUM(total_amount), 0) as total_amount,
                         COUNT(CASE WHEN expense_status_id = 1 THEN 1 END) as pending_expenses
-                    FROM sunrise.expenses
+                    FROM expenses
                     WHERE session_year_id = :session_year_id
                         AND is_deleted = FALSE
                 """)
@@ -882,8 +882,8 @@ async def get_admin_dashboard_enhanced_stats(
                     SELECT
                         ec.description as category,
                         COALESCE(SUM(e.total_amount), 0) as amount
-                    FROM sunrise.expenses e
-                    LEFT JOIN sunrise.expense_categories ec ON e.expense_category_id = ec.id
+                    FROM expenses e
+                    LEFT JOIN expense_categories ec ON e.expense_category_id = ec.id
                     WHERE e.session_year_id = :session_year_id
                         AND e.is_deleted = FALSE
                         AND e.expense_status_id IN (2, 4)
@@ -913,7 +913,7 @@ async def get_admin_dashboard_enhanced_stats(
                         EXTRACT(MONTH FROM e.expense_date) as month_num,
                         SUM(e.total_amount) as total_amount,
                         COUNT(e.id) as expense_count
-                    FROM sunrise.expenses e
+                    FROM expenses e
                     WHERE e.session_year_id = :session_year_id
                         AND e.is_deleted = FALSE
                         AND e.expense_status_id IN (2, 4)
@@ -934,7 +934,7 @@ async def get_admin_dashboard_enhanced_stats(
                         EXTRACT(MONTH FROM e.expense_date) as month_num,
                         SUM(e.total_amount) as total_amount,
                         COUNT(e.id) as expense_count
-                    FROM sunrise.expenses e
+                    FROM expenses e
                     WHERE e.expense_date >= :start_date
                         AND e.is_deleted = FALSE
                         AND e.expense_status_id IN (2, 4)
@@ -992,9 +992,9 @@ async def get_admin_dashboard_enhanced_stats(
                     COUNT(DISTINCT tt.id) as transport_types,
                     COALESCE(SUM(CASE WHEN tmt.payment_status_id = 1 THEN tmt.monthly_amount - tmt.paid_amount ELSE 0 END), 0) as pending_transport_fees,
                     COALESCE(SUM(tmt.paid_amount), 0) as collected_transport_fees
-                FROM sunrise.student_transport_enrollment ste
-                LEFT JOIN sunrise.transport_types tt ON ste.transport_type_id = tt.id
-                LEFT JOIN sunrise.transport_monthly_tracking tmt ON ste.id = tmt.enrollment_id
+                FROM student_transport_enrollment ste
+                LEFT JOIN transport_types tt ON ste.transport_type_id = tt.id
+                LEFT JOIN transport_monthly_tracking tmt ON ste.id = tmt.enrollment_id
                 WHERE ste.session_year_id = :session_year_id
                     AND ste.is_active = TRUE
             """)
@@ -1010,8 +1010,8 @@ async def get_admin_dashboard_enhanced_stats(
                     tt.name as transport_type_name,
                     tt.description as transport_type,
                     COUNT(ste.id) as enrollment_count
-                FROM sunrise.student_transport_enrollment ste
-                LEFT JOIN sunrise.transport_types tt ON ste.transport_type_id = tt.id
+                FROM student_transport_enrollment ste
+                LEFT JOIN transport_types tt ON ste.transport_type_id = tt.id
                 WHERE ste.session_year_id = :session_year_id
                     AND ste.is_active = TRUE
                 GROUP BY tt.id, tt.name, tt.description
@@ -1045,8 +1045,8 @@ async def get_admin_dashboard_enhanced_stats(
                     END as academic_sequence,
                     COALESCE(SUM(tmt.paid_amount), 0) as collected_amount,
                     COALESCE(SUM(tmt.monthly_amount), 0) as total_amount
-                FROM sunrise.transport_monthly_tracking tmt
-                JOIN sunrise.student_transport_enrollment ste ON tmt.enrollment_id = ste.id
+                FROM transport_monthly_tracking tmt
+                JOIN student_transport_enrollment ste ON tmt.enrollment_id = ste.id
                 WHERE tmt.session_year_id = :session_year_id
                     AND ste.is_active = TRUE
                 GROUP BY tmt.month_name, tmt.academic_month, tmt.academic_year, academic_sequence

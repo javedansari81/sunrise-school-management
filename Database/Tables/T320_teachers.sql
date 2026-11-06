@@ -10,6 +10,7 @@ DROP TABLE IF EXISTS teachers CASCADE;
 -- Create table
 CREATE TABLE teachers (
     id SERIAL PRIMARY KEY,
+    school_id INTEGER NOT NULL REFERENCES schools(id),
     user_id INTEGER UNIQUE,
     employee_id VARCHAR(50) NOT NULL,
     first_name VARCHAR(100) NOT NULL,
@@ -56,13 +57,13 @@ CREATE TABLE teachers (
 
 -- Create indexes
 -- Note: Using partial unique indexes instead of UNIQUE constraints to support soft delete
-CREATE UNIQUE INDEX IF NOT EXISTS teachers_employee_id_active_unique
-ON teachers (employee_id)
+CREATE UNIQUE INDEX IF NOT EXISTS teachers_school_employee_id_active_unique
+ON teachers (school_id, employee_id)
 WHERE (is_deleted = FALSE OR is_deleted IS NULL);
 
-CREATE UNIQUE INDEX IF NOT EXISTS teachers_email_active_unique
-ON teachers (email)
-WHERE (is_deleted = FALSE OR is_deleted IS NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS teachers_school_email_active_unique
+ON teachers (school_id, email)
+WHERE (is_deleted = FALSE OR is_deleted IS NULL) AND email IS NOT NULL;
 
 CREATE INDEX IF NOT EXISTS idx_teachers_employee ON teachers(employee_id);
 CREATE INDEX IF NOT EXISTS idx_teachers_user_id ON teachers(user_id);
@@ -84,3 +85,6 @@ COMMENT ON COLUMN teachers.profile_picture_cloudinary_id IS 'Cloudinary public I
 COMMENT ON COLUMN teachers.is_deleted IS 'Soft delete flag';
 COMMENT ON COLUMN teachers.deleted_date IS 'Timestamp when record was soft deleted';
 
+-- Multi-tenancy: every row belongs to one school
+CREATE INDEX IF NOT EXISTS idx_teachers_school_id ON teachers (school_id);
+COMMENT ON COLUMN teachers.school_id IS 'School (tenant) this row belongs to';

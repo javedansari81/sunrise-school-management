@@ -10,6 +10,7 @@ DROP TABLE IF EXISTS users CASCADE;
 -- Create table
 CREATE TABLE users (
     id SERIAL PRIMARY KEY,
+    school_id INTEGER NOT NULL REFERENCES schools(id),
     first_name VARCHAR(100) NOT NULL,
     last_name VARCHAR(100) NOT NULL,
     phone VARCHAR(20),
@@ -27,8 +28,8 @@ CREATE TABLE users (
 
 -- Create indexes
 -- Note: Using partial unique index instead of UNIQUE constraint to support soft delete
-CREATE UNIQUE INDEX IF NOT EXISTS users_email_active_unique
-ON users (email)
+CREATE UNIQUE INDEX IF NOT EXISTS users_school_email_active_unique
+ON users (school_id, email)
 WHERE (is_deleted = FALSE OR is_deleted IS NULL);
 
 CREATE INDEX IF NOT EXISTS idx_users_user_type ON users(user_type_id);
@@ -46,3 +47,6 @@ COMMENT ON COLUMN users.is_deleted IS 'Soft delete flag - marks user as permanen
 COMMENT ON COLUMN users.deleted_date IS 'Timestamp when user was soft deleted';
 COMMENT ON COLUMN users.password_last_changed IS 'Timestamp of last password change (for tracking purposes)';
 
+-- Multi-tenancy: every row belongs to one school
+CREATE INDEX IF NOT EXISTS idx_users_school_id ON users (school_id);
+COMMENT ON COLUMN users.school_id IS 'School (tenant) this row belongs to';

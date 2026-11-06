@@ -39,21 +39,23 @@ async def get_database_status():
                 "message": "Database status endpoint only works with PostgreSQL"
             }
 
-        conn = await asyncpg.connect(database_url)
+        conn = await asyncpg.connect(
+            settings.ASYNCPG_DSN, ssl=settings.DB_SSL, server_settings={"search_path": settings.DB_SCHEMA}
+        )
 
-        # Check if sunrise schema exists
+        # Check if the application schema exists
         schema_exists = await conn.fetchval("""
             SELECT EXISTS(
                 SELECT 1 FROM information_schema.schemata
-                WHERE schema_name = 'sunrise'
+                WHERE schema_name = $1
             )
-        """)
+        """, settings.DB_SCHEMA)
 
         if not schema_exists:
             await conn.close()
             return {
                 "status": "not_deployed",
-                "message": "Sunrise schema does not exist. Database needs to be deployed.",
+                "message": f"Schema {settings.DB_SCHEMA} does not exist. Database needs to be deployed.",
                 "schema_exists": False
             }
 
@@ -61,17 +63,17 @@ async def get_database_status():
         table_count = await conn.fetchval("""
             SELECT COUNT(*)
             FROM information_schema.tables
-            WHERE table_schema = 'sunrise'
-        """)
+            WHERE table_schema = $1
+        """, settings.DB_SCHEMA)
 
         # Get record counts
         try:
-            user_count = await conn.fetchval("SELECT COUNT(*) FROM sunrise.users")
-            student_count = await conn.fetchval("SELECT COUNT(*) FROM sunrise.students")
-            teacher_count = await conn.fetchval("SELECT COUNT(*) FROM sunrise.teachers")
-            fee_count = await conn.fetchval("SELECT COUNT(*) FROM sunrise.fee_records")
-            expense_count = await conn.fetchval("SELECT COUNT(*) FROM sunrise.expenses")
-            leave_count = await conn.fetchval("SELECT COUNT(*) FROM sunrise.leave_requests")
+            user_count = await conn.fetchval("SELECT COUNT(*) FROM users")
+            student_count = await conn.fetchval("SELECT COUNT(*) FROM students")
+            teacher_count = await conn.fetchval("SELECT COUNT(*) FROM teachers")
+            fee_count = await conn.fetchval("SELECT COUNT(*) FROM fee_records")
+            expense_count = await conn.fetchval("SELECT COUNT(*) FROM expenses")
+            leave_count = await conn.fetchval("SELECT COUNT(*) FROM leave_requests")
         except:
             user_count = student_count = teacher_count = 0
             fee_count = expense_count = leave_count = 0
@@ -80,8 +82,8 @@ async def get_database_status():
         try:
             last_version = await conn.fetchrow("""
                 SELECT version, description, applied_at, applied_by
-                FROM sunrise.schema_versions
-                ORDER BY applied_at DESC
+                FROM schema_migrations
+                ORDER BY id DESC
                 LIMIT 1
             """)
         except:
@@ -146,7 +148,9 @@ async def deploy_monthly_tracking_function():
 
         # Connect to database
         logger.info("Connecting to database...")
-        conn = await asyncpg.connect(database_url)
+        conn = await asyncpg.connect(
+            settings.ASYNCPG_DSN, ssl=settings.DB_SSL, server_settings={"search_path": settings.DB_SCHEMA}
+        )
 
         # Get the workspace root
         current_file = Path(__file__).resolve()
@@ -183,9 +187,9 @@ async def deploy_monthly_tracking_function():
                 FROM pg_proc p
                 JOIN pg_namespace n ON p.pronamespace = n.oid
                 WHERE p.proname = 'enable_monthly_tracking_complete'
-                AND n.nspname = 'public'
+                AND n.nspname = $1
             )
-        """)
+        """, settings.DB_SCHEMA)
 
         await conn.close()
 

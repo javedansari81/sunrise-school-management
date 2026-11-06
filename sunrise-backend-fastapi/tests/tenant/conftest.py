@@ -1,18 +1,17 @@
 """
 Fixtures for the tenant isolation tests.
 
-These tests need the PostgreSQL database from DATABASE_URL. Each test:
+These tests need a deployed schema (DATABASE_URL + DB_SCHEMA, deployed with
+redeploy_database.py), which contains school 1 (Sunrise) and its seed data. Each test:
 
 1. opens one connection and starts a transaction,
-2. applies Database/Versioning/V036_add_schools_and_tenant_columns.sql inside it,
-3. adds a second school with its own users,
-4. runs the test with sessions that turn commits into savepoints,
-5. rolls everything back, so the database is left exactly as it was.
+2. adds a second school with its own users,
+3. runs the test with sessions that turn commits into savepoints,
+4. rolls everything back, so the database is left exactly as it was.
 
 Run from sunrise-backend-fastapi/:
     python -m pytest tests/tenant -o addopts="" --asyncio-mode=auto
 """
-import os
 import sys
 from pathlib import Path
 
@@ -33,18 +32,9 @@ from app.core.tenant import set_session_school, tenant_bypass  # noqa: E402
 from app.models.school import School  # noqa: E402
 from app.models.user import User  # noqa: E402
 
-MIGRATION = REPO_DIR / "Database" / "Versioning" / "V036_add_schools_and_tenant_columns.sql"
-
 OTHER_SCHOOL_CODE = "oakridge"
 TEST_PASSWORD = "Tenant-Test-Pass-1"
 ADMIN_USER_TYPE_ID = 1
-
-
-def _migration_body() -> str:
-    # The file manages its own transaction. Inside the test transaction we drop
-    # those statements so the rollback at the end also undoes the migration.
-    lines = MIGRATION.read_text(encoding="utf-8").splitlines()
-    return "\n".join(line for line in lines if line.strip().upper() not in ("BEGIN;", "COMMIT;"))
 
 
 if not settings.DATABASE_URL.startswith("postgresql"):
@@ -53,15 +43,16 @@ if not settings.DATABASE_URL.startswith("postgresql"):
 
 @pytest_asyncio.fixture
 async def connection():
+    connect_args = {"server_settings": {"search_path": settings.DB_SCHEMA}}
+    if settings.DB_SSL:
+        connect_args["ssl"] = settings.DB_SSL
     engine = create_async_engine(
-        settings.DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://"),
-        connect_args={"server_settings": {"search_path": "sunrise"}},
+        settings.ASYNCPG_DSN.replace("postgresql://", "postgresql+asyncpg://", 1),
+        connect_args=connect_args,
     )
     async with engine.connect() as conn:
         transaction = await conn.begin()
         await conn.execute(text("SELECT 1"))  # make sure the transaction is open on the server
-        raw = await conn.get_raw_connection()
-        await raw.driver_connection.execute(_migration_body())
         try:
             yield conn
         finally:

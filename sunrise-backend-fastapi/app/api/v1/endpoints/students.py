@@ -348,10 +348,10 @@ async def get_my_dashboard_stats(
             c.name as class_code,
             g.description as gender_name,
             sy.name as session_year_name
-        FROM sunrise.students s
-        LEFT JOIN sunrise.classes c ON s.class_id = c.id
-        LEFT JOIN sunrise.genders g ON s.gender_id = g.id
-        LEFT JOIN sunrise.session_years sy ON s.session_year_id = sy.id
+        FROM students s
+        LEFT JOIN classes c ON s.class_id = c.id
+        LEFT JOIN genders g ON s.gender_id = g.id
+        LEFT JOIN session_years sy ON s.session_year_id = sy.id
         WHERE s.id = :student_id
     """)
 
@@ -371,7 +371,7 @@ async def get_my_dashboard_stats(
             COUNT(CASE WHEN leave_status_id = 1 THEN 1 END) as pending,
             COUNT(CASE WHEN leave_status_id = 2 THEN 1 END) as approved,
             COUNT(CASE WHEN leave_status_id = 3 THEN 1 END) as rejected
-        FROM sunrise.leave_requests
+        FROM leave_requests
         WHERE applicant_type = 'student' AND applicant_id = :student_id
     """)
 
@@ -386,8 +386,8 @@ async def get_my_dashboard_stats(
             fr.balance_amount,
             COALESCE(SUM(fp.amount), 0) as total_paid,
             MAX(fp.payment_date) as last_payment_date
-        FROM sunrise.fee_records fr
-        LEFT JOIN sunrise.fee_payments fp ON fr.id = fp.fee_record_id
+        FROM fee_records fr
+        LEFT JOIN fee_payments fp ON fr.id = fp.fee_record_id
         WHERE fr.student_id = :student_id
         AND fr.session_year_id = :session_year_id
         GROUP BY fr.id, fr.total_amount, fr.balance_amount
@@ -424,8 +424,8 @@ async def get_my_dashboard_stats(
             ste.drop_location,
             ste.monthly_fee,
             ste.distance_km
-        FROM sunrise.student_transport_enrollment ste
-        LEFT JOIN sunrise.transport_types tt ON ste.transport_type_id = tt.id
+        FROM student_transport_enrollment ste
+        LEFT JOIN transport_types tt ON ste.transport_type_id = tt.id
         WHERE ste.student_id = :student_id
         AND ste.is_active = TRUE
         AND ste.discontinue_date IS NULL

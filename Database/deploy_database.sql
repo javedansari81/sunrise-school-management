@@ -1,41 +1,49 @@
 -- =====================================================
--- Master Deployment Script for Sunrise School Management System
+-- Master deployment script: School Management System (multi-tenant baseline)
 -- =====================================================
--- Deploys the complete database in dependency order.
+-- Deploys the complete schema in dependency order. This file is the single
+-- list of deployment scripts, used by:
 --
--- This file is the single list of deployment scripts. It is used by:
---   * psql:  psql -U sunrise_user -d sunrise_school_db -f Database/deploy_database.sql
---   * redeploy_database.py (repository root), which drops the sunrise schema and
---     runs every \ir file below inside one transaction.
+--   * redeploy_database.py (repository root): drops the schema named by
+--     DB_SCHEMA in sunrise-backend-fastapi/.env and runs every \ir file
+--     below inside one transaction. Other schemas in the database are untouched.
+--   * psql:  psql "<database url>" -v schema=school -f Database/deploy_database.sql
 --
--- When you add a table, function, view or data script, add it here.
--- When a Versioning migration is not yet reflected in the Tables/ scripts, add
--- it to STEP 12 so fresh deployments match migrated databases.
+-- All scripts use unqualified names; the schema is chosen here, never inside
+-- a script, and the database-wide search_path is never changed.
 --
--- PREREQUISITES:
--- 1. PostgreSQL database 'sunrise_school_db' must exist
--- 2. User 'sunrise_user' must exist with proper permissions
+-- Adding a table, function, view or data script: add an \ir line for it.
+-- Changing an existing database: add a migration to Database/Versioning/.
 -- =====================================================
 
-\echo '=========================================='
-\echo 'SUNRISE SCHOOL MANAGEMENT SYSTEM'
-\echo 'Database Deployment Script'
-\echo '=========================================='
-\echo ''
+\set ON_ERROR_STOP on
+\if :{?schema}
+\else
+    \set schema school
+\endif
+
+CREATE SCHEMA IF NOT EXISTS :"schema";
+SET search_path TO :"schema";
+
+\echo 'Deploying into schema' :schema
 
 -- =====================================================
--- STEP 1: Schema Initialization
+-- STEP 1: Schema bookkeeping
 -- =====================================================
-
-\echo 'STEP 1: Schema Initialization'
+\echo 'STEP 1: Schema bookkeeping'
 \ir Schema/00_create_schema.sql
-\echo ''
 
 -- =====================================================
--- STEP 2: Metadata and Lookup Tables (T100-T297)
+-- STEP 2: Tenants (T010-T020)
 -- =====================================================
+\echo 'STEP 2: Tenants (T010-T020)'
+\ir Tables/T010_schools.sql
+\ir Tables/T020_school_settings.sql
 
-\echo 'STEP 2: Metadata and Lookup Tables (T100-T297)'
+-- =====================================================
+-- STEP 3: Lookup tables (T100-T297)
+-- =====================================================
+\echo 'STEP 3: Lookup tables (T100-T297)'
 \ir Tables/T100_user_types.sql
 \ir Tables/T105_reversal_reasons.sql
 \ir Tables/T110_session_years.sql
@@ -61,25 +69,21 @@
 \ir Tables/T290_attendance_statuses.sql
 \ir Tables/T295_attendance_periods.sql
 \ir Tables/T297_progression_actions.sql
-\echo ''
 
 -- =====================================================
--- STEP 3: Core Tables (T300-T320)
+-- STEP 4: Core tables (T300-T320)
 -- =====================================================
-
-\echo 'STEP 3: Core Tables (T300-T320)'
+\echo 'STEP 4: Core tables (T300-T320)'
 \ir Tables/T300_users.sql
 \ir Tables/T310_students.sql
 \ir Tables/T315_student_siblings.sql
 \ir Tables/T316_student_session_history.sql
 \ir Tables/T320_teachers.sql
-\echo ''
 
 -- =====================================================
--- STEP 4: Fee and Transport Tables (T400-T470)
+-- STEP 5: Fee and transport tables (T400-T470)
 -- =====================================================
-
-\echo 'STEP 4: Fee and Transport Tables (T400-T470)'
+\echo 'STEP 5: Fee and transport tables (T400-T470)'
 \ir Tables/T400_fee_structures.sql
 \ir Tables/T410_fee_records.sql
 \ir Tables/T415_fee_payments.sql
@@ -90,23 +94,19 @@
 \ir Tables/T450_transport_monthly_tracking.sql
 \ir Tables/T460_transport_payments.sql
 \ir Tables/T470_transport_payment_allocations.sql
-\echo ''
 
 -- =====================================================
--- STEP 5: Expense and Leave Tables (T500-T600)
+-- STEP 6: Expense and leave tables (T500-T600)
 -- =====================================================
-
-\echo 'STEP 5: Expense and Leave Tables (T500-T600)'
+\echo 'STEP 6: Expense and leave tables (T500-T600)'
 \ir Tables/T500_expenses.sql
 \ir Tables/T510_vendors.sql
 \ir Tables/T600_leave_requests.sql
-\echo ''
 
 -- =====================================================
--- STEP 6: Gallery and Inventory Tables (T700-T750)
+-- STEP 7: Gallery and inventory tables (T700-T750)
 -- =====================================================
-
-\echo 'STEP 6: Gallery and Inventory Tables (T700-T750)'
+\echo 'STEP 7: Gallery and inventory tables (T700-T750)'
 \ir Tables/T700_gallery_categories.sql
 \ir Tables/T700_inventory_pricing.sql
 \ir Tables/T710_gallery_images.sql
@@ -115,49 +115,30 @@
 \ir Tables/T730_inventory_stock.sql
 \ir Tables/T740_inventory_stock_procurements.sql
 \ir Tables/T750_inventory_stock_procurement_items.sql
-\echo ''
 
 -- =====================================================
--- STEP 7: Attendance and Alert Tables (T800-T810)
+-- STEP 8: Attendance and alert tables (T800-T810)
 -- =====================================================
-
-\echo 'STEP 7: Attendance and Alert Tables (T800-T810)'
+\echo 'STEP 8: Attendance and alert tables (T800-T810)'
 \ir Tables/T800_alert_types.sql
 \ir Tables/T800_attendance_records.sql
 \ir Tables/T805_alert_statuses.sql
 \ir Tables/T810_alerts.sql
-\echo ''
 
 -- =====================================================
--- STEP 8: Functions
+-- STEP 9: Functions
 -- =====================================================
-
-\echo 'STEP 8: Functions'
-\ir Functions/F100_calculate_age.sql
-\ir Functions/F110_get_academic_year.sql
+\echo 'STEP 9: Functions'
 \ir Functions/F120_calculate_fee_balance.sql
 \ir Functions/F130_enable_monthly_tracking_complete.sql
 \ir Functions/F140_calculate_sibling_waiver.sql
 \ir Functions/F140_enable_transport_monthly_tracking.sql
-\echo ''
 
 -- =====================================================
--- STEP 9: Views
+-- STEP 10: Default school (Sunrise, school 1) and reference data
 -- =====================================================
-
-\echo 'STEP 9: Views'
-\ir Views/V100_student_summary.sql
-\ir Views/V110_teacher_summary.sql
-\ir Views/V120_fee_collection_summary.sql
-\ir Views/V130_enhanced_student_fee_status.sql
-\ir Views/V140_enhanced_student_transport_status.sql
-\echo ''
-
--- =====================================================
--- STEP 10: Metadata and Reference Data
--- =====================================================
-
-\echo 'STEP 10: Metadata and Reference Data'
+\echo 'STEP 10: Default school (Sunrise, school 1) and reference data'
+\ir Init/00_create_default_school.sql
 \ir Init/01_load_metadata.sql
 \ir DataLoads/D800_alert_types.sql
 \ir DataLoads/DL105_reversal_reasons.sql
@@ -171,37 +152,10 @@
 \ir DataLoads/DL290_attendance_statuses.sql
 \ir DataLoads/DL295_attendance_periods.sql
 \ir DataLoads/DL701_gallery_categories.sql
-\echo ''
-
--- =====================================================
--- STEP 11: Admin Users and Initial Data
--- =====================================================
-
-\echo 'STEP 11: Admin Users and Initial Data'
 \ir Init/02_create_admin_user.sql
 \ir Init/03_create_super_admin_user.sql
 \ir Init/03_fee_structures_data.sql
 \ir Init/07_inventory_stock.sql
-\echo ''
+\ir Init/99_finish_default_school.sql
 
--- =====================================================
--- STEP 12: Migrations not yet folded into the table scripts
--- =====================================================
-
-\echo 'STEP 12: Migrations not yet folded into the table scripts'
-\ir Versioning/V033_add_parent_called_fields_to_attendance.sql
-\ir Versioning/V034_normalize_inventory_categories.sql
-\echo ''
-
--- =====================================================
--- STEP 13: Multi-tenancy (schools + school_id)
--- =====================================================
-
-\echo 'STEP 13: Multi-tenancy (schools + school_id)'
-\ir Versioning/V036_add_schools_and_tenant_columns.sql
-\echo ''
-
-\echo '=========================================='
-\echo 'DEPLOYMENT SUCCESSFUL!'
-\echo '=========================================='
-\echo 'Admin login: see Init/02_create_admin_user.sql'
+\echo 'DEPLOYMENT SUCCESSFUL'

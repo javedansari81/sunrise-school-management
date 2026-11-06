@@ -10,6 +10,7 @@ DROP TABLE IF EXISTS leave_requests CASCADE;
 -- Create table
 CREATE TABLE leave_requests (
     id SERIAL PRIMARY KEY,
+    school_id INTEGER NOT NULL REFERENCES schools(id),
 
     -- Basic Information
     user_id INTEGER NOT NULL,
@@ -67,3 +68,6 @@ COMMENT ON COLUMN leave_requests.applicant_type IS 'Type of applicant: student o
 COMMENT ON COLUMN leave_requests.applicant_id IS 'ID of the applicant (student.id or teacher.id) - used for business logic';
 COMMENT ON COLUMN leave_requests.user_id IS 'User ID for authentication/authorization';
 
+-- Multi-tenancy: every row belongs to one school
+CREATE INDEX IF NOT EXISTS idx_leave_requests_school_id ON leave_requests (school_id);
+COMMENT ON COLUMN leave_requests.school_id IS 'School (tenant) this row belongs to';

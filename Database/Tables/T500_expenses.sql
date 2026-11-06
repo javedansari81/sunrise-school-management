@@ -10,6 +10,7 @@ DROP TABLE IF EXISTS expenses CASCADE;
 -- Create table
 CREATE TABLE expenses (
     id SERIAL PRIMARY KEY,
+    school_id INTEGER NOT NULL REFERENCES schools(id),
 
     -- Basic Information
     expense_date DATE NOT NULL,
@@ -96,3 +97,6 @@ COMMENT ON TABLE expenses IS 'Expense records with approval workflow';
 COMMENT ON COLUMN expenses.is_deleted IS 'Soft delete flag';
 COMMENT ON COLUMN expenses.deleted_date IS 'Timestamp when record was soft deleted';
 
+-- Multi-tenancy: every row belongs to one school
+CREATE INDEX IF NOT EXISTS idx_expenses_school_id ON expenses (school_id);
+COMMENT ON COLUMN expenses.school_id IS 'School (tenant) this row belongs to';

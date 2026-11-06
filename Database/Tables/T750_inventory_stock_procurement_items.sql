@@ -10,6 +10,7 @@ DROP TABLE IF EXISTS inventory_stock_procurement_items CASCADE;
 -- Create table
 CREATE TABLE inventory_stock_procurement_items (
     id SERIAL PRIMARY KEY,
+    school_id INTEGER NOT NULL REFERENCES schools(id),
     procurement_id INTEGER NOT NULL,
     inventory_item_type_id INTEGER NOT NULL,
     size_type_id INTEGER,
@@ -41,3 +42,6 @@ COMMENT ON COLUMN inventory_stock_procurement_items.quantity IS 'Quantity of ite
 COMMENT ON COLUMN inventory_stock_procurement_items.unit_cost IS 'Cost per unit at time of procurement';
 COMMENT ON COLUMN inventory_stock_procurement_items.total_cost IS 'Total cost for this line item (quantity × unit_cost)';
 
+-- Multi-tenancy: every row belongs to one school
+CREATE INDEX IF NOT EXISTS idx_inventory_stock_procurement_items_school_id ON inventory_stock_procurement_items (school_id);
+COMMENT ON COLUMN inventory_stock_procurement_items.school_id IS 'School (tenant) this row belongs to';
