@@ -234,12 +234,12 @@ async def get_my_dashboard_stats(
             q.description as qualification_name,
             es.description as employment_status_name,
             c.description as class_teacher_of_name
-        FROM sunrise.teachers t
-        LEFT JOIN sunrise.departments d ON t.department_id = d.id
-        LEFT JOIN sunrise.positions p ON t.position_id = p.id
-        LEFT JOIN sunrise.qualifications q ON t.qualification_id = q.id
-        LEFT JOIN sunrise.employment_statuses es ON t.employment_status_id = es.id
-        LEFT JOIN sunrise.classes c ON t.class_teacher_of_id = c.id
+        FROM teachers t
+        LEFT JOIN departments d ON t.department_id = d.id
+        LEFT JOIN positions p ON t.position_id = p.id
+        LEFT JOIN qualifications q ON t.qualification_id = q.id
+        LEFT JOIN employment_statuses es ON t.employment_status_id = es.id
+        LEFT JOIN classes c ON t.class_teacher_of_id = c.id
         WHERE t.id = :teacher_id
     """)
 
@@ -280,7 +280,7 @@ async def get_my_dashboard_stats(
             COUNT(CASE WHEN leave_status_id = 1 THEN 1 END) as pending,
             COUNT(CASE WHEN leave_status_id = 2 THEN 1 END) as approved,
             COUNT(CASE WHEN leave_status_id = 3 THEN 1 END) as rejected
-        FROM sunrise.leave_requests
+        FROM leave_requests
         WHERE applicant_type = 'teacher' AND applicant_id = :teacher_id
     """)
 
@@ -296,8 +296,8 @@ async def get_my_dashboard_stats(
             lr.total_days,
             lr.reason,
             lt.description as leave_type_name
-        FROM sunrise.leave_requests lr
-        LEFT JOIN sunrise.leave_types lt ON lr.leave_type_id = lt.id
+        FROM leave_requests lr
+        LEFT JOIN leave_types lt ON lr.leave_type_id = lt.id
         WHERE lr.applicant_type = 'teacher'
         AND lr.applicant_id = :teacher_id
         AND lr.leave_status_id = 2

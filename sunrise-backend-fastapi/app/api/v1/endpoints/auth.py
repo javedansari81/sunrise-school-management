@@ -13,7 +13,8 @@ from app.crud.crud_user import CRUDUser
 from app.crud import student_crud, teacher_crud, user_crud
 from app.schemas.auth import LoginRequest, LoginResponse, Token
 from app.schemas.user import User as UserSchema, UserCreate, UserLoginResponse, UserProfile, UserTypeEnum
-from app.api.deps import get_current_active_user
+from app.api.deps import get_current_active_user, get_school_db
+from app.core.tenant import get_session_school
 from app.models.user import User
 
 router = APIRouter()
@@ -21,7 +22,7 @@ router = APIRouter()
 
 @router.post("/login", response_model=UserLoginResponse)
 async def login(
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_school_db),
     form_data: OAuth2PasswordRequestForm = Depends()
 ):
     """
@@ -48,7 +49,8 @@ async def login(
 
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        subject=user.id, expires_delta=access_token_expires
+        subject=user.id, expires_delta=access_token_expires,
+        school_id=get_session_school(db),
     )
 
     # Get user with metadata for permissions
@@ -138,7 +140,7 @@ async def login(
 @router.post("/login-json", response_model=UserLoginResponse)
 async def login_json(
     login_data: LoginRequest,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_school_db)
 ):
     """
     Enhanced user login endpoint using JSON payload with role-based permissions
@@ -237,7 +239,8 @@ async def login_json(
         log_auth_step("CREATE_TOKEN", f"Creating access token", email=user.email)
         access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
         access_token = create_access_token(
-            subject=user.id, expires_delta=access_token_expires
+            subject=user.id, expires_delta=access_token_expires,
+            school_id=get_session_school(db),
         )
         log_auth_step("CREATE_TOKEN", f"Access token created successfully", email=user.email)
     except Exception as token_error:
@@ -401,7 +404,7 @@ async def login_json(
 @router.post("/register", response_model=UserSchema)
 async def register(
     user_data: UserCreate,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_school_db)
 ):
     """
     User registration endpoint

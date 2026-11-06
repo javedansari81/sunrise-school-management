@@ -1,42 +1,51 @@
 -- =====================================================
--- Master Deployment Script for Sunrise School Management System
+-- Master deployment script: School Management System (multi-tenant baseline)
 -- =====================================================
--- This script deploys the complete database in the correct order
+-- Deploys the complete schema in dependency order. This file is the single
+-- list of deployment scripts, used by:
 --
--- PREREQUISITES:
--- 1. PostgreSQL database 'sunrise_school_db' must exist
--- 2. User 'sunrise_user' must exist with proper permissions
+--   * redeploy_database.py (repository root): drops the schema named by
+--     DB_SCHEMA in sunrise-backend-fastapi/.env and runs every \ir file
+--     below inside one transaction. Other schemas in the database are untouched.
+--   * psql:  psql "<database url>" -v schema=school -f Database/deploy_database.sql
 --
--- USAGE:
--- psql -U sunrise_user -d sunrise_school_db -f Database/deploy_database.sql
+-- All scripts use unqualified names; the schema is chosen here, never inside
+-- a script, and the database-wide search_path is never changed.
 --
+-- Adding a table, function, view or data script: add an \ir line for it.
+-- Changing an existing database: add a migration to Database/Versioning/.
 -- =====================================================
 
-\echo '=========================================='
-\echo 'SUNRISE SCHOOL MANAGEMENT SYSTEM'
-\echo 'Database Deployment Script'
-\echo '=========================================='
-\echo ''
+\set ON_ERROR_STOP on
+\if :{?schema}
+\else
+    \set schema school
+\endif
+
+CREATE SCHEMA IF NOT EXISTS :"schema";
+SET search_path TO :"schema";
+
+\echo 'Deploying into schema' :schema
 
 -- =====================================================
--- STEP 1: Schema Initialization
+-- STEP 1: Schema bookkeeping
 -- =====================================================
-
-\echo '=========================================='
-\echo 'STEP 1: Schema Initialization'
-\echo '=========================================='
+\echo 'STEP 1: Schema bookkeeping'
 \ir Schema/00_create_schema.sql
-\echo ''
 
 -- =====================================================
--- STEP 2: Create Metadata Tables
+-- STEP 2: Tenants (T010-T020)
 -- =====================================================
+\echo 'STEP 2: Tenants (T010-T020)'
+\ir Tables/T010_schools.sql
+\ir Tables/T020_school_settings.sql
 
-\echo '=========================================='
-\echo 'STEP 2: Creating Metadata Tables'
-\echo '=========================================='
-
+-- =====================================================
+-- STEP 3: Lookup tables (T100-T297)
+-- =====================================================
+\echo 'STEP 3: Lookup tables (T100-T297)'
 \ir Tables/T100_user_types.sql
+\ir Tables/T105_reversal_reasons.sql
 \ir Tables/T110_session_years.sql
 \ir Tables/T120_genders.sql
 \ir Tables/T130_classes.sql
@@ -51,176 +60,102 @@
 \ir Tables/T220_qualifications.sql
 \ir Tables/T230_departments.sql
 \ir Tables/T240_positions.sql
+\ir Tables/T250_transport_types.sql
+\ir Tables/T255_transport_type_pricing.sql
+\ir Tables/T260_transport_distance_slabs.sql
+\ir Tables/T265_inventory_item_category.sql
+\ir Tables/T270_inventory_item_types.sql
+\ir Tables/T280_inventory_size_types.sql
+\ir Tables/T290_attendance_statuses.sql
+\ir Tables/T295_attendance_periods.sql
 \ir Tables/T297_progression_actions.sql
 
-\echo ''
-\echo '✓ All metadata tables created'
-\echo ''
-
 -- =====================================================
--- STEP 3: Create Core Tables
+-- STEP 4: Core tables (T300-T320)
 -- =====================================================
-
-\echo '=========================================='
-\echo 'STEP 3: Creating Core Tables'
-\echo '=========================================='
-
+\echo 'STEP 4: Core tables (T300-T320)'
 \ir Tables/T300_users.sql
 \ir Tables/T310_students.sql
 \ir Tables/T315_student_siblings.sql
 \ir Tables/T316_student_session_history.sql
 \ir Tables/T320_teachers.sql
 
-\echo ''
-\echo '✓ All core tables created'
-\echo ''
-
 -- =====================================================
--- STEP 4: Create Fee Management Tables
+-- STEP 5: Fee and transport tables (T400-T470)
 -- =====================================================
-
-\echo '=========================================='
-\echo 'STEP 4: Creating Fee Management Tables'
-\echo '=========================================='
-
+\echo 'STEP 5: Fee and transport tables (T400-T470)'
 \ir Tables/T400_fee_structures.sql
 \ir Tables/T410_fee_records.sql
 \ir Tables/T415_fee_payments.sql
+\ir Tables/T416_fee_payment_audit_log.sql
 \ir Tables/T420_monthly_fee_tracking.sql
 \ir Tables/T430_monthly_payment_allocations.sql
-
-\echo ''
-\echo '✓ All fee management tables created'
-\echo ''
+\ir Tables/T440_student_transport_enrollment.sql
+\ir Tables/T450_transport_monthly_tracking.sql
+\ir Tables/T460_transport_payments.sql
+\ir Tables/T470_transport_payment_allocations.sql
 
 -- =====================================================
--- STEP 5: Create Expense Management Tables
+-- STEP 6: Expense and leave tables (T500-T600)
 -- =====================================================
-
-\echo '=========================================='
-\echo 'STEP 5: Creating Expense Management Tables'
-\echo '=========================================='
-
+\echo 'STEP 6: Expense and leave tables (T500-T600)'
 \ir Tables/T500_expenses.sql
 \ir Tables/T510_vendors.sql
-
-\echo ''
-\echo '✓ All expense management tables created'
-\echo ''
-
--- =====================================================
--- STEP 6: Create Leave Management Tables
--- =====================================================
-
-\echo '=========================================='
-\echo 'STEP 6: Creating Leave Management Tables'
-\echo '=========================================='
-
 \ir Tables/T600_leave_requests.sql
 
-\echo ''
-\echo '✓ All leave management tables created'
-\echo ''
+-- =====================================================
+-- STEP 7: Gallery and inventory tables (T700-T750)
+-- =====================================================
+\echo 'STEP 7: Gallery and inventory tables (T700-T750)'
+\ir Tables/T700_gallery_categories.sql
+\ir Tables/T700_inventory_pricing.sql
+\ir Tables/T710_gallery_images.sql
+\ir Tables/T710_inventory_purchases.sql
+\ir Tables/T720_inventory_purchase_items.sql
+\ir Tables/T730_inventory_stock.sql
+\ir Tables/T740_inventory_stock_procurements.sql
+\ir Tables/T750_inventory_stock_procurement_items.sql
 
 -- =====================================================
--- STEP 7: Create Functions
+-- STEP 8: Attendance and alert tables (T800-T810)
 -- =====================================================
+\echo 'STEP 8: Attendance and alert tables (T800-T810)'
+\ir Tables/T800_alert_types.sql
+\ir Tables/T800_attendance_records.sql
+\ir Tables/T805_alert_statuses.sql
+\ir Tables/T810_alerts.sql
 
-\echo '=========================================='
-\echo 'STEP 7: Creating Functions'
-\echo '=========================================='
-
-\ir Functions/F100_calculate_age.sql
-\ir Functions/F110_get_academic_year.sql
+-- =====================================================
+-- STEP 9: Functions
+-- =====================================================
+\echo 'STEP 9: Functions'
 \ir Functions/F120_calculate_fee_balance.sql
 \ir Functions/F130_enable_monthly_tracking_complete.sql
-
-\echo ''
-\echo '✓ All functions created'
-\echo ''
+\ir Functions/F140_calculate_sibling_waiver.sql
+\ir Functions/F140_enable_transport_monthly_tracking.sql
 
 -- =====================================================
--- STEP 8: Create Views
+-- STEP 10: Default school (Sunrise, school 1) and reference data
 -- =====================================================
-
-\echo '=========================================='
-\echo 'STEP 8: Creating Views'
-\echo '=========================================='
-
-\ir Views/V100_student_summary.sql
-\ir Views/V110_teacher_summary.sql
-\ir Views/V120_fee_collection_summary.sql
-\ir Views/V130_enhanced_student_fee_status.sql
-
-\echo ''
-\echo '✓ All views created'
-\echo ''
-
--- =====================================================
--- STEP 9: Load Metadata
--- =====================================================
-
-\echo '=========================================='
-\echo 'STEP 9: Loading Metadata'
-\echo '=========================================='
-
+\echo 'STEP 10: Default school (Sunrise, school 1) and reference data'
+\ir Init/00_create_default_school.sql
 \ir Init/01_load_metadata.sql
-
-\echo ''
-\echo '✓ Metadata loaded'
-\echo ''
-
--- =====================================================
--- STEP 10: Create Admin User
--- =====================================================
-
-\echo '=========================================='
-\echo 'STEP 10: Creating Admin User'
-\echo '=========================================='
-
+\ir DataLoads/D800_alert_types.sql
+\ir DataLoads/DL105_reversal_reasons.sql
+\ir DataLoads/DL251_transport_types.sql
+\ir DataLoads/DL255_transport_type_pricing.sql
+\ir DataLoads/DL261_transport_distance_slabs.sql
+\ir DataLoads/DL265_inventory_item_category.sql
+\ir DataLoads/DL270_inventory_item_types.sql
+\ir DataLoads/DL271_inventory_books_notebooks_stationery.sql
+\ir DataLoads/DL280_inventory_size_types.sql
+\ir DataLoads/DL290_attendance_statuses.sql
+\ir DataLoads/DL295_attendance_periods.sql
+\ir DataLoads/DL701_gallery_categories.sql
 \ir Init/02_create_admin_user.sql
-
-\echo ''
-\echo '✓ Admin user created'
-\echo ''
-
--- =====================================================
--- STEP 11: Load Fee Structures Data
--- =====================================================
-
-\echo '=========================================='
-\echo 'STEP 11: Loading Fee Structures Data'
-\echo '=========================================='
-
+\ir Init/03_create_super_admin_user.sql
 \ir Init/03_fee_structures_data.sql
+\ir Init/07_inventory_stock.sql
+\ir Init/99_finish_default_school.sql
 
-\echo ''
-\echo '✓ Fee structures data loaded'
-\echo ''
-
--- =====================================================
--- Success Message
--- =====================================================
-
-\echo ''
-\echo '=========================================='
-\echo 'DATABASE DEPLOYMENT COMPLETED!'
-\echo '=========================================='
-\echo ''
-\echo 'Database Structure:'
-\echo '  - Schema: sunrise'
-\echo '  - Tables: 25'
-\echo '  - Functions: 4'
-\echo '  - Views: 4'
-\echo '  - Metadata Records: 78+'
-\echo '  - Indexes: 30+'
-\echo ''
-\echo 'Next Steps:'
-\echo '  1. Verify deployment: SELECT * FROM schema_versions;'
-\echo '  2. Test admin login with credentials from 02_create_admin_user.sql'
-\echo '  3. Start the application'
-\echo ''
-\echo '=========================================='
-\echo 'DEPLOYMENT SUCCESSFUL!'
-\echo '=========================================='
-
+\echo 'DEPLOYMENT SUCCESSFUL'

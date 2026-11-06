@@ -3,6 +3,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
 from app.core.database import Base
+from app.models.tenant import TenantMixin
 
 
 class AttendanceStatus(Base):
@@ -41,7 +42,7 @@ class AttendancePeriod(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
 
-class AttendanceRecord(Base):
+class AttendanceRecord(TenantMixin, Base):
     """
     Attendance Record model for daily student attendance
     Aligned with metadata-driven architecture using attendance_statuses and attendance_periods tables

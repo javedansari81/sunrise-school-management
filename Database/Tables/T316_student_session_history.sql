@@ -10,6 +10,7 @@ DROP TABLE IF EXISTS student_session_history CASCADE;
 -- Create table
 CREATE TABLE student_session_history (
     id SERIAL PRIMARY KEY,
+    school_id INTEGER NOT NULL REFERENCES schools(id),
 
     -- Student and Session Reference
     student_id INTEGER NOT NULL,
@@ -87,3 +88,6 @@ COMMENT ON COLUMN student_session_history.progressed_by IS 'User who performed t
 COMMENT ON COLUMN student_session_history.remarks IS 'Optional notes about the progression';
 COMMENT ON COLUMN student_session_history.snapshot_data IS 'Optional JSONB snapshot of student data at progression time';
 
+-- Multi-tenancy: every row belongs to one school
+CREATE INDEX IF NOT EXISTS idx_student_session_history_school_id ON student_session_history (school_id);
+COMMENT ON COLUMN student_session_history.school_id IS 'School (tenant) this row belongs to';

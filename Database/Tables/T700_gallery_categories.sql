@@ -10,7 +10,8 @@ DROP TABLE IF EXISTS gallery_categories CASCADE;
 -- Create table
 CREATE TABLE gallery_categories (
     id SERIAL PRIMARY KEY,
-    name VARCHAR(100) NOT NULL UNIQUE,
+    school_id INTEGER NOT NULL REFERENCES schools(id),
+    name VARCHAR(100) NOT NULL,
     description TEXT,
     icon VARCHAR(50),
     display_order INTEGER DEFAULT 0,
@@ -32,3 +33,7 @@ COMMENT ON COLUMN gallery_categories.is_active IS 'Flag to show/hide category';
 CREATE INDEX idx_gallery_categories_active ON gallery_categories(is_active);
 CREATE INDEX idx_gallery_categories_display_order ON gallery_categories(display_order);
 
+-- Multi-tenancy: every row belongs to one school
+CREATE INDEX IF NOT EXISTS idx_gallery_categories_school_id ON gallery_categories (school_id);
+CREATE UNIQUE INDEX IF NOT EXISTS gallery_categories_school_name_unique ON gallery_categories (school_id, name);
+COMMENT ON COLUMN gallery_categories.school_id IS 'School (tenant) this row belongs to';

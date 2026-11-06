@@ -22,13 +22,13 @@ SELECT
     ist.id AS size_type_id,
     0 AS current_quantity,  -- Start with zero stock
     CASE 
-        WHEN iit.category = 'UNIFORM' THEN 20  -- Higher threshold for uniforms
-        WHEN iit.category = 'ACCESSORY' THEN 10  -- Lower threshold for accessories
+        WHEN iit.inventory_item_category_id = 1  /* UNIFORM */ THEN 20  -- Higher threshold for uniforms
+        WHEN iit.inventory_item_category_id = 2  /* ACCESSORY */ THEN 10  -- Lower threshold for accessories
         ELSE 15  -- Default threshold
     END AS minimum_threshold,
     CASE 
-        WHEN iit.category = 'UNIFORM' THEN 50  -- Higher reorder for uniforms
-        WHEN iit.category = 'ACCESSORY' THEN 30  -- Lower reorder for accessories
+        WHEN iit.inventory_item_category_id = 1  /* UNIFORM */ THEN 50  -- Higher reorder for uniforms
+        WHEN iit.inventory_item_category_id = 2  /* ACCESSORY */ THEN 30  -- Lower reorder for accessories
         ELSE 40  -- Default reorder quantity
     END AS reorder_quantity,
     NULL AS last_restocked_date,
@@ -61,7 +61,7 @@ FROM inventory_stock;
 SELECT 
     iit.name AS item_type,
     iit.description,
-    iit.category,
+    iit.inventory_item_category_id,
     COUNT(s.id) AS size_variants,
     SUM(s.current_quantity) AS total_quantity,
     MIN(s.minimum_threshold) AS min_threshold,
@@ -73,7 +73,7 @@ LEFT JOIN
 WHERE 
     iit.is_active = TRUE
 GROUP BY 
-    iit.id, iit.name, iit.description, iit.category
+    iit.id, iit.name, iit.description, iit.inventory_item_category_id
 ORDER BY 
-    iit.category, iit.name;
+    iit.inventory_item_category_id, iit.name;
 

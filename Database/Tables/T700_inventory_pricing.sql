@@ -10,6 +10,7 @@ DROP TABLE IF EXISTS inventory_pricing CASCADE;
 -- Create table
 CREATE TABLE inventory_pricing (
     id SERIAL PRIMARY KEY,
+    school_id INTEGER NOT NULL REFERENCES schools(id),
     inventory_item_type_id INTEGER NOT NULL,
     size_type_id INTEGER,
     class_id INTEGER, -- Optional: different prices for different classes
@@ -54,3 +55,6 @@ COMMENT ON COLUMN inventory_pricing.unit_price IS 'Price per unit';
 COMMENT ON COLUMN inventory_pricing.effective_from IS 'Date from which this price is effective';
 COMMENT ON COLUMN inventory_pricing.effective_to IS 'Date until which this price is effective (NULL = no end date)';
 
+-- Multi-tenancy: every row belongs to one school
+CREATE INDEX IF NOT EXISTS idx_inventory_pricing_school_id ON inventory_pricing (school_id);
+COMMENT ON COLUMN inventory_pricing.school_id IS 'School (tenant) this row belongs to';

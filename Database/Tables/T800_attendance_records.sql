@@ -10,6 +10,7 @@ DROP TABLE IF EXISTS attendance_records CASCADE;
 -- Create table
 CREATE TABLE attendance_records (
     id SERIAL PRIMARY KEY,
+    school_id INTEGER NOT NULL REFERENCES schools(id),
     
     -- Student Information
     student_id INTEGER NOT NULL,
@@ -28,6 +29,10 @@ CREATE TABLE attendance_records (
     -- Additional Information
     remarks TEXT,
     marked_by INTEGER NOT NULL,
+
+    -- Parent follow-up on absences
+    parent_called_at TIMESTAMP WITH TIME ZONE,
+    parent_called_by INTEGER REFERENCES users(id),
     
     -- Leave Integration (Optional)
     leave_request_id INTEGER,
@@ -75,3 +80,12 @@ COMMENT ON COLUMN attendance_records.remarks IS 'Additional notes or comments';
 COMMENT ON COLUMN attendance_records.marked_by IS 'User ID of teacher/admin who marked attendance';
 COMMENT ON COLUMN attendance_records.leave_request_id IS 'Links to approved leave request if applicable';
 
+-- Multi-tenancy: every row belongs to one school
+CREATE INDEX IF NOT EXISTS idx_attendance_records_school_id ON attendance_records (school_id);
+COMMENT ON COLUMN attendance_records.school_id IS 'School (tenant) this row belongs to';
+
+CREATE INDEX IF NOT EXISTS idx_attendance_records_parent_called_at
+ON attendance_records(parent_called_at)
+WHERE parent_called_at IS NOT NULL;
+COMMENT ON COLUMN attendance_records.parent_called_at IS 'Timestamp when receptionist called parent about this absence';
+COMMENT ON COLUMN attendance_records.parent_called_by IS 'User ID of who called the parent';

@@ -6,14 +6,15 @@ from sqlalchemy import Column, Integer, String, Date, ForeignKey, Text, DateTime
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.core.database import Base
+from app.models.tenant import TenantMixin
 
 
-class InventoryItemCategory(Base):
+class InventoryItemCategory(TenantMixin, Base):
     """Inventory item category metadata"""
     __tablename__ = "inventory_item_category"
 
     id = Column(Integer, primary_key=True)
-    name = Column(String(50), nullable=False, unique=True)
+    name = Column(String(50), nullable=False)
     description = Column(Text, nullable=True)
     display_order = Column(Integer, nullable=True)
     is_active = Column(Boolean, default=True)
@@ -24,12 +25,12 @@ class InventoryItemCategory(Base):
     item_types = relationship("InventoryItemType", back_populates="category_ref")
 
 
-class InventoryItemType(Base):
+class InventoryItemType(TenantMixin, Base):
     """Inventory item type metadata"""
     __tablename__ = "inventory_item_types"
 
     id = Column(Integer, primary_key=True)
-    name = Column(String(50), nullable=False, unique=True)
+    name = Column(String(50), nullable=False)
     description = Column(Text, nullable=True)
     inventory_item_category_id = Column(Integer, ForeignKey("inventory_item_category.id"), nullable=False)
     image_url = Column(String(500))  # URL/path to item image
@@ -45,12 +46,12 @@ class InventoryItemType(Base):
     procurement_items = relationship("InventoryStockProcurementItem", back_populates="item_type")
 
 
-class InventorySizeType(Base):
+class InventorySizeType(TenantMixin, Base):
     """Size type metadata"""
     __tablename__ = "inventory_size_types"
     
     id = Column(Integer, primary_key=True)
-    name = Column(String(50), nullable=False, unique=True)
+    name = Column(String(50), nullable=False)
     description = Column(Text, nullable=True)
     sort_order = Column(Integer, nullable=True)
     is_active = Column(Boolean, default=True)
@@ -64,7 +65,7 @@ class InventorySizeType(Base):
     procurement_items = relationship("InventoryStockProcurementItem", back_populates="size_type")
 
 
-class InventoryPricing(Base):
+class InventoryPricing(TenantMixin, Base):
     """Pricing for inventory items"""
     __tablename__ = "inventory_pricing"
     
@@ -96,7 +97,7 @@ class InventoryPricing(Base):
     creator = relationship("User", foreign_keys=[created_by])
 
 
-class InventoryPurchase(Base):
+class InventoryPurchase(TenantMixin, Base):
     """Main purchase transaction"""
     __tablename__ = "inventory_purchases"
     
@@ -132,7 +133,7 @@ class InventoryPurchase(Base):
     creator = relationship("User", foreign_keys=[created_by])
 
 
-class InventoryPurchaseItem(Base):
+class InventoryPurchaseItem(TenantMixin, Base):
     """Purchase line items"""
     __tablename__ = "inventory_purchase_items"
     
@@ -155,7 +156,7 @@ class InventoryPurchaseItem(Base):
     size_type = relationship("InventorySizeType", back_populates="purchase_items")
 
 
-class InventoryStock(Base):
+class InventoryStock(TenantMixin, Base):
     """Current stock levels for inventory items"""
     __tablename__ = "inventory_stock"
 
@@ -177,7 +178,7 @@ class InventoryStock(Base):
     size_type = relationship("InventorySizeType", back_populates="stock")
 
 
-class InventoryStockProcurement(Base):
+class InventoryStockProcurement(TenantMixin, Base):
     """Stock procurement from vendors"""
     __tablename__ = "inventory_stock_procurements"
 
@@ -212,7 +213,7 @@ class InventoryStockProcurement(Base):
     creator = relationship("User", foreign_keys=[created_by])
 
 
-class InventoryStockProcurementItem(Base):
+class InventoryStockProcurementItem(TenantMixin, Base):
     """Line items for stock procurements"""
     __tablename__ = "inventory_stock_procurement_items"
 

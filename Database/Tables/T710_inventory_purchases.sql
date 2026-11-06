@@ -10,6 +10,7 @@ DROP TABLE IF EXISTS inventory_purchases CASCADE;
 -- Create table
 CREATE TABLE inventory_purchases (
     id SERIAL PRIMARY KEY,
+    school_id INTEGER NOT NULL REFERENCES schools(id),
     student_id INTEGER NOT NULL,
     session_year_id INTEGER NOT NULL,
     
@@ -60,3 +61,6 @@ COMMENT ON COLUMN inventory_purchases.receipt_number IS 'Unique receipt number';
 COMMENT ON COLUMN inventory_purchases.purchased_by IS 'Name of parent/guardian who made the purchase';
 COMMENT ON COLUMN inventory_purchases.contact_number IS 'Contact number of purchaser';
 
+-- Multi-tenancy: every row belongs to one school
+CREATE INDEX IF NOT EXISTS idx_inventory_purchases_school_id ON inventory_purchases (school_id);
+COMMENT ON COLUMN inventory_purchases.school_id IS 'School (tenant) this row belongs to';

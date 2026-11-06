@@ -8,14 +8,15 @@ from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 
 from app.core.database import Base
+from app.models.tenant import TenantMixin
 
 
-class GalleryCategory(Base):
+class GalleryCategory(TenantMixin, Base):
     """Gallery category model (e.g., Independence Day, School Premises)"""
     __tablename__ = "gallery_categories"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    name = Column(String(100), nullable=False, unique=True)
+    name = Column(String(100), nullable=False)
     description = Column(Text, nullable=True)
     icon = Column(String(50), nullable=True)
     display_order = Column(Integer, default=0)
@@ -27,7 +28,7 @@ class GalleryCategory(Base):
     images = relationship("GalleryImage", back_populates="category", cascade="all, delete-orphan")
 
 
-class GalleryImage(Base):
+class GalleryImage(TenantMixin, Base):
     """Gallery image model - stores metadata, actual images in Cloudinary"""
     __tablename__ = "gallery_images"
 

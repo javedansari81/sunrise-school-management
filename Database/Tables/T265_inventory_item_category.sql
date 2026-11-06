@@ -9,8 +9,9 @@ DROP TABLE IF EXISTS inventory_item_category CASCADE;
 
 -- Create table
 CREATE TABLE inventory_item_category (
-    id INTEGER PRIMARY KEY,
-    name VARCHAR(50) NOT NULL UNIQUE,
+    id SERIAL PRIMARY KEY,
+    school_id INTEGER NOT NULL REFERENCES schools(id),
+    name VARCHAR(50) NOT NULL,
     description TEXT,
     display_order INTEGER,
     is_active BOOLEAN DEFAULT TRUE,
@@ -20,7 +21,7 @@ CREATE TABLE inventory_item_category (
 
 -- Add comments
 COMMENT ON TABLE inventory_item_category IS 'Inventory item category definitions (UNIFORM, ACCESSORY, BOOKS, NOTEBOOKS, STATIONERY)';
-COMMENT ON COLUMN inventory_item_category.id IS 'Primary key - manually assigned ID';
+COMMENT ON COLUMN inventory_item_category.id IS 'Primary key - auto-increment';
 COMMENT ON COLUMN inventory_item_category.name IS 'Category name (UNIFORM, ACCESSORY, BOOKS, NOTEBOOKS, STATIONERY)';
 COMMENT ON COLUMN inventory_item_category.description IS 'Human-readable description of the category';
 COMMENT ON COLUMN inventory_item_category.display_order IS 'Order for displaying categories in UI';
@@ -30,3 +31,7 @@ COMMENT ON COLUMN inventory_item_category.is_active IS 'Flag to show/hide catego
 CREATE INDEX idx_inventory_item_category_name ON inventory_item_category(name);
 CREATE INDEX idx_inventory_item_category_active ON inventory_item_category(is_active);
 
+-- Multi-tenancy: every row belongs to one school
+CREATE INDEX IF NOT EXISTS idx_inventory_item_category_school_id ON inventory_item_category (school_id);
+CREATE UNIQUE INDEX IF NOT EXISTS inventory_item_category_school_name_unique ON inventory_item_category (school_id, name);
+COMMENT ON COLUMN inventory_item_category.school_id IS 'School (tenant) this row belongs to';

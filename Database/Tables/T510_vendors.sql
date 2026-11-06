@@ -10,6 +10,7 @@ DROP TABLE IF EXISTS vendors CASCADE;
 -- Create table
 CREATE TABLE vendors (
     id SERIAL PRIMARY KEY,
+    school_id INTEGER NOT NULL REFERENCES schools(id),
     vendor_name VARCHAR(200) NOT NULL,
     contact_person VARCHAR(100),
     phone VARCHAR(20),
@@ -69,3 +70,6 @@ COMMENT ON TABLE vendors IS 'Vendor information for expense management';
 COMMENT ON COLUMN vendors.is_deleted IS 'Soft delete flag';
 COMMENT ON COLUMN vendors.deleted_date IS 'Timestamp when record was soft deleted';
 
+-- Multi-tenancy: every row belongs to one school
+CREATE INDEX IF NOT EXISTS idx_vendors_school_id ON vendors (school_id);
+COMMENT ON COLUMN vendors.school_id IS 'School (tenant) this row belongs to';

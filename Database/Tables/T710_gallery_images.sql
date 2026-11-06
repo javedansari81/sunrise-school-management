@@ -10,6 +10,7 @@ DROP TABLE IF EXISTS gallery_images CASCADE;
 -- Create table
 CREATE TABLE gallery_images (
     id SERIAL PRIMARY KEY,
+    school_id INTEGER NOT NULL REFERENCES schools(id),
     category_id INTEGER NOT NULL REFERENCES gallery_categories(id) ON DELETE CASCADE,
     title VARCHAR(200) NOT NULL,
     description TEXT,
@@ -52,3 +53,6 @@ CREATE INDEX idx_gallery_images_upload_date ON gallery_images(upload_date DESC);
 -- Create composite index for home page queries (optimized for new ordering logic)
 CREATE INDEX idx_gallery_images_home_page_active ON gallery_images(is_visible_on_home_page, is_active, home_page_display_order, upload_date DESC);
 
+-- Multi-tenancy: every row belongs to one school
+CREATE INDEX IF NOT EXISTS idx_gallery_images_school_id ON gallery_images (school_id);
+COMMENT ON COLUMN gallery_images.school_id IS 'School (tenant) this row belongs to';

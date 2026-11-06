@@ -18,6 +18,7 @@ from app.models.user import User
 from app.schemas.metadata import ConfigurationResponse
 from app.crud import get_all_metadata_async
 from app.crud.crud_teacher import teacher_crud
+from app.core.tenant import get_session_school
 from app.utils.performance_monitor import ConfigurationPerformanceMonitor, timer
 
 router = APIRouter()
@@ -226,7 +227,8 @@ async def _get_service_configuration_with_cache(
 
     # Check cache
     current_time = time.time()
-    cache_key = service_name
+    # Metadata lists are per school, so the cache is too
+    cache_key = f"{get_session_school(db)}:{service_name}"
 
     if (cache_key in _service_configuration_caches and
         cache_key in _service_cache_timestamps and
@@ -279,7 +281,8 @@ async def _get_service_configuration_with_cache(
             media_type="application/json",
             headers={
                 "Content-Encoding": "gzip",
-                "Cache-Control": f"public, max-age={CACHE_TTL}",
+                "Cache-Control": f"private, max-age={CACHE_TTL}",
+                "Vary": "Authorization, Origin, X-School-Code",
                 "X-Service-Name": service_name,
                 "X-Cache-Status": "HIT" if cache_hit else "MISS",
                 "X-Record-Count": str(record_count),
@@ -290,7 +293,8 @@ async def _get_service_configuration_with_cache(
         return JSONResponse(
             content=response_data,
             headers={
-                "Cache-Control": f"public, max-age={CACHE_TTL}",
+                "Cache-Control": f"private, max-age={CACHE_TTL}",
+                "Vary": "Authorization, Origin, X-School-Code",
                 "X-Service-Name": service_name,
                 "X-Cache-Status": "HIT" if cache_hit else "MISS",
                 "X-Record-Count": str(record_count),
@@ -553,6 +557,7 @@ async def refresh_configuration(
     try:
         current_time = time.time()
         refreshed_services = []
+        school_id = get_session_school(db)
 
         if service:
             # Refresh specific service cache
@@ -563,25 +568,25 @@ async def refresh_configuration(
                 )
 
             config = await get_service_metadata_configuration(db, service)
-            _service_configuration_caches[service] = config
-            _service_cache_timestamps[service] = current_time
+            _service_configuration_caches[f"{school_id}:{service}"] = config
+            _service_cache_timestamps[f"{school_id}:{service}"] = current_time
             refreshed_services.append(service)
         else:
             # Refresh all service caches
             for service_name in SERVICE_METADATA_MAPPINGS.keys():
                 config = await get_service_metadata_configuration(db, service_name)
-                _service_configuration_caches[service_name] = config
-                _service_cache_timestamps[service_name] = current_time
+                _service_configuration_caches[f"{school_id}:{service_name}"] = config
+                _service_cache_timestamps[f"{school_id}:{service_name}"] = current_time
                 refreshed_services.append(service_name)
 
         # Build response with cache statistics
         cache_stats = {}
         for service_name in refreshed_services:
-            config = _service_configuration_caches.get(service_name, {})
+            config = _service_configuration_caches.get(f"{school_id}:{service_name}", {})
             cache_stats[service_name] = {
                 "metadata_types": len([k for k in config.keys() if k != "metadata"]),
                 "total_records": sum(len(v) for k, v in config.items() if isinstance(v, list)),
-                "timestamp": _service_cache_timestamps.get(service_name)
+                "timestamp": _service_cache_timestamps.get(f"{school_id}:{service_name}")
             }
 
         return {

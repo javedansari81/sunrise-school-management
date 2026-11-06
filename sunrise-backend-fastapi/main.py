@@ -23,13 +23,22 @@ app = FastAPI(
 environment = os.getenv("ENVIRONMENT", "development")
 cors_origins = settings.BACKEND_CORS_ORIGINS
 
+# Every school is served from its own subdomain of BASE_DOMAIN (multi-tenancy)
+import re as _re
+cors_origin_regex = (
+    rf"^https://[a-z0-9]([a-z0-9-]*[a-z0-9])?\.{_re.escape(settings.BASE_DOMAIN)}$"
+    if settings.BASE_DOMAIN else None
+)
+
 logger.info(f"Environment: {environment}")
 logger.info(f"CORS Origins: {cors_origins}")
+logger.info(f"CORS school subdomain pattern: {cors_origin_regex}")
 
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=cors_origins if environment == "production" else ["*"],
+    allow_origin_regex=cors_origin_regex if environment == "production" else None,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

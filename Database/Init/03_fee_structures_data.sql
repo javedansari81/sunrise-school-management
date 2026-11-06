@@ -13,10 +13,7 @@
 -- - total_annual_fee = tuition_fee * 12 months
 --
 -- USAGE:
--- psql -U sunrise_user -d sunrise_school_db -f Database/DataLoads/DL400_fee_structures_data.sql
-
--- Set search path
-SET search_path TO sunrise, public;
+-- Loaded by Database/deploy_database.sql (schema and search_path are set by the runner)
 
 -- Start transaction
 BEGIN;

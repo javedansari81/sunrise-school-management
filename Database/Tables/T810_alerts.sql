@@ -10,6 +10,7 @@ DROP TABLE IF EXISTS alerts CASCADE;
 -- Create table
 CREATE TABLE alerts (
     id SERIAL PRIMARY KEY,
+    school_id INTEGER NOT NULL REFERENCES schools(id),
 
     -- Alert Classification (FK to metadata)
     alert_type_id INTEGER NOT NULL REFERENCES alert_types(id),
@@ -91,3 +92,6 @@ COMMENT ON COLUMN alerts.target_user_id IS 'Specific target user (NULL = broadca
 COMMENT ON COLUMN alerts.alert_metadata IS 'JSON field for storing additional context (amounts, dates, etc.)';
 COMMENT ON COLUMN alerts.priority_level IS 'Priority: 1=Low, 2=Normal, 3=High, 4=Critical';
 
+-- Multi-tenancy: every row belongs to one school
+CREATE INDEX IF NOT EXISTS idx_alerts_school_id ON alerts (school_id);
+COMMENT ON COLUMN alerts.school_id IS 'School (tenant) this row belongs to';

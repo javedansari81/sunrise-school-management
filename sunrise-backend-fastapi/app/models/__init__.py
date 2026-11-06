@@ -1,4 +1,5 @@
 # Models module
+from .school import School, SchoolSetting
 from .metadata import (
     UserType, SessionYear, Gender, Class, PaymentType, PaymentStatus, PaymentMethod,
     LeaveType, LeaveStatus, ExpenseCategory, ExpenseStatus, EmploymentStatus, Qualification

@@ -4,6 +4,7 @@ from sqlalchemy.orm import relationship
 import enum
 
 from app.core.database import Base
+from app.models.tenant import TenantMixin
 
 
 # Import metadata models
@@ -28,11 +29,11 @@ class UserTypeEnum(str, enum.Enum):
         return None
 
 
-class User(Base):
+class User(TenantMixin, Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
-    email = Column(String(255), unique=True, index=True, nullable=False)
+    email = Column(String(255), index=True, nullable=False)
     password = Column(String(255), nullable=False)  # Changed from hashed_password to match DB schema
     first_name = Column(String(100), nullable=False)
     last_name = Column(String(100), nullable=False)

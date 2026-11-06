@@ -489,7 +489,7 @@ class CRUDTeacher(CRUDBase[Teacher, TeacherCreate, TeacherUpdate]):
         total_result = await db.execute(
             text("""
                 SELECT COUNT(id) as total
-                FROM sunrise.teachers
+                FROM teachers
                 WHERE is_active = TRUE AND (is_deleted IS NULL OR is_deleted = FALSE)
             """)
         )
@@ -502,8 +502,8 @@ class CRUDTeacher(CRUDBase[Teacher, TeacherCreate, TeacherUpdate]):
         dept_result = await db.execute(
             text("""
                 SELECT d.name as department, COUNT(t.id) as count
-                FROM sunrise.teachers t
-                LEFT JOIN sunrise.departments d ON t.department_id = d.id
+                FROM teachers t
+                LEFT JOIN departments d ON t.department_id = d.id
                 WHERE t.is_active = TRUE AND (t.is_deleted IS NULL OR t.is_deleted = FALSE)
                 GROUP BY d.name
                 ORDER BY d.name
@@ -519,8 +519,8 @@ class CRUDTeacher(CRUDBase[Teacher, TeacherCreate, TeacherUpdate]):
         qual_result = await db.execute(
             text("""
                 SELECT q.name as qualification, COUNT(t.id) as count
-                FROM sunrise.teachers t
-                LEFT JOIN sunrise.qualifications q ON t.qualification_id = q.id
+                FROM teachers t
+                LEFT JOIN qualifications q ON t.qualification_id = q.id
                 WHERE t.is_active = TRUE AND (t.is_deleted IS NULL OR t.is_deleted = FALSE)
                 GROUP BY q.name
                 ORDER BY q.name
@@ -543,7 +543,7 @@ class CRUDTeacher(CRUDBase[Teacher, TeacherCreate, TeacherUpdate]):
                         ELSE '10+ years'
                     END as experience_range,
                     COUNT(id) as count
-                FROM sunrise.teachers
+                FROM teachers
                 WHERE is_active = TRUE AND (is_deleted IS NULL OR is_deleted = FALSE)
                 GROUP BY experience_range
                 ORDER BY experience_range

@@ -1,127 +1,41 @@
 -- =====================================================
--- Schema Initialization for Sunrise School Management System
+-- Schema bookkeeping for the School Management System
 -- =====================================================
--- This script creates the database schema and initial setup
--- Run this script FIRST before creating any database objects
+-- The schema itself (default name: school) is created by the deployment
+-- runner, which also sets search_path to it before running any script:
+--   * redeploy_database.py   (reads DB_SCHEMA from sunrise-backend-fastapi/.env)
+--   * psql -v schema=school -f Database/deploy_database.sql
 --
--- PREREQUISITES:
--- 1. PostgreSQL database 'sunrise_school_db' must exist
--- 2. User 'sunrise_user' must exist with proper permissions
+-- Every script in Database/ uses unqualified names, so all objects land in
+-- that schema. No script changes the database-wide search_path: the database
+-- (warsi_db) is shared with other applications.
 --
--- USAGE:
--- psql -U sunrise_user -d sunrise_school_db -f Database/Schema/00_create_schema.sql
---
+-- schema_migrations records what has been applied to this schema:
+--   BASELINE              the full deployment from deploy_database.sql
+--   INCLUDED_IN_BASELINE  a Versioning/ migration whose change the baseline already
+--                         contains (recorded by redeploy_database.py, never run)
+--   MIGRATION             a Versioning/ migration applied by migrate_database.py
+-- migrate_database.py skips every version already recorded here, and refuses to
+-- continue if an applied file was edited afterwards (checksum mismatch).
 -- =====================================================
 
--- Start transaction
-BEGIN;
-
-\echo '=========================================='
-\echo 'Initializing Database Schema...'
-\echo '=========================================='
-
--- =====================================================
--- 1. Create Schema
--- =====================================================
-
-\echo ''
-\echo 'Step 1: Creating sunrise schema...'
-
--- Create the sunrise schema if it doesn't exist
-CREATE SCHEMA IF NOT EXISTS sunrise;
-
-\echo '✓ Schema created'
-
--- =====================================================
--- 2. Set Search Path
--- =====================================================
-
-\echo ''
-\echo 'Step 2: Setting search path...'
-
--- Set search path to use sunrise schema by default
-SET search_path TO sunrise, public;
-
--- Make it permanent for the current database
-ALTER DATABASE sunrise_school_db SET search_path TO sunrise, public;
-
-\echo '✓ Search path configured'
-
--- =====================================================
--- 3. Install Required Extensions
--- =====================================================
-
-\echo ''
-\echo 'Step 3: Installing extensions...'
-
--- Install pgcrypto for password hashing (if needed)
-CREATE EXTENSION IF NOT EXISTS pgcrypto;
-
-\echo '✓ Extensions installed'
-
--- =====================================================
--- 4. Create Version Tracking Table
--- =====================================================
-
-\echo ''
-\echo 'Step 4: Creating version tracking table...'
-
-CREATE TABLE IF NOT EXISTS schema_versions (
+CREATE TABLE IF NOT EXISTS schema_migrations (
     id SERIAL PRIMARY KEY,
-    version VARCHAR(10) NOT NULL,
+    version VARCHAR(20) NOT NULL,
+    filename VARCHAR(255),
     description TEXT,
+    checksum CHAR(64),
+    kind VARCHAR(25) NOT NULL,
     applied_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    applied_by VARCHAR(100) DEFAULT current_user
+    applied_by VARCHAR(100) DEFAULT current_user,
+    execution_ms INTEGER,
+
+    CONSTRAINT schema_migrations_version_unique UNIQUE (version),
+    CONSTRAINT schema_migrations_kind_valid CHECK (kind IN ('BASELINE', 'INCLUDED_IN_BASELINE', 'MIGRATION'))
 );
 
--- Insert initial version
-INSERT INTO schema_versions (version, description)
-VALUES ('2.1', 'Initial schema setup with refactored structure')
-ON CONFLICT DO NOTHING;
+COMMENT ON TABLE schema_migrations IS 'Baseline and migrations applied to this schema. Maintained by redeploy_database.py and migrate_database.py';
+COMMENT ON COLUMN schema_migrations.checksum IS 'SHA-256 of the migration file when it was applied';
 
-\echo '✓ Version tracking table created'
-
--- =====================================================
--- 5. Grant Permissions
--- =====================================================
-
-\echo ''
-\echo 'Step 5: Granting permissions...'
-
--- Grant usage on schema to sunrise_user
-GRANT USAGE ON SCHEMA sunrise TO sunrise_user;
-GRANT CREATE ON SCHEMA sunrise TO sunrise_user;
-
--- Grant permissions on all tables in schema (for future tables)
-ALTER DEFAULT PRIVILEGES IN SCHEMA sunrise 
-GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO sunrise_user;
-
--- Grant permissions on all sequences in schema (for future sequences)
-ALTER DEFAULT PRIVILEGES IN SCHEMA sunrise 
-GRANT USAGE, SELECT ON SEQUENCES TO sunrise_user;
-
-\echo '✓ Permissions granted'
-
--- Commit transaction
-COMMIT;
-
--- =====================================================
--- Success Message
--- =====================================================
-
-\echo ''
-\echo '=========================================='
-\echo 'SCHEMA INITIALIZATION COMPLETED!'
-\echo '=========================================='
-\echo 'Schema: sunrise'
-\echo 'Search Path: sunrise, public'
-\echo 'Extensions: pgcrypto'
-\echo 'Version Tracking: Enabled'
-\echo ''
-\echo 'Next steps:'
-\echo '1. Run table creation scripts from Database/Tables/'
-\echo '2. Run function creation scripts from Database/Functions/'
-\echo '3. Run view creation scripts from Database/Views/'
-\echo '4. Run data load scripts from Database/DataLoads/'
-\echo '=========================================='
-
+INSERT INTO schema_migrations (version, description, kind)
+VALUES ('3.0', 'Multi-tenant baseline: all legacy migrations folded into the table scripts', 'BASELINE');

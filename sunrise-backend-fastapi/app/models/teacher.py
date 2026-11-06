@@ -4,6 +4,7 @@ from sqlalchemy.orm import relationship
 import enum
 
 from app.core.database import Base
+from app.models.tenant import TenantMixin
 
 
 class GenderEnum(str, enum.Enum):
@@ -55,14 +56,14 @@ class EmploymentStatusEnum(str, enum.Enum):
         return None
 
 
-class Teacher(Base):
+class Teacher(TenantMixin, Base):
     __tablename__ = "teachers"
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), unique=True, nullable=True)
 
     # Personal Information
-    employee_id = Column(String(50), unique=True, index=True, nullable=False)
+    employee_id = Column(String(50), index=True, nullable=False)
     first_name = Column(String(100), nullable=False)
     last_name = Column(String(100), nullable=False)
     father_name = Column(String(200), nullable=True)
@@ -73,7 +74,7 @@ class Teacher(Base):
 
     # Contact Information
     phone = Column(String(20), nullable=False)
-    email = Column(String(255), unique=True, index=True, nullable=False)
+    email = Column(String(255), index=True, nullable=False)
     aadhar_no = Column(String(12), nullable=True)
     address = Column(Text, nullable=True)
     city = Column(String(100), nullable=True)

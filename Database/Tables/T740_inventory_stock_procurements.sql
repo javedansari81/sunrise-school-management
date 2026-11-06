@@ -10,6 +10,7 @@ DROP TABLE IF EXISTS inventory_stock_procurements CASCADE;
 -- Create table
 CREATE TABLE inventory_stock_procurements (
     id SERIAL PRIMARY KEY,
+    school_id INTEGER NOT NULL REFERENCES schools(id),
     vendor_id INTEGER,
     session_year_id INTEGER,
     procurement_date DATE NOT NULL,
@@ -58,3 +59,6 @@ COMMENT ON COLUMN inventory_stock_procurements.payment_date IS 'Date of payment 
 COMMENT ON COLUMN inventory_stock_procurements.payment_reference IS 'Payment reference/transaction ID';
 COMMENT ON COLUMN inventory_stock_procurements.invoice_url IS 'URL to invoice document';
 
+-- Multi-tenancy: every row belongs to one school
+CREATE INDEX IF NOT EXISTS idx_inventory_stock_procurements_school_id ON inventory_stock_procurements (school_id);
+COMMENT ON COLUMN inventory_stock_procurements.school_id IS 'School (tenant) this row belongs to';

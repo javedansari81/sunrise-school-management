@@ -17,5 +17,11 @@ ON CONFLICT (id) DO UPDATE SET
     updated_at = CURRENT_TIMESTAMP;
 
 -- Reset sequence to ensure next auto-generated ID is correct
-SELECT setval('attendance_statuses_id_seq', (SELECT MAX(id) FROM attendance_statuses));
+-- The table may use a plain INTEGER id (no sequence); only reset the sequence if it exists
+DO $$
+BEGIN
+    IF to_regclass('attendance_statuses_id_seq') IS NOT NULL THEN
+        PERFORM setval('attendance_statuses_id_seq', (SELECT MAX(id) FROM attendance_statuses));
+    END IF;
+END $$;
 

@@ -8,9 +8,10 @@ from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 
 from app.core.database import Base
+from app.models.tenant import TenantMixin
 
 
-class StudentSessionHistory(Base):
+class StudentSessionHistory(TenantMixin, Base):
     """
     Tracks student progression history across academic session years.
     Records how a student moved from one session to another (promoted, retained, etc.)
