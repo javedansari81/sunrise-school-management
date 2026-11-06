@@ -22,18 +22,18 @@ We will turn the Sunrise School backend into a multi-school (multi-tenant) servi
 
 ## Progress
 
-Phase 0 is in progress: all 12 decisions were settled on Nov 6, 2026 and the working tree is clean. Next step: create the `multi-tenant` branch and set up the test database.
+Phase 1 is in progress on the `multi-tenant` branch. The app now lives in the `school` schema of the shared `warsi_db` database, built from a clean 3.0 baseline, and its 29 isolation tests pass (Nov 6, 2026). Next step: set the `warsi_user` password in `.env`, deploy the baseline to local `warsi_db`, then build the platform admin role and school management endpoints.
 
 Status values: Not started, In progress, Done, Blocked.
 
 | Phase | Status | Notes |
 | --- | --- | --- |
-| 0. Preparation | In progress | Decisions settled and uncommitted changes reverted on Nov 6, 2026. Branch and test setup pending |
-| 1. Tenant foundation | Not started | Subdomain-based school lookup (decision 2) |
+| 0. Preparation | Done | Branch `multi-tenant` created. Tenant test suite runs against local Postgres in a rolled-back transaction |
+| 1. Tenant foundation | In progress | Baseline 3.0 with school_id, models, automatic session scoping, school-aware login and tokens done. Local deployment, platform admin and school management pending |
 | 2. Unified fee module core | Not started | Payment gateway deferred (decision 11) |
 | 3. Transport operations module | Not started | |
 | 4. Switch dependents and remove old code | Not started | |
-| 5. Scope the remaining modules | Not started | |
+| 5. Scope the remaining modules | Not started | ORM queries are already scoped by Phase 1. Remaining: 75 raw SQL queries and 5 views |
 | 6. Frontend | Not started | |
 | 7. Hardening | Not started | Includes row-level security (decision 12) |
 
@@ -67,7 +67,7 @@ Fees and transport are two parallel billing systems with the same shape: a charg
 
 ## Multi-tenancy design
 
-Recommended model: one shared PostgreSQL database, with a `school_id` column on every school-owned table, enforced in a tenant-scoped base CRUD layer and later backed by row-level security. It is the simplest model to run on Render and keeps a single migration path.
+Recommended model: one shared PostgreSQL database, with a `school_id` column on every school-owned table, enforced in a tenant-scoped base CRUD layer and later backed by row-level security. It is the simplest model to run and keeps a single migration path. The app's tables live in one schema (`DB_SCHEMA`, default `school`) of the shared `warsi_db` database, locally and on DigitalOcean, next to the `mart` schema.
 
 **New tables**
 
@@ -76,19 +76,19 @@ Recommended model: one shared PostgreSQL database, with a `school_id` column on 
 
 **How each request finds its school**
 
-1. The frontend is served per school, at `<code>.<domain>`. Local development uses a configured default school.
-2. Login checks the user against that school and puts `school_id` in the JWT.
-3. A FastAPI dependency reads `school_id` from the token and exposes the current school to every route.
-4. The base CRUD class adds `WHERE school_id = :current` to every read and sets `school_id` on every insert. Routes never pass it by hand.
+1. The frontend is served per school, at `<code>.<BASE_DOMAIN>`. The API reads the school from the `X-School-Code` header, else the subdomain of the `Origin` header (sent by browsers on every API call), else the `Host` header. Local development falls back to `DEFAULT_SCHOOL_CODE`.
+2. Login checks the user against that school and puts `school_id` in the JWT (`sid` claim). Tokens without it are rejected, so users log in again once.
+3. `get_current_user` reads `school_id` from the token, rejects the token on another school's subdomain, and binds the request's DB session to that school. Routes used before login (login, register, public pages, gallery) use `get_school_db` instead.
+4. SQLAlchemy session events (`app/core/tenant.py`) add `school_id = <current>` to every ORM select, update and delete on a tenant model, including joins and relationship loads, and stamp `school_id` on every insert. A query or write on a tenant model without a school fails instead of leaking. This replaces the planned base CRUD filter, because 268 queries bypass `CRUDBase`. Raw SQL (`text()`) is not covered and is scoped by hand in Phase 5.
 5. Phase 7 safety net: PostgreSQL row-level security policies on the same column, using a session variable set per request.
 
 **Which tables get `school_id`**
 
 | Group | Tables | Treatment |
 | --- | --- | --- |
-| School-owned data | students, teachers, users, attendance, leave, expenses, vendors, inventory, gallery, alerts, student siblings, student session history, progression actions, all new fee and transport tables | Add `school_id NOT NULL`, index it, include it in unique keys |
-| School-configurable lists | classes, session years, departments, positions, expense categories, gallery categories, inventory categories and types, leave types | Add `school_id`. Seed defaults for each new school |
-| Fixed system lists | user types, genders, payment methods, payment statuses, attendance statuses, leave statuses, expense statuses, reversal reasons, qualifications, employment statuses | Stay global, no `school_id` |
+| School-owned data | students, teachers, users, attendance, leave, expenses, vendors, inventory, gallery, alerts, student siblings, student session history, all new fee and transport tables | Add `school_id NOT NULL`, index it, include it in unique keys |
+| School-configurable lists | classes, session years, departments, positions, expense categories, gallery categories, inventory categories and types, leave types | Add `school_id`, name unique per school, auto-increment ids. Seed defaults for each new school |
+| Fixed system lists | user types, genders, payment methods, payment statuses, attendance statuses, attendance periods, leave statuses, expense statuses, reversal reasons, qualifications, employment statuses, progression actions, alert types and statuses | Stay global, no `school_id` |
 
 **Unique keys that change to per-school**
 
@@ -99,7 +99,7 @@ Recommended model: one shared PostgreSQL database, with a `school_id` column on 
 
 **Roles**
 
-- A new platform super admin role manages schools and has no `school_id`. It is the only role allowed to act across schools.
+- A new platform admin role (user type `PLATFORM_ADMIN`) manages schools and is the only role allowed to act across schools. The existing `SUPER_ADMIN` type stays a school-level role, so the name is not reused.
 - Existing roles (admin, teacher, student, parent) stay, scoped to their school.
 
 **Per-school configuration to move out of code**
@@ -209,19 +209,31 @@ There are eight phases, run in order. Each phase ends with the app running and i
 ### Phase 0: Preparation
 
 - [x] Clean the working tree (uncommitted changes reverted on Nov 6, 2026)
-- [ ] Create the `multi-tenant` branch
+- [x] Create the `multi-tenant` branch
 - [x] Settle all Open decisions
-- [ ] Set up a local test database and a pytest base for API tests
+- [x] Set up a test base: `sunrise-backend-fastapi/tests/tenant` runs against local Postgres inside a rolled-back transaction. The old `tests/backend` suite imports a missing module and does not run
 
 ### Phase 1: Tenant foundation
 
-- [ ] Migration: `schools` and `school_settings` tables. Insert Sunrise as school 1
-- [ ] Migration: add `school_id` to every school-owned and school-configurable table, backfill with 1, then set `NOT NULL` and add indexes
-- [ ] Migration: change unique keys to per-school (admission number, employee ID, email)
-- [ ] Add `school_id` to SQLAlchemy models
-- [ ] Put `school_id` in the JWT at login and add a `get_current_school` dependency
-- [ ] Tenant-scoped base CRUD class that filters reads and stamps writes
-- [ ] Super admin role and school management endpoints (create, edit, suspend), seeding default lists for a new school
+- [x] `schools` and `school_settings` tables, Sunrise seeded as school 1
+- [x] `school_id NOT NULL` (no default) on 27 tables, with foreign key and index
+- [x] Migration: per-school unique keys (list names, admission number, employee ID, student, teacher and user email)
+- [x] Migration: auto-increment ids on the 9 list tables that had none
+- [x] `TenantMixin` on the 27 models, plus `School` and `SchoolSetting` models
+- [x] `school_id` in the JWT at login, `get_current_school` and `get_school_db` dependencies, token refused on another school's subdomain
+- [x] Automatic session scoping and write stamping in `app/core/tenant.py` (replaces the base CRUD filter)
+- [x] Configuration metadata cache keyed per school, HTTP caching set to private
+- [x] CORS accepts every `*.BASE_DOMAIN` school subdomain in production
+- [x] Clean database baseline 3.0: legacy migrations V001 to V036 folded into the table scripts and archived. Scripts are schema-agnostic and never change the database-wide `search_path`. Verified identical to the migrated legacy schema
+- [x] App and scripts use a configurable schema (`DB_SCHEMA=school`) in the shared `warsi_db`. 67 hardcoded `sunrise.` table prefixes removed from raw SQL
+- [x] `redeploy_database.py` drops and recreates only the `DB_SCHEMA` schema; `mart` and `public` are untouched
+- [x] SSL support for DigitalOcean (`?sslmode=require` in `DATABASE_URL`)
+- [x] Removed unused database objects: 5 views, `calculate_age`, `get_academic_year`
+- [x] `migrate_database.py`: applies each `Database/Versioning/` migration once, recorded in `schema_migrations` with a checksum; stops on edited or failing migrations
+- [ ] Set the `warsi_user` password in `sunrise-backend-fastapi/.env`, then run `python redeploy_database.py` to deploy to local `warsi_db`
+- [ ] Deploy to DigitalOcean `warsi_db` (schema `school`), and set `DATABASE_URL`, `DB_SCHEMA`, `BASE_DOMAIN` and `DEFAULT_SCHOOL_CODE` on the backend host
+- [x] Delete the unauthenticated `POST /api/v1/database/deploy`. `redeploy_database.py` now deploys local databases directly from the complete `deploy_database.sql` list
+- [ ] Platform admin role and school management endpoints (create, edit, suspend), seeding default lists for a new school
 
 ### Phase 2: Unified fee module core
 
@@ -251,6 +263,10 @@ There are eight phases, run in order. Each phase ends with the app running and i
 
 ### Phase 5: Scope the remaining modules
 
+- [ ] Scope the 75 raw SQL (`text()`) queries in 15 files by `school_id`. ORM queries are already scoped
+- [ ] Add `school_id` to the 5 database views and filter on it
+- [ ] Per-school email domain in `utils/email_generator.py`
+- [x] No `DEFAULT 1` on `school_id` (removed in the 3.0 baseline)
 - [ ] Students, teachers and users
 - [ ] Attendance and leave
 - [ ] Expenses, vendors and inventory
@@ -276,7 +292,8 @@ The biggest risk is a query that forgets the school filter and leaks another sch
 
 | Risk | Mitigation |
 | --- | --- |
-| Raw SQL or a direct `db.query` bypasses the tenant filter | Ban direct queries outside the repository layer. Grep check in CI for `db.query(` in routers. Row-level security in Phase 7 |
+| Raw SQL bypasses the tenant filter | ORM queries are scoped automatically by session events and fail closed without a school. The 75 raw SQL queries are scoped by hand in Phase 5. Row-level security in Phase 7 covers anything missed |
+| `POST /api/v1/database/deploy` dropped and rebuilt the whole schema with no login | Resolved Nov 6, 2026: endpoint deleted. Local redeploys use `redeploy_database.py`, which only accepts local databases and runs in one transaction |
 | Old and new fee tables share names (`fee_structures`, `transport_types`) | First Phase 2 migration renames the old tables to `legacy_*`, and old models point at those names until Phase 4 deletes them |
 | Money rounding and balance drift | `DECIMAL(10,2)` everywhere. Balance is always derived from dues and allocations. A consistency check compares them |
 | Dues generated twice for the same period | Unique key on (`school_id`, `student_id`, `fee_head_id`, `session_year_id`, period) |
