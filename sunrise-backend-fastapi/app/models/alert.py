@@ -9,6 +9,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
 from app.core.database import Base
+from app.models.tenant import TenantMixin
 
 
 class AlertType(Base):
@@ -55,7 +56,7 @@ class AlertStatus(Base):
     alerts = relationship("Alert", back_populates="alert_status")
 
 
-class Alert(Base):
+class Alert(TenantMixin, Base):
     """
     Main alert/notification table
     Stores all system alerts/notifications with actor, entity, and target information

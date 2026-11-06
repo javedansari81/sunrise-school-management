@@ -3,9 +3,10 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
 from app.core.database import Base
+from app.models.tenant import TenantMixin
 
 
-class LeaveRequest(Base):
+class LeaveRequest(TenantMixin, Base):
     """
     Leave Request model for both students and teachers
     Aligned with metadata-driven architecture using leave_types and leave_statuses tables

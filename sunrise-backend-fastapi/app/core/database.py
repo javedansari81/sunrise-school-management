@@ -47,6 +47,10 @@ if not settings.DATABASE_URL.startswith("sqlite"):
     Base.metadata.schema = "sunrise"
 
 
+# Register the tenant (school) scoping session events. Imported for its side effect.
+import app.core.tenant  # noqa: E402,F401
+
+
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     async with AsyncSessionLocal() as session:
         try:

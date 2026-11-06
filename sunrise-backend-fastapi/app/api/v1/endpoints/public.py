@@ -5,6 +5,7 @@ from sqlalchemy import select, and_
 import json
 
 from app.core.database import get_db
+from app.api.deps import get_school_db
 from app.crud import teacher_crud
 from app.models.gallery import GalleryCategory, GalleryImage
 from app.schemas.gallery import PublicGalleryCategory, PublicGalleryImage
@@ -14,7 +15,7 @@ router = APIRouter()
 
 @router.get("/faculty", response_model=Dict[str, Any])
 async def get_public_faculty(
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_school_db)
 ):
     """
     Get active teachers for public Faculty page display
@@ -130,7 +131,7 @@ async def public_health_check():
 @router.get("/gallery", response_model=List[PublicGalleryCategory])
 async def get_public_gallery(
     limit_categories: Optional[int] = None,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_school_db)
 ):
     """
     Get gallery images grouped by category for public display
@@ -195,7 +196,7 @@ async def get_public_gallery(
 @router.get("/gallery/home-page", response_model=List[PublicGalleryImage])
 async def get_public_home_page_images(
     limit: int = 10,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_school_db)
 ):
     """
     Get featured images for home page carousel

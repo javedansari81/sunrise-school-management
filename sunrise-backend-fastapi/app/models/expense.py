@@ -4,9 +4,10 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
 from app.core.database import Base
+from app.models.tenant import TenantMixin
 
 
-class Expense(Base):
+class Expense(TenantMixin, Base):
     """
     Expense model aligned with metadata-driven architecture
     Uses expense_categories, expense_statuses, and payment_methods metadata tables
@@ -89,7 +90,7 @@ class Expense(Base):
     approver = relationship("User", foreign_keys=[approved_by])
 
 
-class Vendor(Base):
+class Vendor(TenantMixin, Base):
     """
     Vendor/Supplier management for expenses
     """

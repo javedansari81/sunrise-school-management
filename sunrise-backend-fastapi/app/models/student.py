@@ -4,6 +4,7 @@ from sqlalchemy.sql import func
 import enum
 
 from app.core.database import Base
+from app.models.tenant import TenantMixin
 
 
 class GenderEnum(str, enum.Enum):
@@ -49,12 +50,12 @@ class ClassEnum(str, enum.Enum):
         return None
 
 
-class Student(Base):
+class Student(TenantMixin, Base):
     __tablename__ = "students"
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), unique=True, nullable=True)
-    admission_number = Column(String(50), unique=True, index=True, nullable=False)
+    admission_number = Column(String(50), index=True, nullable=False)
     first_name = Column(String(100), nullable=False)
     last_name = Column(String(100), nullable=False)
     date_of_birth = Column(Date, nullable=False)

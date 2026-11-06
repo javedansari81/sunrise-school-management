@@ -31,6 +31,20 @@ class Settings:
     # Approved WhatsApp template SID for media receipt (school_fee_media_template_v4 - 3 variables)
     TWILIO_WHATSAPP_MEDIA_RECEIPT_SID: str = os.getenv("TWILIO_WHATSAPP_MEDIA_RECEIPT_SID", "")
 
+    # Multi-tenancy: each school is served at <school code>.<BASE_DOMAIN>
+    # BASE_DOMAIN example: "myschools.in". Leave empty until subdomains are live.
+    BASE_DOMAIN: str = os.getenv("BASE_DOMAIN", "").strip().lower().lstrip(".")
+    # School used when the request does not identify one (localhost, the current
+    # single-domain deployment). Set to empty in production once subdomains are live
+    # so that unidentified requests are rejected.
+    DEFAULT_SCHOOL_CODE: str = os.getenv("DEFAULT_SCHOOL_CODE", "sunrise").strip().lower()
+    # Subdomain labels that are never school codes
+    RESERVED_SUBDOMAINS = frozenset(
+        s.strip().lower()
+        for s in os.getenv("RESERVED_SUBDOMAINS", "www,api,app,admin,platform").split(",")
+        if s.strip()
+    )
+
     # CORS Origins - Support both environment variable and defaults
     @property
     def BACKEND_CORS_ORIGINS(self) -> List[str]:

@@ -4,6 +4,7 @@ from sqlalchemy.sql import func
 import enum
 
 from app.core.database import Base
+from app.models.tenant import TenantMixin
 
 
 class RelationshipTypeEnum(str, enum.Enum):
@@ -12,7 +13,7 @@ class RelationshipTypeEnum(str, enum.Enum):
     HALF_SIBLING = "HALF_SIBLING"
 
 
-class StudentSibling(Base):
+class StudentSibling(TenantMixin, Base):
     __tablename__ = "student_siblings"
 
     id = Column(Integer, primary_key=True, index=True)

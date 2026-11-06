@@ -21,7 +21,7 @@ from app.schemas.gallery import (
     GalleryImageUpdate,
     PublicGalleryCategory, PublicGalleryImage
 )
-from app.api.deps import get_current_active_user, get_current_admin_user
+from app.api.deps import get_current_active_user, get_current_admin_user, get_school_db
 
 router = APIRouter()
 
@@ -38,7 +38,7 @@ configure_cloudinary()
 @router.get("/categories", response_model=List[GalleryCategoryResponse])
 async def get_gallery_categories(
     is_active: Optional[bool] = None,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_school_db)
 ):
     """
     Get all gallery categories
@@ -84,7 +84,7 @@ async def get_gallery_images(
     category_id: Optional[int] = None,
     is_active: Optional[bool] = True,
     is_visible_on_home_page: Optional[bool] = None,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_school_db)
 ):
     """
     Get all gallery images (optionally filtered by category and home page visibility)
@@ -134,7 +134,7 @@ async def get_gallery_images(
 @router.get("/images/home-page", response_model=List[GalleryImageWithCategory])
 async def get_home_page_images(
     limit: int = 10,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_school_db)
 ):
     """
     Get featured images for home page carousel
@@ -176,7 +176,7 @@ async def get_home_page_images(
 @router.get("/images/{image_id}", response_model=GalleryImageWithCategory)
 async def get_gallery_image(
     image_id: int,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_school_db)
 ):
     """
     Get a specific gallery image by ID

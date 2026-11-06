@@ -8,6 +8,7 @@ from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 
 from app.core.database import Base
+from app.models.tenant import TenantMixin
 
 
 class UserType(Base):
@@ -24,11 +25,11 @@ class UserType(Base):
     users = relationship("User", back_populates="user_type")
 
 
-class SessionYear(Base):
+class SessionYear(TenantMixin, Base):
     __tablename__ = "session_years"
 
     id = Column(Integer, primary_key=True)
-    name = Column(String(20), nullable=False, unique=True)
+    name = Column(String(20), nullable=False)
     description = Column(Text, nullable=False)
     start_date = Column(Date, nullable=True)
     end_date = Column(Date, nullable=True)
@@ -59,11 +60,11 @@ class Gender(Base):
     teachers = relationship("Teacher", back_populates="gender")
 
 
-class Class(Base):
+class Class(TenantMixin, Base):
     __tablename__ = "classes"
 
     id = Column(Integer, primary_key=True)
-    name = Column(String(20), nullable=False, unique=True)
+    name = Column(String(20), nullable=False)
     description = Column(Text, nullable=False)
     sort_order = Column(Integer, nullable=True)
     is_active = Column(Boolean, default=True)
@@ -122,11 +123,11 @@ class PaymentMethod(Base):
     fee_payments = relationship("FeePayment", back_populates="payment_method")
 
 
-class LeaveType(Base):
+class LeaveType(TenantMixin, Base):
     __tablename__ = "leave_types"
 
     id = Column(Integer, primary_key=True)
-    name = Column(String(50), nullable=False, unique=True)
+    name = Column(String(50), nullable=False)
     description = Column(Text, nullable=True)
     max_days_per_year = Column(Integer, nullable=True)
     requires_medical_certificate = Column(Boolean, default=False)
@@ -154,11 +155,11 @@ class LeaveStatus(Base):
     # leave_requests = relationship("LeaveRequest", back_populates="leave_status")
 
 
-class ExpenseCategory(Base):
+class ExpenseCategory(TenantMixin, Base):
     __tablename__ = "expense_categories"
 
     id = Column(Integer, primary_key=True)
-    name = Column(String(50), nullable=False, unique=True)
+    name = Column(String(50), nullable=False)
     description = Column(Text, nullable=True)
     budget_limit = Column(DECIMAL(12, 2), nullable=True)
     requires_approval = Column(Boolean, default=True)
@@ -215,11 +216,11 @@ class Qualification(Base):
     teachers = relationship("Teacher", back_populates="qualification")
 
 
-class Department(Base):
+class Department(TenantMixin, Base):
     __tablename__ = "departments"
 
     id = Column(Integer, primary_key=True)
-    name = Column(String(50), nullable=False, unique=True)
+    name = Column(String(50), nullable=False)
     description = Column(Text, nullable=True)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -229,11 +230,11 @@ class Department(Base):
     teachers = relationship("Teacher", back_populates="department")
 
 
-class Position(Base):
+class Position(TenantMixin, Base):
     __tablename__ = "positions"
 
     id = Column(Integer, primary_key=True)
-    name = Column(String(50), nullable=False, unique=True)
+    name = Column(String(50), nullable=False)
     description = Column(Text, nullable=True)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
