@@ -136,13 +136,9 @@ async def test_payment_shape_is_enforced(sunrise_session):
                 await session.flush()
 
 
-async def test_legacy_fee_structures_table_renamed(sunrise_session):
+async def test_fee_structures_is_the_unified_table(sunrise_session):
+    """The name fee_structures belongs to the unified fee module (the old table was dropped by V004)."""
     async with sunrise_session() as session:
-        names = set((await session.execute(text(
-            "SELECT table_name FROM information_schema.tables WHERE table_schema = current_schema() "
-            "AND table_name IN ('fee_structures', 'legacy_fee_structures')"
-        ))).scalars())
-        assert names == {"fee_structures", "legacy_fee_structures"}
         cols = set((await session.execute(text(
             "SELECT column_name FROM information_schema.columns WHERE table_schema = current_schema() "
             "AND table_name = 'fee_structures'"

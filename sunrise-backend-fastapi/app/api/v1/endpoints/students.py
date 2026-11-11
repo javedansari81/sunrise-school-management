@@ -7,7 +7,6 @@ import math
 
 from app.core.database import get_db
 from app.crud.crud_student import student_crud
-from app.crud import fee_record_crud
 from app.crud.crud_teacher import teacher_crud
 from app.schemas.student import (
     Student, StudentCreate, StudentUpdate, StudentProfileUpdate, StudentTeacherUpdate, StudentWithFees, StudentListResponse,
@@ -368,34 +367,20 @@ async def get_my_dashboard_stats(
     leave_result = await db.execute(leave_stats_query, {"student_id": student.id})
     leave_stats = leave_result.fetchone()
 
-    # Get fee summary for this student
-    fee_summary_query = text("""
-        SELECT
-            fr.id,
-            fr.total_amount,
-            fr.balance_amount,
-            COALESCE(SUM(fp.amount), 0) as total_paid,
-            MAX(fp.payment_date) as last_payment_date
-        FROM fee_records fr
-        LEFT JOIN fee_payments fp ON fr.id = fp.fee_record_id
-        WHERE fr.student_id = :student_id
-        AND fr.session_year_id = :session_year_id
-        GROUP BY fr.id, fr.total_amount, fr.balance_amount
-    """)
+    # Fee summary for the student's session, from the unified fee ledger
+    from app.modules.fees.service import summary as fee_summary_service
+    from app.modules.transport.service import summary as transport_summary_service
 
-    fee_result = await db.execute(fee_summary_query, {
-        "student_id": student.id,
-        "session_year_id": student_data.session_year_id
-    })
-    fee_data = fee_result.fetchone()
-
-    # Calculate fee information
+    balances = await fee_summary_service.student_balances(
+        db, [student.id], session_year_id=student_data.session_year_id
+    )
+    fee_data = balances.get(student.id)
     has_fee_records = fee_data is not None
     if has_fee_records:
-        total_fee = float(fee_data.total_amount) if fee_data.total_amount else 0.0
-        total_paid = float(fee_data.total_paid) if fee_data.total_paid else 0.0
-        remaining_balance = float(fee_data.balance_amount) if fee_data.balance_amount else 0.0
-        last_payment_date = fee_data.last_payment_date.isoformat() if fee_data.last_payment_date else None
+        total_fee = float(fee_data["billed"])
+        total_paid = float(fee_data["paid"])
+        remaining_balance = float(fee_data["pending"])
+        last_payment_date = fee_data["last_payment_date"].isoformat() if fee_data["last_payment_date"] else None
         payment_percentage = (total_paid / total_fee * 100) if total_fee > 0 else 0.0
     else:
         total_fee = 0.0
@@ -404,35 +389,18 @@ async def get_my_dashboard_stats(
         last_payment_date = None
         payment_percentage = 0.0
 
-    # Get transport information if enrolled
-    transport_query = text("""
-        SELECT
-            ste.id,
-            ste.transport_type_id,
-            tt.description as transport_type_name,
-            ste.pickup_location,
-            ste.drop_location,
-            ste.monthly_fee,
-            ste.distance_km
-        FROM student_transport_enrollment ste
-        LEFT JOIN legacy_transport_types tt ON ste.transport_type_id = tt.id
-        WHERE ste.student_id = :student_id
-        AND ste.is_active = TRUE
-        AND ste.discontinue_date IS NULL
-        LIMIT 1
-    """)
-
-    transport_result = await db.execute(transport_query, {"student_id": student.id})
-    transport_data = transport_result.fetchone()
-
+    # Transport the student rides today
+    riding = (await transport_summary_service.current_assignments(db, [student.id])).get(student.id)
     transport_info = None
-    if transport_data:
+    if riding:
         transport_info = {
-            "transport_type_name": transport_data.transport_type_name or "N/A",
-            "pickup_location": transport_data.pickup_location or "N/A",
-            "drop_location": transport_data.drop_location or "N/A",
-            "monthly_fee": float(transport_data.monthly_fee) if transport_data.monthly_fee else 0.0,
-            "distance_km": float(transport_data.distance_km) if transport_data.distance_km else 0.0
+            "transport_type_name": riding["transport_type"] or "N/A",
+            "route": riding["route"],
+            "stop": riding["stop"],
+            "pickup_location": riding["pickup_location"] or riding["stop"] or "N/A",
+            "drop_location": riding["drop_location"] or riding["stop"] or "N/A",
+            "monthly_fee": float(riding["monthly_amount"] or 0),
+            "distance_km": float(riding["distance_km"] or 0)
         }
 
     return {
@@ -704,27 +672,21 @@ async def get_student_profile(
     """
     Get complete student profile including academic records
     """
-    # Get student with fee records
-    student = await student_crud.get_with_fees(db, id=student_id)
+    student = await student_crud.get_with_metadata(db, id=student_id)
     if not student:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Student not found"
         )
 
-    # Calculate fee summary
-    total_fees_due = sum(fee.balance_amount for fee in student.fee_records)
-    total_fees_paid = sum(fee.paid_amount for fee in student.fee_records)
-
-    # Determine fee status
+    # Fee summary across all sessions, from the unified fee ledger
+    from app.modules.fees.service import summary as fee_summary_service
+    balance = (await fee_summary_service.student_balances(db, [student_id])).get(student_id)
+    total_fees_due = balance["pending"] if balance else 0
+    total_fees_paid = balance["paid"] if balance else 0
     fee_status = "Paid"
     if total_fees_due > 0:
-        fee_status = "Pending"
-        # Check if any fees are overdue
-        from datetime import date
-        overdue_fees = [fee for fee in student.fee_records if fee.due_date < date.today() and fee.balance_amount > 0]
-        if overdue_fees:
-            fee_status = "Overdue"
+        fee_status = "Overdue" if balance["overdue_dues"] else "Pending"
 
     return {
         "student_id": student_id,
@@ -735,15 +697,14 @@ async def get_student_profile(
                 "first_name": student.first_name,
                 "last_name": student.last_name,
                 "date_of_birth": student.date_of_birth,
-                "gender": student.gender,
+                "gender": student.gender.name if student.gender else None,
                 "email": student.email,
                 "phone": student.phone,
                 "address": student.address,
-                "admission_date": student.admission_date,
-                "previous_school": student.previous_school
+                "admission_date": student.admission_date
             },
             "academic_info": {
-                "current_class": student.current_class,
+                "current_class": student.class_ref.description if student.class_ref else None,
                 "section": student.section,
                 "roll_number": student.roll_number,
                 "is_active": student.is_active
@@ -766,7 +727,7 @@ async def get_student_profile(
                 "total_fees_due": total_fees_due,
                 "total_fees_paid": total_fees_paid,
                 "status": fee_status,
-                "fee_records_count": len(student.fee_records)
+                "fee_records_count": balance["dues"] if balance else 0
             }
         }
     }

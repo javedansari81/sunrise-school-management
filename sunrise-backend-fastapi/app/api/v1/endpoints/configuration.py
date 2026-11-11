@@ -137,7 +137,7 @@ async def get_service_metadata_configuration(db: AsyncSession, service_name: str
             elif metadata_type == "positions":
                 configuration[metadata_type] = [{"id": item.id, "name": item.name, "description": item.description, "is_active": item.is_active} for item in items]
             elif metadata_type == "transport_types":
-                configuration[metadata_type] = [{"id": item.id, "name": item.name, "description": item.description, "base_monthly_fee": float(item.base_monthly_fee), "capacity": item.capacity, "is_active": item.is_active} for item in items]
+                configuration[metadata_type] = [{"id": item.id, "name": item.name, "description": item.description, "capacity": item.capacity, "sort_order": item.sort_order, "is_active": item.is_active} for item in items]
             elif metadata_type == "reversal_reasons":
                 configuration[metadata_type] = [{"id": item.id, "name": item.name, "description": item.description, "is_active": item.is_active} for item in items]
             elif metadata_type == "gallery_categories":

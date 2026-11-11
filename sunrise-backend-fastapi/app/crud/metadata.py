@@ -13,7 +13,6 @@ from app.models.metadata import (
     LeaveType, LeaveStatus, ExpenseCategory, ExpenseStatus, EmploymentStatus, Qualification,
     Department, Position, ReversalReason
 )
-from app.models.transport import TransportType
 from app.models.gallery import GalleryCategory
 from app.models.attendance import AttendanceStatus, AttendancePeriod
 from app.models.alert import AlertType, AlertStatus
@@ -107,7 +106,6 @@ employment_status_crud = MetadataCRUD(EmploymentStatus)
 qualification_crud = MetadataCRUD(Qualification)
 department_crud = MetadataCRUD(Department)
 position_crud = MetadataCRUD(Position)
-transport_type_crud = MetadataCRUD(TransportType)
 gallery_category_crud = MetadataCRUD(GalleryCategory)
 reversal_reason_crud = MetadataCRUD(ReversalReason)
 attendance_status_crud = MetadataCRUD(AttendanceStatus)
@@ -278,15 +276,6 @@ async def get_all_metadata_async(db: AsyncSession) -> Dict[str, List[Any]]:
                NULL::BOOLEAN as requires_approval, NULL::VARCHAR as color_code, NULL::BOOLEAN as is_final, NULL::INTEGER as level_order,
                NULL::BOOLEAN as requires_reference, is_active, created_at, updated_at
         FROM positions WHERE is_active = true
-
-        UNION ALL
-
-        SELECT 'transport_types' as table_name, id, name, description,
-               NULL::INTEGER as sort_order, NULL::DATE as start_date, NULL::DATE as end_date, NULL::BOOLEAN as is_current,
-               NULL::INTEGER as max_days_per_year, NULL::BOOLEAN as requires_medical_certificate, base_monthly_fee as budget_limit,
-               NULL::BOOLEAN as requires_approval, NULL::VARCHAR as color_code, NULL::BOOLEAN as is_final, capacity as level_order,
-               NULL::BOOLEAN as requires_reference, is_active, created_at, updated_at
-        FROM legacy_transport_types WHERE is_active = true
 
         UNION ALL
 
@@ -506,12 +495,6 @@ async def get_all_metadata_async(db: AsyncSession) -> Dict[str, List[Any]]:
                 'id': row.id, 'name': row.name, 'description': row.description,
                 'is_active': row.is_active
             })()
-        elif table_name == 'transport_types':
-            obj = type('TransportType', (), {
-                'id': row.id, 'name': row.name, 'description': row.description,
-                'base_monthly_fee': row.budget_limit, 'capacity': row.level_order,
-                'is_active': row.is_active
-            })()
         elif table_name == 'gallery_categories':
             obj = type('GalleryCategory', (), {
                 'id': row.id, 'name': row.name, 'description': row.description,
@@ -585,6 +568,11 @@ async def get_all_metadata_async(db: AsyncSession) -> Dict[str, List[Any]]:
         # Update progression_action objects with their icons
         for action in metadata["progression_actions"]:
             action.icon = icon_map.get(action.id)
+
+    # Transport types are school-owned (transport operations module); the ORM query
+    # is scoped to the request's school, unlike the raw UNION above.
+    from app.modules.transport.service.summary import list_types as list_transport_types
+    metadata["transport_types"] = await list_transport_types(db)
 
     end_time = time.time()
 

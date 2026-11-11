@@ -7,7 +7,6 @@ from .metadata import (
 from .user import User
 from .teacher import Teacher
 from .student import Student
-from .fee import FeeStructure, FeeRecord, FeePayment, MonthlyFeeTracking, MonthlyPaymentAllocation
 from .leave import LeaveRequest, LeaveBalance, LeavePolicy, LeaveApprover
 from .expense import Expense, Vendor, Budget, ExpenseReport
 from .gallery import GalleryCategory, GalleryImage
@@ -32,11 +31,6 @@ __all__ = [
     "Teacher",
     "Student",
     "StudentSessionHistory",
-    "FeeStructure",
-    "FeeRecord",
-    "FeePayment",
-    "MonthlyFeeTracking",
-    "MonthlyPaymentAllocation",
     "LeaveRequest",
     "LeaveBalance",
     "LeavePolicy",

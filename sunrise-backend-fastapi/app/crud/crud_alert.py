@@ -1,6 +1,6 @@
 """
 CRUD operations for Alert system
-Following established patterns from crud_leave.py and crud_fee.py
+Following established patterns from crud_leave.py
 """
 
 from typing import List, Optional, Dict, Any, Tuple

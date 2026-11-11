@@ -167,10 +167,3 @@ async def test_structures_are_per_school(admin_api, other_api, refs):
     r = await other_api.post("/fee-structures", json={
         "session_year_id": refs["year_id"], "name": "x", "items": []})
     assert r.status_code == 404
-
-
-async def test_old_fee_screens_still_read_the_legacy_table(admin_api):
-    """Until Phase 4 the old /fees routes keep working on legacy_fee_structures."""
-    r = await admin_api.get("/api/v1/fees/structure")
-    assert r.status_code == 200, r.text
-    assert len(r.json()) > 0 and "tuition_fee" in r.json()[0]
