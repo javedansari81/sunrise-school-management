@@ -228,7 +228,7 @@ class CRUDTransportEnrollment:
                 ORDER BY e_inner.is_active DESC, e_inner.created_at DESC
                 LIMIT 1
             ) e ON true
-            LEFT JOIN transport_types tt ON e.transport_type_id = tt.id
+            LEFT JOIN legacy_transport_types tt ON e.transport_type_id = tt.id
             LEFT JOIN (
                 -- Aggregate monthly tracking by student and session (not by enrollment)
                 -- This ensures we get complete history even with multiple enrollments

@@ -24,7 +24,9 @@ We will turn the Sunrise School backend into a multi-school (multi-tenant) servi
 
 Phase 1 is done (Nov 6, 2026). Every school's data is isolated in the `school` schema of the shared `warsi_db`, platform admins manage schools through `/api/v1/platform`, and 43 isolation and platform tests pass.
 
-Phase 2 is built (Nov 11, 2026) on the `fee-module` branch, not yet committed, waiting for review. The unified fee module lives in `app/modules/fees/` and is served at `/api/v1/billing`. Migration `V002` adds its 11 tables. 46 fee tests pass, 89 in total. The old `/fees` and `/transport` routes still work until Phase 4. Next step: review Phase 2, then Phase 3, the transport operations module. Deploying to DigitalOcean is deferred to go-live.
+Phase 2 is done (Nov 11, 2026, merged in PR #3). The unified fee module lives in `app/modules/fees/` and is served at `/api/v1/billing`. Migration `V002` adds its 11 tables and is applied to the local `warsi_db`. 46 fee tests pass, 89 in total. The old `/fees` and `/transport` routes still work until Phase 4, and the new fee screens come in Phase 6. Next step: Phase 3, the transport operations module. Deploying to DigitalOcean, including running `V002`, is deferred to go-live.
+
+Phase 3 is built (Nov 11, 2026) on the `transport-module` branch, not yet committed, waiting for review. The transport operations module lives in `app/modules/transport/` and is served at `/api/v1/transit`. Migration `V003` renames the old `transport_types` to `legacy_transport_types`, adds 7 tables and carries Sunrise's old price list over as rates. `V003` is applied to the local `warsi_db`. 45 transport tests pass, 134 in total. Next step: review Phase 3, then Phase 4. Deploying to DigitalOcean, including running `V003`, is deferred to go-live.
 
 Status values: Not started, In progress, Done, Blocked.
 
@@ -32,8 +34,8 @@ Status values: Not started, In progress, Done, Blocked.
 | --- | --- | --- |
 | 0. Preparation | Done | Branch `multi-tenant` created. Tenant test suite runs against local Postgres in a rolled-back transaction |
 | 1. Tenant foundation | Done | School isolation, school-aware login, clean 3.0 baseline in `warsi_db`, migration runner, platform admin and school management. DigitalOcean deployment deferred to go-live |
-| 2. Unified fee module core | In progress | Built and tested on branch `fee-module`, waiting for review. Payment gateway deferred (decision 11) |
-| 3. Transport operations module | Not started | |
+| 2. Unified fee module core | Done | Merged in PR #3. `/api/v1/billing`, migration `V002`. Payment gateway deferred (decision 11). Fee screens in Phase 6 |
+| 3. Transport operations module | In progress | Built and tested on branch `transport-module`, waiting for review. `/api/v1/transit`, migration `V003`. Transport screens in Phase 6 |
 | 4. Switch dependents and remove old code | Not started | |
 | 5. Scope the remaining modules | Not started | ORM queries are already scoped by Phase 1. Remaining: 75 raw SQL queries and 5 views |
 | 6. Frontend | Not started | |
@@ -259,10 +261,14 @@ There are eight phases, run in order. Each phase ends with the app running and i
 
 ### Phase 3: Transport operations module
 
-- [ ] New package `app/modules/transport/`
-- [ ] Migrations for `transport_types`, `vehicles`, `routes`, `route_stops`, `transport_rates`, `student_transport_assignments`
-- [ ] Assign, change and discontinue flows that create and end Transport plan lines in the fee module
-- [ ] Route and vehicle rosters (who rides which route and stop)
+- [x] New package `app/modules/transport/` with models, schemas, repository, billing (the fee handoff), service and router layers, served at `/api/v1/transit` (`/transport` stays with the old code until Phase 4)
+- [x] Migration `V003_transport_operations.sql` (and `Tables/T960`-`T985`) for `transport_types`, `vehicles`, `routes`, `route_stops`, `transport_rates`, `student_transport_assignments` and `transport_assignment_pauses`. The old global `transport_types` is renamed `legacy_transport_types` (old model `LegacyTransportType`, alias `TransportType`). Every school gets E-Rickshaw, Van and Bus; Sunrise's old flat prices and van distance slabs become rates for 2025-26 and 2026-27; new setting `fee.transport.due_day` (default 10). New schools copy the template school's types
+- [x] Rates per session: PER_STOP, then DISTANCE_SLAB (covers (from, to]), then FLAT, type-specific before any-type. The amount is copied onto the assignment, so editing a rate never changes past billing. Overlapping slabs and duplicate flat or stop rates are refused. Quote and copy-to-next-session routes
+- [x] Assign, change, discontinue and cancel flows that create and end Transport plan lines in the fee module (`plans.sync_source_lines`), then generate the student's dues. Cut-off day (decision 6): riding that starts on or before the cut-off day bills that month; a last riding day on or after it bills that month. A change ends the old assignment the day before and starts a new one; paid months stay as they are. Cancel is refused once money was paid. Manual TRANSPORT plan lines and ending a TRANSPORT line by hand in `/billing` are refused
+- [x] Paused months (`transport_assignment_pauses`): cut out of the plan lines, refused for paid months, carried over to the new assignment on a change; removing a pause bills the months again
+- [x] Route and vehicle rosters (who rides which route and stop on a day, paused riders marked, seats and over-capacity). A full vehicle is refused unless `allow_over_capacity` is sent
+- [x] `V003` applied to the local `warsi_db`
+- Later list: carry assignments over to the next session, a bulk "reprice from month X" for a rate change
 
 ### Phase 4: Switch dependents and remove old code
 
@@ -313,5 +319,5 @@ The biggest risk is a query that forgets the school filter and leaks another sch
 
 - Isolation: a user of school A gets 404 for every school B record, on every list and detail route.
 - Fee ledger: dues generation, concessions, part payments, allocation order, credit balance, full and partial reversal.
-- Transport to fee handoff: assign, change rate, discontinue mid-session, paused months.
+- [x] Transport to fee handoff: assign, change rate, discontinue mid-session, paused months (`tests/transport`).
 - Receipts: numbering is per school and session with no gaps or duplicates under concurrent payments.

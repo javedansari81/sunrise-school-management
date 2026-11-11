@@ -60,7 +60,7 @@ SET search_path TO :"schema";
 \ir Tables/T220_qualifications.sql
 \ir Tables/T230_departments.sql
 \ir Tables/T240_positions.sql
-\ir Tables/T250_transport_types.sql
+\ir Tables/T250_legacy_transport_types.sql
 \ir Tables/T255_transport_type_pricing.sql
 \ir Tables/T260_transport_distance_slabs.sql
 \ir Tables/T265_inventory_item_category.sql
@@ -112,6 +112,18 @@ SET search_path TO :"schema";
 \ir Tables/T950_fee_audit_log.sql
 
 -- =====================================================
+-- STEP 5c: Transport operations module (T960-T985)
+-- =====================================================
+\echo 'STEP 5c: Transport operations module (T960-T985)'
+\ir Tables/T960_transport_types.sql
+\ir Tables/T965_vehicles.sql
+\ir Tables/T970_routes.sql
+\ir Tables/T972_route_stops.sql
+\ir Tables/T975_transport_rates.sql
+\ir Tables/T980_student_transport_assignments.sql
+\ir Tables/T985_transport_assignment_pauses.sql
+
+-- =====================================================
 -- STEP 6: Expense and leave tables (T500-T600)
 -- =====================================================
 \echo 'STEP 6: Expense and leave tables (T500-T600)'
@@ -158,7 +170,7 @@ SET search_path TO :"schema";
 \ir Init/01_load_metadata.sql
 \ir DataLoads/D800_alert_types.sql
 \ir DataLoads/DL105_reversal_reasons.sql
-\ir DataLoads/DL251_transport_types.sql
+\ir DataLoads/DL251_legacy_transport_types.sql
 \ir DataLoads/DL255_transport_type_pricing.sql
 \ir DataLoads/DL261_transport_distance_slabs.sql
 \ir DataLoads/DL265_inventory_item_category.sql
@@ -172,6 +184,7 @@ SET search_path TO :"schema";
 \ir Init/03_create_super_admin_user.sql
 \ir Init/03_legacy_fee_structures_data.sql
 \ir Init/04_fee_module_defaults.sql
+\ir Init/05_transport_defaults.sql
 \ir Init/07_inventory_stock.sql
 \ir Init/99_finish_default_school.sql
 

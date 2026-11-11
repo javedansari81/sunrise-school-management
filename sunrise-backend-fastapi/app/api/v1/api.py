@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 
 from app.modules.fees.router import router as billing_router
+from app.modules.transport.router import router as transit_router
 
 from app.api.v1.endpoints import (
     auth, teachers, students, leaves, expenses, fees, configuration,
@@ -34,6 +35,8 @@ api_router.include_router(fees.router, prefix="/fees", tags=["fees"])
 api_router.include_router(billing_router, prefix="/billing", tags=["billing"])
 api_router.include_router(inventory.router, prefix="/inventory", tags=["inventory"])
 api_router.include_router(transport.router, prefix="/transport", tags=["transport"])
+# Transport operations module (Phase 3). Replaces /transport in Phase 4.
+api_router.include_router(transit_router, prefix="/transit", tags=["transit"])
 api_router.include_router(attendance.router, prefix="/attendance", tags=["attendance"])
 api_router.include_router(gallery.router, prefix="/gallery", tags=["gallery"])
 api_router.include_router(reports.router, prefix="/reports", tags=["reports"])

@@ -59,3 +59,4 @@ __all__ = [
 # Unified fee module models live in their own package; importing them here
 # registers them with SQLAlchemy whenever app.models is loaded.
 from app.modules.fees import models as _unified_fee_models  # noqa: E402,F401
+from app.modules.transport import models as _transport_ops_models  # noqa: E402,F401

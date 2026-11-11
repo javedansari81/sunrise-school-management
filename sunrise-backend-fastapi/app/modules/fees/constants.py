@@ -98,6 +98,7 @@ SETTING_LATE_FEE_MODE = "fee.late_fee.mode"
 SETTING_LATE_FEE_VALUE = "fee.late_fee.value"
 SETTING_LATE_FEE_GRACE_DAYS = "fee.late_fee.grace_days"
 SETTING_TRANSPORT_CUTOFF_DAY = "fee.transport.cutoff_day"
+SETTING_TRANSPORT_DUE_DAY = "fee.transport.due_day"
 
 
 class AuditAction(str, Enum):
