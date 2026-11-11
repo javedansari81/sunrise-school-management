@@ -37,8 +37,8 @@ class SessionYearEnum(str, enum.Enum):
     YEAR_2026_27 = "2026-27"
 
 
-class FeeStructure(Base):
-    __tablename__ = "fee_structures"
+class LegacyFeeStructure(Base):
+    __tablename__ = "legacy_fee_structures"
 
     id = Column(Integer, primary_key=True, index=True)
 
@@ -79,6 +79,12 @@ class FeeStructure(Base):
         return self.session_year.name if self.session_year else ""
 
 
+# Old code imports the pre-redesign model as FeeStructure. The class itself is
+# named LegacyFeeStructure so it does not clash with the unified fee module's
+# FeeStructure in SQLAlchemy's class registry. Removed in Phase 4.
+FeeStructure = LegacyFeeStructure
+
+
 class FeeRecord(Base):
     __tablename__ = "fee_records"
 
@@ -93,7 +99,7 @@ class FeeRecord(Base):
     payment_method_id = Column(Integer, ForeignKey("payment_methods.id"), nullable=True)
 
     # Enhanced fields for new system
-    fee_structure_id = Column(Integer, ForeignKey("fee_structures.id"), nullable=True)
+    fee_structure_id = Column(Integer, ForeignKey("legacy_fee_structures.id"), nullable=True)
     is_monthly_tracked = Column(Boolean, default=False)
     academic_month = Column(Integer, nullable=True)
     academic_year = Column(Integer, nullable=True)

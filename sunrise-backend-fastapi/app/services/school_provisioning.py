@@ -1,5 +1,6 @@
 """
-Create a school: the school row, its first admin login, and its default lists.
+Create a school: the school row, its first admin login, its default lists and
+its fee module defaults (fee heads, concession rules, fee settings).
 
 The lists (classes, session years, departments, ...) are copied from a template
 school, by default settings.TEMPLATE_SCHOOL_CODE (sunrise). Every column the
@@ -18,6 +19,7 @@ from app.core.config import settings
 from app.core.security import get_password_hash
 from app.models.school import School
 from app.models.user import User
+from app.modules.fees.provisioning import seed_fee_defaults
 
 ADMIN_USER_TYPE_ID = 1
 
@@ -127,4 +129,7 @@ async def create_school(
     copied: Dict[str, int] = {}
     if template_id is not None:
         copied = await copy_lists(db, from_school_id=template_id, to_school_id=school.id)
+    copied.update(
+        await seed_fee_defaults(db, school_id=school.id, school_code=school.code, template_school_id=template_id)
+    )
     return school, admin, template_code, copied

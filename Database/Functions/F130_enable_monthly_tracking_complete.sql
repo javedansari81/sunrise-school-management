@@ -8,7 +8,7 @@
 --   p_start_month INTEGER - Starting academic month (default: 4 for April)
 --   p_start_year INTEGER - Starting academic year (e.g., 2025)
 -- Returns: TABLE with results for each student
--- Dependencies: students, fee_records, fee_structures, monthly_fee_tracking
+-- Dependencies: students, fee_records, legacy_fee_structures, monthly_fee_tracking
 -- =====================================================
 
 -- Drop existing function
@@ -199,7 +199,7 @@ BEGIN
                     fs.id,
                     fs.total_annual_fee
                 INTO v_fee_structure
-                FROM fee_structures fs
+                FROM legacy_fee_structures fs
                 WHERE fs.class_id = v_student.class_id
                   AND fs.session_year_id = p_session_year_id
                 LIMIT 1;
@@ -304,7 +304,7 @@ BEGIN
                         IF v_original_amount IS NULL OR v_original_amount = 0 THEN
                             SELECT fs.total_annual_fee / 12
                             INTO v_original_amount
-                            FROM fee_structures fs
+                            FROM legacy_fee_structures fs
                             WHERE fs.class_id = v_student.class_id
                               AND fs.session_year_id = p_session_year_id
                             LIMIT 1;

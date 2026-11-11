@@ -2,7 +2,7 @@ from typing import List, Optional, Dict, Any, Tuple
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload, joinedload
-from sqlalchemy import and_, or_, func, text
+from sqlalchemy import and_, delete, or_, func, text
 from decimal import Decimal
 from datetime import date
 
@@ -112,39 +112,49 @@ class CRUDStudentSibling(CRUDBase[StudentSibling, StudentSiblingCreate, StudentS
         result = await db.execute(query)
         return result.scalars().all()
 
+    async def suggest_siblings(self, db: AsyncSession, *, student: Student) -> List[Student]:
+        """
+        Possible siblings of a student: same father name and phone, not yet in the
+        student's family. Only a suggestion; nothing is linked (decision 13).
+        """
+        candidates = await self.detect_siblings_by_father_and_phone(
+            db, father_name=student.father_name, father_phone=student.father_phone,
+            exclude_student_id=student.id,
+        )
+        family = set(await self.get_all_family_members(db, student.id))
+        return [c for c in candidates if c.id not in family]
+
     async def get_all_family_members(
         self,
         db: AsyncSession,
         student_id: int
     ) -> List[int]:
         """
-        Get all student IDs in the same family (including the given student).
-        This includes bidirectional sibling relationships.
+        All student IDs in the same family, including the given student. Follows
+        links in both directions and across siblings, so a family is complete
+        even if a pair link is missing.
         """
-        # Get siblings where student is the primary
-        query1 = select(StudentSibling.sibling_student_id).where(
-            and_(
-                StudentSibling.student_id == student_id,
-                StudentSibling.is_active == True
+        family = {student_id}
+        frontier = {student_id}
+        while frontier:
+            rows = await db.execute(
+                select(StudentSibling.student_id, StudentSibling.sibling_student_id).where(
+                    StudentSibling.is_active == True,  # noqa: E712
+                    or_(StudentSibling.student_id.in_(frontier), StudentSibling.sibling_student_id.in_(frontier)),
+                )
             )
+            found = {i for pair in rows.all() for i in pair}
+            frontier = found - family
+            family |= found
+        return list(family)
+
+    async def _pair_types(self, db: AsyncSession, family_ids: List[int]) -> Dict[Tuple[int, int], str]:
+        """Relationship type of each linked pair in a family, keyed by (smaller id, larger id)."""
+        rows = await db.execute(
+            select(StudentSibling.student_id, StudentSibling.sibling_student_id, StudentSibling.relationship_type)
+            .where(StudentSibling.student_id.in_(family_ids))
         )
-        
-        # Get siblings where student is the sibling
-        query2 = select(StudentSibling.student_id).where(
-            and_(
-                StudentSibling.sibling_student_id == student_id,
-                StudentSibling.is_active == True
-            )
-        )
-        
-        result1 = await db.execute(query1)
-        result2 = await db.execute(query2)
-        
-        sibling_ids = set(result1.scalars().all())
-        sibling_ids.update(result2.scalars().all())
-        sibling_ids.add(student_id)
-        
-        return list(sibling_ids)
+        return {(min(a, b), max(a, b)): t for a, b, t in rows.all()}
 
     async def link_siblings(
         self,
@@ -155,48 +165,27 @@ class CRUDStudentSibling(CRUDBase[StudentSibling, StudentSiblingCreate, StudentS
         is_auto_detected: bool = False
     ) -> StudentSibling:
         """
-        Create a sibling relationship between two students.
-        This creates a bidirectional relationship.
+        Link two students as siblings. Their two families become one: every member
+        is linked to every other member. Existing pair types are kept.
         """
-        # Validate students exist
         student = await db.get(Student, student_id)
         sibling = await db.get(Student, sibling_student_id)
-        
         if not student or not sibling:
             raise ValueError("One or both students not found")
-        
         if student_id == sibling_student_id:
             raise ValueError("Cannot link student to themselves")
-        
-        # Check if relationship already exists
-        existing = await db.execute(
-            select(StudentSibling).where(
-                or_(
-                    and_(
-                        StudentSibling.student_id == student_id,
-                        StudentSibling.sibling_student_id == sibling_student_id
-                    ),
-                    and_(
-                        StudentSibling.student_id == sibling_student_id,
-                        StudentSibling.sibling_student_id == student_id
-                    )
-                )
-            )
-        )
-        if existing.scalar_one_or_none():
+
+        family_a = await self.get_all_family_members(db, student_id)
+        if sibling_student_id in family_a:
             raise ValueError("Sibling relationship already exists")
-        
-        # Get all family members to recalculate birth orders
-        family_ids = await self.get_all_family_members(db, student_id)
-        family_ids.append(sibling_student_id)
-        family_ids = list(set(family_ids))
-        
-        # Recalculate birth orders and waivers for entire family
-        await self._recalculate_family_waivers(db, family_ids)
-        
+        family_b = await self.get_all_family_members(db, sibling_student_id)
+        family_ids = list(set(family_a) | set(family_b))
+
+        pair_types = await self._pair_types(db, family_ids)
+        pair_types[(min(student_id, sibling_student_id), max(student_id, sibling_student_id))] = relationship_type
+        await self._recalculate_family_waivers(db, family_ids, pair_types)
         await db.commit()
-        
-        # Return the created relationship
+
         result = await db.execute(
             select(StudentSibling).where(
                 StudentSibling.student_id == student_id,
@@ -212,114 +201,102 @@ class CRUDStudentSibling(CRUDBase[StudentSibling, StudentSiblingCreate, StudentS
         sibling_student_id: int
     ) -> bool:
         """
-        Remove sibling relationship between two students.
-        This removes the bidirectional relationship.
+        Remove `sibling_student_id` from `student_id`'s family. The removed student
+        loses every sibling link; the rest of the family stays linked. Returns False
+        when the two are not in the same family.
         """
-        # Delete both directions of the relationship
+        family_ids = await self.get_all_family_members(db, student_id)
+        if sibling_student_id not in family_ids or sibling_student_id == student_id:
+            return False
+
+        pair_types = await self._pair_types(db, family_ids)
+        remaining = [i for i in family_ids if i != sibling_student_id]
         await db.execute(
-            text("""
-                DELETE FROM student_siblings
-                WHERE (student_id = :sid1 AND sibling_student_id = :sid2)
-                   OR (student_id = :sid2 AND sibling_student_id = :sid1)
-            """),
-            {"sid1": student_id, "sid2": sibling_student_id}
+            delete(StudentSibling).where(
+                or_(StudentSibling.student_id == sibling_student_id,
+                    StudentSibling.sibling_student_id == sibling_student_id)
+            )
         )
+        await self._recalculate_family_waivers(db, remaining, pair_types)
+        await db.commit()
+        return True
 
-        # Recalculate waivers for both families
-        family1_ids = await self.get_all_family_members(db, student_id)
-        family2_ids = await self.get_all_family_members(db, sibling_student_id)
-
-        if family1_ids:
-            await self._recalculate_family_waivers(db, family1_ids)
-        if family2_ids and family2_ids != family1_ids:
-            await self._recalculate_family_waivers(db, family2_ids)
-
+    async def set_relationship_type(
+        self,
+        db: AsyncSession,
+        student_id: int,
+        sibling_student_id: int,
+        relationship_type: str
+    ) -> bool:
+        """Change the relationship type of one linked pair (both directions). False if not linked."""
+        rows = (await db.execute(
+            select(StudentSibling).where(
+                or_(
+                    and_(StudentSibling.student_id == student_id,
+                         StudentSibling.sibling_student_id == sibling_student_id),
+                    and_(StudentSibling.student_id == sibling_student_id,
+                         StudentSibling.sibling_student_id == student_id),
+                )
+            )
+        )).scalars().all()
+        if not rows:
+            return False
+        for row in rows:
+            row.relationship_type = relationship_type
         await db.commit()
         return True
 
     async def _recalculate_family_waivers(
         self,
         db: AsyncSession,
-        family_student_ids: List[int]
+        family_student_ids: List[int],
+        pair_types: Optional[Dict[Tuple[int, int], str]] = None
     ) -> None:
         """
-        Recalculate birth orders and fee waivers for all students in a family.
-        This creates/updates bidirectional sibling relationships.
+        Rebuild the links of a family: every member linked to every other member,
+        with birth order (eldest first by date of birth, then admission number)
+        and the old fee module's waiver. Kept for the old fee screens until Phase 4;
+        the unified fee module works out birth order and concession itself.
         """
+        if pair_types is None:
+            pair_types = await self._pair_types(db, family_student_ids)
+
+        await db.execute(
+            delete(StudentSibling).where(
+                or_(StudentSibling.student_id.in_(family_student_ids),
+                    StudentSibling.sibling_student_id.in_(family_student_ids))
+            )
+        )
         if len(family_student_ids) < 2:
-            # No siblings, remove any existing relationships
-            if len(family_student_ids) == 1:
-                await db.execute(
-                    text("DELETE FROM student_siblings WHERE student_id = :sid OR sibling_student_id = :sid"),
-                    {"sid": family_student_ids[0]}
-                )
+            await db.flush()
             return
 
-        # Get all students with their DOB
         result = await db.execute(
-            select(Student.id, Student.date_of_birth).where(
-                Student.id.in_(family_student_ids)
-            ).order_by(Student.date_of_birth.asc())
+            select(Student.id).where(Student.id.in_(family_student_ids))
+            .order_by(Student.date_of_birth.asc(), Student.admission_number.asc())
         )
-        students_by_dob = result.all()
+        ordered_ids = list(result.scalars().all())
+        total_siblings = len(ordered_ids)
 
-        total_siblings = len(students_by_dob)
-
-        # Delete existing relationships for this family
-        await db.execute(
-            text("DELETE FROM student_siblings WHERE student_id = ANY(:ids) OR sibling_student_id = ANY(:ids)"),
-            {"ids": family_student_ids}
-        )
-
-        # Create bidirectional relationships for each pair
-        for i, (student_id, _) in enumerate(students_by_dob):
+        for i, student_id in enumerate(ordered_ids):
             birth_order = i + 1
-            waiver_percentage, waiver_reason = await self.calculate_sibling_waiver(
-                db, total_siblings, birth_order
-            )
-
-            # Create relationships with all other siblings
-            for j, (other_student_id, _) in enumerate(students_by_dob):
-                if i != j:
-                    sibling_relationship = StudentSibling(
-                        student_id=student_id,
-                        sibling_student_id=other_student_id,
-                        relationship_type="SIBLING",
-                        is_auto_detected=True,
-                        birth_order=birth_order,
-                        fee_waiver_percentage=waiver_percentage,
-                        is_active=True
-                    )
-                    db.add(sibling_relationship)
+            waiver_percentage, _ = await self.calculate_sibling_waiver(db, total_siblings, birth_order)
+            for other_student_id in ordered_ids:
+                if other_student_id == student_id:
+                    continue
+                db.add(StudentSibling(
+                    student_id=student_id,
+                    sibling_student_id=other_student_id,
+                    relationship_type=pair_types.get(
+                        (min(student_id, other_student_id), max(student_id, other_student_id)), "SIBLING"
+                    ),
+                    is_auto_detected=False,
+                    birth_order=birth_order,
+                    fee_waiver_percentage=waiver_percentage,
+                    is_active=True
+                ))
 
         await db.flush()
-
-    async def create_sibling_relationships_for_student(
-        self,
-        db: AsyncSession,
-        student_id: int,
-        detected_sibling_ids: List[int]
-    ) -> List[StudentSibling]:
-        """
-        Create sibling relationships for a newly created student with detected siblings.
-        """
-        if not detected_sibling_ids:
-            return []
-
-        # Add the current student to the family
-        all_family_ids = detected_sibling_ids + [student_id]
-
-        # Recalculate waivers for the entire family
-        await self._recalculate_family_waivers(db, all_family_ids)
-        await db.commit()
-
-        # Return the created relationships for this student
-        result = await db.execute(
-            select(StudentSibling).where(
-                StudentSibling.student_id == student_id
-            ).order_by(StudentSibling.birth_order)
-        )
-        return result.scalars().all()
 
     async def get_sibling_waiver_info(
         self,

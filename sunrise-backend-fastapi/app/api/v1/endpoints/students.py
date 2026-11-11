@@ -161,19 +161,14 @@ async def create_student(
             if success_message:
                 response_data["success_message"] = success_message
 
-            # Include detected siblings information if any
-            detected_siblings = getattr(student, '_detected_siblings', [])
-            if detected_siblings:
-                from app.crud.crud_student_sibling import student_sibling_crud
-
-                # Get waiver info for the newly created student
-                waiver_info = await student_sibling_crud.get_sibling_waiver_info(db, student_id=student.id)
-
-                # Build detected siblings list
-                detected_siblings_list = []
-                for sibling in detected_siblings:
+            # Possible siblings (same father name and phone). Not linked: the office
+            # confirms them with POST /students/{id}/siblings/link/{sibling_id}.
+            suggested = getattr(student, "_suggested_siblings", [])
+            if suggested:
+                suggestions = []
+                for sibling in suggested:
                     sibling_with_class = await student_crud.get_with_metadata(db, id=sibling.id)
-                    detected_siblings_list.append({
+                    suggestions.append({
                         "student_id": sibling.id,
                         "admission_number": sibling.admission_number,
                         "first_name": sibling.first_name,
@@ -181,17 +176,12 @@ async def create_student(
                         "full_name": f"{sibling.first_name} {sibling.last_name}",
                         "class_name": sibling_with_class.class_ref.description if sibling_with_class and sibling_with_class.class_ref else "",
                         "section": sibling.section,
-                        "date_of_birth": str(sibling.date_of_birth) if sibling.date_of_birth else None
+                        "date_of_birth": str(sibling.date_of_birth) if sibling.date_of_birth else None,
+                        "matching_criteria": "Same father name and phone",
                     })
-
-                response_data["detected_siblings"] = {
-                    "siblings": detected_siblings_list,
-                    "total_siblings_count": waiver_info["total_siblings_count"],
-                    "birth_order": waiver_info["birth_order"],
-                    "birth_order_description": waiver_info["birth_order_description"],
-                    "fee_waiver_percentage": float(waiver_info["fee_waiver_percentage"]),
-                    "waiver_reason": waiver_info["waiver_reason"],
-                    "message": f"Detected {len(detected_siblings)} sibling(s) and automatically linked them"
+                response_data["suggested_siblings"] = {
+                    "siblings": suggestions,
+                    "message": f"Found {len(suggestions)} possible sibling(s). Confirm them to link.",
                 }
 
             return response_data

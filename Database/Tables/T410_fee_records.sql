@@ -57,7 +57,7 @@ CREATE TABLE fee_records (
     FOREIGN KEY (payment_type_id) REFERENCES payment_types(id),
     FOREIGN KEY (payment_status_id) REFERENCES payment_statuses(id),
     FOREIGN KEY (payment_method_id) REFERENCES payment_methods(id),
-    FOREIGN KEY (fee_structure_id) REFERENCES fee_structures(id)
+    FOREIGN KEY (fee_structure_id) REFERENCES legacy_fee_structures(id)
 );
 
 -- Create indexes
@@ -70,7 +70,7 @@ CREATE INDEX IF NOT EXISTS idx_fee_records_sibling_waiver ON fee_records(has_sib
 COMMENT ON TABLE fee_records IS 'Student fee records';
 COMMENT ON COLUMN fee_records.student_id IS 'Foreign key to students table';
 COMMENT ON COLUMN fee_records.payment_method_id IS 'Foreign key to payment_methods table';
-COMMENT ON COLUMN fee_records.fee_structure_id IS 'Foreign key to fee_structures table';
+COMMENT ON COLUMN fee_records.fee_structure_id IS 'Foreign key to legacy_fee_structures table';
 COMMENT ON COLUMN fee_records.is_monthly_tracked IS 'Whether this fee record uses monthly tracking system';
 COMMENT ON COLUMN fee_records.academic_month IS 'Academic month (1-12, where 4=April)';
 COMMENT ON COLUMN fee_records.academic_year IS 'Academic year (e.g., 2025)';

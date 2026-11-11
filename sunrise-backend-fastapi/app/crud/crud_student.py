@@ -147,7 +147,7 @@ class CRUDStudent(CRUDBase[Student, StudentCreate, StudentUpdate]):
         """
         Override update method to cascade is_active status to user account.
         When student.is_active changes, automatically update users.is_active.
-        Also re-detect siblings if father details change.
+        Sibling links are never changed here: the office manages them by hand.
         """
         from app.core.logging import log_crud_operation
         import logging
@@ -157,17 +157,6 @@ class CRUDStudent(CRUDBase[Student, StudentCreate, StudentUpdate]):
             update_data = obj_in
         else:
             update_data = obj_in.dict(exclude_unset=True)
-
-        # Check if father details are changing (for sibling re-detection)
-        father_details_changed = False
-        if 'father_name' in update_data or 'father_phone' in update_data:
-            old_father_name = db_obj.father_name
-            old_father_phone = db_obj.father_phone
-            new_father_name = update_data.get('father_name', old_father_name)
-            new_father_phone = update_data.get('father_phone', old_father_phone)
-
-            if old_father_name != new_father_name or old_father_phone != new_father_phone:
-                father_details_changed = True
 
         # If is_active is being changed, cascade to user account
         if 'is_active' in update_data and db_obj.user_id:
@@ -189,48 +178,6 @@ class CRUDStudent(CRUDBase[Student, StudentCreate, StudentUpdate]):
 
         # Call parent update method to handle the actual student update
         updated_student = await super().update(db, db_obj=db_obj, obj_in=obj_in)
-
-        # Re-detect siblings if father details changed
-        if father_details_changed:
-            try:
-                from app.crud.crud_student_sibling import student_sibling_crud
-
-                # Remove old sibling relationships
-                await db.execute(
-                    text("DELETE FROM student_siblings WHERE student_id = :sid OR sibling_student_id = :sid"),
-                    {"sid": updated_student.id}
-                )
-
-                # Detect new siblings
-                new_father_name = update_data.get('father_name', updated_student.father_name)
-                new_father_phone = update_data.get('father_phone', updated_student.father_phone)
-
-                if new_father_name and new_father_phone:
-                    potential_siblings = await student_sibling_crud.detect_siblings_by_father_and_phone(
-                        db,
-                        father_name=new_father_name,
-                        father_phone=new_father_phone,
-                        exclude_student_id=updated_student.id
-                    )
-
-                    if potential_siblings:
-                        sibling_ids = [s.id for s in potential_siblings]
-                        await student_sibling_crud.create_sibling_relationships_for_student(
-                            db,
-                            student_id=updated_student.id,
-                            detected_sibling_ids=sibling_ids
-                        )
-
-                        log_crud_operation("SIBLING_REDETECTION", f"Re-detected {len(potential_siblings)} siblings after update",
-                                         student_id=updated_student.id, sibling_count=len(potential_siblings))
-
-                await db.commit()
-
-            except Exception as sibling_error:
-                log_crud_operation("SIBLING_REDETECTION_ERROR", f"Failed to re-detect siblings: {str(sibling_error)}",
-                                 "error", student_id=updated_student.id)
-                logging.exception("Sibling re-detection error:")
-                # Don't fail update due to sibling detection errors
 
         return updated_student
 
@@ -401,41 +348,21 @@ class CRUDStudent(CRUDBase[Student, StudentCreate, StudentUpdate]):
                     # Don't fail student creation, but ensure we log this properly
                     print(f"Warning: Failed to create/link user account for student {obj_in.admission_number}: {user_creation_error}")
 
-            # Detect and link siblings after student creation
-            detected_siblings = []
+            # Suggest possible siblings (same father name and phone). Nothing is linked:
+            # the office confirms siblings by hand (decision 13).
+            suggested_siblings = []
             if obj_in.father_name and obj_in.father_phone:
                 try:
                     from app.crud.crud_student_sibling import student_sibling_crud
 
-                    # Detect potential siblings
-                    potential_siblings = await student_sibling_crud.detect_siblings_by_father_and_phone(
-                        db,
-                        father_name=obj_in.father_name,
-                        father_phone=obj_in.father_phone,
-                        exclude_student_id=db_obj.id
-                    )
-
-                    if potential_siblings:
-                        # Create sibling relationships
-                        sibling_ids = [s.id for s in potential_siblings]
-                        await student_sibling_crud.create_sibling_relationships_for_student(
-                            db,
-                            student_id=db_obj.id,
-                            detected_sibling_ids=sibling_ids
-                        )
-                        detected_siblings = potential_siblings
-
-                        log_crud_operation("SIBLING_DETECTION", f"Detected and linked {len(detected_siblings)} siblings",
-                                         student_id=db_obj.id, sibling_count=len(detected_siblings))
-
+                    suggested_siblings = await student_sibling_crud.suggest_siblings(db, student=db_obj)
                 except Exception as sibling_error:
-                    log_crud_operation("SIBLING_DETECTION_ERROR", f"Failed to detect/link siblings: {str(sibling_error)}",
+                    log_crud_operation("SIBLING_SUGGESTION_ERROR", f"Failed to suggest siblings: {str(sibling_error)}",
                                      "error", student_id=db_obj.id)
-                    logging.exception("Sibling detection error:")
-                    # Don't fail student creation due to sibling detection errors
+                    logging.exception("Sibling suggestion error:")
+                    # Don't fail student creation because of suggestions
 
-            # Store detected siblings info on the object for later use
-            db_obj._detected_siblings = detected_siblings
+            db_obj._suggested_siblings = suggested_siblings
 
             return db_obj
 

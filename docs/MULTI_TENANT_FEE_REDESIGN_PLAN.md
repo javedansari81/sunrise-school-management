@@ -22,7 +22,9 @@ We will turn the Sunrise School backend into a multi-school (multi-tenant) servi
 
 ## Progress
 
-Phase 1 is done (Nov 6, 2026). Every school's data is isolated in the `school` schema of the shared `warsi_db`, platform admins manage schools through `/api/v1/platform`, and 43 isolation and platform tests pass. Next step: Phase 2, the unified fee module. Deploying to DigitalOcean is deferred to go-live.
+Phase 1 is done (Nov 6, 2026). Every school's data is isolated in the `school` schema of the shared `warsi_db`, platform admins manage schools through `/api/v1/platform`, and 43 isolation and platform tests pass.
+
+Phase 2 is built (Nov 11, 2026) on the `fee-module` branch, not yet committed, waiting for review. The unified fee module lives in `app/modules/fees/` and is served at `/api/v1/billing`. Migration `V002` adds its 11 tables. 46 fee tests pass, 89 in total. The old `/fees` and `/transport` routes still work until Phase 4. Next step: review Phase 2, then Phase 3, the transport operations module. Deploying to DigitalOcean is deferred to go-live.
 
 Status values: Not started, In progress, Done, Blocked.
 
@@ -30,7 +32,7 @@ Status values: Not started, In progress, Done, Blocked.
 | --- | --- | --- |
 | 0. Preparation | Done | Branch `multi-tenant` created. Tenant test suite runs against local Postgres in a rolled-back transaction |
 | 1. Tenant foundation | Done | School isolation, school-aware login, clean 3.0 baseline in `warsi_db`, migration runner, platform admin and school management. DigitalOcean deployment deferred to go-live |
-| 2. Unified fee module core | Not started | Payment gateway deferred (decision 11) |
+| 2. Unified fee module core | In progress | Built and tested on branch `fee-module`, waiting for review. Payment gateway deferred (decision 11) |
 | 3. Transport operations module | Not started | |
 | 4. Switch dependents and remove old code | Not started | |
 | 5. Scope the remaining modules | Not started | ORM queries are already scoped by Phase 1. Remaining: 75 raw SQL queries and 5 views |
@@ -185,7 +187,7 @@ This replaces `student_transport_enrollment`, `transport_monthly_tracking`, `tra
 
 ## Open decisions
 
-All 12 decisions were settled on Nov 6, 2026. Eleven follow the recommendation. Decision 2 was changed to subdomains only.
+All 12 decisions were settled on Nov 6, 2026. Eleven follow the recommendation. Decision 2 was changed to subdomains only. On Nov 11, 2026 decision 8 was changed and decision 13 was added while building Phase 2.
 
 | # | Decision | Options | Agreed approach | Status |
 | --- | --- | --- | --- | --- |
@@ -196,11 +198,12 @@ All 12 decisions were settled on Nov 6, 2026. Eleven follow the recommendation. 
 | 5 | Billing frequency | Monthly only, or per fee head (monthly, quarterly, half-yearly, annual, one-time) | Per fee structure item, default monthly | Agreed |
 | 6 | Transport start or stop mid-month | Charge the full month, pro-rata by days, or a cut-off day | Full month, with a per-school cut-off day setting | Agreed |
 | 7 | Late fee | None, fixed amount, or percentage. Automatic or manual | Per-school setting. Added automatically as a separate Late fee due after the grace days | Agreed |
-| 8 | Sibling concession | Which fee heads it covers and which child gets it | Rule-based, tuition only by default, applied to the second and later child. Heads and percent are configurable | Agreed |
+| 8 | Sibling concession | Which fee heads it covers and which child gets it | One sibling rule per school, made of tiers: family size, the child's position (counted from the eldest or the youngest) and a percent. Siblings are ordered eldest first by date of birth, ties by admission number, counting only siblings enrolled in the same session. Nothing about birth order is stored; it is worked out each time dues are generated. Sunrise keeps its current rule (3 siblings: youngest 100%; 4: third child 50%, youngest 100%; 5 or more: the two youngest 100%), tuition only | Changed |
 | 9 | Receipt number format | Global sequence, or per school and session | Per school and session, for example `SUN/2026-27/000123` | Agreed |
 | 10 | Advance and excess payments | Reject, or hold as student credit | Hold as credit and apply it to the next dues automatically | Agreed |
 | 11 | Online payment gateway | In scope now, or later | Later. Keep gateway fields (order ID, status) on `payments` now | Agreed |
 | 12 | Row-level security | Now, or after the CRUD layer is scoped | After, as Phase 7 | Agreed |
+| 13 | How siblings are linked | Detect them automatically (same father name and phone), or link them by hand | By hand. A "suggest siblings" button lists students with the same father name and phone, and links nothing until an admin confirms. Only admins add, edit or remove sibling links. Linking a student to a sibling joins their two families | Agreed |
 
 ## Implementation phases
 
@@ -241,16 +244,18 @@ There are eight phases, run in order. Each phase ends with the app running and i
 
 ### Phase 2: Unified fee module core
 
-- [ ] New package `app/modules/fees/` with models, schemas, repository, service and router layers
-- [ ] Migrations for `fee_heads`, `fee_structures`, `fee_structure_items`, `student_fee_plans`, concessions, `student_dues`, `payments`, `payment_allocations`, `receipt_sequences`, `fee_audit_log`
-- [ ] Fee head and fee structure management, with draft and publish
-- [ ] Plan builder: class-based plan lines for every student in a session
-- [ ] Dues generation per school, class or student
-- [ ] Concession rules, including sibling concession
-- [ ] Payment collection across any mix of dues, allocation, credit balance
-- [ ] Receipt generation (PDF and Cloudinary) and WhatsApp send using per-school settings
-- [ ] Full and partial reversals with audit log entries
-- [ ] Reports: collection by date and head, pending dues by class, student ledger
+- [x] New package `app/modules/fees/` with models, schemas, repository, service and router layers, served at `/api/v1/billing`
+- [x] Migration `V002_unified_fee_module.sql` (and `Tables/T900`-`T950`) for `fee_heads`, `fee_structures`, `fee_structure_items`, `concession_rules`, `student_fee_plans`, `student_concessions`, `student_dues`, `receipt_sequences`, `payments`, `payment_allocations`, `fee_audit_log`. The old `fee_structures` table is renamed `legacy_fee_structures`. Default fee heads, the sibling rule and fee settings are seeded for every school; new schools copy them from the template school
+- [x] Fee head and fee structure management, with draft, publish (archives the previous published list), archive and copy
+- [x] Plan builder: class-based plan lines for every student in a session. Safe to rerun; a class or price change ends the old line and starts a new one from `effective_from`. Manual one-off lines per student
+- [x] Dues generation per school, class or student, through a given month (default: this month). Safe to rerun. Unpaid dues are re-priced on each run; paid dues never change
+- [x] Concession rules, including the sibling rule (decisions 8 and 13), and staff, scholarship and custom concessions per student. Concessions on one due add up, capped at the due
+- [x] Sibling links by hand (decision 13): automatic linking removed from student create and update, "suggest siblings" route, link, change type and remove routes for admins only. Fixed two old bugs: linking A to B dropped B's links to its other siblings, and every rebuild reset the relationship type
+- [x] Late fees (decision 7): `POST /billing/late-fees/apply`, also run during dues generation. A scheduled job comes later
+- [x] Payment collection across any mix of dues (oldest first, chosen dues or exact amounts), one receipt number per school and session under a row lock, credit held and applied to new dues automatically (decision 10)
+- [x] Receipt PDF from the school's own details and settings (`receipt.logo`, `cloudinary.receipt_folder`, `whatsapp.media_receipt_template_sid`, `whatsapp.receipts_enabled`), upload to Cloudinary and WhatsApp send. Sunrise's name, address, email, website and logo moved from code into its school record and settings
+- [x] Full and partial reversals as REVERSAL entries with negative allocations, credit taken back first, with audit log entries
+- [x] Reports: collection by day, method and fee head, pending dues by class, student ledger with running balance, consistency check
 
 ### Phase 3: Transport operations module
 

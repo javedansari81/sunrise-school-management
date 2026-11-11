@@ -536,10 +536,12 @@ class WhatsAppService:
         student_name: str,
         amount: float,
         receipt_url: Optional[str] = None,
-        payment_id: Optional[int] = None
+        payment_id: Optional[int] = None,
+        template_sid: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Send WhatsApp media receipt notification with PDF attachment.
+        `template_sid` overrides TWILIO_WHATSAPP_MEDIA_RECEIPT_SID (per-school template).
 
         Uses template: school_fee_media_template_v4
         Template SID: HX15Ib79a0cfdd1dc1fd6G23ec5b50a71c
@@ -563,7 +565,7 @@ class WhatsAppService:
             Dict with success status, message_sid, and any errors
         """
         # Get template SID from config (school_fee_media_template_v4)
-        media_receipt_template_sid = settings.TWILIO_WHATSAPP_MEDIA_RECEIPT_SID
+        media_receipt_template_sid = template_sid or settings.TWILIO_WHATSAPP_MEDIA_RECEIPT_SID
 
         result = {
             "success": False,
