@@ -204,12 +204,14 @@ class DailyCollectionData(BaseModel):
     class_name: str
     section: Optional[str] = None
 
-    # Fee Record Information
-    fee_record_id: int
+    # Session the payment was taken in
+    fee_record_id: Optional[int] = Field(default=None, description="Deprecated: always empty since the unified fee module")
     session_year_name: str
 
-    # Payment Type (Fee/Transport)
-    payment_type: str = Field(default="Fee", description="Fee or Transport")
+    # What the money paid for. One payment can settle fee and transport dues together.
+    payment_type: str = Field(default="Fee", description="Fee, Transport or Fee + Transport")
+    fee_amount: Decimal = Field(default=Decimal("0.00"), description="Part not paid towards transport dues (includes advance credit)")
+    transport_amount: Decimal = Field(default=Decimal("0.00"), description="Part paid towards transport dues")
 
     # Additional Info
     remarks: Optional[str] = None

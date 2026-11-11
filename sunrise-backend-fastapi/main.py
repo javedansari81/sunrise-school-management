@@ -61,12 +61,12 @@ try:
     print("✅ All API routers loaded successfully with PostgreSQL database!")
     print("🔗 Available endpoints:")
     print("   - Authentication: /api/v1/auth/")
-    print("   - Fee Management: /api/v1/fees/")
+    print("   - Fee Management: /api/v1/billing/")
     print("   - Student Management: /api/v1/students/")
     print("   - Teacher Management: /api/v1/teachers/")
     print("   - Leave Management: /api/v1/leaves/")
     print("   - Expense Management: /api/v1/expenses/")
-    print("   - Transport Management: /api/v1/transport/")
+    print("   - Transport Management: /api/v1/transit/")
     print("   - Inventory Management: /api/v1/inventory/")
 
 except ImportError as e:

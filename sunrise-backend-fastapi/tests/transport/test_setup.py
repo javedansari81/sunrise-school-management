@@ -41,15 +41,25 @@ async def test_seeded_types_rates_and_settings(sunrise_session, refs):
         assert due_day == "10"
 
 
-async def test_legacy_transport_types_renamed(admin_api, sunrise_session):
+LEGACY_TABLES = {
+    "legacy_fee_structures", "fee_records", "fee_payments", "fee_payment_audit_log", "monthly_fee_tracking",
+    "monthly_payment_allocations", "legacy_transport_types", "transport_type_pricing", "transport_distance_slabs",
+    "student_transport_enrollment", "transport_monthly_tracking", "transport_payments",
+    "transport_payment_allocations",
+}
+
+
+async def test_legacy_tables_dropped(sunrise_session):
+    """Migration V004 dropped the 13 pre-redesign fee and transport tables and their functions."""
     async with sunrise_session() as session:
-        names = set((await session.execute(text(
-            "SELECT table_name FROM information_schema.tables WHERE table_schema = current_schema() "
-            "AND table_name IN ('transport_types', 'legacy_transport_types')"))).scalars())
-        assert names == {"transport_types", "legacy_transport_types"}
-    # The old screens keep reading the legacy list until Phase 4
-    old = await ok(await admin_api.get("/api/v1/transport/transport-types"))
-    assert {t["name"] for t in old} >= {"E_RICKSHAW", "VAN"}
+        tables = set((await session.execute(text(
+            "SELECT table_name FROM information_schema.tables WHERE table_schema = current_schema()"))).scalars())
+        functions = set((await session.execute(text(
+            "SELECT p.proname FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace "
+            "WHERE n.nspname = current_schema()"))).scalars())
+    assert "transport_types" in tables
+    assert not tables & LEGACY_TABLES
+    assert functions == {"calculate_sibling_fee_waiver", "get_waiver_reason_text"}
 
 
 async def test_seed_defaults_for_new_school(make_session, schools):

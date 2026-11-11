@@ -9,7 +9,6 @@ from datetime import datetime
 from app.crud.base import CRUDBase
 from app.models.student import Student
 from app.models.user import User
-from app.models.fee import FeeRecord
 from app.models.metadata import Gender, Class, SessionYear, UserType
 from app.schemas.student import StudentCreate, StudentUpdate, ClassEnum, GenderEnum
 from app.schemas.user import UserCreate
@@ -190,14 +189,6 @@ class CRUDStudent(CRUDBase[Student, StudentCreate, StudentUpdate]):
                 selectinload(Student.class_ref),
                 selectinload(Student.session_year)
             )
-            .where(Student.id == id)
-        )
-        return result.scalar_one_or_none()
-
-    async def get_with_fees(self, db: AsyncSession, id: int) -> Optional[Student]:
-        result = await db.execute(
-            select(Student)
-            .options(selectinload(Student.fee_records))
             .where(Student.id == id)
         )
         return result.scalar_one_or_none()
@@ -523,27 +514,6 @@ class CRUDStudent(CRUDBase[Student, StudentCreate, StudentUpdate]):
             query = query.where(Student.section == section)
         
         query = query.order_by(Student.roll_number, Student.first_name)
-        result = await db.execute(query)
-        return result.scalars().all()
-
-    async def get_students_with_pending_fees(
-        self, db: AsyncSession, *, session_year: Optional[str] = None
-    ) -> List[Student]:
-        query = (
-            select(Student)
-            .join(FeeRecord)
-            .where(
-                and_(
-                    Student.is_active == True,
-                    FeeRecord.balance_amount > 0
-                )
-            )
-        )
-        
-        if session_year:
-            query = query.where(FeeRecord.session_year == session_year)
-        
-        query = query.distinct().order_by(Student.first_name)
         result = await db.execute(query)
         return result.scalars().all()
 

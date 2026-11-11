@@ -5,7 +5,6 @@
 --              the session. A published list is never edited: it is copied into
 --              a new draft instead.
 -- Dependencies: schools, session_years, users
--- Note: the pre-redesign table of the same name is now legacy_fee_structures (T400).
 -- =====================================================
 
 DROP TABLE IF EXISTS fee_structures CASCADE;

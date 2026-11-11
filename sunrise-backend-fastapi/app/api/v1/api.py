@@ -4,8 +4,8 @@ from app.modules.fees.router import router as billing_router
 from app.modules.transport.router import router as transit_router
 
 from app.api.v1.endpoints import (
-    auth, teachers, students, leaves, expenses, fees, configuration,
-    public, database, transport, dashboard, gallery, reports, inventory,
+    auth, teachers, students, leaves, expenses, configuration,
+    public, database, dashboard, gallery, reports, inventory,
     student_siblings, users, attendance, alerts, session_progression, platform
 )
 
@@ -30,12 +30,10 @@ api_router.include_router(students.router, prefix="/students", tags=["students"]
 api_router.include_router(student_siblings.router, prefix="/students", tags=["student-siblings"])
 api_router.include_router(leaves.router, prefix="/leaves", tags=["leaves"])
 api_router.include_router(expenses.router, prefix="/expenses", tags=["expenses"])
-api_router.include_router(fees.router, prefix="/fees", tags=["fees"])
-# Unified fee module (Phase 2). Replaces /fees and transport billing in Phase 4.
+# Unified fee module: every charge, payment, receipt and fee report
 api_router.include_router(billing_router, prefix="/billing", tags=["billing"])
 api_router.include_router(inventory.router, prefix="/inventory", tags=["inventory"])
-api_router.include_router(transport.router, prefix="/transport", tags=["transport"])
-# Transport operations module (Phase 3). Replaces /transport in Phase 4.
+# Transport operations module: types, vehicles, routes, rates and assignments
 api_router.include_router(transit_router, prefix="/transit", tags=["transit"])
 api_router.include_router(attendance.router, prefix="/attendance", tags=["attendance"])
 api_router.include_router(gallery.router, prefix="/gallery", tags=["gallery"])

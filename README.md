@@ -131,11 +131,16 @@ docker-compose -f docker-compose.prod.yml up -d
 - `PUT /api/v1/students/{id}` - Update student
 - `DELETE /api/v1/students/{id}` - Delete student
 
-### Fees Management
-- `GET /api/v1/fees` - Get fee records with filters
-- `POST /api/v1/fees` - Create fee record
-- `POST /api/v1/fees/payment` - Process payment
-- `GET /api/v1/fees/history/{student_id}` - Payment history
+### Fees (unified fee module, `/api/v1/billing`)
+- `GET/POST /api/v1/billing/fee-heads`, `/fee-structures` - Fee types and price lists per session
+- `POST /api/v1/billing/plans/build`, `/dues/generate` - Student fee plans and monthly dues
+- `POST /api/v1/billing/payments` - Collect a payment against any mix of dues (one receipt)
+- `GET /api/v1/billing/students/{id}/dues`, `/balance`, `/payments`, `/ledger` - A student's account
+- `GET /api/v1/billing/reports/collection`, `/reports/pending-by-class` - Fee reports
+
+### Transport (`/api/v1/transit`)
+- Transport types, vehicles, routes and stops, rates per session
+- `POST /api/v1/transit/assignments` - Assign a student; transport dues are billed by the fee module
 
 ### Leave Management
 - `GET /api/v1/leaves` - Get leave requests

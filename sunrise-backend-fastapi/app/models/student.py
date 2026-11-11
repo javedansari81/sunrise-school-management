@@ -123,8 +123,6 @@ class Student(TenantMixin, Base):
     gender = relationship("Gender", back_populates="students")
     class_ref = relationship("Class", foreign_keys=[class_id], back_populates="students")
     session_year = relationship("SessionYear", foreign_keys=[session_year_id], back_populates="students")
-    fee_records = relationship("FeeRecord", back_populates="student")
-    transport_enrollments = relationship("StudentTransportEnrollment", back_populates="student")
     inventory_purchases = relationship("InventoryPurchase", back_populates="student")
     # leave_requests = relationship("LeaveRequest", back_populates="student")
 

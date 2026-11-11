@@ -36,9 +36,9 @@ The database user needs permission to create a schema in the database. `warsi_us
 | Folder | Contents |
 | --- | --- |
 | `Schema/` | `00_create_schema.sql`: the `schema_migrations` table and the baseline row |
-| `Tables/` | One file per table. `T010` `schools`, `T020` `school_settings`, then lookups (T100 to T297), core (T300 to T320), fee and transport (T400 to T470), expense and leave (T500 to T600), gallery and inventory (T700 to T750), attendance and alerts (T800 to T810) |
-| `Functions/` | One file per function. All four are used by the legacy fee, sibling and transport code (F120 is the trigger that keeps `fee_records.balance_amount` current) |
-| `Init/` | Default school seed: `00` creates Sunrise (school 1), `01` reference lists, `02`/`03` admin users, `03_fee_structures_data`, `07` initial stock rows, `99` closes the seed |
+| `Tables/` | One file per table. `T010` `schools`, `T020` `school_settings`, then lookups (T100 to T297), core (T300 to T320), expense and leave (T500 to T600), gallery and inventory (T700 to T750), attendance and alerts (T800 to T810), unified fee module (T900 to T950), transport operations (T960 to T985) |
+| `Functions/` | One file per function. `F140_calculate_sibling_waiver.sql` (`calculate_sibling_fee_waiver`, `get_waiver_reason_text`) is used by the student sibling code |
+| `Init/` | Default school seed: `00` creates Sunrise (school 1), `01` reference lists, `02`/`03` admin users, `04` fee module defaults, `05` transport types and Sunrise's transport rates, `07` initial stock rows, `99` closes the seed |
 | `DataLoads/` | More reference data (alert types, reversal reasons, transport, inventory, attendance, gallery categories) |
 | `Versioning/` | Migrations for existing databases, starting after the 3.0 baseline. Applied once each by `migrate_database.py`. See its README |
 | `archive/` | Legacy migrations V001 to V036 and old scripts. Already included in the baseline. Kept for history only |
@@ -52,7 +52,7 @@ The database user needs permission to create a schema in the database. `warsi_us
 | School-configurable lists | classes, session_years, departments, positions, expense_categories, gallery_categories, inventory_item_category, inventory_item_types, inventory_size_types, leave_types | `school_id NOT NULL`, `name` unique per school, auto-increment ids |
 | Platform admins | users with `user_type_id = 7` (PLATFORM_ADMIN) | `school_id` is NULL. A CHECK constraint allows NULL only for this user type. They manage schools through `/api/v1/platform` and are invisible to every school |
 | Shared system lists | user_types, genders, payment_types, payment_statuses, payment_methods, leave_statuses, expense_statuses, employment_statuses, qualifications, reversal_reasons, attendance_statuses, attendance_periods, progression_actions, alert_types, alert_statuses | No `school_id`. Same for every school |
-| Legacy fee and transport | fee_structures, fee_records, fee_payments, monthly_fee_tracking, transport tables | No `school_id` yet. Being replaced by the unified fee module (redesign plan Phases 2 to 4) |
+| Fee and transport | fee_heads, fee_structures, fee_structure_items, concession_rules, student_fee_plans, student_concessions, student_dues, receipt_sequences, payments, payment_allocations, fee_audit_log, transport_types, vehicles, routes, route_stops, transport_rates, student_transport_assignments, transport_assignment_pauses | `school_id NOT NULL`. The pre-redesign fee and transport tables were dropped by migration V004 |
 
 ## How the default school is seeded
 

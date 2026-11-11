@@ -80,44 +80,6 @@ class DatabaseConstraints:
             "field_name": "user_id"
         },
         
-        # Fee Structures table
-        "uk_fee_structures_class_session": {
-            "table": "legacy_fee_structures",
-            "columns": ["class_id", "session_year_id"],
-            "message": "A fee structure already exists for this class and session year. Please edit the existing fee structure instead.",
-            "field_name": "class_session"
-        },
-        "legacy_fee_structures_class_id_session_year_id_key": {
-            "table": "legacy_fee_structures",
-            "columns": ["class_id", "session_year_id"],
-            "message": "A fee structure already exists for this class and session year. Please edit the existing fee structure instead.",
-            "field_name": "class_session"
-        },
-        
-        # Fee Payments table
-        "fee_payments_receipt_number_key": {
-            "table": "fee_payments",
-            "columns": ["receipt_number"],
-            "message": "A payment with this receipt number already exists. Please use a different receipt number.",
-            "field_name": "receipt_number"
-        },
-        
-        # Monthly Fee Tracking table
-        "monthly_fee_tracking_fee_record_id_academic_month_academic_year_key": {
-            "table": "monthly_fee_tracking",
-            "columns": ["fee_record_id", "academic_month", "academic_year"],
-            "message": "Monthly fee tracking already exists for this month and year. Cannot create duplicate monthly records.",
-            "field_name": "monthly_tracking"
-        },
-        
-        # Monthly Payment Allocations table
-        "monthly_payment_allocations_fee_payment_id_monthly_tracking_id_key": {
-            "table": "monthly_payment_allocations",
-            "columns": ["fee_payment_id", "monthly_tracking_id"],
-            "message": "This payment has already been allocated to this month. Cannot allocate the same payment twice.",
-            "field_name": "payment_allocation"
-        },
-        
         # Leave Balance table
         "leave_balance_teacher_id_session_year_id_key": {
             "table": "leave_balance",
@@ -232,89 +194,6 @@ class DatabaseConstraints:
             "field_name": "class_teacher_of_id"
         },
         
-        # Fee Structures table
-        "legacy_fee_structures_class_id_fkey": {
-            "table": "legacy_fee_structures",
-            "column": "class_id",
-            "referenced_table": "classes",
-            "message": "Invalid class selected. Please select a valid class.",
-            "field_name": "class_id"
-        },
-        "legacy_fee_structures_session_year_id_fkey": {
-            "table": "legacy_fee_structures",
-            "column": "session_year_id",
-            "referenced_table": "session_years",
-            "message": "Invalid session year selected. Please select a valid session year.",
-            "field_name": "session_year_id"
-        },
-        
-        # Fee Records table
-        "fee_records_student_id_fkey": {
-            "table": "fee_records",
-            "column": "student_id",
-            "referenced_table": "students",
-            "message": "Invalid student selected. Please select a valid student.",
-            "field_name": "student_id"
-        },
-        "fee_records_session_year_id_fkey": {
-            "table": "fee_records",
-            "column": "session_year_id",
-            "referenced_table": "session_years",
-            "message": "Invalid session year selected. Please select a valid session year.",
-            "field_name": "session_year_id"
-        },
-        "fee_records_payment_type_id_fkey": {
-            "table": "fee_records",
-            "column": "payment_type_id",
-            "referenced_table": "payment_types",
-            "message": "Invalid payment type selected. Please select a valid payment type.",
-            "field_name": "payment_type_id"
-        },
-        "fee_records_payment_status_id_fkey": {
-            "table": "fee_records",
-            "column": "payment_status_id",
-            "referenced_table": "payment_statuses",
-            "message": "Invalid payment status selected. Please select a valid payment status.",
-            "field_name": "payment_status_id"
-        },
-        "fee_records_payment_method_id_fkey": {
-            "table": "fee_records",
-            "column": "payment_method_id",
-            "referenced_table": "payment_methods",
-            "message": "Invalid payment method selected. Please select a valid payment method.",
-            "field_name": "payment_method_id"
-        },
-        "fee_records_fee_structure_id_fkey": {
-            "table": "fee_records",
-            "column": "fee_structure_id",
-            "referenced_table": "legacy_fee_structures",
-            "message": "Invalid fee structure selected. Please select a valid fee structure.",
-            "field_name": "fee_structure_id"
-        },
-
-        # Fee Payments table
-        "fee_payments_fee_record_id_fkey": {
-            "table": "fee_payments",
-            "column": "fee_record_id",
-            "referenced_table": "fee_records",
-            "message": "Invalid fee record selected. Please select a valid fee record.",
-            "field_name": "fee_record_id"
-        },
-        "fee_payments_payment_method_id_fkey": {
-            "table": "fee_payments",
-            "column": "payment_method_id",
-            "referenced_table": "payment_methods",
-            "message": "Invalid payment method selected. Please select a valid payment method.",
-            "field_name": "payment_method_id"
-        },
-        "fk_fee_payments_collected_by": {
-            "table": "fee_payments",
-            "column": "collected_by",
-            "referenced_table": "users",
-            "message": "Invalid user selected for payment collection. Please select a valid user.",
-            "field_name": "collected_by"
-        },
-
         # Leave Requests table
         "leave_requests_leave_type_id_fkey": {
             "table": "leave_requests",
@@ -516,60 +395,6 @@ class DatabaseConstraints:
             "columns": ["resignation_date"],
             "message": "Resignation date must be after the joining date.",
             "field_name": "resignation_date"
-        },
-
-        # Fee Records table
-        "fee_records_total_amount_check": {
-            "table": "fee_records",
-            "columns": ["total_amount"],
-            "message": "Total fee amount must be greater than zero. Please enter a valid amount.",
-            "field_name": "total_amount"
-        },
-        "fee_records_paid_amount_check": {
-            "table": "fee_records",
-            "columns": ["paid_amount"],
-            "message": "Paid amount cannot be negative. Please enter a valid amount.",
-            "field_name": "paid_amount"
-        },
-        "fee_records_balance_amount_check": {
-            "table": "fee_records",
-            "columns": ["balance_amount"],
-            "message": "Balance amount cannot be negative. Please check the payment calculations.",
-            "field_name": "balance_amount"
-        },
-        "chk_fee_records_balance": {
-            "table": "fee_records",
-            "columns": ["balance_amount", "total_amount", "paid_amount"],
-            "message": "Balance amount must equal total amount minus paid amount. Please check the calculations.",
-            "field_name": "balance_calculation"
-        },
-        "fee_records_due_date_check": {
-            "table": "fee_records",
-            "columns": ["due_date"],
-            "message": "Due date must be a valid date (not before year 2020).",
-            "field_name": "due_date"
-        },
-
-        # Fee Payments table
-        "fee_payments_amount_check": {
-            "table": "fee_payments",
-            "columns": ["amount"],
-            "message": "Payment amount must be greater than zero. Please enter a valid amount.",
-            "field_name": "amount"
-        },
-        "fee_payments_payment_date_check": {
-            "table": "fee_payments",
-            "columns": ["payment_date"],
-            "message": "Payment date cannot be in the future. Please enter a valid payment date.",
-            "field_name": "payment_date"
-        },
-
-        # Monthly Fee Tracking table
-        "chk_academic_month_valid": {
-            "table": "monthly_fee_tracking",
-            "columns": ["academic_month"],
-            "message": "Academic month must be between 1 and 12. Please select a valid month.",
-            "field_name": "academic_month"
         },
 
         # Leave Requests table

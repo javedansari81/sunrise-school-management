@@ -3,7 +3,6 @@ from typing import List, Dict, Any
 from pydantic import BaseModel
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import text
 
 from app.core.database import get_db
 from app.api.deps import get_current_active_user, get_current_admin_user
@@ -356,17 +355,18 @@ async def recalculate_sibling_waiver(
     current_user: User = Depends(get_current_admin_user)
 ):
     """
-    Recalculate fee waiver for a student and their siblings.
+    Recalculate the sibling waiver of a student and their family.
 
     Parameters:
     - student_id: The student ID to recalculate waivers for
-    - update_fee_records: If True, also updates existing fee records and monthly tracking records
+    - update_fee_records: If True, also re-prices the unpaid dues of every family
+      member in their current session. The fee module works the sibling
+      concession out on each dues generation; paid dues never change.
     """
-    from app.models.fee import FeeRecord, MonthlyFeeTracking
-    from sqlalchemy import select, update
-    from decimal import Decimal
+    from app.modules.fees import repository as fee_repo
+    from app.modules.fees.schemas import DuesGenerateRequest
+    from app.modules.fees.service.dues import generate_dues
 
-    # Verify student exists
     student = await student_crud.get(db, id=student_id)
     if not student:
         raise HTTPException(
@@ -374,112 +374,31 @@ async def recalculate_sibling_waiver(
             detail="Student not found"
         )
 
-    # Get current waiver info
     old_waiver_info = await student_sibling_crud.get_sibling_waiver_info(db, student_id=student_id)
     old_waiver = old_waiver_info["fee_waiver_percentage"]
     old_birth_order = old_waiver_info["birth_order"]
 
-    # Get all family members
     family_ids = await student_sibling_crud.get_all_family_members(db, student_id)
-
-    # Recalculate waivers in student_siblings table
     await student_sibling_crud._recalculate_family_waivers(db, family_ids)
     await db.commit()
 
-    # Get new waiver info
     new_waiver_info = await student_sibling_crud.get_sibling_waiver_info(db, student_id=student_id)
     new_waiver = new_waiver_info["fee_waiver_percentage"]
     new_birth_order = new_waiver_info["birth_order"]
 
-    # Update existing fee records and monthly tracking if requested
-    if update_fee_records and new_waiver != old_waiver:
-        # Get all fee records for this student that have monthly tracking enabled
-        fee_records_result = await db.execute(
-            select(FeeRecord).where(
-                FeeRecord.student_id == student_id,
-                FeeRecord.is_monthly_tracked == True,
-                FeeRecord.is_active == True
+    repriced = 0
+    if update_fee_records:
+        for member_id in sorted(set(family_ids) | {student_id}):
+            member = await db.get(Student, member_id)
+            if member is None or member.session_year_id is None:
+                continue
+            if not await fee_repo.enrolled_students(db, member.session_year_id, student_ids=[member_id]):
+                continue
+            result = await generate_dues(
+                db, DuesGenerateRequest(session_year_id=member.session_year_id, student_id=member_id),
+                user_id=current_user.id,
             )
-        )
-        fee_records = fee_records_result.scalars().all()
-
-        for fee_record in fee_records:
-            # Calculate new amounts based on new waiver percentage
-            if fee_record.original_total_amount:
-                # Already has waiver, use original amount
-                original_total = fee_record.original_total_amount
-            else:
-                # No previous waiver, current total is the original
-                original_total = fee_record.total_amount
-
-            # Calculate new waived amount
-            if new_waiver > 0:
-                new_total_amount = original_total * (Decimal("100") - new_waiver) / Decimal("100")
-                new_monthly_amount = new_total_amount / Decimal("12")
-            else:
-                new_total_amount = original_total
-                new_monthly_amount = original_total / Decimal("12")
-
-            # Update fee record
-            fee_record.has_sibling_waiver = (new_waiver > 0)
-            fee_record.sibling_waiver_percentage = new_waiver
-            fee_record.original_total_amount = original_total if new_waiver > 0 else None
-            old_total = fee_record.total_amount
-            fee_record.total_amount = new_total_amount
-            # Adjust balance amount proportionally
-            if old_total > 0:
-                balance_ratio = fee_record.balance_amount / old_total
-                fee_record.balance_amount = new_total_amount * balance_ratio
-            else:
-                fee_record.balance_amount = new_total_amount - fee_record.paid_amount
-
-            db.add(fee_record)
-
-            # Update monthly tracking records for this fee record
-            monthly_records_result = await db.execute(
-                select(MonthlyFeeTracking).where(
-                    MonthlyFeeTracking.fee_record_id == fee_record.id,
-                    MonthlyFeeTracking.payment_status_id == 1  # Only update unpaid records
-                )
-            )
-            monthly_records = monthly_records_result.scalars().all()
-
-            # Get waiver reason
-            waiver_reason = None
-            if new_waiver > 0:
-                total_siblings = new_waiver_info["total_siblings_count"]
-                result = await db.execute(
-                    text("SELECT get_waiver_reason_text(:total, :order, :percentage)"),
-                    {
-                        "total": total_siblings,
-                        "order": new_birth_order,
-                        "percentage": float(new_waiver)
-                    }
-                )
-                waiver_reason = result.scalar()
-
-            for monthly_record in monthly_records:
-                # Calculate original monthly amount if not set
-                if not monthly_record.original_monthly_amount:
-                    monthly_record.original_monthly_amount = monthly_record.monthly_amount if old_waiver == 0 else None
-
-                # Update monthly amount with new waiver
-                if new_waiver > 0:
-                    if monthly_record.original_monthly_amount:
-                        original_monthly = monthly_record.original_monthly_amount
-                    else:
-                        original_monthly = original_total / Decimal("12")
-
-                    monthly_record.original_monthly_amount = original_monthly
-                    monthly_record.monthly_amount = original_monthly * (Decimal("100") - new_waiver) / Decimal("100")
-                else:
-                    monthly_record.monthly_amount = original_total / Decimal("12")
-                    monthly_record.original_monthly_amount = None
-
-                monthly_record.fee_waiver_percentage = new_waiver
-                monthly_record.waiver_reason = waiver_reason
-                db.add(monthly_record)
-
+            repriced += result["repriced"]
         await db.commit()
 
     return SiblingRecalculationResult(
@@ -489,6 +408,8 @@ async def recalculate_sibling_waiver(
         previous_birth_order=old_birth_order,
         new_birth_order=new_birth_order,
         total_siblings_count=new_waiver_info["total_siblings_count"],
-        message=f"Waiver recalculated: {old_waiver}% -> {new_waiver}%. Fee records {'updated' if update_fee_records else 'not updated'}."
+        message=(
+            f"Waiver recalculated: {old_waiver}% -> {new_waiver}%. "
+            + (f"{repriced} unpaid dues re-priced." if update_fee_records else "Dues not updated.")
+        )
     )
-

@@ -24,9 +24,11 @@ We will turn the Sunrise School backend into a multi-school (multi-tenant) servi
 
 Phase 1 is done (Nov 6, 2026). Every school's data is isolated in the `school` schema of the shared `warsi_db`, platform admins manage schools through `/api/v1/platform`, and 43 isolation and platform tests pass.
 
-Phase 2 is done (Nov 11, 2026, merged in PR #3). The unified fee module lives in `app/modules/fees/` and is served at `/api/v1/billing`. Migration `V002` adds its 11 tables and is applied to the local `warsi_db`. 46 fee tests pass, 89 in total. The old `/fees` and `/transport` routes still work until Phase 4, and the new fee screens come in Phase 6. Next step: Phase 3, the transport operations module. Deploying to DigitalOcean, including running `V002`, is deferred to go-live.
+Phase 2 is done (Nov 11, 2026, merged in PR #3). The unified fee module lives in `app/modules/fees/` and is served at `/api/v1/billing`. Migration `V002` adds its 11 tables and is applied to the local `warsi_db`. 46 fee tests pass, 89 in total. The old `/fees` and `/transport` routes still work until Phase 4, and the new fee screens come in Phase 6. Deploying to DigitalOcean, including running `V002`, is deferred to go-live.
 
-Phase 3 is built (Nov 11, 2026), committed and pushed on the `transport-module` branch; the pull request to `main` is still to be opened, then reviewed. The transport operations module lives in `app/modules/transport/` and is served at `/api/v1/transit`. Migration `V003` renames the old `transport_types` to `legacy_transport_types`, adds 7 tables and carries Sunrise's old price list over as rates. `V003` is applied to the local `warsi_db`. 45 transport tests pass; 133 of 134 pass in total. The one failure, `test_build_plans_and_generate_dues` in `tests/fees/test_ledger.py`, comes from local data, not from Phase 3: the test assumes session 2026-27 has only its own students, and the local database has 3 real students there. Next step: open and review the Phase 3 pull request, then Phase 4. Deploying to DigitalOcean, including running `V003`, is deferred to go-live.
+Phase 3 is done (Nov 11, 2026, merged in PR #4). The transport operations module lives in `app/modules/transport/` and is served at `/api/v1/transit`. Migration `V003` renames the old `transport_types` to `legacy_transport_types`, adds 7 tables and carries Sunrise's old price list over as rates. `V003` is applied to the local `warsi_db`. 45 transport tests pass; 133 of 134 pass in total. The one failure, `test_build_plans_and_generate_dues` in `tests/fees/test_ledger.py`, comes from local data, not from Phase 3: the test assumes session 2026-27 has only its own students, and the local database has 3 real students there. The new transport screens come in Phase 6. Deploying to DigitalOcean, including running `V003`, is deferred to go-live.
+
+Phase 4 is done in code (Nov 11, 2026, branch `switch-dependents`). The dashboard, student pages, reports, sibling waiver recalculation and the configuration endpoint now read the unified fee ledger and the transport operations module, through two small read-only services (`app/modules/fees/service/summary.py` and `app/modules/transport/service/summary.py`). The old `/fees` and `/transport` routes, their CRUD, schemas, models and receipt generators are deleted. Migration `V004` drops the 13 old tables and 3 old functions. A fresh deployment and a deployment migrated from the Phase 3 baseline were compared and are identical. `V004` is applied to the local `warsi_db`. All 146 tests pass on a clean migrated schema; on the local `warsi_db` 145 pass, and the one failure is the known local-data failure `test_build_plans_and_generate_dues`. The old fee and transport screens in the frontend stop working until Phase 6 replaces them. Next step: Phase 5, scope the remaining modules. Deploying to DigitalOcean, including running `V004`, is deferred to go-live.
 
 Status values: Not started, In progress, Done, Blocked.
 
@@ -35,9 +37,9 @@ Status values: Not started, In progress, Done, Blocked.
 | 0. Preparation | Done | Branch `multi-tenant` created. Tenant test suite runs against local Postgres in a rolled-back transaction |
 | 1. Tenant foundation | Done | School isolation, school-aware login, clean 3.0 baseline in `warsi_db`, migration runner, platform admin and school management. DigitalOcean deployment deferred to go-live |
 | 2. Unified fee module core | Done | Merged in PR #3. `/api/v1/billing`, migration `V002`. Payment gateway deferred (decision 11). Fee screens in Phase 6 |
-| 3. Transport operations module | In progress | Pushed on branch `transport-module`, pull request to be opened and reviewed. `/api/v1/transit`, migration `V003`. Transport screens in Phase 6 |
-| 4. Switch dependents and remove old code | Not started | |
-| 5. Scope the remaining modules | Not started | ORM queries are already scoped by Phase 1. Remaining: 75 raw SQL queries and 5 views |
+| 3. Transport operations module | Done | Merged in PR #4. `/api/v1/transit`, migration `V003`. Transport screens in Phase 6 |
+| 4. Switch dependents and remove old code | Done | Branch `switch-dependents`, migration `V004`, applied to the local `warsi_db` |
+| 5. Scope the remaining modules | Not started | ORM queries are already scoped by Phase 1. Remaining: 62 raw SQL calls in 12 files |
 | 6. Frontend | Not started | |
 | 7. Hardening | Not started | Includes row-level security (decision 12) |
 
@@ -272,9 +274,12 @@ There are eight phases, run in order. Each phase ends with the app running and i
 
 ### Phase 4: Switch dependents and remove old code
 
-- [ ] Point dashboard, student siblings, reports, student CRUD and metadata at the new modules
-- [ ] Delete old fee and transport endpoints, CRUD, schemas and models
-- [ ] Migration: drop the 13 old fee and transport tables (by then renamed `legacy_*`)
+- [x] Point dashboard, student siblings, reports, student CRUD and metadata at the new modules, through read-only summary services in each module. Dashboard and report responses keep their shape; the daily collection report also splits each payment into its fee and transport parts. Sibling waiver recalculation re-prices unpaid dues. Transport types in `/configuration` come from the school's own list
+- [x] Delete old fee and transport endpoints, CRUD, schemas, models, receipt generators, the `FeeValidator` and the `/database/deploy-function` endpoint
+- [x] Migration `V004_drop_legacy_fee_transport.sql`: drops the 13 old tables and the functions `enable_monthly_tracking_complete`, `enable_transport_monthly_tracking` and `calculate_fee_balance`. It refuses to run while an old payment table holds payments. Their table, function and data scripts are removed from `deploy_database.sql`; `Init/05_transport_defaults.sql` now seeds Sunrise's transport rates directly
+- [x] Fixed on the way: `/students/{id}/profile` read columns that no longer exist and failed on every call
+- [x] `V004` applied to the local `warsi_db`
+- Not carried over: the old tuition price list (`legacy_fee_structures`). Sunrise sets up its 2026-27 fee structure in `/billing` (decision 1)
 
 ### Phase 5: Scope the remaining modules
 
@@ -320,4 +325,5 @@ The biggest risk is a query that forgets the school filter and leaks another sch
 - Isolation: a user of school A gets 404 for every school B record, on every list and detail route.
 - Fee ledger: dues generation, concessions, part payments, allocation order, credit balance, full and partial reversal.
 - [x] Transport to fee handoff: assign, change rate, discontinue mid-session, paused months (`tests/transport`).
+- [x] Dependents on the new modules: dashboard, reports, student pages, configuration, sibling re-pricing, old routes gone (`tests/transport/test_dependents.py`).
 - Receipts: numbering is per school and session with no gaps or duplicates under concurrent payments.

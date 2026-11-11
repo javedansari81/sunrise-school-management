@@ -1,18 +1,14 @@
 -- =====================================================
 -- Transport operations module: default transport types, rates and settings
 -- =====================================================
--- Runs for every school, so the same script serves a fresh deployment
--- (school 1) and migration V003 (every existing school). Each step skips a
--- school that already has the rows. New schools created later get theirs from
+-- Fresh deployments only. Existing databases got the same rows from
+-- migration V003. New schools created later get theirs from
 -- app/modules/transport/provisioning.py.
 --
 -- 1. Transport types E-Rickshaw, Van and Bus for every school without types.
--- 2. Rates carried over from the pre-redesign price list
---    (transport_type_pricing and transport_distance_slabs, which only Sunrise
---    has) for schools without rates. Price lists are configuration, not student
---    data, so they are kept (decision 1 drops only old enrollments and
---    payments). Old slabs ran 0-8, 8.01-10, ...; new slabs cover
---    (from, to], so 8.01 becomes 8.00.
+-- 2. Sunrise's price list (school 1), the same rates V003 carried over from
+--    the pre-redesign tables: flat monthly fees per type for 2025-26 and
+--    2026-27, and Van distance slabs covering (from, to] km.
 -- 3. The fee.transport.due_day setting.
 -- =====================================================
 
@@ -26,39 +22,31 @@ CROSS JOIN (VALUES
 ) AS d (name, description, capacity, sort_order)
 WHERE NOT EXISTS (SELECT 1 FROM transport_types t WHERE t.school_id = s.id);
 
-CREATE TEMP TABLE _legacy_transport_type_map AS
-SELECT lt.id AS legacy_id,
-       CASE lt.name
-           WHEN 'E_RICKSHAW' THEN 'E-Rickshaw'
-           WHEN 'VAN' THEN 'Van'
-           WHEN 'BUS' THEN 'Bus'
-           ELSE initcap(replace(lt.name, '_', ' '))
-       END AS name
-FROM legacy_transport_types lt;
-
 INSERT INTO transport_rates (school_id, session_year_id, basis, transport_type_id, monthly_amount, description)
-SELECT sy.school_id, p.session_year_id, 'FLAT', t.id, p.base_monthly_fee, 'Carried over from the old price list'
-FROM transport_type_pricing p
-JOIN session_years sy ON sy.id = p.session_year_id
-JOIN _legacy_transport_type_map m ON m.legacy_id = p.transport_type_id
-JOIN transport_types t ON t.school_id = sy.school_id AND t.name = m.name
-WHERE p.is_active
-  AND NOT EXISTS (SELECT 1 FROM transport_rates r WHERE r.school_id = sy.school_id AND r.basis = 'FLAT');
+SELECT sy.school_id, sy.id, 'FLAT', t.id, r.monthly_amount, 'Carried over from the old price list'
+FROM (VALUES
+    ('2025-26', 'E-Rickshaw', 450.00),
+    ('2025-26', 'Van', 700.00),
+    ('2026-27', 'E-Rickshaw', 500.00),
+    ('2026-27', 'Van', 700.00)
+) AS r (session_name, type_name, monthly_amount)
+JOIN session_years sy ON sy.school_id = 1 AND sy.name = r.session_name
+JOIN transport_types t ON t.school_id = 1 AND t.name = r.type_name
+WHERE NOT EXISTS (SELECT 1 FROM transport_rates x WHERE x.school_id = 1 AND x.basis = 'FLAT');
 
 INSERT INTO transport_rates (school_id, session_year_id, basis, transport_type_id,
                              distance_from_km, distance_to_km, monthly_amount, description)
-SELECT sy.school_id, p.session_year_id, 'DISTANCE_SLAB', t.id,
-       CASE WHEN ds.distance_from_km = 0 THEN 0 ELSE ds.distance_from_km - 0.01 END,
-       ds.distance_to_km, ds.monthly_fee, ds.description
-FROM transport_distance_slabs ds
-JOIN transport_type_pricing p ON p.transport_type_id = ds.transport_type_id AND p.is_active
-JOIN session_years sy ON sy.id = p.session_year_id
-JOIN _legacy_transport_type_map m ON m.legacy_id = ds.transport_type_id
-JOIN transport_types t ON t.school_id = sy.school_id AND t.name = m.name
-WHERE ds.is_active
-  AND NOT EXISTS (SELECT 1 FROM transport_rates r WHERE r.school_id = sy.school_id AND r.basis = 'DISTANCE_SLAB');
-
-DROP TABLE _legacy_transport_type_map;
+SELECT sy.school_id, sy.id, 'DISTANCE_SLAB', t.id, s.distance_from_km, s.distance_to_km, s.monthly_amount, s.description
+FROM (VALUES
+    (0.00, 8.00, 700.00, 'Up to 8 KM'),
+    (8.00, 10.00, 800.00, 'Up to 10 KM'),
+    (10.00, 12.00, 900.00, 'Up to 12 KM'),
+    (12.00, 999.99, 900.00, 'Above 12 KM')
+) AS s (distance_from_km, distance_to_km, monthly_amount, description)
+CROSS JOIN (VALUES ('2025-26'), ('2026-27')) AS sessions (session_name)
+JOIN session_years sy ON sy.school_id = 1 AND sy.name = sessions.session_name
+JOIN transport_types t ON t.school_id = 1 AND t.name = 'Van'
+WHERE NOT EXISTS (SELECT 1 FROM transport_rates x WHERE x.school_id = 1 AND x.basis = 'DISTANCE_SLAB');
 
 INSERT INTO school_settings (school_id, key, value, description)
 SELECT id, 'fee.transport.due_day', '10', 'Day of the month transport dues fall due (1-28)'

@@ -11,7 +11,7 @@ import logging
 import traceback
 
 from app.core.database import get_db
-from app.crud import fee_record_crud, student_crud, teacher_crud
+from app.crud import student_crud, teacher_crud
 from app.crud.crud_expense import expense_crud
 from app.crud.crud_leave import leave_request_crud
 from app.crud.crud_inventory_stock import crud_inventory_stock
@@ -21,7 +21,9 @@ from app.models.student import Student
 from app.models.teacher import Teacher
 from app.models.metadata import SessionYear
 from app.models.expense import Expense as ExpenseModel
-from app.models.fee import FeeRecord as FeeRecordModel, FeePayment as FeePaymentModel
+from app.modules.fees.constants import FeeHeadCategory
+from app.modules.fees.service import summary as fee_summary_service
+from app.modules.transport.service import summary as transport_summary_service
 from app.models.student_session_history import StudentSessionHistory
 
 router = APIRouter()
@@ -236,28 +238,21 @@ async def get_admin_dashboard_stats(
             logger.info(f"Using session year: {session_year_name}")
 
             logger.info("Fetching fee collection summary...")
-            fee_summary = await fee_record_crud.get_collection_summary(db, session_year=session_year_name)
+            fee_summary = await fee_summary_service.session_summary(db, session_year_id)
             logger.info(f"Fee summary retrieved: {fee_summary}")
 
-            # Get fees collected this week
+            # Get fees collected this week (net of reversals)
             logger.info("Calculating fees collected this week...")
-            fees_this_week_query = select(func.sum(FeePaymentModel.amount)).join(
-                FeeRecordModel
-            ).where(
-                and_(
-                    FeePaymentModel.payment_date >= current_week_start,
-                    FeeRecordModel.session_year_id == session_year_id
-                )
-            )
-            fees_this_week_result = await db.execute(fees_this_week_query)
-            fees_collected_this_week = float(fees_this_week_result.scalar() or 0)
+            fees_collected_this_week = float(await fee_summary_service.collected(
+                db, session_year_id=session_year_id, date_from=current_week_start
+            ))
             logger.info(f"Fees collected this week: {fees_collected_this_week}")
 
             response_data["fees"] = {
-                "pending_amount": fee_summary['pending_amount'],
+                "pending_amount": float(fee_summary['pending']),
                 "collected_this_week": fees_collected_this_week,
                 "change_text": f"-₹{fees_collected_this_week:,.0f} this week",
-                "total_collected": fee_summary['paid_amount'],
+                "total_collected": float(fee_summary['paid']),
                 "collection_rate": fee_summary['collection_rate'],
                 "is_session_filtered": True
             }
@@ -406,30 +401,16 @@ async def get_admin_dashboard_stats(
             logger.info(f"Quarter ranges: current_quarter_start={current_quarter_start}, last_quarter_start={last_quarter_start}")
 
             logger.info("Fetching current quarter fees...")
-            current_quarter_fees_query = select(func.sum(FeePaymentModel.amount)).join(
-                FeeRecordModel
-            ).where(
-                and_(
-                    FeePaymentModel.payment_date >= current_quarter_start,
-                    FeeRecordModel.session_year_id == session_year_id
-                )
-            )
-            current_quarter_fees_result = await db.execute(current_quarter_fees_query)
-            current_quarter_fees = float(current_quarter_fees_result.scalar() or 0)
+            current_quarter_fees = float(await fee_summary_service.collected(
+                db, session_year_id=session_year_id, date_from=current_quarter_start
+            ))
             logger.info(f"Current quarter fees: {current_quarter_fees}")
 
             logger.info("Fetching last quarter fees...")
-            last_quarter_fees_query = select(func.sum(FeePaymentModel.amount)).join(
-                FeeRecordModel
-            ).where(
-                and_(
-                    FeePaymentModel.payment_date >= last_quarter_start,
-                    FeePaymentModel.payment_date < current_quarter_start,
-                    FeeRecordModel.session_year_id == session_year_id
-                )
-            )
-            last_quarter_fees_result = await db.execute(last_quarter_fees_query)
-            last_quarter_fees = float(last_quarter_fees_result.scalar() or 0)
+            last_quarter_fees = float(await fee_summary_service.collected(
+                db, session_year_id=session_year_id,
+                date_from=last_quarter_start, date_to=current_quarter_start - timedelta(days=1)
+            ))
             logger.info(f"Last quarter fees: {last_quarter_fees}")
 
             # Calculate revenue growth percentage
@@ -717,58 +698,20 @@ async def get_admin_dashboard_enhanced_stats(
 
         # 2. Fee Management - Detailed Statistics (SESSION FILTERED 📅)
         try:
-            # Get collection summary using session_year_name from database
-            fee_summary = await fee_record_crud.get_collection_summary(db, session_year=session_year_name)
+            fee_summary = await fee_summary_service.session_summary(db, session_year_id)
 
-            # Get monthly collection trends (session-based academic months: April to March)
-            # Orders by academic year where April=1, May=2, ..., March=12
-            monthly_trends_query = text("""
-                SELECT
-                    TO_CHAR(fp.payment_date, 'Mon YYYY') as month,
-                    EXTRACT(YEAR FROM fp.payment_date) as year,
-                    EXTRACT(MONTH FROM fp.payment_date) as month_num,
-                    -- Calculate academic month: April=1, May=2, ..., March=12
-                    CASE
-                        WHEN EXTRACT(MONTH FROM fp.payment_date) >= 4 THEN EXTRACT(MONTH FROM fp.payment_date) - 3
-                        ELSE EXTRACT(MONTH FROM fp.payment_date) + 9
-                    END as academic_month,
-                    -- Calculate academic year
-                    CASE
-                        WHEN EXTRACT(MONTH FROM fp.payment_date) >= 4 THEN EXTRACT(YEAR FROM fp.payment_date)
-                        ELSE EXTRACT(YEAR FROM fp.payment_date) - 1
-                    END as academic_year,
-                    SUM(fp.amount) as total_collected,
-                    COUNT(DISTINCT fp.fee_record_id) as payment_count
-                FROM fee_payments fp
-                JOIN fee_records fr ON fp.fee_record_id = fr.id
-                WHERE fr.session_year_id = :session_year_id
-                GROUP BY
-                    EXTRACT(YEAR FROM fp.payment_date),
-                    EXTRACT(MONTH FROM fp.payment_date),
-                    TO_CHAR(fp.payment_date, 'Mon YYYY'),
-                    academic_month,
-                    academic_year
-                ORDER BY academic_year, academic_month
-            """)
-            monthly_result = await db.execute(
-                monthly_trends_query,
-                {"session_year_id": session_year_id}
-            )
+            # Collections per calendar month of payment, oldest first (April to March for an April session)
             monthly_trends = [
-                {
-                    'month': row.month,
-                    'amount': float(row.total_collected),
-                    'count': row.payment_count
-                }
-                for row in monthly_result
+                {'month': row['month'], 'amount': float(row['amount']), 'count': row['count']}
+                for row in await fee_summary_service.monthly_collections(db, session_year_id)
             ]
 
             response_data['fee_management'] = {
-                'total_collected': float(fee_summary['paid_amount']),
-                'pending_fees': float(fee_summary['pending_amount']),
+                'total_collected': float(fee_summary['paid']),
+                'pending_fees': float(fee_summary['pending']),
                 'collection_rate': float(fee_summary['collection_rate']),
-                'total_records': fee_summary['total_records'],
-                'paid_records': fee_summary['paid_records'],
+                'total_records': fee_summary['students'],
+                'paid_records': fee_summary['students_paid'],
                 'monthly_trends': monthly_trends,
                 'is_session_filtered': True
             }
@@ -984,96 +927,29 @@ async def get_admin_dashboard_enhanced_stats(
 
         # 6. Transport Service - Detailed Statistics (SESSION FILTERED 📅)
         try:
-            # Get transport enrollment statistics
-            transport_stats_query = text("""
-                SELECT
-                    COUNT(DISTINCT ste.id) as total_enrollments,
-                    COUNT(DISTINCT ste.student_id) as students_using_transport,
-                    COUNT(DISTINCT tt.id) as transport_types,
-                    COALESCE(SUM(CASE WHEN tmt.payment_status_id = 1 THEN tmt.monthly_amount - tmt.paid_amount ELSE 0 END), 0) as pending_transport_fees,
-                    COALESCE(SUM(tmt.paid_amount), 0) as collected_transport_fees
-                FROM student_transport_enrollment ste
-                LEFT JOIN legacy_transport_types tt ON ste.transport_type_id = tt.id
-                LEFT JOIN transport_monthly_tracking tmt ON ste.id = tmt.enrollment_id
-                WHERE ste.session_year_id = :session_year_id
-                    AND ste.is_active = TRUE
-            """)
-            transport_stats_result = await db.execute(
-                transport_stats_query,
-                {"session_year_id": session_year_id}
-            )
-            transport_stats = transport_stats_result.fetchone()
-
-            # Get transport type breakdown (Van, E-Rickshaw counts)
-            transport_type_query = text("""
-                SELECT
-                    tt.name as transport_type_name,
-                    tt.description as transport_type,
-                    COUNT(ste.id) as enrollment_count
-                FROM student_transport_enrollment ste
-                LEFT JOIN legacy_transport_types tt ON ste.transport_type_id = tt.id
-                WHERE ste.session_year_id = :session_year_id
-                    AND ste.is_active = TRUE
-                GROUP BY tt.id, tt.name, tt.description
-                ORDER BY enrollment_count DESC
-            """)
-            transport_type_result = await db.execute(
-                transport_type_query,
-                {"session_year_id": session_year_id}
+            transport = await transport_summary_service.session_summary(db, session_year_id)
+            transport_fees = await fee_summary_service.session_summary(
+                db, session_year_id, head_category=FeeHeadCategory.TRANSPORT.value
             )
             transport_type_breakdown = [
-                {
-                    'name': row.transport_type_name or 'Not Specified',
-                    'type': row.transport_type or 'Not Specified',
-                    'count': row.enrollment_count
-                }
-                for row in transport_type_result
+                {'name': t['name'], 'type': t['description'], 'count': t['riders']}
+                for t in transport['by_type']
             ]
-
-            # Get monthly transport fee collection trends (ordered April to March)
-            # academic_month stores calendar month (4=April, 5=May, ..., 12=December, 1=January, 2=February, 3=March)
-            # We need to order by academic year sequence: April (4) first, then May (5), ..., March (3) last
-            transport_monthly_query = text("""
-                SELECT
-                    tmt.month_name,
-                    tmt.academic_month,
-                    tmt.academic_year,
-                    -- Convert calendar month to academic sequence (April=1, May=2, ..., March=12)
-                    CASE
-                        WHEN tmt.academic_month >= 4 THEN tmt.academic_month - 3
-                        ELSE tmt.academic_month + 9
-                    END as academic_sequence,
-                    COALESCE(SUM(tmt.paid_amount), 0) as collected_amount,
-                    COALESCE(SUM(tmt.monthly_amount), 0) as total_amount
-                FROM transport_monthly_tracking tmt
-                JOIN student_transport_enrollment ste ON tmt.enrollment_id = ste.id
-                WHERE tmt.session_year_id = :session_year_id
-                    AND ste.is_active = TRUE
-                GROUP BY tmt.month_name, tmt.academic_month, tmt.academic_year, academic_sequence
-                ORDER BY tmt.academic_year, academic_sequence
-            """)
-            transport_monthly_result = await db.execute(
-                transport_monthly_query,
-                {"session_year_id": session_year_id}
-            )
             transport_monthly_trends = [
-                {
-                    'month': row.month_name,
-                    'collected': float(row.collected_amount),
-                    'total': float(row.total_amount)
-                }
-                for row in transport_monthly_result
+                {'month': row['month'], 'collected': float(row['collected']), 'total': float(row['total'])}
+                for row in await fee_summary_service.monthly_dues(
+                    db, session_year_id, head_category=FeeHeadCategory.TRANSPORT.value
+                )
             ]
 
-            # Calculate collection percentage
-            collected_fees = float(transport_stats.collected_transport_fees or 0)
-            pending_fees = float(transport_stats.pending_transport_fees or 0)
+            collected_fees = float(transport_fees['paid'])
+            pending_fees = float(transport_fees['pending'])
             total_fees = collected_fees + pending_fees
             collection_percentage = (collected_fees / total_fees * 100) if total_fees > 0 else 0
 
             response_data['transport_service'] = {
-                'students_using_transport': transport_stats.students_using_transport or 0,
-                'total_enrollments': transport_stats.total_enrollments or 0,
+                'students_using_transport': transport['students_riding'],
+                'total_enrollments': transport['total_assignments'],
                 'pending_fees': pending_fees,
                 'collected_fees': collected_fees,
                 'total_fees': total_fees,
