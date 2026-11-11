@@ -286,7 +286,7 @@ async def get_all_metadata_async(db: AsyncSession) -> Dict[str, List[Any]]:
                NULL::INTEGER as max_days_per_year, NULL::BOOLEAN as requires_medical_certificate, base_monthly_fee as budget_limit,
                NULL::BOOLEAN as requires_approval, NULL::VARCHAR as color_code, NULL::BOOLEAN as is_final, capacity as level_order,
                NULL::BOOLEAN as requires_reference, is_active, created_at, updated_at
-        FROM transport_types WHERE is_active = true
+        FROM legacy_transport_types WHERE is_active = true
 
         UNION ALL
 

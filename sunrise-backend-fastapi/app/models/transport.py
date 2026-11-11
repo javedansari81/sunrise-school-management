@@ -9,9 +9,9 @@ from sqlalchemy.sql import func
 from app.core.database import Base
 
 
-class TransportType(Base):
-    """Transport type metadata (E-Rickshaw, Van, Bus, etc.)"""
-    __tablename__ = "transport_types"
+class LegacyTransportType(Base):
+    """Pre-redesign transport type metadata (E-Rickshaw, Van). Removed in Phase 4."""
+    __tablename__ = "legacy_transport_types"
 
     id = Column(Integer, primary_key=True)
     name = Column(String(50), nullable=False, unique=True)
@@ -28,12 +28,19 @@ class TransportType(Base):
     pricing = relationship("TransportTypePricing", back_populates="transport_type")
 
 
+# The table was renamed legacy_transport_types in migration V003 (Phase 3). The
+# class is named LegacyTransportType so it does not clash with the transport
+# operations module's TransportType; the old name stays as an alias for the
+# old transport code until Phase 4 deletes it.
+TransportType = LegacyTransportType
+
+
 class TransportTypePricing(Base):
     """Session-based pricing for transport types"""
     __tablename__ = "transport_type_pricing"
 
     id = Column(Integer, primary_key=True, index=True)
-    transport_type_id = Column(Integer, ForeignKey("transport_types.id"), nullable=False)
+    transport_type_id = Column(Integer, ForeignKey("legacy_transport_types.id"), nullable=False)
     session_year_id = Column(Integer, ForeignKey("session_years.id"), nullable=False)
     base_monthly_fee = Column(DECIMAL(10, 2), nullable=False)
     is_active = Column(Boolean, default=True)
@@ -41,7 +48,7 @@ class TransportTypePricing(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     # Relationships
-    transport_type = relationship("TransportType", back_populates="pricing")
+    transport_type = relationship("LegacyTransportType", back_populates="pricing")
     session_year = relationship("SessionYear")
 
 
@@ -50,7 +57,7 @@ class TransportDistanceSlab(Base):
     __tablename__ = "transport_distance_slabs"
 
     id = Column(Integer, primary_key=True, index=True)
-    transport_type_id = Column(Integer, ForeignKey("transport_types.id"), nullable=False)
+    transport_type_id = Column(Integer, ForeignKey("legacy_transport_types.id"), nullable=False)
     distance_from_km = Column(DECIMAL(5, 2), nullable=False, default=0.00)
     distance_to_km = Column(DECIMAL(5, 2), nullable=False)
     monthly_fee = Column(DECIMAL(10, 2), nullable=False)
@@ -60,7 +67,7 @@ class TransportDistanceSlab(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     # Relationships
-    transport_type = relationship("TransportType", back_populates="distance_slabs")
+    transport_type = relationship("LegacyTransportType", back_populates="distance_slabs")
 
 
 class StudentTransportEnrollment(Base):
@@ -70,7 +77,7 @@ class StudentTransportEnrollment(Base):
     id = Column(Integer, primary_key=True, index=True)
     student_id = Column(Integer, ForeignKey("students.id"), nullable=False)
     session_year_id = Column(Integer, ForeignKey("session_years.id"), nullable=False)
-    transport_type_id = Column(Integer, ForeignKey("transport_types.id"), nullable=False)
+    transport_type_id = Column(Integer, ForeignKey("legacy_transport_types.id"), nullable=False)
 
     # Enrollment Details
     enrollment_date = Column(Date, nullable=False)
@@ -93,7 +100,7 @@ class StudentTransportEnrollment(Base):
     # Relationships
     student = relationship("Student", back_populates="transport_enrollments")
     session_year = relationship("SessionYear")
-    transport_type = relationship("TransportType", back_populates="enrollments")
+    transport_type = relationship("LegacyTransportType", back_populates="enrollments")
     monthly_tracking = relationship("TransportMonthlyTracking", back_populates="enrollment", cascade="all, delete-orphan")
     payments = relationship("TransportPayment", back_populates="enrollment", cascade="all, delete-orphan")
 

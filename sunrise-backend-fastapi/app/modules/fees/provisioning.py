@@ -37,6 +37,7 @@ DEFAULT_SETTINGS = {
     c.SETTING_LATE_FEE_VALUE: ("0", "Late fee amount or percent per overdue month"),
     c.SETTING_LATE_FEE_GRACE_DAYS: ("7", "Days after the due date before a late fee is added"),
     c.SETTING_TRANSPORT_CUTOFF_DAY: ("15", "Transport started after this day of the month is billed from the next month"),
+    c.SETTING_TRANSPORT_DUE_DAY: ("10", "Day of the month transport dues fall due (1-28)"),
 }
 
 

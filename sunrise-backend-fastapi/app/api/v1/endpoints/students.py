@@ -415,7 +415,7 @@ async def get_my_dashboard_stats(
             ste.monthly_fee,
             ste.distance_km
         FROM student_transport_enrollment ste
-        LEFT JOIN transport_types tt ON ste.transport_type_id = tt.id
+        LEFT JOIN legacy_transport_types tt ON ste.transport_type_id = tt.id
         WHERE ste.student_id = :student_id
         AND ste.is_active = TRUE
         AND ste.discontinue_date IS NULL

@@ -1,7 +1,7 @@
 -- =====================================================
 -- Table: student_transport_enrollment
 -- Description: Tracks student enrollment in transport services
--- Dependencies: students, session_years, transport_types
+-- Dependencies: students, session_years, legacy_transport_types
 -- =====================================================
 
 -- Drop existing table
@@ -35,7 +35,7 @@ CREATE TABLE student_transport_enrollment (
     -- Foreign Key Constraints
     FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE,
     FOREIGN KEY (session_year_id) REFERENCES session_years(id),
-    FOREIGN KEY (transport_type_id) REFERENCES transport_types(id)
+    FOREIGN KEY (transport_type_id) REFERENCES legacy_transport_types(id)
 );
 
 -- Add indexes
@@ -53,7 +53,7 @@ WHERE is_active = TRUE AND discontinue_date IS NULL;
 COMMENT ON TABLE student_transport_enrollment IS 'Student enrollment in transport services with pricing and distance tracking';
 COMMENT ON COLUMN student_transport_enrollment.student_id IS 'Foreign key to students table';
 COMMENT ON COLUMN student_transport_enrollment.session_year_id IS 'Foreign key to session_years table';
-COMMENT ON COLUMN student_transport_enrollment.transport_type_id IS 'Foreign key to transport_types table';
+COMMENT ON COLUMN student_transport_enrollment.transport_type_id IS 'Foreign key to legacy_transport_types table';
 COMMENT ON COLUMN student_transport_enrollment.enrollment_date IS 'Date when student opted for transport service';
 COMMENT ON COLUMN student_transport_enrollment.discontinue_date IS 'Date when student discontinued service (NULL = active)';
 COMMENT ON COLUMN student_transport_enrollment.is_active IS 'Current enrollment status';

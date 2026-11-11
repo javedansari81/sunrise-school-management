@@ -219,7 +219,7 @@ class CRUDReport:
         LEFT JOIN student_transport_enrollment ste ON s.id = ste.student_id
             AND ste.session_year_id = :session_year_id
             AND ste.is_active = TRUE
-        LEFT JOIN transport_types tt ON ste.transport_type_id = tt.id
+        LEFT JOIN legacy_transport_types tt ON ste.transport_type_id = tt.id
 
         -- Pre-aggregated transport amounts per enrollment (subquery to avoid Cartesian product)
         LEFT JOIN (

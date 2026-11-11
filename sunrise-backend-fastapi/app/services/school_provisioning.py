@@ -20,6 +20,7 @@ from app.core.security import get_password_hash
 from app.models.school import School
 from app.models.user import User
 from app.modules.fees.provisioning import seed_fee_defaults
+from app.modules.transport.provisioning import seed_transport_defaults
 
 ADMIN_USER_TYPE_ID = 1
 
@@ -132,4 +133,5 @@ async def create_school(
     copied.update(
         await seed_fee_defaults(db, school_id=school.id, school_code=school.code, template_school_id=template_id)
     )
+    copied.update(await seed_transport_defaults(db, school_id=school.id, template_school_id=template_id))
     return school, admin, template_code, copied

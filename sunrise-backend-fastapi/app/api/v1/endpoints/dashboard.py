@@ -993,7 +993,7 @@ async def get_admin_dashboard_enhanced_stats(
                     COALESCE(SUM(CASE WHEN tmt.payment_status_id = 1 THEN tmt.monthly_amount - tmt.paid_amount ELSE 0 END), 0) as pending_transport_fees,
                     COALESCE(SUM(tmt.paid_amount), 0) as collected_transport_fees
                 FROM student_transport_enrollment ste
-                LEFT JOIN transport_types tt ON ste.transport_type_id = tt.id
+                LEFT JOIN legacy_transport_types tt ON ste.transport_type_id = tt.id
                 LEFT JOIN transport_monthly_tracking tmt ON ste.id = tmt.enrollment_id
                 WHERE ste.session_year_id = :session_year_id
                     AND ste.is_active = TRUE
@@ -1011,7 +1011,7 @@ async def get_admin_dashboard_enhanced_stats(
                     tt.description as transport_type,
                     COUNT(ste.id) as enrollment_count
                 FROM student_transport_enrollment ste
-                LEFT JOIN transport_types tt ON ste.transport_type_id = tt.id
+                LEFT JOIN legacy_transport_types tt ON ste.transport_type_id = tt.id
                 WHERE ste.session_year_id = :session_year_id
                     AND ste.is_active = TRUE
                 GROUP BY tt.id, tt.name, tt.description

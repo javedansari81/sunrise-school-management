@@ -1,7 +1,7 @@
 -- =====================================================
 -- Table: transport_type_pricing
 -- Description: Session-based pricing for transport types
--- Dependencies: transport_types, session_years
+-- Dependencies: legacy_transport_types, session_years
 -- =====================================================
 
 -- Drop existing table
@@ -18,7 +18,7 @@ CREATE TABLE transport_type_pricing (
     updated_at TIMESTAMP WITH TIME ZONE,
     
     -- Foreign Key Constraints
-    FOREIGN KEY (transport_type_id) REFERENCES transport_types(id),
+    FOREIGN KEY (transport_type_id) REFERENCES legacy_transport_types(id),
     FOREIGN KEY (session_year_id) REFERENCES session_years(id),
     
     -- Unique constraint: one pricing per transport type per session
@@ -32,7 +32,7 @@ CREATE INDEX idx_transport_type_pricing_active ON transport_type_pricing(is_acti
 
 -- Add comments
 COMMENT ON TABLE transport_type_pricing IS 'Session-based pricing for transport types (enables different rates per academic year)';
-COMMENT ON COLUMN transport_type_pricing.transport_type_id IS 'Foreign key to transport_types table';
+COMMENT ON COLUMN transport_type_pricing.transport_type_id IS 'Foreign key to legacy_transport_types table';
 COMMENT ON COLUMN transport_type_pricing.session_year_id IS 'Foreign key to session_years table';
 COMMENT ON COLUMN transport_type_pricing.base_monthly_fee IS 'Base monthly fee for this transport type in this session';
 

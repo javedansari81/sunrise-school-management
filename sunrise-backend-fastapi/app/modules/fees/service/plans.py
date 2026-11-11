@@ -15,16 +15,21 @@ dues are never touched; the new line skips those months (one regular due per
 student, head and month).
 
 Manual lines (source MANUAL) are one-off or recurring charges added for one
-student, e.g. a re-exam fee. Transport lines (source TRANSPORT) come in Phase 3.
+student, e.g. a re-exam fee.
+
+Transport lines (source TRANSPORT, source_ref_id = the transport assignment)
+are owned by the transport operations module, which keeps them in step with
+its assignments through sync_source_lines(). They cannot be added or ended by
+hand here.
 """
 from datetime import date, datetime, timezone
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Sequence, Tuple
 
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.fees import audit, repository as repo
-from app.modules.fees.constants import AppliesTo, AuditAction, DueStatus, PlanSource
+from app.modules.fees.constants import AppliesTo, AuditAction, DueStatus, HEAD_TRANSPORT, Frequency, PlanSource
 from app.modules.fees.errors import Conflict, Invalid
 from app.modules.fees.models import FeeStructureItem, StudentDue, StudentFeePlan
 from app.modules.fees.periods import add_months, month_start, session_months, validate_billing_months
@@ -214,6 +219,8 @@ async def add_manual_line(db: AsyncSession, student_id: int, data: PlanLineCreat
         raise Invalid(f"Fee head {data.fee_head_id} not found")
     if not head.is_active:
         raise Invalid(f"Fee head {head.code} is inactive")
+    if head.code == HEAD_TRANSPORT:
+        raise Invalid("Transport is billed from transport assignments; assign the student in the transport module")
     error = validate_billing_months(data.frequency.value, data.billing_months)
     if error:
         raise Invalid(error)
@@ -244,6 +251,83 @@ async def end_plan_line(
     line = await repo.get_or_404(db, StudentFeePlan, line_id, "Plan line")
     if not line.is_active:
         raise Conflict(f"Plan line {line_id} is already cancelled")
+    if line.source == PlanSource.TRANSPORT.value:
+        raise Invalid("Transport lines follow their transport assignment; discontinue or change the assignment instead")
     from_period = add_months(month_start(last_period), 1) if last_period else line.start_period
     await end_line(db, line, from_period=from_period, user_id=user_id, reason=reason or "Ended by hand")
     return line
+
+
+async def sync_source_lines(
+    db: AsyncSession,
+    *,
+    student_id: int,
+    session_year_id: int,
+    fee_head_id: int,
+    source: PlanSource,
+    source_ref_id: int,
+    amount,
+    due_day: int,
+    segments: Sequence[Tuple[date, Optional[date]]],
+    user_id: Optional[int],
+    reason: str,
+) -> dict:
+    """
+    Make the active monthly lines of one source record (e.g. a transport
+    assignment) bill exactly `segments`: (first period, last period or None for
+    the session end), in order and not overlapping. Safe to call again.
+
+    * a line whose start, amount and due day match a segment is kept; its end is
+      moved to the segment's end (shortening cancels unpaid dues after it);
+    * any other line is cancelled (unpaid dues cancelled, paid dues kept);
+    * a segment without a line gets a new line.
+
+    Dues are not generated here; the caller runs dues generation afterwards.
+    Paid dues are never changed, and a new line skips months that already have
+    a regular due for the student and head.
+    """
+    lines = (await db.execute(
+        select(StudentFeePlan).where(
+            StudentFeePlan.student_id == student_id,
+            StudentFeePlan.session_year_id == session_year_id,
+            StudentFeePlan.source == source.value,
+            StudentFeePlan.source_ref_id == source_ref_id,
+            StudentFeePlan.is_active,
+        ).order_by(StudentFeePlan.start_period, StudentFeePlan.id)
+    )).scalars().all()
+    wanted: Dict[date, Optional[date]] = {start: end for start, end in segments}
+    counts = dict(created=0, kept=0, changed=0, cancelled=0, dues_cancelled=0)
+
+    for line in lines:
+        if line.start_period not in wanted or line.amount != amount or line.due_day != due_day                 or line.fee_head_id != fee_head_id:
+            counts["dues_cancelled"] += await end_line(db, line, from_period=line.start_period,
+                                                       user_id=user_id, reason=reason)
+            counts["cancelled"] += 1
+            continue
+        end = wanted.pop(line.start_period)
+        if end == line.end_period:
+            counts["kept"] += 1
+        elif end is not None and (line.end_period is None or end < line.end_period):
+            counts["dues_cancelled"] += await end_line(db, line, from_period=add_months(end, 1),
+                                                       user_id=user_id, reason=reason)
+            counts["changed"] += 1
+        else:
+            old = audit.snapshot(line, LINE_FIELDS)
+            line.end_period = end
+            await db.flush()
+            await audit.record(db, entity_type=ENTITY, entity_id=line.id, action=AuditAction.UPDATE.value,
+                               performed_by=user_id, old=old, new=audit.snapshot(line, LINE_FIELDS), remarks=reason)
+            counts["changed"] += 1
+
+    for start, end in sorted(wanted.items()):
+        line = StudentFeePlan(
+            student_id=student_id, session_year_id=session_year_id, fee_head_id=fee_head_id, amount=amount,
+            frequency=Frequency.MONTHLY.value, due_day=due_day, start_period=start, end_period=end,
+            source=source.value, source_ref_id=source_ref_id, created_by=user_id,
+        )
+        db.add(line)
+        await db.flush()
+        await audit.record(db, entity_type=ENTITY, entity_id=line.id, action=AuditAction.CREATE.value,
+                           performed_by=user_id, new=audit.snapshot(line, LINE_FIELDS), remarks=reason)
+        counts["created"] += 1
+    return counts
