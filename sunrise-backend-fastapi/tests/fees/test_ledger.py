@@ -13,6 +13,8 @@ from decimal import Decimal
 import pytest
 from sqlalchemy import select, text, update
 from sqlalchemy.exc import DBAPIError
+
+from app.core.tenant import global_sql
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 
 from app.core.config import settings
@@ -439,7 +441,7 @@ async def test_receipt_number_is_locked_until_the_payment_commits(priced, school
             year = priced["year_id"] - 2
             first = await next_receipt_number(s1, year)
             assert first.endswith("/000001")
-            await s2.execute(text("SET LOCAL lock_timeout = '300ms'"))
+            await s2.execute(global_sql("SET LOCAL lock_timeout = '300ms'"))
             with pytest.raises(DBAPIError, match="lock"):
                 await next_receipt_number(s2, year)
             await t2.rollback()

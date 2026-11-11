@@ -2,7 +2,8 @@
 Email generation utilities for students and teachers.
 
 This module provides functions to automatically generate unique email addresses
-for students and teachers based on their personal information.
+for students and teachers based on their personal information. The domain is
+per school (setting user.email_domain, see app/services/school_settings.py).
 """
 
 import re
@@ -13,6 +14,7 @@ from sqlalchemy.future import select
 
 from app.models.user import User
 from app.core.logging import log_crud_operation
+from app.services.school_settings import email_domain
 
 
 def sanitize_name(name: str) -> str:
@@ -44,18 +46,21 @@ def format_date_for_email(birth_date: date) -> str:
     return birth_date.strftime("%d%m")
 
 
-def generate_base_email(first_name: str, last_name: str, date_of_birth: date, user_type: str = "student") -> str:
+def generate_base_email(
+    first_name: str, last_name: str, date_of_birth: date, user_type: str = "student", *, domain: str
+) -> str:
     """
     Generate base email address format.
 
-    Format: {firstname}.{lastname}.{DDMM}@sunrise.com
-    Example: john.smith.1503@sunrise.com for John Smith born on 15th March
+    Format: {firstname}.{lastname}.{DDMM}@{school domain}
+    Example: john.smith.1503@sunrise.com for John Smith born on 15th March at Sunrise
 
     Args:
         first_name: User's first name
         last_name: User's last name
         date_of_birth: User's date of birth
         user_type: Type of user (student/teacher) - for logging purposes
+        domain: The school's email domain
 
     Returns:
         Base email address string
@@ -68,7 +73,7 @@ def generate_base_email(first_name: str, last_name: str, date_of_birth: date, us
     date_str = format_date_for_email(date_of_birth)
 
     # Generate base email
-    base_email = f"{clean_first}.{clean_last}.{date_str}@sunrise.com"
+    base_email = f"{clean_first}.{clean_last}.{date_str}@{domain}"
 
     log_crud_operation("EMAIL_GENERATION", f"Generated base email for {user_type}",
                       first_name=first_name, last_name=last_name,
@@ -101,7 +106,8 @@ async def ensure_unique_email(db: AsyncSession, base_email: str, user_type: str 
     # If base email exists, try with sequential numbers
     counter = 2
     while counter <= 999:  # Reasonable limit
-        numbered_email = base_email.replace("@sunrise.com", f".{counter}@sunrise.com")
+        local_part, domain = base_email.rsplit("@", 1)
+        numbered_email = f"{local_part}.{counter}@{domain}"
         
         existing_numbered_result = await db.execute(select(User).where(User.email == numbered_email))
         existing_numbered = existing_numbered_result.scalar_one_or_none()
@@ -132,7 +138,7 @@ async def generate_student_email(db: AsyncSession, first_name: str, last_name: s
     Returns:
         Unique email address for the student
     """
-    base_email = generate_base_email(first_name, last_name, date_of_birth, "student")
+    base_email = generate_base_email(first_name, last_name, date_of_birth, "student", domain=await email_domain(db))
     ##unique_email = await ensure_unique_email(db, base_email, "student")
     unique_email = base_email
     
@@ -155,7 +161,7 @@ async def generate_teacher_email(db: AsyncSession, first_name: str, last_name: s
     Returns:
         Unique email address for the teacher
     """
-    base_email = generate_base_email(first_name, last_name, date_of_birth, "teacher")
+    base_email = generate_base_email(first_name, last_name, date_of_birth, "teacher", domain=await email_domain(db))
     unique_email = await ensure_unique_email(db, base_email, "teacher")
     
     log_crud_operation("TEACHER_EMAIL_GENERATED", f"Generated unique email for teacher", 
@@ -174,8 +180,8 @@ def validate_generated_email(email: str) -> bool:
     Returns:
         True if email follows the generated format, False otherwise
     """
-    # Pattern: firstname.lastname.ddmm[@.number]@sunrise.com
-    pattern = r'^[a-z]+\.[a-z]+\.\d{4}(?:\.\d+)?@sunrise\.com$'
+    # Pattern: firstname.lastname.ddmm[.number]@<school domain>
+    pattern = r'^[a-z0-9]+\.[a-z0-9]+\.\d{4}(?:\.\d+)?@[a-z0-9.-]+$'
 
     return bool(re.match(pattern, email))
 

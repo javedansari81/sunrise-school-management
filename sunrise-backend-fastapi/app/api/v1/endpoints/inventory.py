@@ -32,6 +32,7 @@ from app.crud.crud_inventory import crud_inventory_pricing, crud_inventory_purch
 from app.crud.crud_inventory_stock import crud_inventory_stock, crud_inventory_stock_procurement
 from app.crud.metadata import payment_method_crud
 from app.services.alert_service import alert_service
+from app.services.school_settings import INVENTORY, cloudinary_folder, cloudinary_public_id
 
 router = APIRouter()
 
@@ -222,12 +223,8 @@ async def upload_item_type_image(
         # Delete old image from Cloudinary if exists
         if item_type.image_url:
             try:
-                # Extract public_id from URL
-                # URL format: https://res.cloudinary.com/{cloud_name}/image/upload/{transformations}/{public_id}.{format}
-                url_parts = item_type.image_url.split('/')
-                if 'inventory' in url_parts:
-                    idx = url_parts.index('inventory')
-                    public_id = 'inventory/' + url_parts[idx + 1].split('.')[0]
+                public_id = cloudinary_public_id(item_type.image_url)
+                if public_id:
                     cloudinary.uploader.destroy(public_id)
             except Exception as e:
                 # Log but don't fail if deletion fails
@@ -236,7 +233,7 @@ async def upload_item_type_image(
         # Upload to Cloudinary
         cloudinary_response = cloudinary.uploader.upload(
             file.file,
-            folder="inventory",
+            folder=await cloudinary_folder(db, INVENTORY),
             public_id=f"item_{item_type_id}_{item_type.name}",
             resource_type="image",
             transformation=[

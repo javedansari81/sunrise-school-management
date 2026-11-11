@@ -7,7 +7,7 @@ import pytest
 from sqlalchemy import func, select, text
 from sqlalchemy.exc import IntegrityError
 
-from app.core.tenant import TenantContextError, tenant_bypass
+from app.core.tenant import TenantContextError, global_sql, tenant_bypass
 from app.models.metadata import Class, SessionYear
 from app.models.school import SchoolSetting
 from app.models.tenant import TenantMixin
@@ -139,7 +139,7 @@ async def test_payment_shape_is_enforced(sunrise_session):
 async def test_fee_structures_is_the_unified_table(sunrise_session):
     """The name fee_structures belongs to the unified fee module (the old table was dropped by V004)."""
     async with sunrise_session() as session:
-        cols = set((await session.execute(text(
+        cols = set((await session.execute(global_sql(
             "SELECT column_name FROM information_schema.columns WHERE table_schema = current_schema() "
             "AND table_name = 'fee_structures'"
         ))).scalars())

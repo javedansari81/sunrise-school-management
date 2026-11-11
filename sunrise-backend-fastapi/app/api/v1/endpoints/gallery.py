@@ -22,6 +22,7 @@ from app.schemas.gallery import (
     PublicGalleryCategory, PublicGalleryImage
 )
 from app.api.deps import get_current_active_user, get_current_admin_user, get_school_db
+from app.services.school_settings import GALLERY, cloudinary_folder
 
 router = APIRouter()
 
@@ -235,7 +236,7 @@ async def upload_gallery_image(
         # Upload to Cloudinary
         cloudinary_response = cloudinary.uploader.upload(
             file.file,
-            folder="gallery",
+            folder=await cloudinary_folder(db, GALLERY),
             resource_type="image",
             transformation=[
                 {'quality': 'auto', 'fetch_format': 'auto'}

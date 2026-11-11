@@ -1,5 +1,5 @@
 from typing import Generator, Optional
-from fastapi import Depends, HTTPException, Request, status
+from fastapi import Depends, HTTPException, Query, Request, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -151,3 +151,31 @@ async def get_current_platform_admin(
     if user is None or not user.is_active:
         raise _CREDENTIALS_ERROR
     return user
+
+
+async def get_session_year_id(
+    session_year_id: Optional[int] = Query(
+        None, description="Session year ID (default: the school's current session year)"
+    ),
+    db: AsyncSession = Depends(get_db),
+    _user: User = Depends(get_current_active_user),  # binds the session to the user's school first
+) -> int:
+    """The requested session year, or the school's current one. Replaces the old hardcoded default 4."""
+    if session_year_id is not None:
+        return session_year_id
+    from app.models.metadata import SessionYear
+
+    current = (
+        await db.execute(
+            select(SessionYear.id)
+            .where(SessionYear.is_current.is_(True), SessionYear.is_active.is_(True))
+            .order_by(SessionYear.id.desc())
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+    if current is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="The school has no current session year; pass session_year_id",
+        )
+    return current

@@ -28,7 +28,9 @@ Phase 2 is done (Nov 11, 2026, merged in PR #3). The unified fee module lives in
 
 Phase 3 is done (Nov 11, 2026, merged in PR #4). The transport operations module lives in `app/modules/transport/` and is served at `/api/v1/transit`. Migration `V003` renames the old `transport_types` to `legacy_transport_types`, adds 7 tables and carries Sunrise's old price list over as rates. `V003` is applied to the local `warsi_db`. 45 transport tests pass; 133 of 134 pass in total. The one failure, `test_build_plans_and_generate_dues` in `tests/fees/test_ledger.py`, comes from local data, not from Phase 3: the test assumes session 2026-27 has only its own students, and the local database has 3 real students there. The new transport screens come in Phase 6. Deploying to DigitalOcean, including running `V003`, is deferred to go-live.
 
-Phase 4 is done in code (Nov 11, 2026, branch `switch-dependents`). The dashboard, student pages, reports, sibling waiver recalculation and the configuration endpoint now read the unified fee ledger and the transport operations module, through two small read-only services (`app/modules/fees/service/summary.py` and `app/modules/transport/service/summary.py`). The old `/fees` and `/transport` routes, their CRUD, schemas, models and receipt generators are deleted. Migration `V004` drops the 13 old tables and 3 old functions. A fresh deployment and a deployment migrated from the Phase 3 baseline were compared and are identical. `V004` is applied to the local `warsi_db`. All 146 tests pass on a clean migrated schema; on the local `warsi_db` 145 pass, and the one failure is the known local-data failure `test_build_plans_and_generate_dues`. The old fee and transport screens in the frontend stop working until Phase 6 replaces them. Next step: Phase 5, scope the remaining modules. Deploying to DigitalOcean, including running `V004`, is deferred to go-live.
+Phase 4 is done (Nov 11, 2026, merged in PR #5). The dashboard, student pages, reports, sibling waiver recalculation and the configuration endpoint now read the unified fee ledger and the transport operations module, through two small read-only services (`app/modules/fees/service/summary.py` and `app/modules/transport/service/summary.py`). The old `/fees` and `/transport` routes, their CRUD, schemas, models and receipt generators are deleted. Migration `V004` drops the 13 old tables and 3 old functions. A fresh deployment and a deployment migrated from the Phase 3 baseline were compared and are identical. `V004` is applied to the local `warsi_db`. All 146 tests pass on a clean migrated schema; on the local `warsi_db` 145 pass, and the one failure is the known local-data failure `test_build_plans_and_generate_dues`. The old fee and transport screens in the frontend stop working until Phase 6 replaces them. Next step: Phase 5, scope the remaining modules. Deploying to DigitalOcean, including running `V004`, is deferred to go-live.
+
+Phase 5 is done in code (Nov 11, 2026, branch `scope-remaining-modules`). Raw SQL is now checked, not trusted: on a school session every `text()` statement must filter by `:school_id`, which `app/core/tenant.py` fills in from the session. A statement without it, or with another school's id, raises instead of running; queries on global lists only use `global_sql()`. All 62 raw SQL statements in 12 files are scoped. Fixed on the way: `/configuration` returned every school's classes, session years, departments and other lists; the dashboard counted another school's students, leave and expenses when given that school's session year (now 404); attendance defaulted to Sunrise's session year id 4 (now the school's current session). Generated emails use the school setting `user.email_domain` (Sunrise keeps `sunrise.com` through migration `V005`). Gallery, inventory and profile photo uploads go to `<school code>/<kind>` Cloudinary folders. The unused WhatsApp text notification with Sunrise's name hardcoded is removed. 169 of 170 tests pass on the local `warsi_db`; the one failure is the known local-data failure `test_build_plans_and_generate_dues`. `V005` is not yet applied to the local `warsi_db`. Next step: Phase 6, frontend.
 
 Status values: Not started, In progress, Done, Blocked.
 
@@ -38,8 +40,8 @@ Status values: Not started, In progress, Done, Blocked.
 | 1. Tenant foundation | Done | School isolation, school-aware login, clean 3.0 baseline in `warsi_db`, migration runner, platform admin and school management. DigitalOcean deployment deferred to go-live |
 | 2. Unified fee module core | Done | Merged in PR #3. `/api/v1/billing`, migration `V002`. Payment gateway deferred (decision 11). Fee screens in Phase 6 |
 | 3. Transport operations module | Done | Merged in PR #4. `/api/v1/transit`, migration `V003`. Transport screens in Phase 6 |
-| 4. Switch dependents and remove old code | Done | Branch `switch-dependents`, migration `V004`, applied to the local `warsi_db` |
-| 5. Scope the remaining modules | Not started | ORM queries are already scoped by Phase 1. Remaining: 62 raw SQL calls in 12 files |
+| 4. Switch dependents and remove old code | Done | Merged in PR #5. Migration `V004`, applied to the local `warsi_db` |
+| 5. Scope the remaining modules | Done | Branch `scope-remaining-modules`, migration `V005` (not yet applied locally). Raw SQL guard in `app/core/tenant.py` |
 | 6. Frontend | Not started | |
 | 7. Hardening | Not started | Includes row-level security (decision 12) |
 
@@ -283,15 +285,23 @@ There are eight phases, run in order. Each phase ends with the app running and i
 
 ### Phase 5: Scope the remaining modules
 
-- [ ] Scope the 75 raw SQL (`text()`) queries in 15 files by `school_id`. ORM queries are already scoped
-- [ ] Add `school_id` to the 5 database views and filter on it
-- [ ] Per-school email domain in `utils/email_generator.py`
+- [x] Scope the raw SQL (`text()`) queries by `school_id`: 62 statements in 12 files. ORM queries were already scoped
+- [x] Raw SQL guard in `app/core/tenant.py`: on a school session a `text()` statement must use `:school_id` (filled in from the session; another school's id is refused), or be built with `global_sql()` when it reads only global lists or pure functions. Anything else raises `TenantContextError`. Sessions under `tenant_bypass` (platform work) are not checked
+- [x] Joins without a foreign key (leave `applicant_id`, the class teacher join) also require the joined row's school to match
+- [x] Database views: none left (the 5 views were removed in Phase 1)
+- [x] Per-school email domain: setting `user.email_domain`, default `<code>.<BASE_DOMAIN>` (or `<code>.local`). Migration `V005` and `Init/06_school_settings.sql` keep `sunrise.com` for Sunrise. The phone-based fallback login email no longer uses `sunriseschool.edu`
 - [x] No `DEFAULT 1` on `school_id` (removed in the 3.0 baseline)
-- [ ] Students, teachers and users
-- [ ] Attendance and leave
-- [ ] Expenses, vendors and inventory
-- [ ] Gallery, alerts, progression and session history
-- [ ] Move WhatsApp templates, branding and Cloudinary folders to `school_settings`
+- [x] Students, teachers and users: profile and dashboard queries, teacher lists and statistics scoped
+- [x] Attendance and leave: all list, summary, statistics and absence queries scoped. Attendance routes default to the school's current session year instead of Sunrise's id 4 (`get_session_year_id` in `app/api/deps.py`)
+- [x] Expenses, vendors and inventory: expense queries scoped; vendors and inventory use only ORM queries
+- [x] Gallery, alerts, progression and session history: ORM only; dashboard history queries scoped
+- [x] `/configuration` lists: the per-school lists in the metadata query (classes, session years, departments, positions, leave types, expense categories, gallery and inventory lists) are filtered by school. Before this, every school saw every school's lists
+- [x] Dashboard: an unknown or another school's session year returns 404 instead of falling back to Sunrise's session id 4
+- [x] Cloudinary folders: gallery, inventory and profile photos upload to `<school code>/<kind>`, overridable with `cloudinary.<kind>_folder`. Old images keep their URLs; inventory finds the old image's public id from any folder
+- [x] WhatsApp and branding: receipts already use per-school settings (Phase 2). The unused text notification with Sunrise's name and `TWILIO_WHATSAPP_TEMPLATE_SID` is removed
+- [x] Tests: `tests/tenant/test_raw_sql_scoping.py` (guard, every scoped module, dashboards, configuration) and `tests/tenant/test_school_settings.py`
+- [ ] Apply `V005` to the local `warsi_db` (`python migrate_database.py`)
+- Later list: the default password `Sunrise@001` is shared by every school (`core/password_config.py`); the sibling waiver shown on student sibling pages comes from SQL functions with Sunrise's rule, not the school's concession rule; lists referenced by id in request bodies (leave type, expense category and so on) are not checked to belong to the school
 
 ### Phase 6: Frontend
 
@@ -312,7 +322,7 @@ The biggest risk is a query that forgets the school filter and leaks another sch
 
 | Risk | Mitigation |
 | --- | --- |
-| Raw SQL bypasses the tenant filter | ORM queries are scoped automatically by session events and fail closed without a school. The 75 raw SQL queries are scoped by hand in Phase 5. Row-level security in Phase 7 covers anything missed |
+| Raw SQL bypasses the tenant filter | ORM queries are scoped automatically by session events and fail closed without a school. Raw SQL must filter by `:school_id` or it raises (Phase 5). Row-level security in Phase 7 covers anything missed |
 | `POST /api/v1/database/deploy` dropped and rebuilt the whole schema with no login | Resolved Nov 6, 2026: endpoint deleted. Local redeploys use `redeploy_database.py`, which only accepts local databases and runs in one transaction |
 | Old and new fee tables share names (`fee_structures`, `transport_types`) | First Phase 2 migration renames the old tables to `legacy_*`, and old models point at those names until Phase 4 deletes them |
 | Money rounding and balance drift | `DECIMAL(10,2)` everywhere. Balance is always derived from dues and allocations. A consistency check compares them |

@@ -75,14 +75,14 @@ class CRUDLeaveRequest(CRUDBase[LeaveRequest, LeaveRequestCreate, LeaveRequestUp
                 ELSE NULL
             END as reviewer_name
         FROM leave_requests lr
-        LEFT JOIN students s ON lr.applicant_type = 'student' AND lr.applicant_id = s.id
+        LEFT JOIN students s ON lr.applicant_type = 'student' AND lr.applicant_id = s.id AND s.school_id = lr.school_id
         LEFT JOIN classes c ON lr.applicant_type = 'student' AND s.class_id = c.id
-        LEFT JOIN teachers t ON lr.applicant_type = 'teacher' AND lr.applicant_id = t.id
+        LEFT JOIN teachers t ON lr.applicant_type = 'teacher' AND lr.applicant_id = t.id AND t.school_id = lr.school_id
         LEFT JOIN departments d ON t.department_id = d.id
         LEFT JOIN leave_types lt ON lr.leave_type_id = lt.id
         LEFT JOIN leave_statuses ls ON lr.leave_status_id = ls.id
         LEFT JOIN users u ON lr.approved_by = u.id
-        WHERE lr.id = :leave_id
+        WHERE lr.id = :leave_id AND lr.school_id = :school_id
         """
 
         result = await db.execute(text(query), {"leave_id": id})
@@ -114,7 +114,7 @@ class CRUDLeaveRequest(CRUDBase[LeaveRequest, LeaveRequestCreate, LeaveRequestUp
         """Get leave requests with filters and pagination"""
 
         # Build WHERE conditions
-        where_conditions = []
+        where_conditions = ["lr.school_id = :school_id"]
         params = {}
 
         if filters.applicant_id:
@@ -164,15 +164,15 @@ class CRUDLeaveRequest(CRUDBase[LeaveRequest, LeaveRequestCreate, LeaveRequestUp
             where_conditions.append("lr.session_year_id = :session_year_id")
             params["session_year_id"] = filters.session_year_id
 
-        where_clause = "WHERE " + " AND ".join(where_conditions) if where_conditions else ""
+        where_clause = "WHERE " + " AND ".join(where_conditions)
 
         # Count query
         count_query = f"""
         SELECT COUNT(DISTINCT lr.id)
         FROM leave_requests lr
-        LEFT JOIN students s ON lr.applicant_type = 'student' AND lr.applicant_id = s.id
+        LEFT JOIN students s ON lr.applicant_type = 'student' AND lr.applicant_id = s.id AND s.school_id = lr.school_id
         LEFT JOIN classes c ON lr.applicant_type = 'student' AND s.class_id = c.id
-        LEFT JOIN teachers t ON lr.applicant_type = 'teacher' AND lr.applicant_id = t.id
+        LEFT JOIN teachers t ON lr.applicant_type = 'teacher' AND lr.applicant_id = t.id AND t.school_id = lr.school_id
         LEFT JOIN departments d ON t.department_id = d.id
         {where_clause}
         """
@@ -221,9 +221,9 @@ class CRUDLeaveRequest(CRUDBase[LeaveRequest, LeaveRequestCreate, LeaveRequestUp
                 ELSE NULL
             END as reviewer_name
         FROM leave_requests lr
-        LEFT JOIN students s ON lr.applicant_type = 'student' AND lr.applicant_id = s.id
+        LEFT JOIN students s ON lr.applicant_type = 'student' AND lr.applicant_id = s.id AND s.school_id = lr.school_id
         LEFT JOIN classes c ON lr.applicant_type = 'student' AND s.class_id = c.id
-        LEFT JOIN teachers t ON lr.applicant_type = 'teacher' AND lr.applicant_id = t.id
+        LEFT JOIN teachers t ON lr.applicant_type = 'teacher' AND lr.applicant_id = t.id AND t.school_id = lr.school_id
         LEFT JOIN departments d ON t.department_id = d.id
         LEFT JOIN leave_types lt ON lr.leave_type_id = lt.id
         LEFT JOIN leave_statuses ls ON lr.leave_status_id = ls.id
@@ -298,14 +298,14 @@ class CRUDLeaveRequest(CRUDBase[LeaveRequest, LeaveRequestCreate, LeaveRequestUp
                 ELSE NULL
             END as reviewer_name
         FROM leave_requests lr
-        LEFT JOIN students s ON lr.applicant_type = 'student' AND lr.applicant_id = s.id
+        LEFT JOIN students s ON lr.applicant_type = 'student' AND lr.applicant_id = s.id AND s.school_id = lr.school_id
         LEFT JOIN classes c ON lr.applicant_type = 'student' AND s.class_id = c.id
-        LEFT JOIN teachers t ON lr.applicant_type = 'teacher' AND lr.applicant_id = t.id
+        LEFT JOIN teachers t ON lr.applicant_type = 'teacher' AND lr.applicant_id = t.id AND t.school_id = lr.school_id
         LEFT JOIN departments d ON t.department_id = d.id
         LEFT JOIN leave_types lt ON lr.leave_type_id = lt.id
         LEFT JOIN leave_statuses ls ON lr.leave_status_id = ls.id
         LEFT JOIN users u ON lr.approved_by = u.id
-        WHERE lr.applicant_id = :applicant_id AND lr.applicant_type = :applicant_type
+        WHERE lr.school_id = :school_id AND lr.applicant_id = :applicant_id AND lr.applicant_type = :applicant_type
         ORDER BY lr.created_at DESC
         LIMIT :limit
         """
@@ -360,14 +360,14 @@ class CRUDLeaveRequest(CRUDBase[LeaveRequest, LeaveRequestCreate, LeaveRequestUp
                 ELSE NULL
             END as reviewer_name
         FROM leave_requests lr
-        LEFT JOIN students s ON lr.applicant_type = 'student' AND lr.applicant_id = s.id
+        LEFT JOIN students s ON lr.applicant_type = 'student' AND lr.applicant_id = s.id AND s.school_id = lr.school_id
         LEFT JOIN classes c ON lr.applicant_type = 'student' AND s.class_id = c.id
-        LEFT JOIN teachers t ON lr.applicant_type = 'teacher' AND lr.applicant_id = t.id
+        LEFT JOIN teachers t ON lr.applicant_type = 'teacher' AND lr.applicant_id = t.id AND t.school_id = lr.school_id
         LEFT JOIN departments d ON t.department_id = d.id
         LEFT JOIN leave_types lt ON lr.leave_type_id = lt.id
         LEFT JOIN leave_statuses ls ON lr.leave_status_id = ls.id
         LEFT JOIN users u ON lr.approved_by = u.id
-        WHERE lr.leave_status_id = 1
+        WHERE lr.school_id = :school_id AND lr.leave_status_id = 1
         ORDER BY lr.created_at ASC
         """
 
@@ -403,6 +403,7 @@ class CRUDLeaveRequest(CRUDBase[LeaveRequest, LeaveRequestCreate, LeaveRequestUp
         """
         # Build WHERE conditions
         where_conditions = [
+            "lr.school_id = :school_id",
             "lr.applicant_type = 'student'",
             "ct.id = :teacher_id",
             "ct.class_teacher_of_id IS NOT NULL",
@@ -424,8 +425,8 @@ class CRUDLeaveRequest(CRUDBase[LeaveRequest, LeaveRequestCreate, LeaveRequestUp
         count_query = f"""
         SELECT COUNT(DISTINCT lr.id)
         FROM leave_requests lr
-        INNER JOIN students s ON lr.applicant_type = 'student' AND lr.applicant_id = s.id
-        INNER JOIN teachers ct ON ct.class_teacher_of_id = s.class_id
+        INNER JOIN students s ON lr.applicant_type = 'student' AND lr.applicant_id = s.id AND s.school_id = lr.school_id
+        INNER JOIN teachers ct ON ct.class_teacher_of_id = s.class_id AND ct.school_id = lr.school_id
         {where_clause}
         """
 
@@ -448,9 +449,9 @@ class CRUDLeaveRequest(CRUDBase[LeaveRequest, LeaveRequestCreate, LeaveRequestUp
                 ELSE NULL
             END as reviewer_name
         FROM leave_requests lr
-        INNER JOIN students s ON lr.applicant_type = 'student' AND lr.applicant_id = s.id
+        INNER JOIN students s ON lr.applicant_type = 'student' AND lr.applicant_id = s.id AND s.school_id = lr.school_id
         INNER JOIN classes c ON s.class_id = c.id
-        INNER JOIN teachers ct ON ct.class_teacher_of_id = s.class_id
+        INNER JOIN teachers ct ON ct.class_teacher_of_id = s.class_id AND ct.school_id = lr.school_id
         LEFT JOIN leave_types lt ON lr.leave_type_id = lt.id
         LEFT JOIN leave_statuses ls ON lr.leave_status_id = ls.id
         LEFT JOIN users u ON lr.approved_by = u.id
@@ -548,7 +549,11 @@ class CRUDLeaveRequest(CRUDBase[LeaveRequest, LeaveRequestCreate, LeaveRequestUp
         self, db: AsyncSession, *, year: Optional[int] = None
     ) -> Dict[str, Any]:
         """Get comprehensive leave statistics"""
-        where_clause = f"WHERE EXTRACT(year FROM lr.start_date) = {year}" if year else ""
+        where_clause = "WHERE lr.school_id = :school_id"
+        params: Dict[str, Any] = {}
+        if year:
+            where_clause += " AND EXTRACT(year FROM lr.start_date) = :year"
+            params["year"] = year
 
         query = f"""
         SELECT
@@ -561,7 +566,7 @@ class CRUDLeaveRequest(CRUDBase[LeaveRequest, LeaveRequestCreate, LeaveRequestUp
         {where_clause}
         """
 
-        result = await db.execute(text(query))
+        result = await db.execute(text(query), params)
         stats = result.fetchone()
 
         # Get leave type breakdown
@@ -576,7 +581,7 @@ class CRUDLeaveRequest(CRUDBase[LeaveRequest, LeaveRequestCreate, LeaveRequestUp
         ORDER BY count DESC
         """
 
-        type_result = await db.execute(text(type_query))
+        type_result = await db.execute(text(type_query), params)
         type_breakdown = [
             {'leave_type': row.leave_type_name, 'count': row.count}
             for row in type_result
@@ -592,7 +597,7 @@ class CRUDLeaveRequest(CRUDBase[LeaveRequest, LeaveRequestCreate, LeaveRequestUp
         GROUP BY lr.applicant_type
         """
 
-        applicant_result = await db.execute(text(applicant_query))
+        applicant_result = await db.execute(text(applicant_query), params)
         applicant_breakdown = [
             {'applicant_type': row.applicant_type, 'count': row.count}
             for row in applicant_result
@@ -622,7 +627,7 @@ class CRUDLeaveRequest(CRUDBase[LeaveRequest, LeaveRequestCreate, LeaveRequestUp
             COUNT(CASE WHEN lr.leave_status_id = 3 THEN 1 END) as rejected_count,
             COUNT(CASE WHEN lr.leave_status_id = 1 THEN 1 END) as pending_count
         FROM leave_requests lr
-        WHERE EXTRACT(year FROM lr.start_date) = :year
+        WHERE lr.school_id = :school_id AND EXTRACT(year FROM lr.start_date) = :year
         GROUP BY EXTRACT(month FROM lr.start_date)
         ORDER BY EXTRACT(month FROM lr.start_date)
         """
@@ -657,9 +662,9 @@ class CRUDLeaveRequest(CRUDBase[LeaveRequest, LeaveRequestCreate, LeaveRequestUp
             COUNT(CASE WHEN lr.leave_status_id = 1 THEN 1 END) as pending_requests,
             SUM(lr.total_days) as total_days
         FROM leave_requests lr
-        LEFT JOIN students s ON lr.applicant_type = 'student' AND lr.applicant_id = s.id
+        LEFT JOIN students s ON lr.applicant_type = 'student' AND lr.applicant_id = s.id AND s.school_id = lr.school_id
         LEFT JOIN classes c ON s.class_id = c.id
-        WHERE lr.applicant_type = 'student' {where_clause}
+        WHERE lr.school_id = :school_id AND lr.applicant_type = 'student' {where_clause}
         GROUP BY c.name
         ORDER BY c.name
         """

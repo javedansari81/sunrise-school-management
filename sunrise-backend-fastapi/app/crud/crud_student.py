@@ -274,7 +274,8 @@ class CRUDStudent(CRUDBase[Student, StudentCreate, StudentUpdate]):
                     user_email = db_obj.email
                     if not user_email and obj_in.phone:
                         # Fallback: Generate email from phone for login purposes
-                        user_email = f"student_{obj_in.phone}@sunriseschool.edu"
+                        from app.services.school_settings import email_domain
+                        user_email = f"student_{obj_in.phone}@{await email_domain(db)}"
 
                     log_crud_operation("USER_LINK_ATTEMPT", f"Attempting to link user account",
                                      student_id=db_obj.id, user_email=user_email)

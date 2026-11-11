@@ -154,7 +154,7 @@ class AttendanceFilters(BaseModel):
     class_id: Optional[int] = None
     student_id: Optional[int] = None
     attendance_status_id: Optional[int] = None
-    session_year_id: int = 4
+    session_year_id: Optional[int] = None
     search: Optional[str] = None
 
 

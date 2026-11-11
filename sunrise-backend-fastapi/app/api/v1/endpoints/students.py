@@ -18,6 +18,7 @@ from datetime import date
 from app.api.deps import get_current_active_user
 from app.models.user import User
 from app.schemas.user import UserTypeEnum
+from app.services.school_settings import STUDENT_PHOTOS, cloudinary_folder
 
 router = APIRouter()
 
@@ -341,7 +342,7 @@ async def get_my_dashboard_stats(
         LEFT JOIN classes c ON s.class_id = c.id
         LEFT JOIN genders g ON s.gender_id = g.id
         LEFT JOIN session_years sy ON s.session_year_id = sy.id
-        WHERE s.id = :student_id
+        WHERE s.id = :student_id AND s.school_id = :school_id
     """)
 
     result = await db.execute(student_query, {"student_id": student.id})
@@ -361,7 +362,7 @@ async def get_my_dashboard_stats(
             COUNT(CASE WHEN leave_status_id = 2 THEN 1 END) as approved,
             COUNT(CASE WHEN leave_status_id = 3 THEN 1 END) as rejected
         FROM leave_requests
-        WHERE applicant_type = 'student' AND applicant_id = :student_id
+        WHERE school_id = :school_id AND applicant_type = 'student' AND applicant_id = :student_id
     """)
 
     leave_result = await db.execute(leave_stats_query, {"student_id": student.id})
@@ -849,7 +850,7 @@ async def upload_my_profile_picture(
     # Upload new picture
     cloudinary_url, cloudinary_public_id = await upload_profile_picture_to_cloudinary(
         file=file,
-        folder="profiles/students",
+        folder=await cloudinary_folder(db, STUDENT_PHOTOS),
         identifier=str(student.id)
     )
 
@@ -960,7 +961,7 @@ async def upload_student_profile_picture(
     # Upload new picture
     cloudinary_url, cloudinary_public_id = await upload_profile_picture_to_cloudinary(
         file=file,
-        folder="profiles/students",
+        folder=await cloudinary_folder(db, STUDENT_PHOTOS),
         identifier=str(student.id)
     )
 

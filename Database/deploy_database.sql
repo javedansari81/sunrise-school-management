@@ -160,6 +160,7 @@ SET search_path TO :"schema";
 \ir Init/03_create_super_admin_user.sql
 \ir Init/04_fee_module_defaults.sql
 \ir Init/05_transport_defaults.sql
+\ir Init/06_school_settings.sql
 \ir Init/07_inventory_stock.sql
 \ir Init/99_finish_default_school.sql
 

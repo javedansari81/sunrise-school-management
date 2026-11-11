@@ -179,7 +179,7 @@ class CRUDTeacher(CRUDBase[Teacher, TeacherCreate, TeacherUpdate]):
             LEFT JOIN qualifications q ON t.qualification_id = q.id
             LEFT JOIN employment_statuses es ON t.employment_status_id = es.id
             LEFT JOIN classes c ON t.class_teacher_of_id = c.id
-            WHERE t.id = :teacher_id AND (t.is_deleted IS NULL OR t.is_deleted = FALSE)
+            WHERE t.id = :teacher_id AND t.school_id = :school_id AND (t.is_deleted IS NULL OR t.is_deleted = FALSE)
         """)
 
         result = await db.execute(query, {"teacher_id": id})
@@ -205,7 +205,7 @@ class CRUDTeacher(CRUDBase[Teacher, TeacherCreate, TeacherUpdate]):
         """Get teachers with metadata relationships and filters"""
 
         # Build WHERE conditions
-        where_conditions = ["(t.is_deleted IS NULL OR t.is_deleted = FALSE)"]
+        where_conditions = ["t.school_id = :school_id", "(t.is_deleted IS NULL OR t.is_deleted = FALSE)"]
         params = {}
 
         if is_active is not None:
@@ -490,7 +490,7 @@ class CRUDTeacher(CRUDBase[Teacher, TeacherCreate, TeacherUpdate]):
             text("""
                 SELECT COUNT(id) as total
                 FROM teachers
-                WHERE is_active = TRUE AND (is_deleted IS NULL OR is_deleted = FALSE)
+                WHERE school_id = :school_id AND is_active = TRUE AND (is_deleted IS NULL OR is_deleted = FALSE)
             """)
         )
         total_teachers = total_result.scalar() or 0
@@ -504,7 +504,7 @@ class CRUDTeacher(CRUDBase[Teacher, TeacherCreate, TeacherUpdate]):
                 SELECT d.name as department, COUNT(t.id) as count
                 FROM teachers t
                 LEFT JOIN departments d ON t.department_id = d.id
-                WHERE t.is_active = TRUE AND (t.is_deleted IS NULL OR t.is_deleted = FALSE)
+                WHERE t.school_id = :school_id AND t.is_active = TRUE AND (t.is_deleted IS NULL OR t.is_deleted = FALSE)
                 GROUP BY d.name
                 ORDER BY d.name
             """)
@@ -521,7 +521,7 @@ class CRUDTeacher(CRUDBase[Teacher, TeacherCreate, TeacherUpdate]):
                 SELECT q.name as qualification, COUNT(t.id) as count
                 FROM teachers t
                 LEFT JOIN qualifications q ON t.qualification_id = q.id
-                WHERE t.is_active = TRUE AND (t.is_deleted IS NULL OR t.is_deleted = FALSE)
+                WHERE t.school_id = :school_id AND t.is_active = TRUE AND (t.is_deleted IS NULL OR t.is_deleted = FALSE)
                 GROUP BY q.name
                 ORDER BY q.name
             """)
@@ -544,7 +544,7 @@ class CRUDTeacher(CRUDBase[Teacher, TeacherCreate, TeacherUpdate]):
                     END as experience_range,
                     COUNT(id) as count
                 FROM teachers
-                WHERE is_active = TRUE AND (is_deleted IS NULL OR is_deleted = FALSE)
+                WHERE school_id = :school_id AND is_active = TRUE AND (is_deleted IS NULL OR is_deleted = FALSE)
                 GROUP BY experience_range
                 ORDER BY experience_range
             """)

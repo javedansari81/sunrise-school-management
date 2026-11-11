@@ -2,7 +2,9 @@ from typing import List, Optional, Dict, Any, Tuple
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload, joinedload
-from sqlalchemy import and_, delete, or_, func, text
+from sqlalchemy import and_, delete, or_, func
+
+from app.core.tenant import global_sql
 from decimal import Decimal
 from datetime import date
 
@@ -76,7 +78,7 @@ class CRUDStudentSibling(CRUDBase[StudentSibling, StudentSiblingCreate, StudentS
         """
         # Call database function to calculate waiver
         result = await db.execute(
-            text("SELECT calculate_sibling_fee_waiver(:total, :order)"),
+            global_sql("SELECT calculate_sibling_fee_waiver(:total, :order)"),
             {"total": total_siblings, "order": birth_order}
         )
         waiver_percentage = result.scalar() or Decimal("0.00")
@@ -84,7 +86,7 @@ class CRUDStudentSibling(CRUDBase[StudentSibling, StudentSiblingCreate, StudentS
         # Get waiver reason text
         if waiver_percentage > 0:
             reason_result = await db.execute(
-                text("SELECT get_waiver_reason_text(:total, :order, :waiver)"),
+                global_sql("SELECT get_waiver_reason_text(:total, :order, :waiver)"),
                 {"total": total_siblings, "order": birth_order, "waiver": float(waiver_percentage)}
             )
             waiver_reason = reason_result.scalar()
@@ -357,7 +359,7 @@ class CRUDStudentSibling(CRUDBase[StudentSibling, StudentSiblingCreate, StudentS
             return None
 
         result = await db.execute(
-            text("SELECT get_waiver_reason_text(:total, :order, :waiver)"),
+            global_sql("SELECT get_waiver_reason_text(:total, :order, :waiver)"),
             {"total": total_siblings, "order": birth_order, "waiver": float(waiver_percentage)}
         )
         return result.scalar()

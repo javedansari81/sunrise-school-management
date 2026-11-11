@@ -157,7 +157,7 @@ class CRUDExpense(CRUDBase[Expense, ExpenseCreate, ExpenseUpdate]):
         LEFT JOIN session_years sy ON e.session_year_id = sy.id
         LEFT JOIN users u1 ON e.requested_by = u1.id
         LEFT JOIN users u2 ON e.approved_by = u2.id
-        WHERE e.id = :expense_id
+        WHERE e.id = :expense_id AND e.school_id = :school_id
         """
 
         result = await db.execute(text(query), {"expense_id": id})
@@ -188,7 +188,7 @@ class CRUDExpense(CRUDBase[Expense, ExpenseCreate, ExpenseUpdate]):
         """Get expenses with filters and pagination"""
 
         # Build WHERE conditions
-        where_conditions = []
+        where_conditions = ["e.school_id = :school_id"]
         params = {}
 
         if filters.expense_category_id:
@@ -327,7 +327,7 @@ class CRUDExpense(CRUDBase[Expense, ExpenseCreate, ExpenseUpdate]):
         LEFT JOIN session_years sy ON e.session_year_id = sy.id
         LEFT JOIN users u1 ON e.requested_by = u1.id
         LEFT JOIN users u2 ON e.approved_by = u2.id
-        WHERE e.expense_status_id = 1
+        WHERE e.school_id = :school_id AND e.expense_status_id = 1
         ORDER BY e.created_at ASC
         """
 
@@ -374,7 +374,7 @@ class CRUDExpense(CRUDBase[Expense, ExpenseCreate, ExpenseUpdate]):
         LEFT JOIN session_years sy ON e.session_year_id = sy.id
         LEFT JOIN users u1 ON e.requested_by = u1.id
         LEFT JOIN users u2 ON e.approved_by = u2.id
-        WHERE e.requested_by = :requester_id
+        WHERE e.school_id = :school_id AND e.requested_by = :requester_id
         ORDER BY e.created_at DESC
         LIMIT :limit
         """
@@ -424,10 +424,12 @@ class CRUDExpense(CRUDBase[Expense, ExpenseCreate, ExpenseUpdate]):
     ) -> Dict[str, Any]:
         """Get comprehensive expense statistics"""
         # Build WHERE clause with soft delete filtering
-        where_conditions = ["e.is_deleted = FALSE"]
+        where_conditions = ["e.school_id = :school_id", "e.is_deleted = FALSE"]
+        params: Dict[str, Any] = {}
 
         if year:
-            where_conditions.append(f"EXTRACT(year FROM e.expense_date) = {year}")
+            where_conditions.append("EXTRACT(year FROM e.expense_date) = :year")
+            params["year"] = year
 
         where_clause = "WHERE " + " AND ".join(where_conditions)
 
@@ -447,7 +449,7 @@ class CRUDExpense(CRUDBase[Expense, ExpenseCreate, ExpenseUpdate]):
         {where_clause}
         """
 
-        result = await db.execute(text(query))
+        result = await db.execute(text(query), params)
         stats = result.fetchone()
 
         if not stats:
@@ -480,7 +482,7 @@ class CRUDExpense(CRUDBase[Expense, ExpenseCreate, ExpenseUpdate]):
         ORDER BY amount DESC
         """
 
-        category_result = await db.execute(text(category_query))
+        category_result = await db.execute(text(category_query), params)
         category_breakdown = [
             {
                 'category': row.category_name,
@@ -506,7 +508,7 @@ class CRUDExpense(CRUDBase[Expense, ExpenseCreate, ExpenseUpdate]):
         ORDER BY amount DESC
         """
 
-        payment_result = await db.execute(text(payment_query))
+        payment_result = await db.execute(text(payment_query), params)
         payment_breakdown = [
             {
                 'payment_method': row.payment_method_name,
