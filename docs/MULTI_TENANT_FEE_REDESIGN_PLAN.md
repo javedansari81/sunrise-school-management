@@ -26,7 +26,7 @@ Phase 1 is done (Nov 6, 2026). Every school's data is isolated in the `school` s
 
 Phase 2 is done (Nov 11, 2026, merged in PR #3). The unified fee module lives in `app/modules/fees/` and is served at `/api/v1/billing`. Migration `V002` adds its 11 tables and is applied to the local `warsi_db`. 46 fee tests pass, 89 in total. The old `/fees` and `/transport` routes still work until Phase 4, and the new fee screens come in Phase 6. Next step: Phase 3, the transport operations module. Deploying to DigitalOcean, including running `V002`, is deferred to go-live.
 
-Phase 3 is built (Nov 11, 2026) on the `transport-module` branch, not yet committed, waiting for review. The transport operations module lives in `app/modules/transport/` and is served at `/api/v1/transit`. Migration `V003` renames the old `transport_types` to `legacy_transport_types`, adds 7 tables and carries Sunrise's old price list over as rates. `V003` is applied to the local `warsi_db`. 45 transport tests pass, 134 in total. Next step: review Phase 3, then Phase 4. Deploying to DigitalOcean, including running `V003`, is deferred to go-live.
+Phase 3 is built (Nov 11, 2026), committed and pushed on the `transport-module` branch; the pull request to `main` is still to be opened, then reviewed. The transport operations module lives in `app/modules/transport/` and is served at `/api/v1/transit`. Migration `V003` renames the old `transport_types` to `legacy_transport_types`, adds 7 tables and carries Sunrise's old price list over as rates. `V003` is applied to the local `warsi_db`. 45 transport tests pass; 133 of 134 pass in total. The one failure, `test_build_plans_and_generate_dues` in `tests/fees/test_ledger.py`, comes from local data, not from Phase 3: the test assumes session 2026-27 has only its own students, and the local database has 3 real students there. Next step: open and review the Phase 3 pull request, then Phase 4. Deploying to DigitalOcean, including running `V003`, is deferred to go-live.
 
 Status values: Not started, In progress, Done, Blocked.
 
@@ -35,7 +35,7 @@ Status values: Not started, In progress, Done, Blocked.
 | 0. Preparation | Done | Branch `multi-tenant` created. Tenant test suite runs against local Postgres in a rolled-back transaction |
 | 1. Tenant foundation | Done | School isolation, school-aware login, clean 3.0 baseline in `warsi_db`, migration runner, platform admin and school management. DigitalOcean deployment deferred to go-live |
 | 2. Unified fee module core | Done | Merged in PR #3. `/api/v1/billing`, migration `V002`. Payment gateway deferred (decision 11). Fee screens in Phase 6 |
-| 3. Transport operations module | In progress | Built and tested on branch `transport-module`, waiting for review. `/api/v1/transit`, migration `V003`. Transport screens in Phase 6 |
+| 3. Transport operations module | In progress | Pushed on branch `transport-module`, pull request to be opened and reviewed. `/api/v1/transit`, migration `V003`. Transport screens in Phase 6 |
 | 4. Switch dependents and remove old code | Not started | |
 | 5. Scope the remaining modules | Not started | ORM queries are already scoped by Phase 1. Remaining: 75 raw SQL queries and 5 views |
 | 6. Frontend | Not started | |
