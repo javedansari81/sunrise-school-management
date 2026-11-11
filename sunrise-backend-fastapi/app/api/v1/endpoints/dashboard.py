@@ -55,9 +55,8 @@ async def get_session_year_details(
     if session:
         return (session.id, session.name, session.start_date, session.end_date, session.is_current)
 
-    # Fallback if no session found (should not happen in normal operation)
-    logger.warning(f"Session year not found for id={session_year_id}, using defaults")
-    return (4, "2025-26", None, None, False)
+    # Unknown here: either no current session yet, or another school's session year
+    raise HTTPException(status_code=404, detail="Session year not found")
 
 
 @router.get("/admin-dashboard-stats")
@@ -275,7 +274,7 @@ async def get_admin_dashboard_stats(
                         COUNT(CASE WHEN leave_status_id = 2 THEN 1 END) as approved_requests,
                         COUNT(CASE WHEN leave_status_id = 3 THEN 1 END) as rejected_requests
                     FROM leave_requests
-                    WHERE session_year_id = :session_year_id
+                    WHERE school_id = :school_id AND session_year_id = :session_year_id
                 """)
                 leave_result = await db.execute(
                     leave_query,
@@ -541,7 +540,8 @@ async def get_admin_dashboard_enhanced_stats(
                         COUNT(CASE WHEN s.gender_id = 2 THEN 1 END) as female_count
                     FROM students s
                     LEFT JOIN classes c ON s.class_id = c.id
-                    WHERE s.is_active = TRUE
+                    WHERE s.school_id = :school_id
+                        AND s.is_active = TRUE
                         AND (s.is_deleted = FALSE OR s.is_deleted IS NULL)
                         AND s.session_year_id = :session_year_id
                     GROUP BY c.id, c.description
@@ -566,7 +566,8 @@ async def get_admin_dashboard_enhanced_stats(
                         COUNT(CASE WHEN is_active = FALSE THEN 1 END) as inactive_students,
                         COUNT(CASE WHEN is_active = TRUE AND created_at >= :month_start THEN 1 END) as recent_enrollments
                     FROM students
-                    WHERE (is_deleted = FALSE OR is_deleted IS NULL)
+                    WHERE school_id = :school_id
+                        AND (is_deleted = FALSE OR is_deleted IS NULL)
                         AND session_year_id = :session_year_id
                 """)
                 student_stats_result = await db.execute(
@@ -601,7 +602,7 @@ async def get_admin_dashboard_enhanced_stats(
                         FROM student_session_history ssh
                         LEFT JOIN classes c ON ssh.class_id = c.id
                         LEFT JOIN students s ON ssh.student_id = s.id
-                        WHERE ssh.session_year_id = :session_year_id
+                        WHERE ssh.school_id = :school_id AND ssh.session_year_id = :session_year_id
                         GROUP BY c.id, c.description
 
                         UNION ALL
@@ -614,11 +615,11 @@ async def get_admin_dashboard_enhanced_stats(
                             COUNT(CASE WHEN s.gender_id = 2 THEN 1 END) as female_count
                         FROM students s
                         LEFT JOIN classes c ON s.class_id = c.id
-                        WHERE s.session_year_id = :session_year_id
+                        WHERE s.school_id = :school_id AND s.session_year_id = :session_year_id
                             AND s.id NOT IN (
                                 SELECT student_id
                                 FROM student_session_history
-                                WHERE session_year_id = :session_year_id
+                                WHERE school_id = :school_id AND session_year_id = :session_year_id
                             )
                         GROUP BY c.id, c.description
                     ) combined
@@ -647,16 +648,16 @@ async def get_admin_dashboard_enhanced_stats(
                             -- Count from history (no is_deleted filter for historical data)
                             SELECT COUNT(DISTINCT ssh.student_id)
                             FROM student_session_history ssh
-                            WHERE ssh.session_year_id = :session_year_id
+                            WHERE ssh.school_id = :school_id AND ssh.session_year_id = :session_year_id
                         ) + (
                             -- Count from students table (exclude students already in history)
                             SELECT COUNT(s.id)
                             FROM students s
-                            WHERE s.session_year_id = :session_year_id
+                            WHERE s.school_id = :school_id AND s.session_year_id = :session_year_id
                                 AND s.id NOT IN (
                                     SELECT student_id
                                     FROM student_session_history
-                                    WHERE session_year_id = :session_year_id
+                                    WHERE school_id = :school_id AND session_year_id = :session_year_id
                                 )
                         ) as total_students
                 """)
@@ -730,7 +731,7 @@ async def get_admin_dashboard_enhanced_stats(
                         COUNT(CASE WHEN leave_status_id = 2 THEN 1 END) as approved_requests,
                         COUNT(CASE WHEN leave_status_id = 3 THEN 1 END) as rejected_requests
                     FROM leave_requests
-                    WHERE session_year_id = :session_year_id
+                    WHERE school_id = :school_id AND session_year_id = :session_year_id
                 """)
                 leave_stats_result = await db.execute(
                     leave_stats_query,
@@ -754,7 +755,7 @@ async def get_admin_dashboard_enhanced_stats(
                         COUNT(CASE WHEN lr.leave_status_id = 1 THEN 1 END) as pending
                     FROM leave_requests lr
                     LEFT JOIN leave_types lt ON lr.leave_type_id = lt.id
-                    WHERE lr.session_year_id = :session_year_id
+                    WHERE lr.school_id = :school_id AND lr.session_year_id = :session_year_id
                     GROUP BY lt.id, lt.description
                     ORDER BY count DESC
                 """)
@@ -774,6 +775,7 @@ async def get_admin_dashboard_enhanced_stats(
                         COUNT(CASE WHEN lr.leave_status_id = 1 THEN 1 END) as pending
                     FROM leave_requests lr
                     LEFT JOIN leave_types lt ON lr.leave_type_id = lt.id
+                    WHERE lr.school_id = :school_id
                     GROUP BY lt.id, lt.description
                     ORDER BY count DESC
                 """)
@@ -811,7 +813,7 @@ async def get_admin_dashboard_enhanced_stats(
                         COALESCE(SUM(total_amount), 0) as total_amount,
                         COUNT(CASE WHEN expense_status_id = 1 THEN 1 END) as pending_expenses
                     FROM expenses
-                    WHERE session_year_id = :session_year_id
+                    WHERE school_id = :school_id AND session_year_id = :session_year_id
                         AND is_deleted = FALSE
                 """)
                 expense_stats_result = await db.execute(
@@ -827,7 +829,7 @@ async def get_admin_dashboard_enhanced_stats(
                         COALESCE(SUM(e.total_amount), 0) as amount
                     FROM expenses e
                     LEFT JOIN expense_categories ec ON e.expense_category_id = ec.id
-                    WHERE e.session_year_id = :session_year_id
+                    WHERE e.school_id = :school_id AND e.session_year_id = :session_year_id
                         AND e.is_deleted = FALSE
                         AND e.expense_status_id IN (2, 4)
                     GROUP BY ec.id, ec.description
@@ -857,7 +859,7 @@ async def get_admin_dashboard_enhanced_stats(
                         SUM(e.total_amount) as total_amount,
                         COUNT(e.id) as expense_count
                     FROM expenses e
-                    WHERE e.session_year_id = :session_year_id
+                    WHERE e.school_id = :school_id AND e.session_year_id = :session_year_id
                         AND e.is_deleted = FALSE
                         AND e.expense_status_id IN (2, 4)
                     GROUP BY EXTRACT(YEAR FROM e.expense_date), EXTRACT(MONTH FROM e.expense_date), TO_CHAR(e.expense_date, 'Mon YYYY')
@@ -878,7 +880,7 @@ async def get_admin_dashboard_enhanced_stats(
                         SUM(e.total_amount) as total_amount,
                         COUNT(e.id) as expense_count
                     FROM expenses e
-                    WHERE e.expense_date >= :start_date
+                    WHERE e.school_id = :school_id AND e.expense_date >= :start_date
                         AND e.is_deleted = FALSE
                         AND e.expense_status_id IN (2, 4)
                     GROUP BY EXTRACT(YEAR FROM e.expense_date), EXTRACT(MONTH FROM e.expense_date), TO_CHAR(e.expense_date, 'Mon YYYY')

@@ -15,20 +15,27 @@ Both fail closed: touching a tenant model on a session without a school raises
 data. Code that must work across schools (school lookup, platform admin tasks)
 uses ``tenant_bypass``.
 
-Raw SQL (``text()``) is NOT scoped by these events. Queries written that way
-must filter by ``school_id`` themselves (see Phase 5 of the redesign plan).
+Raw SQL (``text()``) cannot be rewritten, so it is checked instead. On a session
+bound to a school, a raw statement must filter by the ``:school_id`` parameter;
+the parameter is filled in from the session, and a different value passed by the
+caller is refused. A raw statement that reads only global tables (fixed system
+lists, pure SQL functions) is built with ``global_sql()``. Anything else fails
+instead of running unscoped.
 """
 from contextlib import contextmanager
 from typing import Iterator, Optional, Union
 
-from sqlalchemy import event
+from sqlalchemy import event, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import ORMExecuteState, Session, with_loader_criteria
+from sqlalchemy.sql.elements import TextClause
 
 from app.models.tenant import TenantMixin
 
 SCHOOL_ID_KEY = "school_id"
 BYPASS_KEY = "tenant_bypass"
+GLOBAL_SQL_OPTION = "tenant_global"
+SCHOOL_PARAM = "school_id"
 
 AnySession = Union[Session, AsyncSession]
 
@@ -106,8 +113,56 @@ def _statement_touches_tenant(state: ORMExecuteState) -> bool:
     return bind_mapper is not None and _is_tenant_class(bind_mapper.class_)
 
 
+def global_sql(sql: str) -> TextClause:
+    """Raw SQL that reads no school data: only fixed system lists or pure functions."""
+    return text(sql).execution_options(**{GLOBAL_SQL_OPTION: True})
+
+
+def _with_school(params: dict, school_id: int) -> dict:
+    given = params.get(SCHOOL_PARAM)
+    if given is not None and given != school_id:
+        raise TenantContextError(
+            f"Raw SQL passed school_id={given} on a session bound to school {school_id}"
+        )
+    return {**params, SCHOOL_PARAM: school_id}
+
+
+def _scope_raw_sql(state: ORMExecuteState):
+    info = state.session.info
+    if info.get(BYPASS_KEY):
+        return None
+    references_school = SCHOOL_PARAM in state.statement._bindparams
+    if state.execution_options.get(GLOBAL_SQL_OPTION):
+        if references_school:
+            raise TenantContextError("global_sql() must not filter by :school_id; use text()")
+        return None
+
+    school_id = info.get(SCHOOL_ID_KEY)
+    if school_id is None:
+        raise TenantContextError(
+            "Raw SQL run on a session without a school. Use a tenant-aware dependency, "
+            "global_sql() for system lists, or tenant_bypass for cross-school work."
+        )
+    if not references_school:
+        raise TenantContextError(
+            "Raw SQL on a school session must filter by :school_id "
+            "(or use global_sql() if it reads no school data)."
+        )
+    params = state.parameters
+    if isinstance(params, (list, tuple)):
+        scoped = [_with_school(dict(p), school_id) for p in params]
+    else:
+        if params is None:
+            # invoke_statement() cannot merge into a call made without parameters
+            state.parameters = {}
+        scoped = _with_school(dict(params or {}), school_id)
+    return state.invoke_statement(params=scoped)
+
+
 @event.listens_for(Session, "do_orm_execute")
-def _apply_tenant_criteria(state: ORMExecuteState) -> None:
+def _apply_tenant_criteria(state: ORMExecuteState):
+    if isinstance(state.statement, TextClause):
+        return _scope_raw_sql(state)
     if not (state.is_select or state.is_update or state.is_delete):
         return
     # Column and relationship loads inherit the criteria from the parent query

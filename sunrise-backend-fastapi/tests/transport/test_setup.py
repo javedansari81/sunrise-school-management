@@ -4,6 +4,8 @@ tenant isolation, seed data and the legacy table rename.
 """
 from sqlalchemy import select, text
 
+from app.core.tenant import global_sql
+
 from app.core.tenant import tenant_bypass
 from app.models.metadata import SessionYear
 from app.models.tenant import TenantMixin
@@ -37,7 +39,7 @@ async def test_seeded_types_rates_and_settings(sunrise_session, refs):
                        for r in rates if r.basis == "DISTANCE_SLAB")
         assert slabs[:2] == [("0.00", "8.00", "700.00"), ("10.00", "12.00", "900.00")]
         due_day = (await session.execute(text(
-            "SELECT value FROM school_settings WHERE key = 'fee.transport.due_day' AND school_id = 1"))).scalar_one()
+            "SELECT value FROM school_settings WHERE key = 'fee.transport.due_day' AND school_id = :school_id"))).scalar_one()
         assert due_day == "10"
 
 
@@ -52,9 +54,9 @@ LEGACY_TABLES = {
 async def test_legacy_tables_dropped(sunrise_session):
     """Migration V004 dropped the 13 pre-redesign fee and transport tables and their functions."""
     async with sunrise_session() as session:
-        tables = set((await session.execute(text(
+        tables = set((await session.execute(global_sql(
             "SELECT table_name FROM information_schema.tables WHERE table_schema = current_schema()"))).scalars())
-        functions = set((await session.execute(text(
+        functions = set((await session.execute(global_sql(
             "SELECT p.proname FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace "
             "WHERE n.nspname = current_schema()"))).scalars())
     assert "transport_types" in tables

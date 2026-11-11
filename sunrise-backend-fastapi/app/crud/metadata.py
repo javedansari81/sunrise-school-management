@@ -6,6 +6,8 @@ from typing import List, Optional, Dict, Any
 from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import and_, select, text
+
+from app.core.tenant import global_sql
 from sqlalchemy.future import select
 
 from app.models.metadata import (
@@ -158,7 +160,7 @@ async def get_all_metadata_async(db: AsyncSession) -> Dict[str, List[Any]]:
                NULL::INTEGER as max_days_per_year, NULL::BOOLEAN as requires_medical_certificate, NULL::DECIMAL as budget_limit,
                NULL::BOOLEAN as requires_approval, NULL::VARCHAR as color_code, NULL::BOOLEAN as is_final, NULL::INTEGER as level_order,
                NULL::BOOLEAN as requires_reference, is_active, created_at, updated_at
-        FROM session_years WHERE is_active = true
+        FROM session_years WHERE is_active = true AND school_id = :school_id
 
         UNION ALL
 
@@ -176,7 +178,7 @@ async def get_all_metadata_async(db: AsyncSession) -> Dict[str, List[Any]]:
                NULL::INTEGER as max_days_per_year, NULL::BOOLEAN as requires_medical_certificate, NULL::DECIMAL as budget_limit,
                NULL::BOOLEAN as requires_approval, NULL::VARCHAR as color_code, NULL::BOOLEAN as is_final, NULL::INTEGER as level_order,
                NULL::BOOLEAN as requires_reference, is_active, created_at, updated_at
-        FROM classes WHERE is_active = true
+        FROM classes WHERE is_active = true AND school_id = :school_id
 
         UNION ALL
 
@@ -212,7 +214,7 @@ async def get_all_metadata_async(db: AsyncSession) -> Dict[str, List[Any]]:
                max_days_per_year, requires_medical_certificate, NULL::DECIMAL as budget_limit,
                NULL::BOOLEAN as requires_approval, NULL::VARCHAR as color_code, NULL::BOOLEAN as is_final, NULL::INTEGER as level_order,
                NULL::BOOLEAN as requires_reference, is_active, created_at, updated_at
-        FROM leave_types WHERE is_active = true
+        FROM leave_types WHERE is_active = true AND school_id = :school_id
 
         UNION ALL
 
@@ -230,7 +232,7 @@ async def get_all_metadata_async(db: AsyncSession) -> Dict[str, List[Any]]:
                NULL::INTEGER as max_days_per_year, NULL::BOOLEAN as requires_medical_certificate, budget_limit,
                requires_approval, NULL::VARCHAR as color_code, NULL::BOOLEAN as is_final, NULL::INTEGER as level_order,
                NULL::BOOLEAN as requires_reference, is_active, created_at, updated_at
-        FROM expense_categories WHERE is_active = true
+        FROM expense_categories WHERE is_active = true AND school_id = :school_id
 
         UNION ALL
 
@@ -266,7 +268,7 @@ async def get_all_metadata_async(db: AsyncSession) -> Dict[str, List[Any]]:
                NULL::INTEGER as max_days_per_year, NULL::BOOLEAN as requires_medical_certificate, NULL::DECIMAL as budget_limit,
                NULL::BOOLEAN as requires_approval, NULL::VARCHAR as color_code, NULL::BOOLEAN as is_final, NULL::INTEGER as level_order,
                NULL::BOOLEAN as requires_reference, is_active, created_at, updated_at
-        FROM departments WHERE is_active = true
+        FROM departments WHERE is_active = true AND school_id = :school_id
 
         UNION ALL
 
@@ -275,7 +277,7 @@ async def get_all_metadata_async(db: AsyncSession) -> Dict[str, List[Any]]:
                NULL::INTEGER as max_days_per_year, NULL::BOOLEAN as requires_medical_certificate, NULL::DECIMAL as budget_limit,
                NULL::BOOLEAN as requires_approval, NULL::VARCHAR as color_code, NULL::BOOLEAN as is_final, NULL::INTEGER as level_order,
                NULL::BOOLEAN as requires_reference, is_active, created_at, updated_at
-        FROM positions WHERE is_active = true
+        FROM positions WHERE is_active = true AND school_id = :school_id
 
         UNION ALL
 
@@ -284,7 +286,7 @@ async def get_all_metadata_async(db: AsyncSession) -> Dict[str, List[Any]]:
                NULL::INTEGER as max_days_per_year, NULL::BOOLEAN as requires_medical_certificate, NULL::DECIMAL as budget_limit,
                NULL::BOOLEAN as requires_approval, icon as color_code, NULL::BOOLEAN as is_final, NULL::INTEGER as level_order,
                NULL::BOOLEAN as requires_reference, is_active, created_at, updated_at
-        FROM gallery_categories WHERE is_active = true
+        FROM gallery_categories WHERE is_active = true AND school_id = :school_id
 
         UNION ALL
 
@@ -293,7 +295,7 @@ async def get_all_metadata_async(db: AsyncSession) -> Dict[str, List[Any]]:
                NULL::INTEGER as max_days_per_year, NULL::BOOLEAN as requires_medical_certificate, NULL::DECIMAL as budget_limit,
                NULL::BOOLEAN as requires_approval, NULL::VARCHAR as color_code, NULL::BOOLEAN as is_final, NULL::INTEGER as level_order,
                NULL::BOOLEAN as requires_reference, is_active, created_at, updated_at
-        FROM inventory_item_category WHERE is_active = true
+        FROM inventory_item_category WHERE is_active = true AND school_id = :school_id
 
         UNION ALL
 
@@ -302,7 +304,7 @@ async def get_all_metadata_async(db: AsyncSession) -> Dict[str, List[Any]]:
                NULL::INTEGER as max_days_per_year, NULL::BOOLEAN as requires_medical_certificate, NULL::DECIMAL as budget_limit,
                NULL::BOOLEAN as requires_approval, NULL::VARCHAR as color_code, NULL::BOOLEAN as is_final, inventory_item_category_id as level_order,
                NULL::BOOLEAN as requires_reference, is_active, created_at, updated_at
-        FROM inventory_item_types WHERE is_active = true
+        FROM inventory_item_types WHERE is_active = true AND school_id = :school_id
 
         UNION ALL
 
@@ -311,7 +313,7 @@ async def get_all_metadata_async(db: AsyncSession) -> Dict[str, List[Any]]:
                NULL::INTEGER as max_days_per_year, NULL::BOOLEAN as requires_medical_certificate, NULL::DECIMAL as budget_limit,
                NULL::BOOLEAN as requires_approval, NULL::VARCHAR as color_code, NULL::BOOLEAN as is_final, NULL::INTEGER as level_order,
                NULL::BOOLEAN as requires_reference, is_active, created_at, updated_at
-        FROM inventory_size_types WHERE is_active = true
+        FROM inventory_size_types WHERE is_active = true AND school_id = :school_id
 
         UNION ALL
 
@@ -558,7 +560,7 @@ async def get_all_metadata_async(db: AsyncSession) -> Dict[str, List[Any]]:
     # Supplemental query for progression_actions to get icon field
     # (icon is not included in the UNION query due to column limitations)
     if metadata.get("progression_actions"):
-        icon_query = text("""
+        icon_query = global_sql("""
             SELECT id, icon FROM progression_actions WHERE is_active = true
         """)
         icon_result = await db.execute(icon_query)

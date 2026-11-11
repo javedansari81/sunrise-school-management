@@ -15,7 +15,7 @@ from app.schemas.attendance import (
     ConsecutiveAbsenceResponse, ClassConsecutiveAbsences, ConsecutiveAbsentStudent
 )
 from app.schemas.user import UserTypeEnum
-from app.api.deps import get_current_active_user
+from app.api.deps import get_current_active_user, get_session_year_id
 from app.models.user import User
 
 router = APIRouter()
@@ -34,7 +34,7 @@ async def get_attendance_records(
     class_id: Optional[int] = Query(None, description="Filter by class ID"),
     student_id: Optional[int] = Query(None, description="Filter by student ID"),
     attendance_status_id: Optional[int] = Query(None, description="Filter by status"),
-    session_year_id: int = Query(4, description="Session year ID (default: 2025-26)"),
+    session_year_id: int = Depends(get_session_year_id),
     search: Optional[str] = Query(None, description="Search by student name or roll number"),
     page: int = Query(1, ge=1),
     per_page: int = Query(25, ge=1, le=100),
@@ -87,7 +87,7 @@ async def get_my_attendance(
     year: Optional[int] = Query(None, ge=2020, le=2100, description="Filter by year"),
     from_date: Optional[date] = Query(None, description="Filter from date"),
     to_date: Optional[date] = Query(None, description="Filter to date"),
-    session_year_id: int = Query(4, description="Session year ID (default: 2025-26)"),
+    session_year_id: int = Depends(get_session_year_id),
     page: int = Query(1, ge=1),
     per_page: int = Query(100, ge=1, le=500),
     db: AsyncSession = Depends(get_db),
@@ -156,7 +156,7 @@ async def get_my_attendance(
 
 @router.get("/my-attendance/summary", response_model=StudentAttendanceSummary)
 async def get_my_attendance_summary(
-    session_year_id: int = Query(4, description="Session year ID"),
+    session_year_id: int = Depends(get_session_year_id),
     from_date: Optional[date] = Query(None, description="Filter from date"),
     to_date: Optional[date] = Query(None, description="Filter to date"),
     db: AsyncSession = Depends(get_db),
@@ -483,7 +483,7 @@ async def create_bulk_attendance(
 @router.get("/student/{student_id}/summary", response_model=StudentAttendanceSummary)
 async def get_student_attendance_summary(
     student_id: int,
-    session_year_id: int = Query(4, description="Session year ID"),
+    session_year_id: int = Depends(get_session_year_id),
     from_date: Optional[date] = None,
     to_date: Optional[date] = None,
     db: AsyncSession = Depends(get_db),
@@ -522,7 +522,7 @@ async def get_student_attendance_summary(
 async def get_class_attendance_by_date(
     class_id: int,
     attendance_date: date,
-    session_year_id: int = Query(4, description="Session year ID"),
+    session_year_id: int = Depends(get_session_year_id),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
@@ -558,7 +558,7 @@ async def get_attendance_statistics(
     class_id: Optional[int] = Query(None, description="Filter by class ID"),
     from_date: Optional[date] = Query(None, description="Filter from date"),
     to_date: Optional[date] = Query(None, description="Filter to date"),
-    session_year_id: int = Query(4, description="Session year ID"),
+    session_year_id: int = Depends(get_session_year_id),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):

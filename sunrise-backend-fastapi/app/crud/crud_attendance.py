@@ -125,7 +125,7 @@ class CRUDAttendanceRecord(CRUDBase[AttendanceRecord, AttendanceRecordCreate, At
         LEFT JOIN attendance_periods ap ON ar.attendance_period_id = ap.id
         LEFT JOIN users u ON ar.marked_by = u.id
         LEFT JOIN session_years sy ON ar.session_year_id = sy.id
-        WHERE ar.id = :record_id
+        WHERE ar.id = :record_id AND ar.school_id = :school_id
         """
         
         result = await db.execute(text(query), {"record_id": id})
@@ -147,7 +147,7 @@ class CRUDAttendanceRecord(CRUDBase[AttendanceRecord, AttendanceRecordCreate, At
         """Get attendance records with filters and pagination"""
 
         # Build WHERE conditions
-        where_conditions = []
+        where_conditions = ["ar.school_id = :school_id"]
         params = {}
 
         if filters.student_id:
@@ -184,7 +184,7 @@ class CRUDAttendanceRecord(CRUDBase[AttendanceRecord, AttendanceRecordCreate, At
             )
             params["search"] = f"%{filters.search}%"
 
-        where_clause = " AND ".join(where_conditions) if where_conditions else "1=1"
+        where_clause = " AND ".join(where_conditions)
 
         # Main query with joins
         query = f"""
@@ -253,6 +253,7 @@ class CRUDAttendanceRecord(CRUDBase[AttendanceRecord, AttendanceRecordCreate, At
         """Get attendance summary for a student"""
 
         where_conditions = [
+            "ar.school_id = :school_id",
             "ar.student_id = :student_id",
             "ar.session_year_id = :session_year_id"
         ]
@@ -330,10 +331,12 @@ class CRUDAttendanceRecord(CRUDBase[AttendanceRecord, AttendanceRecordCreate, At
             ar.remarks
         FROM students s
         LEFT JOIN attendance_records ar ON s.id = ar.student_id
+            AND ar.school_id = s.school_id
             AND ar.attendance_date = :attendance_date
             AND ar.session_year_id = :session_year_id
         LEFT JOIN attendance_statuses ast ON ar.attendance_status_id = ast.id
-        WHERE s.class_id = :class_id
+        WHERE s.school_id = :school_id
+            AND s.class_id = :class_id
             AND s.session_year_id = :session_year_id
             AND s.is_active = TRUE
             AND (s.is_deleted = FALSE OR s.is_deleted IS NULL)
@@ -356,7 +359,7 @@ class CRUDAttendanceRecord(CRUDBase[AttendanceRecord, AttendanceRecordCreate, At
     ) -> Dict[str, Any]:
         """Get attendance statistics based on filters"""
 
-        where_conditions = []
+        where_conditions = ["ar.school_id = :school_id"]
         params = {}
 
         if filters.class_id:
@@ -375,7 +378,7 @@ class CRUDAttendanceRecord(CRUDBase[AttendanceRecord, AttendanceRecordCreate, At
             where_conditions.append("ar.session_year_id = :session_year_id")
             params["session_year_id"] = filters.session_year_id
 
-        where_clause = " AND ".join(where_conditions) if where_conditions else "1=1"
+        where_clause = " AND ".join(where_conditions)
 
         query = f"""
         SELECT
@@ -473,7 +476,8 @@ class CRUDAttendanceRecord(CRUDBase[AttendanceRecord, AttendanceRecordCreate, At
                 ) as rn
             FROM attendance_records ar
             JOIN attendance_statuses ast ON ar.attendance_status_id = ast.id
-            WHERE ar.session_year_id = :session_year_id
+            WHERE ar.school_id = :school_id
+              AND ar.session_year_id = :session_year_id
               AND ar.attendance_date <= :as_of_date
         ),
         first_non_absent AS (
@@ -516,7 +520,8 @@ class CRUDAttendanceRecord(CRUDBase[AttendanceRecord, AttendanceRecordCreate, At
                 TRUE as has_pending_leave
             FROM leave_requests lr
             JOIN leave_statuses ls ON lr.leave_status_id = ls.id
-            WHERE lr.applicant_type = 'student'
+            WHERE lr.school_id = :school_id
+              AND lr.applicant_type = 'student'
               AND ls.name = 'Pending'
               AND lr.start_date <= :as_of_date
               AND lr.end_date >= :as_of_date
@@ -526,7 +531,8 @@ class CRUDAttendanceRecord(CRUDBase[AttendanceRecord, AttendanceRecordCreate, At
             SELECT DISTINCT
                 ar.student_id
             FROM attendance_records ar
-            WHERE ar.session_year_id = :session_year_id
+            WHERE ar.school_id = :school_id
+              AND ar.session_year_id = :session_year_id
               AND ar.parent_called_at IS NOT NULL
               AND ar.parent_called_at >= (CURRENT_DATE - INTERVAL '3 days')
         )
@@ -552,7 +558,8 @@ class CRUDAttendanceRecord(CRUDBase[AttendanceRecord, AttendanceRecordCreate, At
         LEFT JOIN last_present lp ON s.id = lp.student_id
         LEFT JOIN pending_leaves pl ON s.id = pl.student_id
         LEFT JOIN recently_called rc ON s.id = rc.student_id
-        WHERE s.is_active = TRUE
+        WHERE s.school_id = :school_id
+          AND s.is_active = TRUE
           AND (s.is_deleted IS NULL OR s.is_deleted = FALSE)
           AND rc.student_id IS NULL  -- Exclude students whose parents were recently called
           {class_filter}

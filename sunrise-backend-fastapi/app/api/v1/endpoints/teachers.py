@@ -14,6 +14,7 @@ from app.schemas.teacher import (
 )
 from app.api.deps import get_current_active_user
 from app.models.user import User, UserTypeEnum
+from app.services.school_settings import TEACHER_PHOTOS, cloudinary_folder
 
 router = APIRouter()
 
@@ -240,7 +241,7 @@ async def get_my_dashboard_stats(
         LEFT JOIN qualifications q ON t.qualification_id = q.id
         LEFT JOIN employment_statuses es ON t.employment_status_id = es.id
         LEFT JOIN classes c ON t.class_teacher_of_id = c.id
-        WHERE t.id = :teacher_id
+        WHERE t.id = :teacher_id AND t.school_id = :school_id
     """)
 
     result = await db.execute(teacher_query, {"teacher_id": teacher.id})
@@ -281,7 +282,7 @@ async def get_my_dashboard_stats(
             COUNT(CASE WHEN leave_status_id = 2 THEN 1 END) as approved,
             COUNT(CASE WHEN leave_status_id = 3 THEN 1 END) as rejected
         FROM leave_requests
-        WHERE applicant_type = 'teacher' AND applicant_id = :teacher_id
+        WHERE school_id = :school_id AND applicant_type = 'teacher' AND applicant_id = :teacher_id
     """)
 
     leave_result = await db.execute(leave_stats_query, {"teacher_id": teacher.id})
@@ -298,7 +299,8 @@ async def get_my_dashboard_stats(
             lt.description as leave_type_name
         FROM leave_requests lr
         LEFT JOIN leave_types lt ON lr.leave_type_id = lt.id
-        WHERE lr.applicant_type = 'teacher'
+        WHERE lr.school_id = :school_id
+        AND lr.applicant_type = 'teacher'
         AND lr.applicant_id = :teacher_id
         AND lr.leave_status_id = 2
         AND lr.end_date >= CURRENT_DATE
@@ -632,7 +634,7 @@ async def upload_my_profile_picture(
     # Upload new picture
     cloudinary_url, cloudinary_public_id = await upload_profile_picture_to_cloudinary(
         file=file,
-        folder="profiles/teachers",
+        folder=await cloudinary_folder(db, TEACHER_PHOTOS),
         identifier=str(teacher.id)
     )
 
@@ -743,7 +745,7 @@ async def upload_teacher_profile_picture(
     # Upload new picture
     cloudinary_url, cloudinary_public_id = await upload_profile_picture_to_cloudinary(
         file=file,
-        folder="profiles/teachers",
+        folder=await cloudinary_folder(db, TEACHER_PHOTOS),
         identifier=str(teacher.id)
     )
 
