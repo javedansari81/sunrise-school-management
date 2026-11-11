@@ -1,5 +1,7 @@
 from fastapi import APIRouter
 
+from app.modules.fees.router import router as billing_router
+
 from app.api.v1.endpoints import (
     auth, teachers, students, leaves, expenses, fees, configuration,
     public, database, transport, dashboard, gallery, reports, inventory,
@@ -28,6 +30,8 @@ api_router.include_router(student_siblings.router, prefix="/students", tags=["st
 api_router.include_router(leaves.router, prefix="/leaves", tags=["leaves"])
 api_router.include_router(expenses.router, prefix="/expenses", tags=["expenses"])
 api_router.include_router(fees.router, prefix="/fees", tags=["fees"])
+# Unified fee module (Phase 2). Replaces /fees and transport billing in Phase 4.
+api_router.include_router(billing_router, prefix="/billing", tags=["billing"])
 api_router.include_router(inventory.router, prefix="/inventory", tags=["inventory"])
 api_router.include_router(transport.router, prefix="/transport", tags=["transport"])
 api_router.include_router(attendance.router, prefix="/attendance", tags=["attendance"])

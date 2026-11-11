@@ -33,7 +33,8 @@ class CloudinaryReceiptService:
         self,
         pdf_buffer: io.BytesIO,
         payment_id: int,
-        receipt_number: str
+        receipt_number: str,
+        folder: Optional[str] = None
     ) -> Tuple[str, str]:
         """
         Upload receipt PDF to Cloudinary
@@ -42,6 +43,7 @@ class CloudinaryReceiptService:
             pdf_buffer: BytesIO buffer containing the PDF
             payment_id: Payment ID for unique identification
             receipt_number: Receipt number (e.g., FEE-000123)
+            folder: Cloudinary folder; defaults to RECEIPT_FOLDER (per-school folders come from school settings)
 
         Returns:
             Tuple of (cloudinary_url, cloudinary_public_id)
@@ -77,7 +79,7 @@ class CloudinaryReceiptService:
             # format="pdf" explicitly tells Cloudinary this is a PDF file and adds .pdf extension
             cloudinary_response = cloudinary.uploader.upload(
                 pdf_buffer,
-                folder=self.RECEIPT_FOLDER,
+                folder=folder or self.RECEIPT_FOLDER,
                 public_id=filename,
                 resource_type="raw",  # Use 'raw' for PDFs and documents
                 format="pdf",  # Adds .pdf extension and sets proper Content-Type header

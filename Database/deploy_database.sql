@@ -84,7 +84,7 @@ SET search_path TO :"schema";
 -- STEP 5: Fee and transport tables (T400-T470)
 -- =====================================================
 \echo 'STEP 5: Fee and transport tables (T400-T470)'
-\ir Tables/T400_fee_structures.sql
+\ir Tables/T400_legacy_fee_structures.sql
 \ir Tables/T410_fee_records.sql
 \ir Tables/T415_fee_payments.sql
 \ir Tables/T416_fee_payment_audit_log.sql
@@ -94,6 +94,22 @@ SET search_path TO :"schema";
 \ir Tables/T450_transport_monthly_tracking.sql
 \ir Tables/T460_transport_payments.sql
 \ir Tables/T470_transport_payment_allocations.sql
+
+-- =====================================================
+-- STEP 5b: Unified fee module (T900-T950)
+-- =====================================================
+\echo 'STEP 5b: Unified fee module (T900-T950)'
+\ir Tables/T900_fee_heads.sql
+\ir Tables/T905_fee_structures.sql
+\ir Tables/T910_fee_structure_items.sql
+\ir Tables/T915_concession_rules.sql
+\ir Tables/T920_student_fee_plans.sql
+\ir Tables/T925_student_concessions.sql
+\ir Tables/T930_student_dues.sql
+\ir Tables/T935_receipt_sequences.sql
+\ir Tables/T940_payments.sql
+\ir Tables/T945_payment_allocations.sql
+\ir Tables/T950_fee_audit_log.sql
 
 -- =====================================================
 -- STEP 6: Expense and leave tables (T500-T600)
@@ -154,7 +170,8 @@ SET search_path TO :"schema";
 \ir DataLoads/DL701_gallery_categories.sql
 \ir Init/02_create_admin_user.sql
 \ir Init/03_create_super_admin_user.sql
-\ir Init/03_fee_structures_data.sql
+\ir Init/03_legacy_fee_structures_data.sql
+\ir Init/04_fee_module_defaults.sql
 \ir Init/07_inventory_stock.sql
 \ir Init/99_finish_default_school.sql
 

@@ -82,13 +82,13 @@ class DatabaseConstraints:
         
         # Fee Structures table
         "uk_fee_structures_class_session": {
-            "table": "fee_structures",
+            "table": "legacy_fee_structures",
             "columns": ["class_id", "session_year_id"],
             "message": "A fee structure already exists for this class and session year. Please edit the existing fee structure instead.",
             "field_name": "class_session"
         },
-        "fee_structures_class_id_session_year_id_key": {
-            "table": "fee_structures",
+        "legacy_fee_structures_class_id_session_year_id_key": {
+            "table": "legacy_fee_structures",
             "columns": ["class_id", "session_year_id"],
             "message": "A fee structure already exists for this class and session year. Please edit the existing fee structure instead.",
             "field_name": "class_session"
@@ -233,15 +233,15 @@ class DatabaseConstraints:
         },
         
         # Fee Structures table
-        "fee_structures_class_id_fkey": {
-            "table": "fee_structures",
+        "legacy_fee_structures_class_id_fkey": {
+            "table": "legacy_fee_structures",
             "column": "class_id",
             "referenced_table": "classes",
             "message": "Invalid class selected. Please select a valid class.",
             "field_name": "class_id"
         },
-        "fee_structures_session_year_id_fkey": {
-            "table": "fee_structures",
+        "legacy_fee_structures_session_year_id_fkey": {
+            "table": "legacy_fee_structures",
             "column": "session_year_id",
             "referenced_table": "session_years",
             "message": "Invalid session year selected. Please select a valid session year.",
@@ -287,7 +287,7 @@ class DatabaseConstraints:
         "fee_records_fee_structure_id_fkey": {
             "table": "fee_records",
             "column": "fee_structure_id",
-            "referenced_table": "fee_structures",
+            "referenced_table": "legacy_fee_structures",
             "message": "Invalid fee structure selected. Please select a valid fee structure.",
             "field_name": "fee_structure_id"
         },

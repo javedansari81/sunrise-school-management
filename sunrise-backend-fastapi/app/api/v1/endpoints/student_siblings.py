@@ -1,10 +1,12 @@
 from typing import List, Dict, Any
+
+from pydantic import BaseModel
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 
 from app.core.database import get_db
-from app.api.deps import get_current_active_user
+from app.api.deps import get_current_active_user, get_current_admin_user
 from app.models.user import User
 from app.models.student import Student
 from app.models.metadata import Class
@@ -20,8 +22,16 @@ from app.schemas.student_sibling import (
     SiblingStudentInfo
 )
 from app.schemas.user import UserTypeEnum
+from app.models.student_sibling import RelationshipTypeEnum
 
 router = APIRouter()
+
+# Sibling links change fees (sibling concession), so only admins change them.
+# They are always set by hand; /siblings/suggestions only proposes candidates.
+
+
+class SiblingRelationshipUpdate(BaseModel):
+    relationship_type: RelationshipTypeEnum
 
 
 @router.get("/{student_id}/siblings", response_model=List[StudentSiblingWithDetails])
@@ -150,14 +160,18 @@ async def get_sibling_waiver_info(
     )
 
 
+@router.get("/{student_id}/siblings/suggestions", response_model=SiblingDetectionResult)
 @router.post("/{student_id}/siblings/detect", response_model=SiblingDetectionResult)
 async def detect_siblings(
     student_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_admin_user)
 ):
     """
-    Manually trigger sibling detection for a student
+    Suggest possible siblings: students with the same father name and phone who
+    are not yet in this student's family. Nothing is linked; the admin confirms
+    each one with POST /{student_id}/siblings/link/{sibling_id}.
+    (POST /detect is the old name of this route, kept for the current screens.)
     """
     # Verify student exists
     student = await student_crud.get(db, id=student_id)
@@ -167,13 +181,8 @@ async def detect_siblings(
             detail="Student not found"
         )
     
-    # Detect siblings
-    detected = await student_sibling_crud.detect_siblings_by_father_and_phone(
-        db,
-        father_name=student.father_name,
-        father_phone=student.father_phone,
-        exclude_student_id=student_id
-    )
+    detected = await student_sibling_crud.suggest_siblings(db, student=student)
+    family_ids = await student_sibling_crud.get_all_family_members(db, student_id)
     
     # Build detected siblings list
     detected_siblings_list = []
@@ -191,12 +200,11 @@ async def detect_siblings(
             matching_criteria="Same father name and phone"
         ))
 
-    # Calculate what the waiver would be if linked
-    total_siblings = len(detected) + 1  # +1 for current student
-
-    # Determine birth order for current student
-    all_students = detected + [student]
-    all_students.sort(key=lambda s: s.date_of_birth)
+    # What the family would look like if every suggestion were linked
+    family = [await db.get(Student, i) for i in family_ids]
+    all_students = [s for s in family if s is not None] + list(detected)
+    total_siblings = len(all_students)
+    all_students.sort(key=lambda s: (s.date_of_birth, s.admission_number))
     current_birth_order = next((i + 1 for i, s in enumerate(all_students) if s.id == student_id), 1)
 
     # Calculate waiver
@@ -217,18 +225,20 @@ async def detect_siblings(
 async def link_sibling(
     student_id: int,
     sibling_id: int,
+    relationship_type: RelationshipTypeEnum = RelationshipTypeEnum.SIBLING,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_admin_user)
 ):
     """
-    Manually link two students as siblings
+    Link two students as siblings. Their families are merged: the new sibling is
+    linked to every sibling the student already has, and the other way round.
     """
     try:
         sibling_rel = await student_sibling_crud.link_siblings(
             db,
             student_id=student_id,
             sibling_student_id=sibling_id,
-            relationship_type="SIBLING",
+            relationship_type=relationship_type.value,
             is_auto_detected=False
         )
 
@@ -243,11 +253,6 @@ async def link_sibling(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e)
         )
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to link siblings: {str(e)}"
-        )
 
 
 @router.post("/{student_id}/siblings/link-multiple", response_model=Dict[str, Any])
@@ -255,7 +260,7 @@ async def link_multiple_siblings(
     student_id: int,
     request: BulkSiblingLinkRequest,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_admin_user)
 ):
     """
     Link multiple siblings at once
@@ -307,30 +312,40 @@ async def unlink_sibling(
     student_id: int,
     sibling_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_admin_user)
 ):
     """
-    Remove sibling relationship between two students
+    Remove a sibling from the student's family. The removed student loses all
+    sibling links; the rest of the family stays linked.
     """
-    try:
-        success = await student_sibling_crud.unlink_siblings(
-            db,
-            student_id=student_id,
-            sibling_student_id=sibling_id
-        )
-
-        if success:
-            return {"message": "Sibling relationship removed successfully"}
-        else:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Sibling relationship not found"
-            )
-    except Exception as e:
+    success = await student_sibling_crud.unlink_siblings(
+        db,
+        student_id=student_id,
+        sibling_student_id=sibling_id
+    )
+    if not success:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to unlink siblings: {str(e)}"
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Sibling relationship not found"
         )
+    return {"message": "Sibling removed from the family"}
+
+
+@router.patch("/{student_id}/siblings/{sibling_id}", response_model=Dict[str, str])
+async def update_sibling_relationship(
+    student_id: int,
+    sibling_id: int,
+    body: SiblingRelationshipUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_admin_user)
+):
+    """Change the relationship type (SIBLING, TWIN, HALF_SIBLING) of two linked siblings."""
+    updated = await student_sibling_crud.set_relationship_type(
+        db, student_id=student_id, sibling_student_id=sibling_id, relationship_type=body.relationship_type.value
+    )
+    if not updated:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sibling relationship not found")
+    return {"message": "Sibling relationship updated"}
 
 
 @router.put("/{student_id}/siblings/recalculate-waiver", response_model=SiblingRecalculationResult)
@@ -338,7 +353,7 @@ async def recalculate_sibling_waiver(
     student_id: int,
     update_fee_records: bool = True,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_admin_user)
 ):
     """
     Recalculate fee waiver for a student and their siblings.
