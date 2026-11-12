@@ -552,7 +552,6 @@ async def get_student(
     """
     from app.models.student_session_history import StudentSessionHistory
     from app.models.metadata import SessionYear, Class as ClassModel
-    from app.models.gender import Gender
 
     # First, get the student to verify they exist
     student = await student_crud.get(db, id=student_id)

@@ -40,6 +40,7 @@ async def main(args) -> int:
         settings.ASYNCPG_DSN, ssl=settings.DB_SSL, server_settings={"search_path": settings.DB_SCHEMA}
     )
     try:
+        await conn.execute("SET app.bypass_rls = on")  # platform admins belong to no school
         has_type = await conn.fetchval("SELECT EXISTS (SELECT 1 FROM user_types WHERE id = $1)", PLATFORM_ADMIN_USER_TYPE_ID)
         if not has_type:
             print("The PLATFORM_ADMIN user type is missing. Apply migrations first: python migrate_database.py")

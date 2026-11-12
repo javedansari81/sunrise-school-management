@@ -143,6 +143,9 @@ async def redeploy(database_url: str, schema: str) -> bool:
     files = deployment_files()
     conn = await asyncpg.connect(database_url)
     try:
+        # Row-level security hides school-owned rows from a connection without a
+        # school; deployment (and the counts afterwards) work across schools
+        await conn.execute("SET app.bypass_rls = on")
         async with conn.transaction():
             _print(f"Dropping schema {schema} (other schemas are not touched) ...")
             await conn.execute(f'DROP SCHEMA IF EXISTS "{schema}" CASCADE')

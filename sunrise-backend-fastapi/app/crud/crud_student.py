@@ -504,13 +504,16 @@ class CRUDStudent(CRUDBase[Student, StudentCreate, StudentUpdate]):
     async def get_by_class(
         self, db: AsyncSession, *, class_name: str, section: Optional[str] = None
     ) -> List[Student]:
-        query = select(Student).where(
+        from app.models.metadata import Class
+
+        query = select(Student).join(Class, Student.class_id == Class.id).where(
             and_(
-                Student.current_class == class_name,
-                Student.is_active == True
+                (Class.name == class_name) | (Class.description == class_name),
+                Student.is_active == True,
+                Student.is_deleted != True,
             )
         )
-        
+
         if section:
             query = query.where(Student.section == section)
         

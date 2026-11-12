@@ -513,7 +513,15 @@ async def get_teachers_by_department(
     """
     Get all teachers in a specific department
     """
-    teachers = await teacher_crud.get_by_department(db, department=department)
+    from sqlalchemy import select
+    from app.models.metadata import Department
+
+    department_ids = (await db.execute(
+        select(Department.id).where((Department.name == department) | (Department.description == department))
+    )).scalars().all()
+    teachers = []
+    for department_id in department_ids:
+        teachers += await teacher_crud.get_by_department(db, department_id=department_id)
 
     return {
         "department": department,

@@ -26,7 +26,8 @@ python migrate_database.py --database-url "<DigitalOcean URL>" --allow-remote   
 2. Use unqualified names. The runner sets `search_path` to the schema. Never name the schema, and never use `ALTER DATABASE ... SET search_path`, because the database is shared.
 3. Do not add `BEGIN;` or `COMMIT;`. The runner wraps each migration in a transaction.
 4. Make the same change in the matching `Tables/` script (or `Init/`, `Functions/`), so fresh deployments get it too. `redeploy_database.py` relies on this when it records the migration as already included.
-5. School-owned tables need `school_id INTEGER NOT NULL REFERENCES schools(id)` and an index on it. Unique keys on them include `school_id`.
+5. School-owned tables need `school_id INTEGER NOT NULL REFERENCES schools(id)` and an index on it. Unique keys on them include `school_id`. End the migration with `SELECT enable_tenant_row_level_security();` so the new table gets row-level security (`tests/tenant/test_row_level_security.py` fails otherwise).
+6. The runner works across schools (`app.bypass_rls = on`), so a migration sees and writes every school's rows.
 
 Example, `V001_add_school_motto.sql`:
 

@@ -24,6 +24,9 @@
 
 CREATE SCHEMA IF NOT EXISTS :"schema";
 SET search_path TO :"schema";
+-- Row-level security (Phase 7) hides school-owned rows from a session without a
+-- school; deployment works across schools
+SET app.bypass_rls = on;
 
 \echo 'Deploying into schema' :schema
 
@@ -140,6 +143,7 @@ SET search_path TO :"schema";
 -- =====================================================
 \echo 'STEP 9: Functions'
 \ir Functions/F140_calculate_sibling_waiver.sql
+\ir Functions/F900_tenant_row_level_security.sql
 
 -- =====================================================
 -- STEP 10: Default school (Sunrise, school 1) and reference data
@@ -163,5 +167,11 @@ SET search_path TO :"schema";
 \ir Init/06_school_settings.sql
 \ir Init/07_inventory_stock.sql
 \ir Init/99_finish_default_school.sql
+
+-- =====================================================
+-- STEP 11: Row-level security on every school-owned table
+-- =====================================================
+\echo 'STEP 11: Row-level security'
+\ir Schema/90_enable_row_level_security.sql
 
 \echo 'DEPLOYMENT SUCCESSFUL'

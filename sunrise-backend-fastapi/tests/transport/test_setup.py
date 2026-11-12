@@ -61,7 +61,8 @@ async def test_legacy_tables_dropped(sunrise_session):
             "WHERE n.nspname = current_schema()"))).scalars())
     assert "transport_types" in tables
     assert not tables & LEGACY_TABLES
-    assert functions == {"calculate_sibling_fee_waiver", "get_waiver_reason_text"}
+    assert functions == {"calculate_sibling_fee_waiver", "get_waiver_reason_text",
+                         "enable_tenant_row_level_security"}
 
 
 async def test_seed_defaults_for_new_school(make_session, schools):

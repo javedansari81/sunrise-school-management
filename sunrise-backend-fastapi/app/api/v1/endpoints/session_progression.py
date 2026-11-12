@@ -204,6 +204,11 @@ async def get_student_history(
     Get the complete progression history for a specific student.
     Shows all session transitions with action taken, who performed it, and when.
     """
+    from app.models.student import Student
+
+    student = await db.get(Student, student_id)
+    if student is None or student.is_deleted:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Student not found")
     history_records = await get_student_progression_history(db, student_id)
 
     history_items = [
@@ -232,6 +237,8 @@ async def get_student_history(
 
     return StudentProgressionHistoryResponse(
         student_id=student_id,
+        admission_number=student.admission_number,
+        student_name=" ".join(n for n in (student.first_name, student.last_name) if n),
         total_records=len(history_items),
         history=history_items
     )

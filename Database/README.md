@@ -30,14 +30,24 @@ The database user needs permission to create a schema in the database. `warsi_us
 - **Unqualified names.** The runner sets `search_path` to the schema, and every object is created there. No script names a schema or database.
 - **The database-wide `search_path` is never changed.** The app sets it per connection, because other applications share the database.
 - **Every school-owned row has `school_id`.** It is `NOT NULL` with no default, and references `schools(id)`. The app's session layer stamps it on every insert.
+- **Every table with `school_id` has row-level security.** See below. A migration that adds such a table ends with `SELECT enable_tenant_row_level_security();`.
+
+## Row-level security
+
+Every table with a `school_id` column has the policy `tenant_isolation`, enabled and forced (`Functions/F900_tenant_row_level_security.sql`, applied last by `Schema/90_enable_row_level_security.sql`, migration `V006`). A row is visible, and may be written, only when its `school_id` equals the setting `app.school_id`, or when `app.bypass_rls` is `on`. With neither set, a school-owned table shows no rows and refuses writes.
+
+- The backend sets both settings per transaction from its session (`app/core/tenant.py`), so even a query that slips past the app's own checks only reaches its own school.
+- `redeploy_database.py`, `migrate_database.py`, `deploy_database.sql` and `scripts/create_platform_admin.py` set `app.bypass_rls = on` for their own connection.
+- In psql, run `SET app.bypass_rls = on;` (every school) or `SET app.school_id = 1;` (one school) before reading school data. Otherwise counts come back as 0.
+- `FORCE` is needed because the app connects as the owner of the tables. A superuser or a role with `BYPASSRLS` skips every policy, so the app must connect as an ordinary role such as `warsi_user`. `tests/tenant/test_row_level_security.py` checks this.
 
 ## Folder structure
 
 | Folder | Contents |
 | --- | --- |
-| `Schema/` | `00_create_schema.sql`: the `schema_migrations` table and the baseline row |
+| `Schema/` | `00_create_schema.sql`: the `schema_migrations` table and the baseline row. `90_enable_row_level_security.sql`: runs last and turns on row-level security |
 | `Tables/` | One file per table. `T010` `schools`, `T020` `school_settings`, then lookups (T100 to T297), core (T300 to T320), expense and leave (T500 to T600), gallery and inventory (T700 to T750), attendance and alerts (T800 to T810), unified fee module (T900 to T950), transport operations (T960 to T985) |
-| `Functions/` | One file per function. `F140_calculate_sibling_waiver.sql` (`calculate_sibling_fee_waiver`, `get_waiver_reason_text`) is used by the student sibling code |
+| `Functions/` | One file per function. `F140_calculate_sibling_waiver.sql` (`calculate_sibling_fee_waiver`, `get_waiver_reason_text`) is used by the student sibling code. `F900_tenant_row_level_security.sql` (`enable_tenant_row_level_security`) adds the row-level security policy to every table with `school_id` |
 | `Init/` | Default school seed: `00` creates Sunrise (school 1), `01` reference lists, `02`/`03` admin users, `04` fee module defaults, `05` transport types and Sunrise's transport rates, `07` initial stock rows, `99` closes the seed |
 | `DataLoads/` | More reference data (alert types, reversal reasons, transport, inventory, attendance, gallery categories) |
 | `Versioning/` | Migrations for existing databases, starting after the 3.0 baseline. Applied once each by `migrate_database.py`. See its README |
@@ -70,6 +80,7 @@ Admin logins after a fresh deployment: see `Init/02_create_admin_user.sql` and `
 ## Check a deployment
 
 ```sql
+SET app.bypass_rls = on;  -- row-level security: see every school
 SELECT version, kind, applied_at FROM school.schema_migrations ORDER BY id;
 SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'school' AND table_type = 'BASE TABLE';  -- 58
 SELECT id, code, name, status FROM school.schools;
