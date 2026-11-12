@@ -41,6 +41,8 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import Footer from './Footer';
 import LoginPopup from '../LoginPopup';
+import SchoolLogo from '../common/SchoolLogo';
+import { useSchool } from '../../contexts/SchoolContext';
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -55,6 +57,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const { isAuthenticated, user, logout } = useAuth();
+  const { school } = useSchool();
 
   // Mobile drawer starts closed by default to not obstruct content
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -122,11 +125,11 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     const currentItem = publicMenuItems.find((item) => item.path === location.pathname);
     if (currentItem) {
       if (currentItem.path === '/') {
-        return 'Welcome to Sunrise National Public School';
+        return `Welcome to ${school.name}`;
       }
       return currentItem.label;
     }
-    return 'Sunrise National Public School';
+    return school.name;
   };
 
   const drawerContent = (
@@ -146,35 +149,13 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       >
         {(!drawerCollapsed || isMobile) ? (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Box
-              component="img"
-              src="/images/logo/school_logo.jpeg"
-              alt="Sunrise School Logo"
-              sx={{
-                width: 40,
-                height: 40,
-                objectFit: 'contain',
-                borderRadius: 1,
-              }}
-            />
+            <SchoolLogo size={40} />
             <Typography variant="h6" fontWeight="bold" sx={{ fontSize: '1.1rem' }}>
-              Sunrise School
+              {school.shortName}
             </Typography>
           </Box>
         ) : (
-          <Box
-            component="img"
-            src="/images/logo/school_logo.jpeg"
-            alt="Sunrise School Logo"
-            sx={{
-              width: 48,
-              height: 48,
-              objectFit: 'contain',
-              borderRadius: 1,
-              backgroundColor: 'rgba(255, 255, 255, 0.1)',
-              p: 0.5,
-            }}
-          />
+          <SchoolLogo size={48} />
         )}
       </Box>
 
@@ -289,7 +270,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       >
         {(!drawerCollapsed || isMobile) && (
           <Typography variant="caption">
-            © 2025 Sunrise School
+            © {new Date().getFullYear()} {school.shortName}
           </Typography>
         )}
       </Box>
@@ -319,19 +300,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
             >
               <MenuIcon />
             </IconButton>
-            <Box
-              component="img"
-              src="/images/logo/school_logo.jpeg"
-              alt="Sunrise School Logo"
-              sx={{
-                width: 40,
-                height: 40,
-                objectFit: 'contain',
-                mr: 1,
-              }}
-            />
+            <SchoolLogo size={40} />
             <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1, color: 'white', fontWeight: 'bold' }}>
-              Sunrise School
+              {school.shortName}
             </Typography>
             {isAuthenticated && user ? (
               <IconButton

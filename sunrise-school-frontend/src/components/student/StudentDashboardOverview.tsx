@@ -31,7 +31,7 @@ import {
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { studentLeaveAPI, studentsAPI, studentFeeAPI } from '../../services/api';
+import { studentLeaveAPI, studentsAPI } from '../../services/api';
 
 interface LeaveRequest {
   id: number;

@@ -26,6 +26,7 @@ import {
 import { Add as AddIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import { createPurchase, getPricing } from '../../../services/inventoryService';
 import { API_BASE_URL } from '../../../config/apiConfig';
+import { schoolHeaders } from '../../../config/school';
 import { configurationService } from '../../../services/configurationService';
 
 interface NewPurchaseDialogProps {
@@ -109,7 +110,8 @@ const NewPurchaseDialog: React.FC<NewPurchaseDialogProps> = ({
       const response = await fetch(`${API_BASE_URL}/students/?class_filter=${selectedClassId}&per_page=50`, {
         headers: {
           'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          ...schoolHeaders()
         }
       });
 

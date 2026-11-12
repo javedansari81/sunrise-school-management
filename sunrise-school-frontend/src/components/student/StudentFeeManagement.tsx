@@ -1,423 +1,211 @@
-import React, { useState, useEffect } from 'react';
+/** A student's own fees: what is owed, what was paid, and the receipts. */
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  Alert,
   Box,
-  Typography,
-  Paper,
+  IconButton,
+  MenuItem,
+  Tab,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
   TableRow,
-  Chip,
-  CircularProgress,
-  Alert,
-  Snackbar,
-  Grid,
-  Card,
-  CardContent,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  Stack
+  Tabs,
+  TextField,
+  Tooltip,
+  Typography,
 } from '@mui/material';
 import {
   AccountBalanceWallet as WalletIcon,
-  CalendarMonth as CalendarIcon,
-  TrendingUp as TrendingUpIcon,
-  Payment as PaymentIcon
+  CheckCircle as PaidIcon,
+  ReceiptLong as ReceiptIcon,
+  Savings as SavingsIcon,
+  WarningAmber as WarningIcon,
 } from '@mui/icons-material';
+import { billingAPI, Due, MyStatement } from '../../services/billingService';
 import { useServiceConfiguration } from '../../contexts/ConfigurationContext';
-import { studentFeeAPI, studentsAPI } from '../../services/api';
 import { configurationService } from '../../services/configurationService';
+import { apiError, EmptyState, formatDate, formatMonth, Loading, money, PageHero, Panel, StatCard, StatGrid, StatusChip, todayISO, useNotify } from '../ui';
 
-// Types
-interface MonthlyFeeStatus {
-  month: number;
-  year: number;
-  month_name: string;
-  monthly_amount: number;
-  paid_amount: number;
-  balance_amount: number;
-  due_date: string;
-  status: string;
-  status_color: string;
-  is_overdue: boolean;
-  days_overdue?: number;
-  late_fee: number;
-  discount_amount: number;
-}
-
-interface StudentMonthlyFeeHistory {
-  student_id: number;
-  student_name: string;
-  class_name: string;
-  session_year: string;
-  monthly_fee_amount: number;
-  total_annual_fee: number;
-  monthly_history: MonthlyFeeStatus[];
-  total_months: number;
-  paid_months: number;
-  pending_months: number;
-  overdue_months: number;
-  total_paid: number;
-  total_balance: number;
-  collection_percentage: number;
-}
-
-interface StudentProfile {
-  id: number;
-  admission_number: string;
-  first_name: string;
-  last_name: string;
-  class_name: string;
-  section: string;
-  roll_number: number;
-}
-
-interface FeeData {
-  student_id: number;
-  admission_number: string;
-  student_name: string;
-  class_name: string;
-  has_fee_records: boolean;
-  has_monthly_tracking: boolean;
-  summary?: any;
-  monthly_history?: StudentMonthlyFeeHistory;
-  message?: string;
-}
+const isOpen = (due: Due) => due.status === 'PENDING' || due.status === 'PARTIAL';
 
 const StudentFeeManagement: React.FC = () => {
-  const { isLoaded, isLoading, error } = useServiceConfiguration('fee-management');
+  const { isLoaded } = useServiceConfiguration('fee-management');
+  const { notifyError, node } = useNotify();
+  const [sessionId, setSessionId] = useState<number | ''>('');
+  const [statement, setStatement] = useState<MyStatement | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [view, setView] = useState<'dues' | 'payments'>('dues');
 
-  // Get configuration data
-  const configuration = configurationService.getServiceConfiguration('fee-management');
+  const sessionYears = useMemo(
+    () => (isLoaded ? configurationService.getServiceConfiguration('fee-management')?.session_years || [] : []),
+    [isLoaded]
+  );
 
-  // State
-  const [feeData, setFeeData] = useState<FeeData | null>(null);
-  const [studentProfile, setStudentProfile] = useState<StudentProfile | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [sessionYearId, setSessionYearId] = useState<number | undefined>(undefined); // Will be set from config when loaded
-  const [snackbar, setSnackbar] = useState({
-    open: false,
-    message: '',
-    severity: 'success' as 'success' | 'error' | 'info'
-  });
-
-  // Set default session year when configuration is loaded
   useEffect(() => {
-    if (isLoaded && sessionYearId === undefined) {
-      const currentSessionYearId = configurationService.getCurrentSessionYearId();
-      setSessionYearId(currentSessionYearId);
+    if (sessionId === '' && sessionYears.length) {
+      setSessionId((sessionYears.find((year) => year.is_current) || sessionYears[sessionYears.length - 1]).id);
     }
-  }, [isLoaded, sessionYearId]);
+  }, [sessionYears, sessionId]);
 
-  // Load student profile and fee data
-  useEffect(() => {
-    loadStudentProfile();
-  }, []);
-
-  // Load fee data when sessionYearId is set and student profile is loaded
-  useEffect(() => {
-    if (studentProfile && sessionYearId !== undefined) {
-      loadFeeData();
-    }
-  }, [sessionYearId, studentProfile]);
-
-  const loadStudentProfile = async () => {
+  const load = useCallback(async () => {
+    if (sessionId === '') return;
+    setLoading(true);
     try {
-      const response = await studentsAPI.getMyProfile();
-      setStudentProfile(response.data);
-    } catch (error) {
-      console.error('Error loading student profile:', error);
-      setSnackbar({
-        open: true,
-        message: 'Error loading student profile',
-        severity: 'error'
-      });
-    }
-  };
-
-  const loadFeeData = async () => {
-    try {
-      setLoading(true);
-      const response = await studentFeeAPI.getMyFees(sessionYearId);
-      setFeeData(response);
-      
-      if (!response.has_fee_records) {
-        setSnackbar({
-          open: true,
-          message: response.message || 'No fee records found for current session year',
-          severity: 'info'
-        });
-      }
-    } catch (error) {
-      console.error('Error loading fee data:', error);
-      setSnackbar({
-        open: true,
-        message: 'Error loading fee information',
-        severity: 'error'
-      });
-      setFeeData(null);
+      setStatement(await billingAPI.myStatement(sessionId));
+      setError(null);
+    } catch (failure) {
+      setError(apiError(failure));
     } finally {
       setLoading(false);
     }
-  };
+  }, [sessionId]);
 
-  const getStatusColor = (status: string) => {
-    switch (status?.toLowerCase()) {
-      case 'paid': return '#4caf50';
-      case 'pending': return '#ff9800';
-      case 'overdue': return '#f44336';
-      case 'partial': return '#2196f3';
-      default: return '#757575';
-    }
-  };
+  useEffect(() => {
+    load();
+  }, [load]);
 
-  const formatCurrency = (amount: number) => {
-    return `₹${amount.toFixed(2)}`;
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-IN', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric'
-    });
-  };
-
-  const handleCloseSnackbar = () => {
-    setSnackbar(prev => ({ ...prev, open: false }));
-  };
-
-  const getStatisticsCards = () => {
-    if (!feeData?.monthly_history) return [];
-
-    const history = feeData.monthly_history;
-    
-    return [
-      {
-        title: 'Total Paid',
-        value: formatCurrency(history.total_paid),
-        icon: <WalletIcon fontSize="large" />,
-        color: '#4caf50',
-        subtitle: `${history.collection_percentage.toFixed(1)}% collected`,
-      },
-      {
-        title: 'Months Paid',
-        value: history.paid_months.toString(),
-        icon: <CalendarIcon fontSize="large" />,
-        color: '#2196f3',
-        subtitle: `Out of ${history.total_months} months`,
-      },
-      {
-        title: 'Remaining Balance',
-        value: formatCurrency(history.total_balance),
-        icon: <TrendingUpIcon fontSize="large" />,
-        color: '#ff9800',
-        subtitle: `${history.pending_months} months pending`,
-      },
-      {
-        title: 'Monthly Fee',
-        value: formatCurrency(history.monthly_fee_amount),
-        icon: <PaymentIcon fontSize="large" />,
-        color: '#9c27b0',
-        subtitle: 'Per month',
-      },
-    ];
-  };
+  const balance = statement?.balance;
+  const today = todayISO();
+  const payments = statement?.payments.filter((payment) => payment.kind === 'PAYMENT') || [];
 
   return (
-    <Box sx={{ width: '100%' }}>
-      {/* Header Section with Session Year Filter */}
-      <Box
-        display="flex"
-        justifyContent="flex-end"
-        alignItems="center"
-        mb={3}
-      >
-        {/* Session Year Filter */}
-        {isLoaded && configuration?.session_years && (
-          <FormControl size="small" sx={{ minWidth: 200 }}>
-            <InputLabel>Session Year</InputLabel>
-            <Select
-              value={sessionYearId}
-              label="Session Year"
-              onChange={(e) => setSessionYearId(Number(e.target.value))}
+    <>
+      <PageHero
+        icon={<WalletIcon />}
+        title="My fees"
+        subtitle={statement ? `${statement.student_name} · ${statement.admission_number}` : 'Everything you owe and everything you have paid'}
+        actions={
+          sessionYears.length > 0 && (
+            <TextField
+              select
+              size="small"
+              value={sessionId}
+              onChange={(event) => setSessionId(Number(event.target.value))}
+              sx={{ minWidth: 130, '& .MuiOutlinedInput-root': { background: 'rgba(255,255,255,0.92)' } }}
+              slotProps={{ htmlInput: { 'aria-label': 'Session' } }}
             >
-              {configuration.session_years
-                .filter((sy: any) => sy.is_active)
-                .map((sy: any) => (
-                  <MenuItem key={sy.id} value={sy.id}>
-                    {sy.description || sy.name}
-                  </MenuItem>
-                ))}
-            </Select>
-          </FormControl>
-        )}
-      </Box>
+              {sessionYears.map((year) => (
+                <MenuItem key={year.id} value={year.id}>
+                  {year.name}
+                </MenuItem>
+              ))}
+            </TextField>
+          )
+        }
+      />
 
-      {/* Loading State */}
-      {(loading || isLoading) && (
-        <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
-          <CircularProgress />
-        </Box>
-      )}
-
-      {/* Error State */}
-      {error && (
-        <Alert severity="error" sx={{ mb: 3 }}>
-          {error}
-        </Alert>
-      )}
-
-      {/* Content */}
-      {!loading && !isLoading && isLoaded && feeData && (
+      {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+      {loading && !statement ? (
+        <Loading />
+      ) : statement ? (
         <>
-          {/* No Fee Records Message */}
-          {!feeData.has_fee_records && (
-            <Alert severity="info" sx={{ mb: 3 }}>
-              {feeData.message || 'No fee records found for the selected session year.'}
-            </Alert>
-          )}
+          <StatGrid min={180}>
+            <StatCard label="To pay" value={money(balance?.balance)} hint={`${balance?.open_dues ?? 0} open dues`} icon={<WalletIcon />} tone="blue" />
+            <StatCard label="Overdue" value={money(balance?.overdue)} hint="Past the due date" icon={<WarningIcon />} tone={Number(balance?.overdue) > 0 ? 'red' : 'slate'} delay={60} />
+            <StatCard label="Paid so far" value={money(balance?.total_paid)} hint={`of ${money(balance?.total_due)} billed`} icon={<PaidIcon />} tone="green" delay={120} />
+            {Number(balance?.credit) > 0 && <StatCard label="Advance" value={money(balance?.credit)} hint="Used for your next dues" icon={<SavingsIcon />} tone="violet" delay={180} />}
+          </StatGrid>
 
-          {/* Statistics Cards */}
-          {feeData.has_monthly_tracking && feeData.monthly_history && (
-            <>
-              <Grid container spacing={2} sx={{ mb: 3 }}>
-                {getStatisticsCards().map((card, index) => (
-                  <Grid size={{ xs: 12, sm: 6, md: 3 }} key={index}>
-                    <Card
-                      sx={{
-                        height: '100%',
-                        background: `linear-gradient(135deg, ${card.color}15 0%, ${card.color}05 100%)`,
-                        border: `1px solid ${card.color}30`,
-                      }}
-                    >
-                      <CardContent>
-                        <Box display="flex" alignItems="center" justifyContent="space-between" mb={1}>
-                          <Box sx={{ color: card.color }}>
-                            {card.icon}
-                          </Box>
-                        </Box>
-                        <Typography variant="h5" fontWeight="bold" gutterBottom>
-                          {card.value}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          {card.title}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {card.subtitle}
-                        </Typography>
-                      </CardContent>
-                    </Card>
-                  </Grid>
-                ))}
-              </Grid>
-
-              {/* Monthly Payment History Table */}
-              <Paper sx={{ width: '100%', overflow: 'hidden' }}>
-                <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
-                  <Typography variant="h6" fontWeight="bold">
-                    Monthly Payment History
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Detailed month-wise payment status
-                  </Typography>
-                </Box>
-
-                <TableContainer sx={{ maxHeight: 600, overflowX: 'auto' }}>
-                  <Table stickyHeader size="small">
-                    <TableHead>
-                      <TableRow>
-                        <TableCell sx={{ fontWeight: 'bold', backgroundColor: 'white', fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>Month</TableCell>
-                        <TableCell sx={{ fontWeight: 'bold', backgroundColor: 'white', fontSize: { xs: '0.75rem', sm: '0.875rem' }, display: { xs: 'none', sm: 'table-cell' } }}>Due Date</TableCell>
-                        <TableCell align="right" sx={{ fontWeight: 'bold', backgroundColor: 'white', fontSize: { xs: '0.75rem', sm: '0.875rem' }, display: { xs: 'none', md: 'table-cell' } }}>Monthly Fee</TableCell>
-                        <TableCell align="right" sx={{ fontWeight: 'bold', backgroundColor: 'white', fontSize: { xs: '0.75rem', sm: '0.875rem' }, display: { xs: 'none', md: 'table-cell' } }}>Paid Amount</TableCell>
-                        <TableCell align="right" sx={{ fontWeight: 'bold', backgroundColor: 'white', fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>Balance</TableCell>
-                        <TableCell align="center" sx={{ fontWeight: 'bold', backgroundColor: 'white', fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>Status</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {feeData.monthly_history.monthly_history.map((month) => (
-                        <TableRow key={`${month.year}-${month.month}`} hover>
-                          <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
-                            <Typography variant="body2" fontWeight="medium" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
-                              {month.month_name} {month.year}
-                            </Typography>
-                          </TableCell>
-                          <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, display: { xs: 'none', sm: 'table-cell' } }}>
-                            <Typography variant="body2" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
-                              {formatDate(month.due_date)}
-                            </Typography>
-                            {month.is_overdue && month.days_overdue && (
-                              <Typography variant="caption" color="error" sx={{ fontSize: { xs: '0.65rem', sm: '0.75rem' } }}>
-                                {month.days_overdue} days overdue
-                              </Typography>
-                            )}
-                          </TableCell>
-                          <TableCell align="right" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, display: { xs: 'none', md: 'table-cell' } }}>
-                            {formatCurrency(month.monthly_amount)}
-                          </TableCell>
-                          <TableCell align="right" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' }, display: { xs: 'none', md: 'table-cell' } }}>
-                            {formatCurrency(month.paid_amount)}
-                          </TableCell>
-                          <TableCell align="right" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
-                            <Typography
-                              variant="body2"
-                              fontWeight="medium"
-                              color={month.balance_amount > 0 ? 'error' : 'success.main'}
-                              sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}
-                            >
-                              {formatCurrency(month.balance_amount)}
-                            </Typography>
-                          </TableCell>
-                          <TableCell align="center" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
-                            <Chip
-                              label={month.status.toUpperCase()}
-                              size="small"
-                              sx={{
-                                backgroundColor: getStatusColor(month.status),
-                                color: 'white',
-                                fontWeight: 'bold',
-                                minWidth: { xs: 60, sm: 80 },
-                                fontSize: { xs: '0.65rem', sm: '0.75rem' }
-                              }}
-                            />
-                          </TableCell>
+          <Panel padded={false}>
+            <Tabs value={view} onChange={(_, next) => setView(next)} sx={{ px: 1.5, borderBottom: '1px solid rgba(15,23,42,0.06)' }}>
+              <Tab value="dues" label={`Fees (${statement.dues.length})`} />
+              <Tab value="payments" label={`Payments (${payments.length})`} />
+            </Tabs>
+            <Box key={view} className="fade-up">
+              {view === 'dues' &&
+                (statement.dues.length === 0 ? (
+                  <EmptyState title="No fees billed for this session yet" />
+                ) : (
+                  <TableContainer>
+                    <Table size="small">
+                      <TableHead>
+                        <TableRow>
+                          <TableCell>Fee</TableCell>
+                          <TableCell>For</TableCell>
+                          <TableCell>Due date</TableCell>
+                          <TableCell align="right">Amount</TableCell>
+                          <TableCell align="right">Paid</TableCell>
+                          <TableCell align="right">Balance</TableCell>
+                          <TableCell>Status</TableCell>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-              </Paper>
-            </>
-          )}
+                      </TableHead>
+                      <TableBody>
+                        {statement.dues.map((due) => (
+                          <TableRow key={due.id} hover>
+                            <TableCell sx={{ fontWeight: 600 }}>{due.fee_head_name || due.description || 'Fee'}</TableCell>
+                            <TableCell>{formatMonth(due.period)}</TableCell>
+                            <TableCell>{formatDate(due.due_date)}</TableCell>
+                            <TableCell align="right">
+                              {money(due.net_amount)}
+                              {Number(due.concession_amount) > 0 && (
+                                <Typography variant="caption" color="success.main" component="div">
+                                  −{money(due.concession_amount)} concession
+                                </Typography>
+                              )}
+                            </TableCell>
+                            <TableCell align="right">{money(due.paid_amount)}</TableCell>
+                            <TableCell align="right" sx={{ fontWeight: 700 }}>
+                              {money(due.balance)}
+                            </TableCell>
+                            <TableCell>
+                              <StatusChip status={isOpen(due) && due.due_date < today ? 'OVERDUE' : due.status} />
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                ))}
 
-          {/* No Monthly Tracking Message */}
-          {feeData.has_fee_records && !feeData.has_monthly_tracking && (
-            <Alert severity="info">
-              Monthly fee tracking is not enabled for your account. Please contact the administration for more information.
-            </Alert>
-          )}
+              {view === 'payments' &&
+                (payments.length === 0 ? (
+                  <EmptyState title="No payments in this session yet" icon={<ReceiptIcon />} />
+                ) : (
+                  <TableContainer>
+                    <Table size="small">
+                      <TableHead>
+                        <TableRow>
+                          <TableCell>Date</TableCell>
+                          <TableCell>Receipt</TableCell>
+                          <TableCell align="right">Amount</TableCell>
+                          <TableCell align="right">Receipt</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {[...payments].reverse().map((payment) => (
+                          <TableRow key={payment.id} hover>
+                            <TableCell>{formatDate(payment.payment_date)}</TableCell>
+                            <TableCell sx={{ fontWeight: 600 }}>{payment.receipt_number}</TableCell>
+                            <TableCell align="right" sx={{ fontWeight: 700, color: 'success.main' }}>
+                              {money(payment.amount)}
+                            </TableCell>
+                            <TableCell align="right">
+                              <Tooltip title="Open receipt">
+                                <IconButton size="small" color="primary" onClick={() => billingAPI.openMyReceipt(payment.id).catch(notifyError)}>
+                                  <ReceiptIcon fontSize="small" />
+                                </IconButton>
+                              </Tooltip>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                ))}
+            </Box>
+          </Panel>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+            Fees are paid at the school office. Amounts shown under To pay and Overdue cover every session.
+          </Typography>
         </>
-      )}
-
-      {/* Snackbar for notifications */}
-      <Snackbar
-        open={snackbar.open}
-        autoHideDuration={6000}
-        onClose={handleCloseSnackbar}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      >
-        <Alert onClose={handleCloseSnackbar} severity={snackbar.severity} sx={{ width: '100%' }}>
-          {snackbar.message}
-        </Alert>
-      </Snackbar>
-    </Box>
+      ) : null}
+      {node}
+    </>
   );
 };
 
 export default StudentFeeManagement;
-

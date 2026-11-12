@@ -1,39 +1,19 @@
 import React from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import AdminLayout from '../components/Layout/AdminLayout';
 import TeacherLayout from '../components/Layout/TeacherLayout';
 import StudentLayout from '../components/Layout/StudentLayout';
 import Profile from './Profile';
 
-/**
- * ProfilePage wrapper that applies the appropriate layout based on user type
- * - Teachers: Use TeacherLayout
- * - Students: Use StudentLayout
- * - Others: Use MainLayout (already applied in App.tsx routing)
- */
+/** The profile page inside the portal of whoever is logged in. */
 const ProfilePage: React.FC = () => {
   const { user } = useAuth();
+  const role = user?.user_type?.toUpperCase();
 
-  // For teachers, wrap Profile in TeacherLayout
-  if (user?.user_type?.toLowerCase() === 'teacher') {
-    return (
-      <TeacherLayout>
-        <Profile />
-      </TeacherLayout>
-    );
-  }
-
-  // For students, wrap Profile in StudentLayout
-  if (user?.user_type?.toLowerCase() === 'student') {
-    return (
-      <StudentLayout>
-        <Profile />
-      </StudentLayout>
-    );
-  }
-
-  // For others, Profile is already wrapped in MainLayout via App.tsx routing
+  if (role === 'TEACHER') return <TeacherLayout><Profile /></TeacherLayout>;
+  if (role === 'STUDENT') return <StudentLayout><Profile /></StudentLayout>;
+  if (role === 'ADMIN' || role === 'SUPER_ADMIN') return <AdminLayout><Profile /></AdminLayout>;
   return <Profile />;
 };
 
 export default ProfilePage;
-

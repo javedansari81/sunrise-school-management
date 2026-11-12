@@ -1,5 +1,5 @@
 from typing import Dict, Any, List, Optional
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
 import json
@@ -11,6 +11,26 @@ from app.models.gallery import GalleryCategory, GalleryImage
 from app.schemas.gallery import PublicGalleryCategory, PublicGalleryImage
 
 router = APIRouter()
+
+
+@router.get("/school")
+async def get_public_school(request: Request, db: AsyncSession = Depends(get_school_db)):
+    """
+    Name, logo and contact details of the school this request is for (by
+    subdomain or X-School-Code). The frontend brands itself with it before login.
+    """
+    school = request.state.school
+    return {
+        "code": school.code,
+        "name": school.name,
+        "short_name": school.short_name,
+        "logo_url": school.logo_url,
+        "address": school.address,
+        "phone": school.phone,
+        "email": school.email,
+        "website": school.website,
+        "currency": school.currency,
+    }
 
 
 @router.get("/faculty", response_model=Dict[str, Any])

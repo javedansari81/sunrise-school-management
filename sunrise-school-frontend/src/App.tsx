@@ -1,7 +1,10 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { ThemeProvider, createTheme } from '@mui/material/styles';
+import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
+import { Box, Typography } from '@mui/material';
+import { SearchOff as NotFoundIcon } from '@mui/icons-material';
+import theme, { brand } from './theme';
 import MainLayout from './components/Layout/MainLayout';
 import Home from './pages/Home';
 import About from './pages/About';
@@ -38,190 +41,49 @@ import StudentFeeManagementPage from './pages/student/StudentFeeManagementPage';
 import StudentAttendancePage from './pages/student/StudentAttendancePage';
 import ProfilePage from './pages/ProfilePage';
 import AlertsPage from './pages/AlertsPage';
-// import ConfigurationTest from './components/common/ConfigurationTest';
+import PlatformLogin from './pages/platform/PlatformLogin';
+import PlatformSchools from './pages/platform/PlatformSchools';
 
 import ProtectedRoute from './components/ProtectedRoute';
 import { AuthProvider } from './contexts/AuthContext';
 import { ConfigurationProvider } from './contexts/ConfigurationContext';
+import { SchoolProvider, useSchool } from './contexts/SchoolContext';
 
-// Test utilities (only in development)
-// if (process.env.NODE_ENV === 'development') {
-//   import('./utils/testSessionInvalidation');
-// }
+/** Shown instead of the school's site when its address belongs to no school, or the school is suspended. */
+const SchoolProblem: React.FC<{ message: string }> = ({ message }) => (
+  <Box
+    sx={{
+      minHeight: '100vh',
+      display: 'grid',
+      placeItems: 'center',
+      p: 3,
+      color: '#fff',
+      textAlign: 'center',
+      background: `linear-gradient(135deg, ${brand.navTop}, ${brand.navBottom})`,
+    }}
+  >
+    <Box className="fade-up" sx={{ maxWidth: 460 }}>
+      <NotFoundIcon sx={{ fontSize: 72, opacity: 0.85 }} />
+      <Typography sx={{ mt: 1, fontSize: '1.6rem', fontWeight: 800 }}>{message}</Typography>
+      <Typography sx={{ mt: 1, opacity: 0.75 }}>
+        Check the web address, or ask your school office for the right link.
+      </Typography>
+    </Box>
+  </Box>
+);
 
-// Create a custom theme with mobile responsiveness
-const theme = createTheme({
-  palette: {
-    primary: {
-      main: '#1976d2',
-    },
-    secondary: {
-      main: '#ff6b35',
-    },
-  },
-  typography: {
-    fontFamily: '"Roboto", "Helvetica", "Arial", sans-serif',
-    h1: {
-      fontWeight: 700,
-      fontSize: '2.5rem',
-      '@media (max-width:600px)': {
-        fontSize: '2rem',
-      },
-    },
-    h2: {
-      fontWeight: 700,
-      fontSize: '2rem',
-      '@media (max-width:600px)': {
-        fontSize: '1.75rem',
-      },
-    },
-    h3: {
-      fontWeight: 600,
-      fontSize: '1.75rem',
-      '@media (max-width:600px)': {
-        fontSize: '1.5rem',
-      },
-    },
-    h4: {
-      fontWeight: 600,
-      fontSize: '1.5rem',
-      '@media (max-width:600px)': {
-        fontSize: '1.25rem',
-      },
-    },
-    h5: {
-      fontWeight: 500,
-      fontSize: '1.25rem',
-      '@media (max-width:600px)': {
-        fontSize: '1.125rem',
-      },
-    },
-    h6: {
-      fontWeight: 500,
-      fontSize: '1.125rem',
-      '@media (max-width:600px)': {
-        fontSize: '1rem',
-      },
-    },
-  },
-  breakpoints: {
-    values: {
-      xs: 0,
-      sm: 600,
-      md: 900,
-      lg: 1200,
-      xl: 1536,
-    },
-  },
-  components: {
-    MuiContainer: {
-      styleOverrides: {
-        root: {
-          paddingLeft: '8px',
-          paddingRight: '8px',
-          '@media (min-width: 600px)': {
-            paddingLeft: '16px',
-            paddingRight: '16px',
-          },
-          '@media (min-width: 900px)': {
-            paddingLeft: '24px',
-            paddingRight: '24px',
-          },
-        },
-      },
-    },
-    MuiCard: {
-      styleOverrides: {
-        root: {
-          borderRadius: '12px',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-          '@media (max-width:600px)': {
-            borderRadius: '8px',
-            margin: '8px 0',
-          },
-        },
-      },
-    },
-    MuiButton: {
-      styleOverrides: {
-        root: {
-          textTransform: 'none',
-          borderRadius: '8px',
-          '@media (max-width:600px)': {
-            fontSize: '0.875rem',
-            padding: '8px 16px',
-          },
-        },
-      },
-    },
-    MuiDialog: {
-      styleOverrides: {
-        paper: {
-          '@media (max-width:600px)': {
-            margin: '8px',
-            width: 'calc(100% - 16px)',
-            maxHeight: 'calc(100% - 16px)',
-            borderRadius: '12px',
-          },
-        },
-      },
-    },
-    MuiDialogTitle: {
-      styleOverrides: {
-        root: {
-          '@media (max-width:600px)': {
-            fontSize: '1.125rem',
-            padding: '12px 16px',
-          },
-        },
-      },
-    },
-    MuiDialogContent: {
-      styleOverrides: {
-        root: {
-          '@media (max-width:600px)': {
-            padding: '8px 16px',
-          },
-        },
-      },
-    },
-    MuiDialogActions: {
-      styleOverrides: {
-        root: {
-          '@media (max-width:600px)': {
-            padding: '8px 16px 16px',
-            gap: '8px',
-            '& .MuiButton-root': {
-              fontSize: '0.875rem',
-              padding: '6px 12px',
-            },
-          },
-        },
-      },
-    },
-    MuiTable: {
-      styleOverrides: {
-        root: {
-          '@media (max-width:600px)': {
-            fontSize: '0.75rem',
-          },
-        },
-      },
-    },
-  },
-});
+/** The school's own site: public pages and the admin, teacher and student portals. */
+const SchoolSite: React.FC = () => {
+  const { problem } = useSchool();
+  if (problem) return <SchoolProblem message={problem} />;
 
-function App() {
   return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
-      <AuthProvider>
-        <ConfigurationProvider autoLoad={true}>
-          <Router>
-          <Routes>
-          {/* All login is now handled via popup - no separate login routes needed */}
+    <AuthProvider>
+      <ConfigurationProvider autoLoad={true}>
+        <Routes>
+          {/* All login is handled by a popup; there are no separate login routes */}
 
-          {/* Public Routes with MainLayout (Sidebar + Footer) */}
+          {/* Public pages, with the public menu and footer */}
           <Route path="/*" element={
             <MainLayout>
               <Routes>
@@ -232,178 +94,68 @@ function App() {
                 <Route path="/faculty" element={<Faculty />} />
                 <Route path="/gallery" element={<Gallery />} />
                 <Route path="/contact" element={<Contact />} />
-                {/* <Route path="/config-test" element={<ConfigurationTest />} /> */}
-
-                {/* Catch-all route */}
                 <Route path="*" element={<Home />} />
               </Routes>
             </MainLayout>
           } />
 
-          {/* Student Routes - Standalone (No MainLayout Header/Footer) */}
-          <Route path="/student/dashboard" element={
-            <ProtectedRoute requiredRole="STUDENT">
-              <StudentDashboard />
-            </ProtectedRoute>
-          } />
-          <Route path="/student/leaves" element={
-            <ProtectedRoute requiredRole="STUDENT">
-              <StudentLeaveManagementPage />
-            </ProtectedRoute>
-          } />
-          <Route path="/student/fees" element={
-            <ProtectedRoute requiredRole="STUDENT">
-              <StudentFeeManagementPage />
-            </ProtectedRoute>
-          } />
-          <Route path="/student/attendance" element={
-            <ProtectedRoute requiredRole="STUDENT">
-              <StudentAttendancePage />
-            </ProtectedRoute>
-          } />
+          {/* Student portal */}
+          <Route path="/student/dashboard" element={<ProtectedRoute requiredRole="STUDENT"><StudentDashboard /></ProtectedRoute>} />
+          <Route path="/student/leaves" element={<ProtectedRoute requiredRole="STUDENT"><StudentLeaveManagementPage /></ProtectedRoute>} />
+          <Route path="/student/fees" element={<ProtectedRoute requiredRole="STUDENT"><StudentFeeManagementPage /></ProtectedRoute>} />
+          <Route path="/student/attendance" element={<ProtectedRoute requiredRole="STUDENT"><StudentAttendancePage /></ProtectedRoute>} />
+          <Route path="/student/alerts" element={<ProtectedRoute requiredRole="STUDENT"><AlertsPage /></ProtectedRoute>} />
 
-          {/* Teacher Routes - Standalone (No MainLayout Header/Footer) */}
-          <Route path="/teacher/dashboard" element={
-            <ProtectedRoute requiredRole="TEACHER">
-              <TeacherDashboard />
-            </ProtectedRoute>
-          } />
-          <Route path="/teacher/leaves" element={
-            <ProtectedRoute requiredRole="TEACHER">
-              <TeacherLeaveManagementPage />
-            </ProtectedRoute>
-          } />
-          <Route path="/teacher/students" element={
-            <ProtectedRoute requiredRole="TEACHER">
-              <TeacherStudentProfilesPage />
-            </ProtectedRoute>
-          } />
-          <Route path="/teacher/attendance" element={
-            <ProtectedRoute requiredRole="TEACHER">
-              <TeacherAttendancePage />
-            </ProtectedRoute>
-          } />
+          {/* Teacher portal */}
+          <Route path="/teacher/dashboard" element={<ProtectedRoute requiredRole="TEACHER"><TeacherDashboard /></ProtectedRoute>} />
+          <Route path="/teacher/leaves" element={<ProtectedRoute requiredRole="TEACHER"><TeacherLeaveManagementPage /></ProtectedRoute>} />
+          <Route path="/teacher/students" element={<ProtectedRoute requiredRole="TEACHER"><TeacherStudentProfilesPage /></ProtectedRoute>} />
+          <Route path="/teacher/attendance" element={<ProtectedRoute requiredRole="TEACHER"><TeacherAttendancePage /></ProtectedRoute>} />
+          <Route path="/teacher/alerts" element={<ProtectedRoute requiredRole="TEACHER"><AlertsPage /></ProtectedRoute>} />
 
-          {/* Profile Route - Standalone (applies appropriate layout based on user type) */}
-          <Route path="/profile" element={
-            <ProtectedRoute>
-              <ProfilePage />
-            </ProtectedRoute>
-          } />
+          {/* For every logged-in user, inside their own portal */}
+          <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
+          <Route path="/alerts" element={<ProtectedRoute><AlertsPage /></ProtectedRoute>} />
 
-          {/* Alerts Routes - Available for all authenticated users */}
-          <Route path="/alerts" element={
-            <ProtectedRoute>
-              <AlertsPage />
-            </ProtectedRoute>
-          } />
-          <Route path="/student/alerts" element={
-            <ProtectedRoute requiredRole="STUDENT">
-              <AlertsPage />
-            </ProtectedRoute>
-          } />
-          <Route path="/teacher/alerts" element={
-            <ProtectedRoute requiredRole="TEACHER">
-              <AlertsPage />
-            </ProtectedRoute>
-          } />
-          <Route path="/admin/alerts" element={
-            <ProtectedRoute requiredRole="ADMIN">
-              <AlertsPage />
-            </ProtectedRoute>
-          } />
+          {/* Admin portal */}
+          <Route path="/admin/dashboard" element={<ProtectedRoute requiredRole="ADMIN"><AdminDashboard /></ProtectedRoute>} />
+          <Route path="/admin/fees" element={<ProtectedRoute requiredRole="ADMIN"><FeesManagement /></ProtectedRoute>} />
+          <Route path="/admin/transport" element={<ProtectedRoute requiredRole="ADMIN"><TransportManagement /></ProtectedRoute>} />
+          <Route path="/admin/expenses" element={<ProtectedRoute requiredRole="ADMIN"><ExpenseManagement /></ProtectedRoute>} />
+          <Route path="/admin/leaves" element={<ProtectedRoute requiredRole="ADMIN"><LeaveManagement /></ProtectedRoute>} />
+          <Route path="/admin/shop-sales" element={<ProtectedRoute requiredRole="ADMIN"><InventoryManagement /></ProtectedRoute>} />
+          <Route path="/admin/stock-procurement" element={<ProtectedRoute requiredRole="ADMIN"><StockProcurementManagement /></ProtectedRoute>} />
+          <Route path="/admin/pricing" element={<ProtectedRoute requiredRole="ADMIN"><PricingManagement /></ProtectedRoute>} />
+          <Route path="/admin/stock-levels" element={<ProtectedRoute requiredRole="ADMIN"><StockLevelsManagement /></ProtectedRoute>} />
+          <Route path="/admin/attendance" element={<ProtectedRoute requiredRole="ADMIN"><AttendanceManagement /></ProtectedRoute>} />
+          <Route path="/admin/gallery-management" element={<ProtectedRoute requiredRole="ADMIN"><GalleryManagement /></ProtectedRoute>} />
+          <Route path="/admin/students" element={<ProtectedRoute requiredRole="ADMIN"><StudentProfiles /></ProtectedRoute>} />
+          <Route path="/admin/teachers" element={<ProtectedRoute requiredRole="ADMIN"><TeacherProfiles /></ProtectedRoute>} />
+          <Route path="/admin/alerts" element={<ProtectedRoute requiredRole="ADMIN"><AlertsPage /></ProtectedRoute>} />
+          <Route path="/admin/reports/student-udise" element={<ProtectedRoute requiredRole="ADMIN"><StudentUDISEReport /></ProtectedRoute>} />
+          <Route path="/admin/reports/fee-tracking" element={<ProtectedRoute requiredRole="ADMIN"><FeeTrackingReport /></ProtectedRoute>} />
+          <Route path="/admin/reports/daily-collection" element={<ProtectedRoute requiredRole="ADMIN"><DailyCollectionReport /></ProtectedRoute>} />
+          {/* SUPER_ADMIN only */}
+          <Route path="/admin/session-progression" element={<ProtectedRoute requiredRole="SUPER_ADMIN" exactRoleMatch={true}><SessionProgression /></ProtectedRoute>} />
+        </Routes>
+      </ConfigurationProvider>
+    </AuthProvider>
+  );
+};
 
-          {/* Admin Routes - Standalone (No Header/Footer) */}
-          <Route path="/admin/dashboard" element={
-            <ProtectedRoute requiredRole="ADMIN">
-              <AdminDashboard />
-            </ProtectedRoute>
-          } />
-          <Route path="/admin/fees" element={
-            <ProtectedRoute requiredRole="ADMIN">
-              <FeesManagement />
-            </ProtectedRoute>
-          } />
-          <Route path="/admin/leaves" element={
-            <ProtectedRoute requiredRole="ADMIN">
-              <LeaveManagement />
-            </ProtectedRoute>
-          } />
-          <Route path="/admin/expenses" element={
-            <ProtectedRoute requiredRole="ADMIN">
-              <ExpenseManagement />
-            </ProtectedRoute>
-          } />
-          <Route path="/admin/transport" element={
-            <ProtectedRoute requiredRole="ADMIN">
-              <TransportManagement />
-            </ProtectedRoute>
-          } />
-          <Route path="/admin/shop-sales" element={
-            <ProtectedRoute requiredRole="ADMIN">
-              <InventoryManagement />
-            </ProtectedRoute>
-          } />
-          <Route path="/admin/stock-procurement" element={
-            <ProtectedRoute requiredRole="ADMIN">
-              <StockProcurementManagement />
-            </ProtectedRoute>
-          } />
-          <Route path="/admin/pricing" element={
-            <ProtectedRoute requiredRole="ADMIN">
-              <PricingManagement />
-            </ProtectedRoute>
-          } />
-          <Route path="/admin/stock-levels" element={
-            <ProtectedRoute requiredRole="ADMIN">
-              <StockLevelsManagement />
-            </ProtectedRoute>
-          } />
-          <Route path="/admin/attendance" element={
-            <ProtectedRoute requiredRole="ADMIN">
-              <AttendanceManagement />
-            </ProtectedRoute>
-          } />
-          <Route path="/admin/gallery-management" element={
-            <ProtectedRoute requiredRole="ADMIN">
-              <GalleryManagement />
-            </ProtectedRoute>
-          } />
-          <Route path="/admin/students" element={
-            <ProtectedRoute requiredRole="ADMIN">
-              <StudentProfiles />
-            </ProtectedRoute>
-          } />
-          <Route path="/admin/teachers" element={
-            <ProtectedRoute requiredRole="ADMIN">
-              <TeacherProfiles />
-            </ProtectedRoute>
-          } />
-          <Route path="/admin/reports/student-udise" element={
-            <ProtectedRoute requiredRole="ADMIN">
-              <StudentUDISEReport />
-            </ProtectedRoute>
-          } />
-          <Route path="/admin/reports/fee-tracking" element={
-            <ProtectedRoute requiredRole="ADMIN">
-              <FeeTrackingReport />
-            </ProtectedRoute>
-          } />
-          <Route path="/admin/reports/daily-collection" element={
-            <ProtectedRoute requiredRole="ADMIN">
-              <DailyCollectionReport />
-            </ProtectedRoute>
-          } />
-          {/* SUPER_ADMIN Only Routes */}
-          <Route path="/admin/session-progression" element={
-            <ProtectedRoute requiredRole="SUPER_ADMIN" exactRoleMatch={true}>
-              <SessionProgression />
-            </ProtectedRoute>
-          } />
-          </Routes>
-        </Router>
-        </ConfigurationProvider>
-      </AuthProvider>
+function App() {
+  return (
+    <ThemeProvider theme={theme}>
+      <CssBaseline />
+      <Router>
+        <Routes>
+          {/* Platform admin: belongs to no school, with its own login */}
+          <Route path="/platform/login" element={<PlatformLogin />} />
+          <Route path="/platform/*" element={<PlatformSchools />} />
+
+          <Route path="/*" element={<SchoolProvider><SchoolSite /></SchoolProvider>} />
+        </Routes>
+      </Router>
     </ThemeProvider>
   );
 }
