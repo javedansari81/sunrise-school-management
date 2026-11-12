@@ -32,55 +32,16 @@ async def get_public_school(request: Request, db: AsyncSession = Depends(get_sch
         "currency": school.currency,
     }
 
-@router.get("/fee-structure")
-async def get_public_fee_structure(db: AsyncSession = Depends(get_school_db)):
+@router.get("/admissions")
+async def get_public_admissions(db: AsyncSession = Depends(get_school_db)):
     """
-    What a new student pays per class, from the fee structure published for the
-    school's current session. Shown on the public Admissions page.
+    For the public Admissions page: the session families apply for now, its key
+    dates, and what a new student pays per class (see app/services/admissions.py).
     """
-    from decimal import Decimal
-
-    from app.models.metadata import Class, SessionYear
-    from app.modules.fees import repository as fee_repo
     from app.modules.fees.audit import to_json
-    from app.modules.fees.constants import AppliesTo, Frequency
-    from app.modules.fees.models import FeeHead
+    from app.services.admissions import admissions_info
 
-    year = (await db.execute(select(SessionYear).where(SessionYear.is_current == True))).scalars().first()  # noqa: E712
-    structure = await fee_repo.published_structure(db, year.id) if year else None
-    if structure is None:
-        return {"session_year": year.name if year else None, "classes": []}
-
-    heads = {h.id: h for h in (await db.execute(select(FeeHead))).scalars()}
-    # Per head: the price of a class, else the price for every class (as billing does)
-    by_head: Dict[int, Dict[Optional[int], Any]] = {}
-    for item in structure.items:
-        if item.applies_to != AppliesTo.EXISTING_STUDENTS.value:
-            by_head.setdefault(item.fee_head_id, {})[item.class_id] = item
-    times = {Frequency.MONTHLY.value: 12, Frequency.QUARTERLY.value: 4, Frequency.HALF_YEARLY.value: 2}
-
-    classes = (await db.execute(
-        select(Class).where(Class.is_active == True).order_by(Class.sort_order, Class.id)  # noqa: E712
-    )).scalars().all()
-    rows = []
-    for klass in classes:
-        fees, monthly, one_time, first_year = [], Decimal("0"), Decimal("0"), Decimal("0")
-        for head_id, prices in by_head.items():
-            item, head = prices.get(klass.id) or prices.get(None), heads.get(head_id)
-            if item is None or head is None:
-                continue
-            count = len(item.billing_months) if item.billing_months else times.get(item.frequency, 1)
-            if item.frequency == Frequency.MONTHLY.value:
-                monthly += item.amount
-            elif item.frequency == Frequency.ONE_TIME.value:
-                one_time += item.amount
-            first_year += item.amount * count
-            fees.append({"name": head.name, "amount": item.amount, "frequency": item.frequency, "sort": head.sort_order})
-        if fees:
-            fees.sort(key=lambda f: f.pop("sort"))
-            rows.append({"class_id": klass.id, "class_name": klass.description or klass.name, "monthly": monthly,
-                         "one_time": one_time, "first_year_total": first_year, "fees": fees})
-    return to_json({"session_year": year.name, "classes": rows})
+    return to_json(await admissions_info(db))
 
 
 @router.get("/faculty", response_model=Dict[str, Any])

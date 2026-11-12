@@ -699,7 +699,7 @@ const PortalLayout: React.FC<PortalLayoutProps> = ({ portalName, items, children
         </Box>
 
         <Box component="main" sx={{ flexGrow: 1, ...(publicSite ? {} : { p: { xs: 1.5, sm: 3, md: 4 }, pt: { xs: 1.5, sm: 2 } }) }}>
-          <Box key={location.pathname} className="fade-up">
+          <Box key={location.pathname} className="page-fade">
             {children}
           </Box>
         </Box>

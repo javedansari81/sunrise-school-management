@@ -75,8 +75,8 @@ export const adminAPI = {
 
 // Public pages (no login): the school is known from the site's address
 export const publicAPI = {
-  // What a new student pays per class, from the published fee structure
-  getFeeStructure: () => publicApi.get('/public/fee-structure'),
+  // The session families apply for now, its key dates, and fees per class for a new student
+  getAdmissions: () => publicApi.get('/public/admissions'),
 };
 
 // Dashboard figures. Everything about fees lives in billingService.ts (the unified fee module).

@@ -60,20 +60,41 @@ async def test_public_school_branding(client_factory, schools):
         assert (await client.get("/api/v1/public/school")).json()["code"] == schools["other_code"]
 
 
-async def test_public_fee_structure(admin_api, priced, sunrise_session, client_factory, schools):  # noqa: F811
+async def test_public_admissions(admin_api, priced, sunrise_session, client_factory, schools, monkeypatch):  # noqa: F811
+    from datetime import date
+
     from app.models.metadata import SessionYear
+    from app.services import admissions
+
     async with sunrise_session() as session:
-        await session.execute(update(SessionYear).values(is_current=SessionYear.id == priced["year_id"]))
+        year = await session.get(SessionYear, priced["year_id"])
+        assert year.start_date == date(2026, 4, 1)
+        # Only sessions up to 2026-27 exist, so 2027-28 is worked out from it
+        await session.execute(update(SessionYear).where(SessionYear.start_date > date(2026, 4, 1)).values(is_active=False))
         await session.commit()
+
+        info = await admissions.admissions_info(session, today=date(2026, 11, 12))
+        assert info["session"] == {"name": "2027-28", "start_date": date(2027, 4, 1)}
+        dates = {d["key"]: (d["date"], d["end_date"]) for d in info["dates"]}
+        assert dates["forms"] == (date(2026, 11, 15), None)
+        assert dates["last_date"] == (date(2027, 1, 31), None)
+        assert dates["test"] == (date(2027, 2, 15), date(2027, 2, 20))
+        assert dates["confirmation"] == (date(2027, 3, 1), date(2027, 3, 15))
+        assert dates["begins"] == (date(2027, 4, 1), None)
+        # 2027-28 has no prices yet: the latest published ones (2026-27) are shown and named
+        assert info["fees"]["session_year"] == "2026-27"
+        first = next(c for c in info["fees"]["classes"] if c["class_id"] == priced["class_ids"][0])
+        # Tuition 1000 a month, exam 600 twice a year, admission 5000 once (new students)
+        assert (first["monthly"], first["one_time"], first["first_year_total"]) == (1000, 5000, 18200)
+
+        # Before the session starts, it is the one families apply for
+        info = await admissions.admissions_info(session, today=date(2026, 1, 10))
+        assert info["session"]["name"] == "2026-27" and info["fees"]["session_year"] == "2026-27"
+
     async with client_factory(schools["sunrise_code"]) as client:
-        r = await client.get("/api/v1/public/fee-structure")
+        r = await client.get("/api/v1/public/admissions")
     assert r.status_code == 200, r.text
-    body = r.json()
-    assert body["session_year"] == "2026-27"
-    first = next(c for c in body["classes"] if c["class_id"] == priced["class_ids"][0])
-    # Tuition 1000 a month, exam 600 twice a year, admission 5000 once (new students)
-    assert (first["monthly"], first["one_time"], first["first_year_total"]) == ("1000.00", "5000.00", "18200.00")
-    assert [f["name"] for f in first["fees"]][0] and len(first["fees"]) == 3
-    # A school with nothing published shows an empty list, not another school's prices
+    assert set(r.json()) == {"session", "dates", "fees"} and len(r.json()["dates"]) == 6
+    # A school with nothing published shows no prices, never another school's
     async with client_factory(schools["other_code"]) as client:
-        assert (await client.get("/api/v1/public/fee-structure")).json()["classes"] == []
+        assert (await client.get("/api/v1/public/admissions")).json()["fees"]["classes"] == []

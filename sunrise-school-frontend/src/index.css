@@ -13,7 +13,7 @@ code {
 /* Shared motion */
 @keyframes fadeUp {
   from { opacity: 0; transform: translateY(14px); }
-  to { opacity: 1; transform: translateY(0); }
+  to { opacity: 1; transform: none; }
 }
 @keyframes fadeIn {
   from { opacity: 0; }
@@ -28,7 +28,13 @@ code {
   100% { box-shadow: 0 0 0 10px rgba(96, 165, 250, 0); }
 }
 
-.fade-up { animation: fadeUp 0.5s cubic-bezier(0.22, 1, 0.36, 1) both; }
+/* Fill-mode `backwards`, not `both`: a transform animation that stays applied after it ends
+   turns the element into a containing block, so `position: fixed` children (page FABs)
+   would be pinned to this wrapper instead of the viewport. */
+.fade-up { animation: fadeUp 0.5s cubic-bezier(0.22, 1, 0.36, 1) backwards; }
+/* Page-level entrance: opacity only. Any transform on the page wrapper (even mid-animation)
+   re-anchors the pages' `position: fixed` FABs to the wrapper instead of the viewport. */
+.page-fade { animation: fadeIn 0.4s ease backwards; }
 
 /* Slim scrollbars */
 * { scrollbar-width: thin; scrollbar-color: rgba(100, 116, 139, 0.4) transparent; }
