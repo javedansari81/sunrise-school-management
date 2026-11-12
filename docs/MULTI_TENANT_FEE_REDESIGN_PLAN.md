@@ -34,6 +34,8 @@ Phase 5 is done (Nov 11, 2026, merged in PR #6). Raw SQL is now checked, not tru
 
 Phase 6 is done (Nov 12, 2026, branch `frontend-phase6`). The frontend finds its school from the subdomain (`REACT_APP_BASE_DOMAIN`, or `<code>.localhost` locally, or a fixed `REACT_APP_SCHOOL_CODE`), sends it as `X-School-Code`, and brands itself from the new `GET /public/school`. The admin, teacher and student portals and the public site share one shell (`components/Layout/PortalLayout.tsx`) with a new left panel and theme (`src/theme.ts`). New screens: Fees (`/admin/fees`: collect, fee structures, fee heads, concessions, billing run, reports), Transport (`/admin/transport`: riders, routes and stops, vehicles, rates), the student's My fees, and platform admin (`/platform/login`, `/platform`). Backend additions: `GET /public/school`, `GET /public/admissions` (the Admissions page: the session families apply for, its key dates counted from the session start, and fees per class), `GET /billing/my/statement` and a student's own receipt. `tests/transport/test_screen_requests.py` sends the request bodies the screens send. The old fee and transport screens and `transportService.ts` are deleted. A Settings screen (`/admin/settings`, API `/api/v1/school-settings`) lets a school admin change the school's own profile (name, short name, contact details, logo), its settings (modules, fee, transport, receipt and account settings, each with a default) and its own lists (classes, session years, departments, positions, leave types, expense categories, gallery categories, and the shop lists while the shop is on). List rows are never deleted, only marked not in use, and every change clears that school's `/configuration` cache. The School Shop is now a per-school module, setting `module.shop.enabled`, off by default for every school: its menu and pages are hidden, `/inventory` answers 403 and the dashboard skips stock alerts until an admin turns it on in Settings. `tests/tenant/test_school_admin_settings.py` covers both (7 tests). Next step: Phase 7.
 
+Phase 7 is done (Nov 12, 2026, branch `phase7-hardening`). PostgreSQL row-level security now backs the app's own checks: every one of the 46 tables with `school_id` has the forced policy `tenant_isolation` (migration `V006`, function `enable_tenant_row_level_security()`), and `app/core/tenant.py` sets `app.school_id` and `app.bypass_rls` per transaction from the session, so a query that slips past the ORM scoping and the raw SQL guard still only reaches its own school. A connection with neither setting sees no school rows. The deploy and migration scripts, `/database/status` and `create_platform_admin.py` set the bypass; the public `/health` no longer counts users, and the unauthenticated `POST /setup-database` is deleted. A new GitHub Actions workflow (`.github/workflows/backend-tests.yml`) deploys a fresh schema as an ordinary, non-superuser role and runs the isolation suite, then the fee and transport tests. The isolation suite (`tests/isolation`) sweeps every API route as a second school's admin against Sunrise's ids; it found no leak, but found six routes that failed for every school (fixed, see Phase 7). A second school is onboarded end to end through the API in `tests/isolation/test_onboarding.py`. `V006` is applied to the local `warsi_db`. On a clean schema all 201 tests pass (1 skipped: it needs Sunrise students). On the local `warsi_db`, 9 fee and transport tests fail because of data entered there on Nov 12 (a published 2026-27 fee structure, receipt `SUN/2026-27/000001` and a transport assignment); they assume an empty session. Deploying to DigitalOcean, including running `V006`, is deferred to go-live.
+
 Status values: Not started, In progress, Done, Blocked.
 
 | Phase | Status | Notes |
@@ -45,7 +47,7 @@ Status values: Not started, In progress, Done, Blocked.
 | 4. Switch dependents and remove old code | Done | Merged in PR #5. Migration `V004`, applied to the local `warsi_db` |
 | 5. Scope the remaining modules | Done | Merged in PR #6. Migration `V005`, applied to the local `warsi_db`. Raw SQL guard in `app/core/tenant.py` |
 | 6. Frontend | Done | Branch `frontend-phase6`. Adds `/public/school`, `/public/admissions`, `/billing/my/statement`, the Settings screen (`/school-settings`) and the per-school School Shop switch (off by default) |
-| 7. Hardening | Not started | Includes row-level security (decision 12) |
+| 7. Hardening | Done | Migration `V006` (row-level security), applied to the local `warsi_db`. CI workflow `backend-tests.yml`, isolation suite `tests/isolation` |
 
 ## Current state
 
@@ -318,9 +320,14 @@ There are eight phases, run in order. Each phase ends with the app running and i
 
 ### Phase 7: Hardening
 
-- [ ] PostgreSQL row-level security on `school_id`
-- [ ] Cross-school isolation test suite run in CI
-- [ ] Second test school onboarded end to end
+- [x] PostgreSQL row-level security on `school_id`: forced policy `tenant_isolation` on all 46 tables with `school_id` (`Functions/F900_tenant_row_level_security.sql`, `Schema/90_enable_row_level_security.sql`, migration `V006`). A row is visible and writable only for the school in `app.school_id`, or with `app.bypass_rls = on`. `app/core/tenant.py` sets both, transaction-local, before every statement and flush, and again after a savepoint rollback
+- [x] Scripts and raw connections: `redeploy_database.py`, `migrate_database.py`, `deploy_database.sql`, `scripts/create_platform_admin.py` and `/database/status` set the bypass. `/health` no longer counts users (public route). The unauthenticated `POST /setup-database` is deleted
+- [x] `tests/tenant/test_row_level_security.py` (12 tests): the app role is not a superuser and has no `BYPASSRLS`, every `school_id` table has the forced policy, and SQL sent straight to the connection, past every app check, stays in its school
+- [x] Cross-school isolation suite (`tests/isolation/test_route_sweep.py`): every API route, taken from the app, as the second school's admin against Sunrise's ids. List routes show none of Sunrise's marker texts; id routes answer 403 or 404; write routes change none of Sunrise's rows; school tokens are refused on platform routes. A new path parameter must be given a value in the test, so new routes are swept too
+- [x] CI: `.github/workflows/backend-tests.yml` runs on pushes to `main` and on pull requests that touch the backend or `Database/`: PostgreSQL 16, an ordinary owner role like `warsi_user`, fresh deploy, no pending migrations, isolation suite, then fee and transport tests
+- [x] Second test school onboarded end to end (`tests/isolation/test_onboarding.py`): platform admin creates Pinecrest, its admin logs in on its subdomain, branding and copied lists, email domain, fee structure, student admission, plans and dues, transport fleet, rate and rider, a payment in its own receipt series, the student's own statement, the shop switched on for Pinecrest only, and neither school sees the other
+- [x] Fixed on the way (the sweep found them; each failed for every school): `GET /students/{id}` imported a missing module, `GET /students/class/{name}` used a column that no longer exists, `GET /teachers/department/{name}` passed the wrong argument, the yearly and monthly expense reports read a missing key, `DELETE /expenses/{id}` queried the response schema instead of the table, and `GET /session-progression/history/{id}` never filled the student's name (now 404 for an unknown student). `tests/isolation/test_fixed_routes.py`
+- Later list: without `BASE_DOMAIN` (local, CI) a new school's default email domain is `<code>.local`, which email validation refuses, so the school must set `user.email_domain` in Settings before admitting students; the items on the Phase 5 later list
 
 ## Risks and testing
 
@@ -338,8 +345,8 @@ The biggest risk is a query that forgets the school filter and leaks another sch
 
 **Tests to write**
 
-- Isolation: a user of school A gets 404 for every school B record, on every list and detail route.
-- Fee ledger: dues generation, concessions, part payments, allocation order, credit balance, full and partial reversal.
+- [x] Isolation: a user of school A gets 404 for every school B record, on every list and detail route (`tests/isolation`).
+- [x] Fee ledger: dues generation, concessions, part payments, allocation order, credit balance, full and partial reversal.
 - [x] Transport to fee handoff: assign, change rate, discontinue mid-session, paused months (`tests/transport`).
 - [x] Dependents on the new modules: dashboard, reports, student pages, configuration, sibling re-pricing, old routes gone (`tests/transport/test_dependents.py`).
-- Receipts: numbering is per school and session with no gaps or duplicates under concurrent payments.
+- [x] Receipts: numbering is per school and session with no gaps or duplicates under concurrent payments (`tests/fees/test_ledger.py`).

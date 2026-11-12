@@ -269,7 +269,8 @@ async def delete_expense(
     try:
         # Get expense without soft delete filtering to allow deletion of any existing record
         from sqlalchemy import select
-        result = await db.execute(select(Expense).where(Expense.id == expense_id))
+        from app.models.expense import Expense as ExpenseModel  # `Expense` here is the response schema
+        result = await db.execute(select(ExpenseModel).where(ExpenseModel.id == expense_id))
         expense = result.scalar_one_or_none()
 
         if not expense:
@@ -474,7 +475,7 @@ async def get_monthly_expense_report(
             "total_amount": stats['total_amount'],
             "approved_amount": stats['approved_amount'],
             "pending_amount": stats['pending_amount'],
-            "pending_count": stats['pending_count']
+            "pending_count": stats['pending_expenses']
         },
         "category_breakdown": stats['category_breakdown']
     }
@@ -506,7 +507,7 @@ async def get_yearly_expense_report(
             "total_amount": stats['total_amount'],
             "approved_amount": stats['approved_amount'],
             "pending_amount": stats['pending_amount'],
-            "pending_count": stats['pending_count']
+            "pending_count": stats['pending_expenses']
         },
         "monthly_breakdown": monthly_breakdown,
         "category_breakdown": stats['category_breakdown'],

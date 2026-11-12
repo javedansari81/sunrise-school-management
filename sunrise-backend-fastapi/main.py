@@ -105,9 +105,10 @@ async def health_check():
         # Use the original DATABASE_URL for asyncpg connection
         conn = await asyncpg.connect(settings.DATABASE_URL)
         schema = await conn.fetchval("SELECT current_schema()")
-        user_count = await conn.fetchval("SELECT COUNT(*) FROM users")
+        # No row counts: this route is public, and row-level security hides
+        # school-owned rows from a connection without a school anyway
         await conn.close()
-        db_status = f"connected (schema: {schema}, users: {user_count})"
+        db_status = f"connected (schema: {schema})"
     except Exception as e:
         db_status = f"error: {str(e)}"
 
@@ -126,45 +127,6 @@ async def test_api():
         "endpoint": "/api/v1/test",
         "timestamp": "2025-01-26"
     }
-
-@app.post("/setup-database")
-async def setup_database():
-    """One-time database setup endpoint"""
-    import asyncpg
-    DATABASE_URL = os.getenv('DATABASE_URL')
-    if not DATABASE_URL:
-        return {"error": "DATABASE_URL not found"}
-
-    try:
-        conn = await asyncpg.connect(DATABASE_URL)
-
-        # Check if already setup
-        try:
-            count = await conn.fetchval("SELECT COUNT(*) FROM users")
-            if count > 0:
-                await conn.close()
-                return {"message": "Database already setup", "users": count}
-        except:
-            pass
-
-        # Setup database
-        with open('database_schema.sql', 'r') as f:
-            await conn.execute(f.read())
-        with open('sample_data.sql', 'r') as f:
-            await conn.execute(f.read())
-
-        user_count = await conn.fetchval("SELECT COUNT(*) FROM users")
-        await conn.close()
-
-        return {
-            "message": "Database setup complete!",
-            "users": user_count,
-            "login": "admin@sunrise.com / admin123"
-        }
-    except Exception as e:
-        return {"error": str(e)}
-
-
 
 if __name__ == "__main__":
     uvicorn.run(

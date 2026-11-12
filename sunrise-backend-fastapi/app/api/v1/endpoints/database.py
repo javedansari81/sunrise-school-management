@@ -66,7 +66,8 @@ async def get_database_status(admin: User = Depends(get_current_platform_admin))
             WHERE table_schema = $1
         """, settings.DB_SCHEMA)
 
-        # Get record counts
+        # Get record counts (across schools: the caller is a platform admin)
+        await conn.execute("SET app.bypass_rls = on")
         try:
             user_count = await conn.fetchval("SELECT COUNT(*) FROM users")
             student_count = await conn.fetchval("SELECT COUNT(*) FROM students")

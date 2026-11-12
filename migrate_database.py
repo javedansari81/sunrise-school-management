@@ -69,6 +69,8 @@ async def run(database_url: str, schema: str, directory: Path, status_only: bool
     files = migration_files(directory)
     conn = await asyncpg.connect(database_url)
     try:
+        # Migrations work across schools: row-level security must not hide rows from them
+        await conn.execute("SET app.bypass_rls = on")
         # One runner per schema at a time
         await conn.execute("SELECT pg_advisory_lock(hashtext($1))", f"migrations:{schema}")
         applied = await _applied(conn, schema)

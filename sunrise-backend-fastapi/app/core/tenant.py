@@ -21,11 +21,21 @@ the parameter is filled in from the session, and a different value passed by the
 caller is refused. A raw statement that reads only global tables (fixed system
 lists, pure SQL functions) is built with ``global_sql()``. Anything else fails
 instead of running unscoped.
+
+Row-level security (PostgreSQL) is the last layer. Every table with a
+``school_id`` column has a policy that only shows and accepts rows of the school
+in the ``app.school_id`` setting, or every row when ``app.bypass_rls`` is ``on``
+(see ``Database/Functions/F900_tenant_row_level_security.sql``). Before a session
+runs a statement or flushes, ``_sync_rls_settings`` copies the session's school
+and bypass state into those two settings, transaction-local, so a statement that
+slips past the checks above still only reaches its own school's rows. Without
+either setting a tenant table shows no rows and accepts no writes.
 """
 from contextlib import contextmanager
 from typing import Iterator, Optional, Union
 
 from sqlalchemy import event, text
+from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import ORMExecuteState, Session, with_loader_criteria
 from sqlalchemy.sql.elements import TextClause
@@ -159,8 +169,57 @@ def _scope_raw_sql(state: ORMExecuteState):
     return state.invoke_statement(params=scoped)
 
 
+# ---------------------------------------------------------------------------
+# Row-level security settings
+# ---------------------------------------------------------------------------
+
+RLS_SCHOOL_SETTING = "app.school_id"
+RLS_BYPASS_SETTING = "app.bypass_rls"
+_RLS_APPLIED_KEY = "tenant_rls_applied"  # in Connection.info: the (school, bypass) set in this transaction
+
+
+def _desired_rls_state(info: dict) -> tuple:
+    school_id = info.get(SCHOOL_ID_KEY)
+    return ("" if school_id is None else str(int(school_id)), "on" if info.get(BYPASS_KEY) else "off")
+
+
+def _sync_rls_settings(session: Session) -> None:
+    """
+    Put the session's school and bypass state into the connection's RLS settings.
+    The settings are transaction-local (set_config(..., true)), so they end with the
+    transaction; they are only sent again when they change or the transaction did.
+    """
+    connection = session.connection()
+    if connection.dialect.name != "postgresql":
+        return
+    desired = _desired_rls_state(session.info)
+    if connection.info.get(_RLS_APPLIED_KEY) == desired:
+        return
+    school, bypass = desired  # school is digits or empty, bypass is on/off: safe to inline
+    connection.exec_driver_sql(
+        f"SELECT set_config('{RLS_SCHOOL_SETTING}', '{school}', true), "
+        f"set_config('{RLS_BYPASS_SETTING}', '{bypass}', true)"
+    )
+    connection.info[_RLS_APPLIED_KEY] = desired
+
+
+def _forget_rls_settings(conn, *args) -> None:
+    conn.info.pop(_RLS_APPLIED_KEY, None)
+
+
+@event.listens_for(Session, "after_begin")
+def _new_transaction_has_no_rls_settings(session, transaction, connection) -> None:
+    _forget_rls_settings(connection)
+
+
+# A transaction (or savepoint) that ends takes its local settings with it
+for _name in ("commit", "rollback", "rollback_savepoint"):
+    event.listen(Connection, _name, _forget_rls_settings)
+
+
 @event.listens_for(Session, "do_orm_execute")
 def _apply_tenant_criteria(state: ORMExecuteState):
+    _sync_rls_settings(state.session)
     if isinstance(state.statement, TextClause):
         return _scope_raw_sql(state)
     if not (state.is_select or state.is_update or state.is_delete):
@@ -195,6 +254,7 @@ def _apply_tenant_criteria(state: ORMExecuteState):
 
 @event.listens_for(Session, "before_flush")
 def _stamp_and_guard_school(session: Session, flush_context, instances) -> None:
+    _sync_rls_settings(session)
     info = session.info
     if info.get(BYPASS_KEY):
         return
