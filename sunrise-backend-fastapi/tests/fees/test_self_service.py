@@ -58,3 +58,22 @@ async def test_public_school_branding(client_factory, schools):
     assert r.json()["code"] == schools["sunrise_code"] and r.json()["name"]
     async with client_factory(schools["other_code"]) as client:
         assert (await client.get("/api/v1/public/school")).json()["code"] == schools["other_code"]
+
+
+async def test_public_fee_structure(admin_api, priced, sunrise_session, client_factory, schools):  # noqa: F811
+    from app.models.metadata import SessionYear
+    async with sunrise_session() as session:
+        await session.execute(update(SessionYear).values(is_current=SessionYear.id == priced["year_id"]))
+        await session.commit()
+    async with client_factory(schools["sunrise_code"]) as client:
+        r = await client.get("/api/v1/public/fee-structure")
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["session_year"] == "2026-27"
+    first = next(c for c in body["classes"] if c["class_id"] == priced["class_ids"][0])
+    # Tuition 1000 a month, exam 600 twice a year, admission 5000 once (new students)
+    assert (first["monthly"], first["one_time"], first["first_year_total"]) == ("1000.00", "5000.00", "18200.00")
+    assert [f["name"] for f in first["fees"]][0] and len(first["fees"]) == 3
+    # A school with nothing published shows an empty list, not another school's prices
+    async with client_factory(schools["other_code"]) as client:
+        assert (await client.get("/api/v1/public/fee-structure")).json()["classes"] == []

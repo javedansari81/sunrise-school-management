@@ -468,6 +468,7 @@ export const FormDialog: React.FC<FormDialogProps> = ({
       component="form"
       onSubmit={(event: React.FormEvent) => {
         event.preventDefault();
+        event.stopPropagation(); // a dialog opened from inside another form must not submit that form
         if (!busy && !disabled) onSubmit?.();
       }}
       sx={{ display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}

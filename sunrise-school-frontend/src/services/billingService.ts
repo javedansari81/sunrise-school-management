@@ -127,6 +127,62 @@ export interface PlanLine {
   remarks: string | null;
 }
 
+export type ConcessionType = 'SIBLING' | 'STAFF' | 'SCHOLARSHIP' | 'CUSTOM';
+export const CONCESSION_TYPES: { value: ConcessionType; label: string }[] = [
+  { value: 'SIBLING', label: 'Sibling' },
+  { value: 'STAFF', label: 'Staff child' },
+  { value: 'SCHOLARSHIP', label: 'Scholarship' },
+  { value: 'CUSTOM', label: 'Other' },
+];
+export const concessionTypeLabel = (value: string) => CONCESSION_TYPES.find((t) => t.value === value)?.label || value;
+
+/** Which children of a family of a given size get how much off. Position 1 is the eldest (or youngest). */
+export interface SiblingTier {
+  min_siblings: number;
+  max_siblings: number | null;
+  position_basis: 'ELDEST' | 'YOUNGEST';
+  position_from: number;
+  position_to: number | null;
+  percent: string;
+}
+
+export interface ConcessionRule {
+  id: number;
+  name: string;
+  description: string | null;
+  concession_type: ConcessionType;
+  value_type: 'PERCENT' | 'FIXED';
+  value: string;
+  fee_head_ids: number[] | null;
+  tiers: SiblingTier[] | null;
+  is_active: boolean;
+}
+
+export interface StudentConcession {
+  id: number;
+  student_id: number;
+  session_year_id: number;
+  concession_rule_id: number | null;
+  concession_type: ConcessionType;
+  value_type: 'PERCENT' | 'FIXED';
+  value: string;
+  fee_head_ids: number[] | null;
+  start_period: string | null;
+  end_period: string | null;
+  reason: string;
+  approved_at: string | null;
+  is_active: boolean;
+}
+
+export interface SiblingPreview {
+  family_size: number;
+  position_from_eldest: number;
+  position_from_youngest: number;
+  rule_id: number | null;
+  fee_head_ids: number[] | null;
+  percent: string;
+}
+
 export interface LedgerEntry {
   date: string;
   type: 'DUE' | 'PAYMENT' | 'REVERSAL';
@@ -240,6 +296,21 @@ export const billingAPI = {
   studentDues: (studentId: number, sessionYearId?: number) =>
     data<Due[]>(api.get(`/billing/students/${studentId}/dues`, { params: clean({ session_year_id: sessionYearId }) })),
   cancelDue: (dueId: number, reason: string) => data<Due>(api.post(`/billing/dues/${dueId}/cancel`, { reason })),
+
+  // Concessions
+  listRules: () => data<ConcessionRule[]>(api.get('/billing/concession-rules', { params: { include_inactive: true } })),
+  createRule: (body: Record<string, any>) => data<ConcessionRule>(api.post('/billing/concession-rules', body)),
+  updateRule: (id: number, body: Record<string, any>) => data<ConcessionRule>(api.patch(`/billing/concession-rules/${id}`, body)),
+  studentConcessions: (studentId: number, sessionYearId: number) =>
+    data<StudentConcession[]>(
+      api.get(`/billing/students/${studentId}/concessions`, { params: { session_year_id: sessionYearId, include_inactive: true } })
+    ),
+  grantConcession: (studentId: number, body: Record<string, any>) =>
+    data<StudentConcession>(api.post(`/billing/students/${studentId}/concessions`, clean(body))),
+  revokeConcession: (concessionId: number, reason: string) =>
+    data<StudentConcession>(api.post(`/billing/student-concessions/${concessionId}/revoke`, clean({ reason }))),
+  siblingPreview: (studentId: number, sessionYearId: number) =>
+    data<SiblingPreview>(api.get(`/billing/students/${studentId}/sibling-concession`, { params: { session_year_id: sessionYearId } })),
 
   // Payments
   collect: (body: Record<string, any>) =>

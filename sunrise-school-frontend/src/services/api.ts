@@ -73,13 +73,14 @@ export const adminAPI = {
     api.put(`/users/${userId}/reset-password`, { reset_to_default: true }),
 };
 
-// Dashboard figures, and the fee list on the public Admissions page.
-// Everything else about fees lives in billingService.ts (the unified fee module).
-export const enhancedFeesAPI = {
-  // Fee Structure API
-  getFeeStructure: () =>
-    api.get('/fees/structure'),
+// Public pages (no login): the school is known from the site's address
+export const publicAPI = {
+  // What a new student pays per class, from the published fee structure
+  getFeeStructure: () => publicApi.get('/public/fee-structure'),
+};
 
+// Dashboard figures. Everything about fees lives in billingService.ts (the unified fee module).
+export const enhancedFeesAPI = {
   // Admin Dashboard Statistics (moved to dashboard endpoints)
   // If sessionYearId is not provided, backend will use current session (is_current=true)
   getAdminDashboardStats: (sessionYearId?: number) =>
@@ -496,6 +497,10 @@ export const studentSiblingsAPI = {
   // Get sibling waiver info
   getSiblingWaiverInfo: (studentId: number) =>
     api.get(`/students/${studentId}/siblings/waiver-info`).then(response => response.data),
+
+  // Possible siblings (same father name and phone) that are not linked yet
+  getSuggestions: (studentId: number) =>
+    api.get(`/students/${studentId}/siblings/suggestions`).then(response => response.data),
 
   // Detect siblings for a student
   detectSiblings: (studentId: number) =>

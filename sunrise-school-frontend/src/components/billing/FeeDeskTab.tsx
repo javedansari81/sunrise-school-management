@@ -57,6 +57,7 @@ import {
   StudentLite,
 } from '../../services/billingService';
 import { Lookups } from '../../hooks/useLookups';
+import StudentConcessionsPanel from './StudentConcessionsPanel';
 import {
   apiError,
   ConfirmDialog,
@@ -449,7 +450,7 @@ const FeeDeskTab: React.FC<Props> = ({ lookups, heads }) => {
 
   // Selected student
   const [sessionId, setSessionId] = useState<number | null>(lookups.currentSessionId);
-  const [view, setView] = useState<'dues' | 'payments' | 'ledger' | 'plan'>('dues');
+  const [view, setView] = useState<'dues' | 'payments' | 'ledger' | 'plan' | 'concessions'>('dues');
   const [loading, setLoading] = useState(false);
   const [balance, setBalance] = useState<StudentBalance | null>(null);
   const [dues, setDues] = useState<Due[]>([]);
@@ -686,9 +687,12 @@ const FeeDeskTab: React.FC<Props> = ({ lookups, heads }) => {
               <Tab value="payments" label={`Payments (${payments.filter((payment) => payment.kind === 'PAYMENT').length})`} />
               <Tab value="ledger" label="Ledger" />
               <Tab value="plan" label="Fee plan" />
+              <Tab value="concessions" label="Concessions" />
             </Tabs>
 
-            {loading ? (
+            {view === 'concessions' && sessionId != null ? (
+              <StudentConcessionsPanel studentId={student.id} sessionYearId={sessionId} heads={heads} onChanged={load} />
+            ) : loading ? (
               <Loading />
             ) : (
               <Box key={view} className="fade-up">

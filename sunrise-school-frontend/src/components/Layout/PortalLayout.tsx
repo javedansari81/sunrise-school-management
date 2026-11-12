@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   Avatar,
   Box,
+  Button,
   Collapse,
   Divider,
   Drawer,
@@ -18,7 +19,9 @@ import {
 import {
   ChevronLeft as ChevronLeftIcon,
   ChevronRight as ChevronRightIcon,
+  Dashboard as DashboardIcon,
   ExpandMore as ExpandMoreIcon,
+  Login as LoginIcon,
   Logout as LogoutIcon,
   Menu as MenuIcon,
   Person as PersonIcon,
@@ -42,6 +45,16 @@ interface PortalLayoutProps {
   portalName: string;
   items: NavItem[];
   children: React.ReactNode;
+  /**
+   * The school's public website instead of a portal: visitors need no login,
+   * pages run edge to edge, and the footer is the site's own.
+   */
+  publicSite?: {
+    onSignIn: () => void;
+    footer: React.ReactNode;
+    /** Where a logged-in visitor's portal starts */
+    dashboardPath?: string;
+  };
 }
 
 const WIDTH = 272;
@@ -121,7 +134,7 @@ const iconSx = (active: boolean) => ({
   '& svg': { fontSize: 20 },
 });
 
-const PortalLayout: React.FC<PortalLayoutProps> = ({ portalName, items, children }) => {
+const PortalLayout: React.FC<PortalLayoutProps> = ({ portalName, items, children, publicSite }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const theme = useTheme();
@@ -180,6 +193,7 @@ const PortalLayout: React.FC<PortalLayoutProps> = ({ portalName, items, children
   };
 
   const crumbs = useMemo(() => {
+    if (publicSite && location.pathname === '/') return { group: null as string | null, title: `Welcome to ${school.name}` };
     for (const item of items) {
       if (item.path === location.pathname) return { group: null as string | null, title: item.label };
       const child = item.children?.find((c) => c.path === location.pathname);
@@ -187,7 +201,7 @@ const PortalLayout: React.FC<PortalLayoutProps> = ({ portalName, items, children
     }
     if (location.pathname === '/profile') return { group: null, title: 'My Profile' };
     return { group: null, title: portalName };
-  }, [items, location.pathname, portalName]);
+  }, [items, location.pathname, portalName, publicSite, school.name]);
 
   const today = useMemo(
     () => new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' }),
@@ -428,8 +442,55 @@ const PortalLayout: React.FC<PortalLayoutProps> = ({ portalName, items, children
         })}
       </Box>
 
-      {/* Signed-in user */}
+      {/* Signed-in user, or the way in */}
       <Box sx={{ position: 'relative', zIndex: 1, p: compact ? 1.25 : 1.75, flexShrink: 0 }}>
+        {!user ? (
+          <Tooltip title={compact ? 'Sign in' : ''} placement="right" arrow>
+            <Box
+              component="button"
+              type="button"
+              onClick={() => {
+                setMobileOpen(false);
+                publicSite?.onSignIn();
+              }}
+              aria-label="Sign in"
+              sx={{
+                position: 'relative',
+                overflow: 'hidden',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 1,
+                width: '100%',
+                minHeight: 48,
+                border: 0,
+                borderRadius: '16px',
+                cursor: 'pointer',
+                font: 'inherit',
+                fontWeight: 700,
+                fontSize: '0.92rem',
+                color: '#fff',
+                background: brand.gradient,
+                boxShadow: '0 10px 26px rgba(59,130,246,0.5)',
+                transition: `transform 0.3s ${ease}, box-shadow 0.3s ${ease}`,
+                '&::after': {
+                  content: '""',
+                  position: 'absolute',
+                  inset: 0,
+                  background: 'linear-gradient(110deg, transparent 30%, rgba(255,255,255,0.35) 50%, transparent 70%)',
+                  transform: 'translateX(-120%)',
+                  transition: `transform 0.7s ${ease}`,
+                },
+                '&:hover': { transform: 'translateY(-2px)', boxShadow: '0 14px 32px rgba(99,102,241,0.6)' },
+                '&:hover::after': { transform: 'translateX(120%)' },
+                '&:focus-visible': { outline: '2px solid #93c5fd', outlineOffset: 2 },
+              }}
+            >
+              <LoginIcon sx={{ fontSize: 20 }} />
+              {!compact && 'Sign in'}
+            </Box>
+          </Tooltip>
+        ) : (
         <Box
           sx={{
             display: 'flex',
@@ -486,6 +547,7 @@ const PortalLayout: React.FC<PortalLayoutProps> = ({ portalName, items, children
             </>
           )}
         </Box>
+        )}
       </Box>
     </Box>
   );
@@ -597,9 +659,14 @@ const PortalLayout: React.FC<PortalLayoutProps> = ({ portalName, items, children
             </Typography>
           </Box>
 
+          {!user && publicSite && (
+            <Button variant="contained" startIcon={<LoginIcon />} onClick={publicSite.onSignIn} sx={{ borderRadius: '999px', px: 2.5 }}>
+              Sign in
+            </Button>
+          )}
           {user && (
             <>
-              <NotificationBell color="primary" />
+              {!publicSite && <NotificationBell color="primary" />}
               <Box
                 component="button"
                 type="button"
@@ -631,15 +698,19 @@ const PortalLayout: React.FC<PortalLayoutProps> = ({ portalName, items, children
           )}
         </Box>
 
-        <Box component="main" sx={{ flexGrow: 1, p: { xs: 1.5, sm: 3, md: 4 }, pt: { xs: 1.5, sm: 2 } }}>
+        <Box component="main" sx={{ flexGrow: 1, ...(publicSite ? {} : { p: { xs: 1.5, sm: 3, md: 4 }, pt: { xs: 1.5, sm: 2 } }) }}>
           <Box key={location.pathname} className="fade-up">
             {children}
           </Box>
         </Box>
 
-        <Box component="footer" sx={{ px: { xs: 2, md: 4 }, py: 2, textAlign: 'center', color: 'text.secondary', fontSize: '0.78rem' }}>
-          © {new Date().getFullYear()} {school.name}
-        </Box>
+        {publicSite ? (
+          publicSite.footer
+        ) : (
+          <Box component="footer" sx={{ px: { xs: 2, md: 4 }, py: 2, textAlign: 'center', color: 'text.secondary', fontSize: '0.78rem' }}>
+            © {new Date().getFullYear()} {school.name}
+          </Box>
+        )}
       </Box>
 
       {/* Account menu */}
@@ -660,6 +731,14 @@ const PortalLayout: React.FC<PortalLayoutProps> = ({ portalName, items, children
           </Typography>
         </Box>
         <Divider />
+        {publicSite?.dashboardPath && (
+          <MenuItem onClick={() => go(publicSite.dashboardPath)}>
+            <ListItemIcon>
+              <DashboardIcon fontSize="small" />
+            </ListItemIcon>
+            My dashboard
+          </MenuItem>
+        )}
         <MenuItem onClick={() => go('/profile')}>
           <ListItemIcon>
             <PersonIcon fontSize="small" />

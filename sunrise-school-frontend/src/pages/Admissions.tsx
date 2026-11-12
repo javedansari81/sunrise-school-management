@@ -34,10 +34,11 @@ import {
   Email,
   LocationOn,
 } from '@mui/icons-material';
-import { enhancedFeesAPI } from '../services/api';
+import { publicAPI } from '../services/api';
 
 const Admissions: React.FC = () => {
   const [feeStructure, setFeeStructure] = useState<any[]>([]);
+  const [feeSession, setFeeSession] = useState<string>('');
   const [loading, setLoading] = useState(true);
 
   const admissionSteps = [
@@ -48,46 +49,24 @@ const Admissions: React.FC = () => {
     'Admission Confirmation'
   ];
 
-  // Fetch fee structure data on component mount
+  // The school's published fee structure for the current session
   useEffect(() => {
-    const fetchFeeStructure = async () => {
-      try {
-        setLoading(true);
-        const response = await enhancedFeesAPI.getFeeStructure();
-
-        // Filter for current session year (2025-26) and format data for display
-        const currentSessionStructures = response.data
-          .filter((structure: any) => structure.session_year_name === '2025-26')
-          .map((structure: any) => ({
-            class: structure.class_name,
-            admissionFee: `₹${structure.admission_fee?.toLocaleString() || '0'}`,
-            tuitionFee: `₹${Math.round(structure.total_annual_fee / 12)?.toLocaleString() || '0'}/month`,
-            totalAnnual: `₹${structure.total_annual_fee?.toLocaleString() || '0'}`
-          }));
-
-        setFeeStructure(currentSessionStructures);
-      } catch (error) {
-        console.error('Error fetching fee structure:', error);
-        // Fallback to current database structure if API fails
-        setFeeStructure([
-          { class: 'PG', admissionFee: '₹0', tuitionFee: '₹640/month', totalAnnual: '₹7,680' },
-          { class: 'LKG', admissionFee: '₹0', tuitionFee: '₹680/month', totalAnnual: '₹8,160' },
-          { class: 'UKG', admissionFee: '₹0', tuitionFee: '₹720/month', totalAnnual: '₹8,640' },
-          { class: 'Class 1', admissionFee: '₹0', tuitionFee: '₹800/month', totalAnnual: '₹9,600' },
-          { class: 'Class 2', admissionFee: '₹0', tuitionFee: '₹840/month', totalAnnual: '₹10,080' },
-          { class: 'Class 3', admissionFee: '₹0', tuitionFee: '₹880/month', totalAnnual: '₹10,560' },
-          { class: 'Class 4', admissionFee: '₹0', tuitionFee: '₹920/month', totalAnnual: '₹11,040' },
-          { class: 'Class 5', admissionFee: '₹0', tuitionFee: '₹960/month', totalAnnual: '₹11,520' },
-          { class: 'Class 6', admissionFee: '₹0', tuitionFee: '₹1,000/month', totalAnnual: '₹12,000' },
-          { class: 'Class 7', admissionFee: '₹0', tuitionFee: '₹1,040/month', totalAnnual: '₹12,480' },
-          { class: 'Class 8', admissionFee: '₹0', tuitionFee: '₹1,080/month', totalAnnual: '₹12,960' },
-        ]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchFeeStructure();
+    const rupees = (value: string) => `₹${Number(value).toLocaleString('en-IN')}`;
+    publicAPI
+      .getFeeStructure()
+      .then((response) => {
+        setFeeSession(response.data.session_year || '');
+        setFeeStructure(
+          (response.data.classes || []).map((row: any) => ({
+            class: row.class_name,
+            tuitionFee: Number(row.monthly) > 0 ? `${rupees(row.monthly)}/month` : '—',
+            oneTime: Number(row.one_time) > 0 ? rupees(row.one_time) : '—',
+            totalAnnual: rupees(row.first_year_total),
+          }))
+        );
+      })
+      .catch(() => setFeeStructure([]))
+      .finally(() => setLoading(false));
   }, []);
 
   const requiredDocuments = [
@@ -199,7 +178,7 @@ const Admissions: React.FC = () => {
             mb: { xs: 2, sm: 3 }
           }}
         >
-          Fee Structure
+          Fee Structure{feeSession ? ` ${feeSession}` : ''}
         </Typography>
 
         {/* Mobile-friendly fee structure - Cards for mobile, Table for desktop */}
@@ -229,7 +208,7 @@ const Admissions: React.FC = () => {
                     </Box>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
                       <Typography variant="body2" color="text.secondary">
-                        Annual:
+                        First year in all:
                       </Typography>
                       <Typography variant="body2" fontWeight="bold" color="primary.main">
                         {row.totalAnnual}
@@ -247,16 +226,17 @@ const Admissions: React.FC = () => {
           <TableContainer component={Paper} elevation={3}>
             <Table>
               <TableHead>
-                <TableRow sx={{ backgroundColor: 'primary.main' }}>
+                <TableRow sx={{ background: 'linear-gradient(135deg, #2563eb 0%, #7c3aed 100%)', '& .MuiTableCell-head': { backgroundColor: 'transparent', color: 'white' } }}>
                   <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Class</TableCell>
-                  <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Monthly Tuition</TableCell>
-                  <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Annual Tuition</TableCell>
+                  <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Monthly fees</TableCell>
+                  <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>One-time, at admission</TableCell>
+                  <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>First year in all</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={3} sx={{ textAlign: 'center', py: 4 }}>
+                    <TableCell colSpan={4} sx={{ textAlign: 'center', py: 4 }}>
                       <CircularProgress size={24} />
                       <Typography variant="body2" sx={{ mt: 1 }}>
                         Loading fee structure...
@@ -270,6 +250,7 @@ const Admissions: React.FC = () => {
                         {row.class}
                       </TableCell>
                       <TableCell>{row.tuitionFee}</TableCell>
+                      <TableCell>{row.oneTime}</TableCell>
                       <TableCell sx={{ fontWeight: 'bold', color: 'primary.main' }}>
                         {row.totalAnnual}
                       </TableCell>
@@ -289,7 +270,7 @@ const Admissions: React.FC = () => {
               lineHeight: { xs: 1.4, sm: 1.5 }
             }}
           >
-            * Tuition fees shown are comprehensive and include all academic charges. No additional admission fees are currently charged. Additional charges may apply for transport, uniform, and books.
+            {feeStructure.length === 0 && !loading ? 'The fee structure for this session is not published yet. Please contact the school office for fee details.' : '* Fees for a new student. The first-year figure adds up every fee billed in the year. Transport, uniform and books are charged separately.'}
           </Typography>
         </Alert>
       </Box>

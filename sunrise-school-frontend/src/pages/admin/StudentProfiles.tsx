@@ -40,8 +40,7 @@ import ServiceConfigurationLoader from '../../components/common/ServiceConfigura
 import CollapsibleFilterSection from '../../components/common/CollapsibleFilterSection';
 import { useServiceConfiguration } from '../../contexts/ConfigurationContext';
 import { configurationService } from '../../services/configurationService';
-import DetectedSiblingsDialog from '../../components/common/DetectedSiblingsDialog';
-import SiblingInfoDisplay from '../../components/common/SiblingInfoDisplay';
+import SiblingsManager from '../../components/common/SiblingsManager';
 import {
   Add,
   Edit,
@@ -54,7 +53,7 @@ import {
   VpnKey as KeyIcon,
 } from '@mui/icons-material';
 import AdminLayout from '../../components/Layout/AdminLayout';
-import { studentsAPI, studentSiblingsAPI } from '../../services/api';
+import { studentsAPI } from '../../services/api';
 import { useErrorDialog } from '../../hooks/useErrorDialog';
 import ErrorDialog from '../../components/common/ErrorDialog';
 import ResetPasswordDialog from '../../components/admin/ResetPasswordDialog';
@@ -130,14 +129,12 @@ const StudentProfilesContent: React.FC = () => {
   const perPage = DEFAULT_PAGE_SIZE;
 
   // Sibling-related state
-  const [detectedSiblingsDialogOpen, setDetectedSiblingsDialogOpen] = useState(false);
-  const [detectedSiblingsInfo, setDetectedSiblingsInfo] = useState<any>(null);
-  const [createdStudentName, setCreatedStudentName] = useState('');
+  // A student just added who may have siblings at the school: offer to link them
+  const [newStudentForSiblings, setNewStudentForSiblings] = useState<{ id: number; name: string } | null>(null);
 
   // Password reset state
   const [resetPasswordDialogOpen, setResetPasswordDialogOpen] = useState(false);
   const [selectedUserForReset, setSelectedUserForReset] = useState<any>(null);
-  const [siblingWaiverInfo, setSiblingWaiverInfo] = useState<any>(null);
   const [studentForm, setStudentForm] = useState({
     admission_number: '',
     roll_number: '',
@@ -222,18 +219,6 @@ const StudentProfilesContent: React.FC = () => {
       setSnackbar({ open: true, message: 'Error loading students', severity: 'error' });
     } finally {
       setLoading(false);
-    }
-  };
-
-  // Load sibling waiver info for a student
-  const loadSiblingWaiverInfo = async (studentId: number) => {
-    try {
-      const waiverInfo = await studentSiblingsAPI.getSiblingWaiverInfo(studentId);
-      setSiblingWaiverInfo(waiverInfo);
-    } catch (error) {
-      console.error('Error loading sibling waiver info:', error);
-      // Don't show error snackbar - just log it
-      setSiblingWaiverInfo(null);
     }
   };
 
@@ -333,13 +318,6 @@ const StudentProfilesContent: React.FC = () => {
         is_active: student.is_active
       });
       setSelectedStudent(student);
-
-      // Load sibling waiver info for view mode
-      if (mode === 'view') {
-        loadSiblingWaiverInfo(student.id);
-      } else {
-        setSiblingWaiverInfo(null);
-      }
     } else {
       // For new student, fetch next admission number
       try {
@@ -487,14 +465,10 @@ const StudentProfilesContent: React.FC = () => {
         // Create new student
         const response = await studentsAPI.createStudent(studentData);
 
-        // Check if siblings were detected
-        if (response.data?.detected_siblings && response.data.detected_siblings.siblings.length > 0) {
-          // Show detected siblings dialog
-          setDetectedSiblingsInfo(response.data.detected_siblings);
-          setCreatedStudentName(`${studentForm.first_name} ${studentForm.last_name}`);
-          setDetectedSiblingsDialogOpen(true);
-        } else {
-          setSnackbar({ open: true, message: 'Student created successfully', severity: 'success' });
+        setSnackbar({ open: true, message: 'Student created successfully', severity: 'success' });
+        // Students with the same father's name and phone may be siblings: offer to link them
+        if (response.data?.id && response.data?.suggested_siblings?.siblings?.length > 0) {
+          setNewStudentForSiblings({ id: response.data.id, name: `${studentForm.first_name} ${studentForm.last_name}` });
         }
 
         handleCloseDialog();
@@ -1183,10 +1157,17 @@ const StudentProfilesContent: React.FC = () => {
                 />
               </Grid>
 
-              {/* Sibling Information - Only show in view mode */}
-              {dialogMode === 'view' && siblingWaiverInfo && siblingWaiverInfo.has_siblings && (
+              {/* Brothers and sisters at the school: link them here for the sibling concession */}
+              {selectedStudent && dialogMode !== 'create' && (
                 <Grid size={12} sx={{ mt: 2 }}>
-                  <SiblingInfoDisplay waiverInfo={siblingWaiverInfo} />
+                  <Box sx={{ p: 2, borderRadius: '16px', border: '1px solid rgba(15,23,42,0.08)', background: 'rgba(124,58,237,0.03)' }}>
+                    <SiblingsManager studentId={selectedStudent.id} readOnly={dialogMode === 'view'} />
+                    {dialogMode === 'edit' && (
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+                        Links are saved at once. The sibling concession reaches unpaid dues the next time dues are generated.
+                      </Typography>
+                    )}
+                  </Box>
                 </Grid>
               )}
             </Grid>
@@ -1203,16 +1184,18 @@ const StudentProfilesContent: React.FC = () => {
           </DialogActions>
         </Dialog>
 
-        {/* Detected Siblings Dialog */}
-        <DetectedSiblingsDialog
-          open={detectedSiblingsDialogOpen}
-          onClose={() => {
-            setDetectedSiblingsDialogOpen(false);
-            setSnackbar({ open: true, message: 'Student created successfully with sibling links', severity: 'success' });
-          }}
-          detectedSiblingsInfo={detectedSiblingsInfo}
-          studentName={createdStudentName}
-        />
+        {/* Offer to link siblings of a student just added */}
+        <Dialog open={Boolean(newStudentForSiblings)} onClose={() => setNewStudentForSiblings(null)} maxWidth="sm" fullWidth>
+          <DialogTitle>Does {newStudentForSiblings?.name} have siblings here?</DialogTitle>
+          <DialogContent>
+            {newStudentForSiblings && <SiblingsManager studentId={newStudentForSiblings.id} />}
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setNewStudentForSiblings(null)} variant="contained">
+              Done
+            </Button>
+          </DialogActions>
+        </Dialog>
 
         {/* Reset Password Dialog */}
         <ResetPasswordDialog

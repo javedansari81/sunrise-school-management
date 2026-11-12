@@ -32,6 +32,8 @@ Phase 4 is done (Nov 11, 2026, merged in PR #5). The dashboard, student pages, r
 
 Phase 5 is done (Nov 11, 2026, merged in PR #6). Raw SQL is now checked, not trusted: on a school session every `text()` statement must filter by `:school_id`, which `app/core/tenant.py` fills in from the session. A statement without it, or with another school's id, raises instead of running; queries on global lists only use `global_sql()`. All 62 raw SQL statements in 12 files are scoped. Fixed on the way: `/configuration` returned every school's classes, session years, departments and other lists; the dashboard counted another school's students, leave and expenses when given that school's session year (now 404); attendance defaulted to Sunrise's session year id 4 (now the school's current session). Generated emails use the school setting `user.email_domain` (Sunrise keeps `sunrise.com` through migration `V005`). Gallery, inventory and profile photo uploads go to `<school code>/<kind>` Cloudinary folders. The unused WhatsApp text notification with Sunrise's name hardcoded is removed. 169 of 170 tests pass on the local `warsi_db`; the one failure is the known local-data failure `test_build_plans_and_generate_dues`. `V005` is applied to the local `warsi_db`. Next step: Phase 6, frontend. Deploying to DigitalOcean, including running `V005`, is deferred to go-live.
 
+Phase 6 is done in code (Nov 12, 2026, branch `frontend-phase6`), not yet checked in a browser. The frontend finds its school from the subdomain (`REACT_APP_BASE_DOMAIN`, or `<code>.localhost` locally, or a fixed `REACT_APP_SCHOOL_CODE`), sends it as `X-School-Code`, and brands itself from the new `GET /public/school`. The admin, teacher and student portals and the public site share one shell (`components/Layout/PortalLayout.tsx`) with a new left panel and theme (`src/theme.ts`). New screens: Fees (`/admin/fees`: collect, fee structures, fee heads, concessions, billing run, reports), Transport (`/admin/transport`: riders, routes and stops, vehicles, rates), the student's My fees, and platform admin (`/platform/login`, `/platform`). Backend additions: `GET /public/school`, `GET /public/fee-structure` (the Admissions page), `GET /billing/my/statement` and a student's own receipt. `tests/transport/test_screen_requests.py` sends the request bodies the screens send. The old fee and transport screens and `transportService.ts` are deleted. Next step: click through the screens in a browser, then Phase 7.
+
 Status values: Not started, In progress, Done, Blocked.
 
 | Phase | Status | Notes |
@@ -42,7 +44,7 @@ Status values: Not started, In progress, Done, Blocked.
 | 3. Transport operations module | Done | Merged in PR #4. `/api/v1/transit`, migration `V003`. Transport screens in Phase 6 |
 | 4. Switch dependents and remove old code | Done | Merged in PR #5. Migration `V004`, applied to the local `warsi_db` |
 | 5. Scope the remaining modules | Done | Merged in PR #6. Migration `V005`, applied to the local `warsi_db`. Raw SQL guard in `app/core/tenant.py` |
-| 6. Frontend | Not started | |
+| 6. Frontend | In progress | Code complete on branch `frontend-phase6`; needs a browser check. Adds `/public/school`, `/public/fee-structure`, `/billing/my/statement` |
 | 7. Hardening | Not started | Includes row-level security (decision 12) |
 
 ## Current state
@@ -305,10 +307,12 @@ There are eight phases, run in order. Each phase ends with the app running and i
 
 ### Phase 6: Frontend
 
-- [ ] School-aware login (by subdomain) and per-school branding
-- [ ] New fee screens: heads, structures, generate dues, collect payment, student ledger, reports
-- [ ] New transport screens: routes, stops, vehicles, assignments
-- [ ] Super admin screens for managing schools
+- [x] School-aware login (by subdomain) and per-school branding (`config/school.ts`, `contexts/SchoolContext.tsx`)
+- [x] New fee screens: heads, structures, concessions, generate dues, collect payment, student ledger, reports; student's My fees
+- [x] New transport screens: routes, stops, vehicles, rates, assignments
+- [x] Super admin screens for managing schools (`/platform`)
+- [x] One shell and theme for the portals and the public site; public Admissions page shows the published fee structure
+- [ ] Check every screen in a browser
 
 ### Phase 7: Hardening
 
