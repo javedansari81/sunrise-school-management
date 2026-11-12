@@ -31,6 +31,8 @@ import StudentUDISEReport from './pages/admin/StudentUDISEReport';
 import FeeTrackingReport from './pages/admin/FeeTrackingReport';
 import DailyCollectionReport from './pages/admin/DailyCollectionReport';
 import SessionProgression from './pages/admin/SessionProgression';
+import SchoolSettings from './pages/admin/SchoolSettings';
+import ShopRoute from './components/ShopRoute';
 import TeacherDashboard from './pages/teacher/TeacherDashboard';
 import TeacherLeaveManagementPage from './pages/teacher/TeacherLeaveManagementPage';
 import TeacherStudentProfilesPage from './pages/teacher/TeacherStudentProfilesPage';
@@ -123,14 +125,16 @@ const SchoolSite: React.FC = () => {
           <Route path="/admin/transport" element={<ProtectedRoute requiredRole="ADMIN"><TransportManagement /></ProtectedRoute>} />
           <Route path="/admin/expenses" element={<ProtectedRoute requiredRole="ADMIN"><ExpenseManagement /></ProtectedRoute>} />
           <Route path="/admin/leaves" element={<ProtectedRoute requiredRole="ADMIN"><LeaveManagement /></ProtectedRoute>} />
-          <Route path="/admin/shop-sales" element={<ProtectedRoute requiredRole="ADMIN"><InventoryManagement /></ProtectedRoute>} />
-          <Route path="/admin/stock-procurement" element={<ProtectedRoute requiredRole="ADMIN"><StockProcurementManagement /></ProtectedRoute>} />
-          <Route path="/admin/pricing" element={<ProtectedRoute requiredRole="ADMIN"><PricingManagement /></ProtectedRoute>} />
-          <Route path="/admin/stock-levels" element={<ProtectedRoute requiredRole="ADMIN"><StockLevelsManagement /></ProtectedRoute>} />
+          {/* School Shop: only for schools that turned it on in Settings */}
+          <Route path="/admin/shop-sales" element={<ProtectedRoute requiredRole="ADMIN"><ShopRoute><InventoryManagement /></ShopRoute></ProtectedRoute>} />
+          <Route path="/admin/stock-procurement" element={<ProtectedRoute requiredRole="ADMIN"><ShopRoute><StockProcurementManagement /></ShopRoute></ProtectedRoute>} />
+          <Route path="/admin/pricing" element={<ProtectedRoute requiredRole="ADMIN"><ShopRoute><PricingManagement /></ShopRoute></ProtectedRoute>} />
+          <Route path="/admin/stock-levels" element={<ProtectedRoute requiredRole="ADMIN"><ShopRoute><StockLevelsManagement /></ShopRoute></ProtectedRoute>} />
           <Route path="/admin/attendance" element={<ProtectedRoute requiredRole="ADMIN"><AttendanceManagement /></ProtectedRoute>} />
           <Route path="/admin/gallery-management" element={<ProtectedRoute requiredRole="ADMIN"><GalleryManagement /></ProtectedRoute>} />
           <Route path="/admin/students" element={<ProtectedRoute requiredRole="ADMIN"><StudentProfiles /></ProtectedRoute>} />
           <Route path="/admin/teachers" element={<ProtectedRoute requiredRole="ADMIN"><TeacherProfiles /></ProtectedRoute>} />
+          <Route path="/admin/settings" element={<ProtectedRoute requiredRole="ADMIN"><SchoolSettings /></ProtectedRoute>} />
           <Route path="/admin/alerts" element={<ProtectedRoute requiredRole="ADMIN"><AlertsPage /></ProtectedRoute>} />
           <Route path="/admin/reports/student-udise" element={<ProtectedRoute requiredRole="ADMIN"><StudentUDISEReport /></ProtectedRoute>} />
           <Route path="/admin/reports/fee-tracking" element={<ProtectedRoute requiredRole="ADMIN"><FeeTrackingReport /></ProtectedRoute>} />

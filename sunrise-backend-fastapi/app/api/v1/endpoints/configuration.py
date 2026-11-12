@@ -81,6 +81,13 @@ SERVICE_METADATA_MAPPINGS = {
     ]
 }
 
+def clear_school_configuration_cache(school_id: int) -> None:
+    """Drop one school's cached lists, after the Settings screen changed them."""
+    for key in [key for key in _service_configuration_caches if key.startswith(f"{school_id}:")]:
+        _service_configuration_caches.pop(key, None)
+        _service_cache_timestamps.pop(key, None)
+
+
 async def get_service_metadata_configuration(db: AsyncSession, service_name: str) -> Dict[str, Any]:
     """
     Fetch service-specific metadata configuration from database
@@ -281,7 +288,7 @@ async def _get_service_configuration_with_cache(
             media_type="application/json",
             headers={
                 "Content-Encoding": "gzip",
-                "Cache-Control": f"private, max-age={CACHE_TTL}",
+                "Cache-Control": "private, no-cache",
                 "Vary": "Authorization, Origin, X-School-Code",
                 "X-Service-Name": service_name,
                 "X-Cache-Status": "HIT" if cache_hit else "MISS",
@@ -293,7 +300,7 @@ async def _get_service_configuration_with_cache(
         return JSONResponse(
             content=response_data,
             headers={
-                "Cache-Control": f"private, max-age={CACHE_TTL}",
+                "Cache-Control": "private, no-cache",
                 "Vary": "Authorization, Origin, X-School-Code",
                 "X-Service-Name": service_name,
                 "X-Cache-Status": "HIT" if cache_hit else "MISS",

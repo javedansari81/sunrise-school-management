@@ -21,8 +21,10 @@ import {
   Settings as SettingsIcon,
   Storefront as StorefrontIcon,
   TrendingUp as SessionProgressionIcon,
+  Tune as TuneIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../../contexts/AuthContext';
+import { useSchool } from '../../contexts/SchoolContext';
 import PortalLayout, { NavItem } from './PortalLayout';
 
 interface AdminLayoutProps {
@@ -32,6 +34,7 @@ interface AdminLayoutProps {
 const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   const { user } = useAuth();
   const isSuperAdmin = user?.user_type?.toUpperCase() === 'SUPER_ADMIN';
+  const shopEnabled = useSchool().school.features.shop;
 
   const items: NavItem[] = useMemo(() => {
     const menu: NavItem[] = [
@@ -53,7 +56,8 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
           { label: 'Expenses', icon: <Receipt />, path: '/admin/expenses' },
         ],
       },
-      {
+      // School Shop: only for schools that turned it on in Settings
+      ...(shopEnabled ? [{
         label: 'School Shop',
         icon: <StorefrontIcon />,
         children: [
@@ -62,7 +66,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
           { label: 'Pricing', icon: <PriceChangeIcon />, path: '/admin/pricing' },
           { label: 'Stock Levels', icon: <InventoryIcon />, path: '/admin/stock-levels' },
         ],
-      },
+      }] : []),
       {
         label: 'Operations',
         icon: <SettingsIcon />,
@@ -86,8 +90,9 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
     if (isSuperAdmin) {
       menu.push({ label: 'Session Progression', icon: <SessionProgressionIcon />, path: '/admin/session-progression' });
     }
+    menu.push({ label: 'Settings', icon: <TuneIcon />, path: '/admin/settings' });
     return menu;
-  }, [isSuperAdmin]);
+  }, [isSuperAdmin, shopEnabled]);
 
   return (
     <PortalLayout portalName="Admin Portal" items={items}>

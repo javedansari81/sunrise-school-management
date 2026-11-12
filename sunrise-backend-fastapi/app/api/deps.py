@@ -124,6 +124,20 @@ async def get_current_admin_user(
     return current_user
 
 
+async def require_shop_enabled(
+    current_user: User = Depends(get_current_admin_user),
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    """School Shop routes answer only for schools that turned the shop on in Settings."""
+    from app.services.school_settings import shop_enabled
+
+    if not await shop_enabled(db):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="The School Shop is turned off for this school. An admin can turn it on in Settings.",
+        )
+
+
 async def get_current_platform_admin(
     db: AsyncSession = Depends(get_db),
     credentials: HTTPAuthorizationCredentials = Depends(security),

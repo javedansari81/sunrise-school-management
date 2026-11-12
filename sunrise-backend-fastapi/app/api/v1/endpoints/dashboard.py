@@ -434,7 +434,10 @@ async def get_admin_dashboard_stats(
         # Section 7: Inventory Stock Alerts (NOT SESSION FILTERED 🌐)
         logger.info("--- Section 7: Inventory Stock Alerts (operational data) ---")
         try:
-            low_stock_items = await crud_inventory_stock.get_low_stock_alerts(db)
+            from app.services.school_settings import shop_enabled
+
+            # No School Shop, no stock to warn about
+            low_stock_items = await crud_inventory_stock.get_low_stock_alerts(db) if await shop_enabled(db) else []
             critical_count = sum(1 for item in low_stock_items if item.current_quantity == 0)
             warning_count = len(low_stock_items) - critical_count
 

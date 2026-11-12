@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { apiConfig } from '../config/apiConfig';
 import { SCHOOL_CODE } from '../config/school';
@@ -14,7 +14,15 @@ export interface SchoolBranding {
   email?: string | null;
   website?: string | null;
   currency: string;
+  /** Optional modules this school turned on in Settings. */
+  features: SchoolFeatures;
 }
+
+export interface SchoolFeatures {
+  shop: boolean;
+}
+
+const NO_FEATURES: SchoolFeatures = { shop: false };
 
 interface SchoolContextType {
   school: SchoolBranding;
@@ -22,6 +30,8 @@ interface SchoolContextType {
   ready: boolean;
   /** Set when this address belongs to no school, or to a suspended one. */
   problem: string | null;
+  /** Fetch the school again, after its profile or settings changed. */
+  refresh: () => Promise<void>;
 }
 
 // The logo shipped with the app belongs to the school the app started with
@@ -37,6 +47,7 @@ const fallback: SchoolBranding = {
   shortName: DEFAULT_NAME,
   logoUrl: logoFor(SCHOOL_CODE),
   currency: 'INR',
+  features: NO_FEATURES,
 };
 
 const CACHE_KEY = `schoolBranding:${SCHOOL_CODE || 'default'}`;
@@ -44,13 +55,18 @@ const CACHE_KEY = `schoolBranding:${SCHOOL_CODE || 'default'}`;
 const readCache = (): SchoolBranding | null => {
   try {
     const raw = sessionStorage.getItem(CACHE_KEY);
-    return raw ? (JSON.parse(raw) as SchoolBranding) : null;
+    return raw ? { ...fallback, ...(JSON.parse(raw) as SchoolBranding) } : null;
   } catch {
     return null;
   }
 };
 
-const SchoolContext = createContext<SchoolContextType>({ school: fallback, ready: false, problem: null });
+const SchoolContext = createContext<SchoolContextType>({
+  school: fallback,
+  ready: false,
+  problem: null,
+  refresh: async () => undefined,
+});
 
 export const useSchool = (): SchoolContextType => useContext(SchoolContext);
 
@@ -66,50 +82,55 @@ export const SchoolProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [ready, setReady] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
 
+  const load = useCallback(async (isCancelled: () => boolean = () => false) => {
+    try {
+      const { data } = await axios.create(apiConfig).get('/public/school');
+      if (isCancelled()) return;
+      const branding: SchoolBranding = {
+        code: data.code,
+        name: data.name,
+        shortName: data.short_name || data.name,
+        logoUrl: logoFor(data.code, data.logo_url),
+        address: data.address,
+        phone: data.phone,
+        email: data.email,
+        website: data.website,
+        currency: data.currency || 'INR',
+        features: { ...NO_FEATURES, ...(data.features || {}) },
+      };
+      setSchool(branding);
+      try {
+        sessionStorage.setItem(CACHE_KEY, JSON.stringify(branding));
+      } catch {
+        /* private mode: branding is simply fetched again next time */
+      }
+    } catch (error: any) {
+      if (isCancelled()) return;
+      const status = error?.response?.status;
+      if (status === 404) setProblem('No school is registered at this address.');
+      else if (status === 403) setProblem('This school is currently suspended.');
+      // Any other failure (API down): keep the defaults, the pages report their own errors
+    } finally {
+      if (!isCancelled()) setReady(true);
+    }
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
-    axios
-      .create(apiConfig)
-      .get('/public/school')
-      .then(({ data }) => {
-        if (cancelled) return;
-        const branding: SchoolBranding = {
-          code: data.code,
-          name: data.name,
-          shortName: data.short_name || data.name,
-          logoUrl: logoFor(data.code, data.logo_url),
-          address: data.address,
-          phone: data.phone,
-          email: data.email,
-          website: data.website,
-          currency: data.currency || 'INR',
-        };
-        setSchool(branding);
-        try {
-          sessionStorage.setItem(CACHE_KEY, JSON.stringify(branding));
-        } catch {
-          /* private mode: branding is simply fetched again next time */
-        }
-      })
-      .catch((error) => {
-        if (cancelled) return;
-        const status = error?.response?.status;
-        if (status === 404) setProblem('No school is registered at this address.');
-        else if (status === 403) setProblem('This school is currently suspended.');
-        // Any other failure (API down): keep the defaults, the pages report their own errors
-      })
-      .finally(() => !cancelled && setReady(true));
+    load(() => cancelled);
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [load]);
+
+  const refresh = useCallback(() => load(), [load]);
 
   useEffect(() => {
     if (!window.location.pathname.startsWith('/platform')) document.title = school.name;
     setFavicon(school.logoUrl || '/favicon.ico');
   }, [school]);
 
-  const value = useMemo(() => ({ school, ready, problem }), [school, ready, problem]);
+  const value = useMemo(() => ({ school, ready, problem, refresh }), [school, ready, problem, refresh]);
   return <SchoolContext.Provider value={value}>{children}</SchoolContext.Provider>;
 };
 

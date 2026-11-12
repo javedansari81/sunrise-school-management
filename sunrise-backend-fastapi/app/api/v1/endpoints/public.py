@@ -19,6 +19,8 @@ async def get_public_school(request: Request, db: AsyncSession = Depends(get_sch
     Name, logo and contact details of the school this request is for (by
     subdomain or X-School-Code). The frontend brands itself with it before login.
     """
+    from app.services.school_settings import features
+
     school = request.state.school
     return {
         "code": school.code,
@@ -30,6 +32,7 @@ async def get_public_school(request: Request, db: AsyncSession = Depends(get_sch
         "email": school.email,
         "website": school.website,
         "currency": school.currency,
+        "features": await features(db),
     }
 
 @router.get("/admissions")
