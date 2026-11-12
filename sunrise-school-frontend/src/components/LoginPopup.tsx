@@ -1,33 +1,24 @@
-import React, { useState, useEffect } from 'react';
-import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  TextField,
-  Button,
-  Box,
-  Typography,
-  Alert,
-  IconButton,
-  InputAdornment,
-} from '@mui/material';
-import {
-  Close as CloseIcon,
-  Visibility,
-  VisibilityOff,
-  School as SchoolIcon,
-  Login as LoginIcon,
-  Warning as WarningIcon,
-} from '@mui/icons-material';
-import { useAuth } from '../contexts/AuthContext';
+import React, { useEffect, useState } from 'react';
+import { Alert, Box, Button, CircularProgress, Dialog, IconButton, InputAdornment, TextField, Typography } from '@mui/material';
+import { Close as CloseIcon, Login as LoginIcon, Visibility, VisibilityOff } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
+import { useSchool } from '../contexts/SchoolContext';
 import { sessionService } from '../services/sessionService';
-import { dialogStyles } from '../styles/dialogTheme';
+import SchoolLogo from './common/SchoolLogo';
+import { brand, ease } from '../theme';
 
 interface LoginPopupProps {
   open: boolean;
   onClose: () => void;
 }
+
+const HOME_BY_ROLE: Record<string, string> = {
+  ADMIN: '/admin/dashboard',
+  SUPER_ADMIN: '/admin/dashboard',
+  TEACHER: '/teacher/dashboard',
+  STUDENT: '/student/dashboard',
+};
 
 const LoginPopup: React.FC<LoginPopupProps> = ({ open, onClose }) => {
   const [email, setEmail] = useState('');
@@ -35,51 +26,31 @@ const LoginPopup: React.FC<LoginPopupProps> = ({ open, onClose }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [sessionExpiredMessage, setSessionExpiredMessage] = useState('');
+  const [sessionExpired, setSessionExpired] = useState(false);
 
   const { login } = useAuth();
+  const { school } = useSchool();
   const navigate = useNavigate();
 
-  // Check if this popup was triggered by session expiration
+  // Was the popup opened because the session ran out?
   useEffect(() => {
-    if (open) {
-      const token = localStorage.getItem('authToken');
-      if (token && sessionService.isTokenExpired(token)) {
-        setSessionExpiredMessage('Your session has expired. Please log in again to continue.');
-      } else if (!token) {
-        setSessionExpiredMessage('Welcome to Sunrise School. Please sign in to access your account.');
-      } else {
-        setSessionExpiredMessage('');
-      }
-    }
+    if (!open) return;
+    const token = localStorage.getItem('authToken');
+    setSessionExpired(Boolean(token && sessionService.isTokenExpired(token)));
   }, [open]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
     setLoading(true);
     setError('');
-
     try {
+      // The API knows the school from this site's address, so the same email can exist at two schools
       const response = await login(email, password);
-
-      // Close popup first
       onClose();
-
-      // Redirect based on user role
-      const userType = response.user.user_type;
-
-      // Redirect users based on their role
-      if (userType?.toUpperCase() === 'ADMIN') {
-        navigate('/admin/dashboard');
-      } else if (userType?.toUpperCase() === 'TEACHER') {
-        navigate('/teacher/dashboard');
-      } else if (userType?.toUpperCase() === 'STUDENT') {
-        navigate('/student/dashboard');
-      } else {
-        navigate('/'); // Other users go to home
-      }
+      navigate(HOME_BY_ROLE[response.user.user_type?.toUpperCase()] || '/');
     } catch (err: any) {
-      setError(err.response?.data?.detail || err.message || 'Login failed. Please check your credentials.');
+      const detail = err.response?.data?.detail;
+      setError(typeof detail === 'string' ? detail : err.message || 'Login failed. Please check your email and password.');
     } finally {
       setLoading(false);
     }
@@ -90,121 +61,93 @@ const LoginPopup: React.FC<LoginPopupProps> = ({ open, onClose }) => {
     setPassword('');
     setError('');
     setShowPassword(false);
-    setSessionExpiredMessage('');
     onClose();
   };
-
-  const togglePasswordVisibility = () => {
-    setShowPassword(!showPassword);
-  };
-
-
 
   return (
     <Dialog
       open={open}
       onClose={handleClose}
-      maxWidth="sm"
+      maxWidth="xs"
       fullWidth
-      slotProps={{
-        paper: {
-          sx: dialogStyles.paper
-        }
-      }}
+      slotProps={{ paper: { sx: { overflow: 'hidden', borderRadius: '26px', animation: `fadeUp 0.45s ${ease} both` } } }}
     >
-      <DialogTitle sx={dialogStyles.title}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <SchoolIcon sx={{ fontSize: 32 }} />
-          <Typography sx={dialogStyles.titleText}>
-            Login to Sunrise School
-          </Typography>
-        </Box>
-        <IconButton
-          onClick={handleClose}
-          sx={dialogStyles.closeButton}
-        >
+      {/* School banner */}
+      <Box
+        sx={{
+          position: 'relative',
+          overflow: 'hidden',
+          px: 3,
+          pt: 4,
+          pb: 3.5,
+          color: '#fff',
+          textAlign: 'center',
+          background: brand.gradientHero,
+          '&::before, &::after': { content: '""', position: 'absolute', borderRadius: '50%', filter: 'blur(46px)', animation: 'floatSlow 9s ease-in-out infinite' },
+          '&::before': { width: 200, height: 200, top: -90, right: -60, background: 'rgba(244,114,182,0.5)' },
+          '&::after': { width: 180, height: 180, bottom: -100, left: -50, background: 'rgba(56,189,248,0.45)', animationDelay: '-4s' },
+        }}
+      >
+        <IconButton onClick={handleClose} aria-label="Close" sx={{ position: 'absolute', top: 10, right: 10, zIndex: 1, color: '#fff' }}>
           <CloseIcon />
         </IconButton>
-      </DialogTitle>
-
-      <DialogContent sx={dialogStyles.content}>
-        {sessionExpiredMessage && (
-          <Alert
-            severity="info"
-            sx={dialogStyles.alert}
-            icon={<WarningIcon />}
-          >
-            {sessionExpiredMessage}
-          </Alert>
-        )}
-
-        {error && (
-          <Alert severity="error" sx={dialogStyles.alert}>
-            {error}
-          </Alert>
-        )}
-
-        <Box component="form" onSubmit={handleSubmit}>
-          <TextField
-            fullWidth
-            label="Email Address"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            margin="normal"
-            variant="outlined"
-            sx={{ ...dialogStyles.textField, mb: 2 }}
-            helperText="Please enter your registered email address"
-          />
-
-          <TextField
-            fullWidth
-            label="Password"
-            type={showPassword ? 'text' : 'password'}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            margin="normal"
-            variant="outlined"
-            sx={{ ...dialogStyles.textField, mb: 3 }}
-            slotProps={{
-              input: {
-                endAdornment: (
-                  <InputAdornment position="end">
-                    <IconButton
-                      aria-label="toggle password visibility"
-                      onClick={togglePasswordVisibility}
-                      edge="end"
-                    >
-                      {showPassword ? <VisibilityOff /> : <Visibility />}
-                    </IconButton>
-                  </InputAdornment>
-                ),
-              }
-            }}
-          />
-
-          <Button
-            type="submit"
-            fullWidth
-            variant="contained"
-            size="large"
-            disabled={loading}
-            startIcon={<LoginIcon />}
-            sx={{
-              ...dialogStyles.primaryButton,
-              py: 1.5,
-              fontSize: '1.1rem',
-              mb: 2,
-            }}
-          >
-            {loading ? 'Signing In...' : 'Sign In'}
-          </Button>
+        <Box sx={{ position: 'relative', display: 'inline-block' }}>
+          <SchoolLogo size={72} ring />
         </Box>
+        <Typography sx={{ position: 'relative', mt: 1.5, fontSize: '1.3rem', fontWeight: 800, letterSpacing: '-0.01em', lineHeight: 1.25 }}>
+          {school.name}
+        </Typography>
+        <Typography sx={{ position: 'relative', mt: 0.5, opacity: 0.85, fontSize: '0.9rem' }}>
+          Sign in to your school account
+        </Typography>
+      </Box>
 
+      <Box component="form" onSubmit={handleSubmit} sx={{ p: 3, display: 'flex', flexDirection: 'column', gap: 2 }}>
+        {sessionExpired && <Alert severity="info">Your session has ended. Please sign in again to continue.</Alert>}
+        {error && <Alert severity="error">{error}</Alert>}
 
-      </DialogContent>
+        <TextField
+          label="Email address"
+          type="email"
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
+          required
+          autoFocus
+          autoComplete="username"
+        />
+        <TextField
+          label="Password"
+          type={showPassword ? 'text' : 'password'}
+          value={password}
+          onChange={(event) => setPassword(event.target.value)}
+          required
+          autoComplete="current-password"
+          slotProps={{
+            input: {
+              endAdornment: (
+                <InputAdornment position="end">
+                  <IconButton aria-label={showPassword ? 'Hide password' : 'Show password'} onClick={() => setShowPassword(!showPassword)} edge="end">
+                    {showPassword ? <VisibilityOff /> : <Visibility />}
+                  </IconButton>
+                </InputAdornment>
+              ),
+            },
+          }}
+        />
+        <Button
+          type="submit"
+          variant="contained"
+          size="large"
+          disabled={loading}
+          startIcon={loading ? <CircularProgress size={18} color="inherit" /> : <LoginIcon />}
+          sx={{ py: 1.4, fontSize: '1rem' }}
+        >
+          {loading ? 'Signing in…' : 'Sign in'}
+        </Button>
+        <Typography variant="caption" color="text.secondary" sx={{ textAlign: 'center' }}>
+          Admins, teachers and students all sign in here.
+        </Typography>
+      </Box>
     </Dialog>
   );
 };

@@ -18,6 +18,7 @@ import {
   TableRow,
   Button,
   Alert,
+  Chip,
   List,
   ListItem,
   ListItemIcon,
@@ -34,10 +35,34 @@ import {
   Email,
   LocationOn,
 } from '@mui/icons-material';
-import { enhancedFeesAPI } from '../services/api';
+import { publicAPI } from '../services/api';
+
+interface KeyDate {
+  key: string;
+  label: string;
+  date: string;
+  end_date: string | null;
+}
+
+const longDate = (iso: string, withYear = true) =>
+  new Date(`${iso}T00:00:00`).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', ...(withYear ? { year: 'numeric' } : {}) });
+
+/** "15 November 2026", or "15–20 February 2027" for a range within one month */
+const dateRange = (item: KeyDate) => {
+  if (!item.end_date) return longDate(item.date);
+  const start = new Date(`${item.date}T00:00:00`);
+  const end = new Date(`${item.end_date}T00:00:00`);
+  if (start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear()) {
+    return `${start.getDate()}–${longDate(item.end_date)}`;
+  }
+  return `${longDate(item.date, false)} – ${longDate(item.end_date)}`;
+};
 
 const Admissions: React.FC = () => {
   const [feeStructure, setFeeStructure] = useState<any[]>([]);
+  const [feeSession, setFeeSession] = useState<string>('');
+  const [admissionSession, setAdmissionSession] = useState<string>('');
+  const [keyDates, setKeyDates] = useState<KeyDate[]>([]);
   const [loading, setLoading] = useState(true);
 
   const admissionSteps = [
@@ -48,46 +73,26 @@ const Admissions: React.FC = () => {
     'Admission Confirmation'
   ];
 
-  // Fetch fee structure data on component mount
+  // The session families apply for now, its key dates and its fees, all from the school's data
   useEffect(() => {
-    const fetchFeeStructure = async () => {
-      try {
-        setLoading(true);
-        const response = await enhancedFeesAPI.getFeeStructure();
-
-        // Filter for current session year (2025-26) and format data for display
-        const currentSessionStructures = response.data
-          .filter((structure: any) => structure.session_year_name === '2025-26')
-          .map((structure: any) => ({
-            class: structure.class_name,
-            admissionFee: `₹${structure.admission_fee?.toLocaleString() || '0'}`,
-            tuitionFee: `₹${Math.round(structure.total_annual_fee / 12)?.toLocaleString() || '0'}/month`,
-            totalAnnual: `₹${structure.total_annual_fee?.toLocaleString() || '0'}`
-          }));
-
-        setFeeStructure(currentSessionStructures);
-      } catch (error) {
-        console.error('Error fetching fee structure:', error);
-        // Fallback to current database structure if API fails
-        setFeeStructure([
-          { class: 'PG', admissionFee: '₹0', tuitionFee: '₹640/month', totalAnnual: '₹7,680' },
-          { class: 'LKG', admissionFee: '₹0', tuitionFee: '₹680/month', totalAnnual: '₹8,160' },
-          { class: 'UKG', admissionFee: '₹0', tuitionFee: '₹720/month', totalAnnual: '₹8,640' },
-          { class: 'Class 1', admissionFee: '₹0', tuitionFee: '₹800/month', totalAnnual: '₹9,600' },
-          { class: 'Class 2', admissionFee: '₹0', tuitionFee: '₹840/month', totalAnnual: '₹10,080' },
-          { class: 'Class 3', admissionFee: '₹0', tuitionFee: '₹880/month', totalAnnual: '₹10,560' },
-          { class: 'Class 4', admissionFee: '₹0', tuitionFee: '₹920/month', totalAnnual: '₹11,040' },
-          { class: 'Class 5', admissionFee: '₹0', tuitionFee: '₹960/month', totalAnnual: '₹11,520' },
-          { class: 'Class 6', admissionFee: '₹0', tuitionFee: '₹1,000/month', totalAnnual: '₹12,000' },
-          { class: 'Class 7', admissionFee: '₹0', tuitionFee: '₹1,040/month', totalAnnual: '₹12,480' },
-          { class: 'Class 8', admissionFee: '₹0', tuitionFee: '₹1,080/month', totalAnnual: '₹12,960' },
-        ]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchFeeStructure();
+    const rupees = (value: string) => `₹${Number(value).toLocaleString('en-IN')}`;
+    publicAPI
+      .getAdmissions()
+      .then((response) => {
+        setAdmissionSession(response.data.session?.name || '');
+        setKeyDates(response.data.dates || []);
+        setFeeSession(response.data.fees?.session_year || '');
+        setFeeStructure(
+          (response.data.fees?.classes || []).map((row: any) => ({
+            class: row.class_name,
+            tuitionFee: Number(row.monthly) > 0 ? `${rupees(row.monthly)}/month` : '—',
+            oneTime: Number(row.one_time) > 0 ? rupees(row.one_time) : '—',
+            totalAnnual: rupees(row.first_year_total),
+          }))
+        );
+      })
+      .catch(() => setFeeStructure([]))
+      .finally(() => setLoading(false));
   }, []);
 
   const requiredDocuments = [
@@ -101,14 +106,9 @@ const Admissions: React.FC = () => {
     'Parent\'s ID proof (Aadhar/PAN/Passport)'
   ];
 
-  const importantDates = [
-    { event: 'Application Form Release', date: 'January 15, 2025' },
-    { event: 'Last Date for Application', date: 'March 31, 2025' },
-    { event: 'Entrance Test', date: 'April 15-20, 2025' },
-    { event: 'Result Declaration', date: 'April 25, 2025' },
-    { event: 'Admission Confirmation', date: 'May 1-15, 2025' },
-    { event: 'Academic Session Begins', date: 'June 1, 2025' }
-  ];
+  const today = new Date().toISOString().slice(0, 10);
+  // The first date that has not fully passed yet
+  const nextKey = keyDates.find((item) => (item.end_date || item.date) >= today)?.key;
 
   return (
     <Container maxWidth="lg" sx={{ py: { xs: 3, sm: 4, md: 6 }, px: { xs: 2, sm: 3 } }}>
@@ -126,7 +126,7 @@ const Admissions: React.FC = () => {
             mb: { xs: 2, sm: 3 }
           }}
         >
-          Admissions 2025-26
+          {admissionSession ? `Admissions ${admissionSession}` : 'Admissions'}
         </Typography>
         <Typography
           variant="h5"
@@ -199,7 +199,7 @@ const Admissions: React.FC = () => {
             mb: { xs: 2, sm: 3 }
           }}
         >
-          Fee Structure
+          Fee Structure{feeSession ? ` ${feeSession}` : ''}
         </Typography>
 
         {/* Mobile-friendly fee structure - Cards for mobile, Table for desktop */}
@@ -229,7 +229,7 @@ const Admissions: React.FC = () => {
                     </Box>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
                       <Typography variant="body2" color="text.secondary">
-                        Annual:
+                        First year in all:
                       </Typography>
                       <Typography variant="body2" fontWeight="bold" color="primary.main">
                         {row.totalAnnual}
@@ -247,16 +247,17 @@ const Admissions: React.FC = () => {
           <TableContainer component={Paper} elevation={3}>
             <Table>
               <TableHead>
-                <TableRow sx={{ backgroundColor: 'primary.main' }}>
+                <TableRow sx={{ background: 'linear-gradient(135deg, #2563eb 0%, #7c3aed 100%)', '& .MuiTableCell-head': { backgroundColor: 'transparent', color: 'white' } }}>
                   <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Class</TableCell>
-                  <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Monthly Tuition</TableCell>
-                  <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Annual Tuition</TableCell>
+                  <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Monthly fees</TableCell>
+                  <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>One-time, at admission</TableCell>
+                  <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>First year in all</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={3} sx={{ textAlign: 'center', py: 4 }}>
+                    <TableCell colSpan={4} sx={{ textAlign: 'center', py: 4 }}>
                       <CircularProgress size={24} />
                       <Typography variant="body2" sx={{ mt: 1 }}>
                         Loading fee structure...
@@ -270,6 +271,7 @@ const Admissions: React.FC = () => {
                         {row.class}
                       </TableCell>
                       <TableCell>{row.tuitionFee}</TableCell>
+                      <TableCell>{row.oneTime}</TableCell>
                       <TableCell sx={{ fontWeight: 'bold', color: 'primary.main' }}>
                         {row.totalAnnual}
                       </TableCell>
@@ -289,7 +291,9 @@ const Admissions: React.FC = () => {
               lineHeight: { xs: 1.4, sm: 1.5 }
             }}
           >
-            * Tuition fees shown are comprehensive and include all academic charges. No additional admission fees are currently charged. Additional charges may apply for transport, uniform, and books.
+            {feeStructure.length === 0 && !loading
+              ? 'The fee structure is not published yet. Please contact the school office for fee details.'
+              : `${admissionSession && feeSession && feeSession !== admissionSession ? `Fees for ${admissionSession} are not announced yet; these are the ${feeSession} fees. ` : ''}* Fees for a new student. The first-year figure adds up every fee billed in the year. Transport, uniform and books are charged separately.`}
           </Typography>
         </Alert>
       </Box>
@@ -310,32 +314,79 @@ const Admissions: React.FC = () => {
             >
               Important Dates
             </Typography>
-            <List sx={{ py: 0 }}>
-              {importantDates.map((item, index) => (
-                <ListItem
-                  key={index}
-                  sx={{
-                    py: { xs: 1, sm: 1.5 },
-                    px: { xs: 0, sm: 1 }
-                  }}
-                >
-                  <ListItemIcon sx={{ minWidth: { xs: 40, sm: 56 } }}>
-                    <Schedule color="primary" sx={{ fontSize: { xs: 20, sm: 24 } }} />
-                  </ListItemIcon>
-                  <ListItemText
-                    primary={item.event}
-                    secondary={item.date}
-                    primaryTypographyProps={{
-                      fontWeight: 'medium',
-                      sx: { fontSize: { xs: '0.875rem', sm: '1rem' } }
-                    }}
-                    secondaryTypographyProps={{
-                      sx: { fontSize: { xs: '0.75rem', sm: '0.875rem' } }
-                    }}
-                  />
-                </ListItem>
-              ))}
-            </List>
+            {loading ? (
+              <Box sx={{ textAlign: 'center', py: 4 }}>
+                <CircularProgress size={24} />
+              </Box>
+            ) : (
+              <Box sx={{ position: 'relative' }}>
+                {keyDates.map((item, index) => {
+                  const past = (item.end_date || item.date) < today;
+                  const next = item.key === nextKey;
+                  return (
+                    <Box
+                      key={item.key}
+                      sx={{
+                        position: 'relative',
+                        display: 'flex',
+                        gap: 2,
+                        pb: index === keyDates.length - 1 ? 0 : 2.5,
+                        opacity: past ? 0.55 : 1,
+                        animation: 'fadeUp 0.45s cubic-bezier(0.22, 1, 0.36, 1) both',
+                        animationDelay: `${index * 60}ms`,
+                      }}
+                    >
+                      {/* Line joining the dates */}
+                      {index < keyDates.length - 1 && (
+                        <Box
+                          sx={{
+                            position: 'absolute',
+                            left: 17,
+                            top: 38,
+                            bottom: 4,
+                            width: 2,
+                            borderRadius: 2,
+                            background: past ? 'rgba(15,23,42,0.12)' : 'linear-gradient(180deg, #2563eb, rgba(124,58,237,0.3))',
+                          }}
+                        />
+                      )}
+                      <Box
+                        sx={{
+                          flexShrink: 0,
+                          display: 'grid',
+                          placeItems: 'center',
+                          width: 36,
+                          height: 36,
+                          borderRadius: '50%',
+                          color: past ? 'text.secondary' : '#fff',
+                          background: past ? 'rgba(15,23,42,0.08)' : 'linear-gradient(135deg, #2563eb 0%, #7c3aed 100%)',
+                          animation: next ? 'pulseRing 2.4s ease-out infinite' : 'none',
+                        }}
+                      >
+                        {past ? <CheckCircle sx={{ fontSize: 20 }} /> : <Schedule sx={{ fontSize: 20 }} />}
+                      </Box>
+                      <Box sx={{ pt: 0.25 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                          <Typography sx={{ fontWeight: 600, fontSize: { xs: '0.9rem', sm: '1rem' } }}>{item.label}</Typography>
+                          {next && <Chip size="small" color="primary" label="Next" sx={{ height: 20, fontSize: '0.7rem' }} />}
+                        </Box>
+                        <Typography
+                          color={next ? 'primary.main' : 'text.secondary'}
+                          sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' }, fontWeight: next ? 700 : 400 }}
+                        >
+                          {dateRange(item)}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  );
+                })}
+              </Box>
+            )}
+            {!loading && keyDates.length > 0 && (
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 2.5 }}>
+                Dates may change. Please confirm with the school office.
+              </Typography>
+            )}
           </Paper>
         </Grid>
         <Grid size={{ xs: 12, md: 6 }}>

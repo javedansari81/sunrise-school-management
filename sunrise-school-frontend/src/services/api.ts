@@ -73,63 +73,14 @@ export const adminAPI = {
     api.put(`/users/${userId}/reset-password`, { reset_to_default: true }),
 };
 
-// Enhanced Fee Management APIs
+// Public pages (no login): the school is known from the site's address
+export const publicAPI = {
+  // The session families apply for now, its key dates, and fees per class for a new student
+  getAdmissions: () => publicApi.get('/public/admissions'),
+};
+
+// Dashboard figures. Everything about fees lives in billingService.ts (the unified fee module).
 export const enhancedFeesAPI = {
-  getEnhancedStudentsSummary: (params: any) =>
-    api.get('/fees/enhanced-students-summary', { params }),
-
-  getEnhancedMonthlyHistory: (studentId: number, sessionYearId: number) =>
-    api.get(`/fees/enhanced-monthly-history/${studentId}`, {
-      params: { session_year_id: sessionYearId }
-    }),
-
-  getPaymentHistory: (studentId: number, sessionYear: string = '2025-26') =>
-    api.get(`/fees/payments/history/${studentId}`, {
-      params: { session_year: sessionYear }
-    }),
-
-  enableMonthlyTracking: (data: any) =>
-    api.post('/fees/enable-monthly-tracking', data),
-
-  // Enhanced Monthly Payment System APIs
-  getAvailableMonths: (studentId: number, sessionYear: string = '2025-26') =>
-    api.get(`/fees/available-months/${studentId}`, {
-      params: { session_year: sessionYear }
-    }),
-
-  makeEnhancedPayment: (studentId: number, data: any) =>
-    api.post(`/fees/pay-monthly-enhanced/${studentId}`, data),
-
-  // Combined Tuition + Transport Payment (single receipt)
-  makeCombinedPayment: (studentId: number, data: {
-    tuition: {
-      amount: number;
-      payment_method_id: number;
-      selected_months: number[];
-      session_year: string;
-      transaction_id: string;
-      remarks?: string;
-      payment_date?: string;
-    };
-    transport: {
-      amount: number;
-      selected_months: number[];
-      session_year_id: number;
-      payment_date?: string;
-    };
-  }) => api.post(`/fees/pay-combined/${studentId}`, data),
-
-  // Fee Structure API
-  getFeeStructure: () =>
-    api.get('/fees/structure'),
-
-  // Payment Reversal APIs
-  reversePaymentFull: (paymentId: number, data: { reason_id: number; details?: string }) =>
-    api.post(`/fees/payments/${paymentId}/reverse`, data),
-
-  reversePaymentPartial: (paymentId: number, data: { allocation_ids: number[]; reason_id: number; details?: string }) =>
-    api.post(`/fees/payments/${paymentId}/reverse-months`, data),
-
   // Admin Dashboard Statistics (moved to dashboard endpoints)
   // If sessionYearId is not provided, backend will use current session (is_current=true)
   getAdminDashboardStats: (sessionYearId?: number) =>
@@ -143,10 +94,6 @@ export const enhancedFeesAPI = {
     api.get('/dashboard/admin-dashboard-enhanced-stats', {
       params: sessionYearId ? { session_year_id: sessionYearId } : {}
     }),
-
-  // Receipt Management APIs (Phase 2: WhatsApp integration will be added later)
-  // resendReceiptWhatsApp: (paymentId: number) =>
-  //   api.post(`/fees/receipts/resend-whatsapp/${paymentId}`),
 };
 
 // Users API - REMOVED: These endpoints are not used anywhere in the frontend
@@ -389,39 +336,6 @@ export const studentLeaveAPI = {
   },
 };
 
-// Student-specific fee API methods
-export const studentFeeAPI = {
-  /**
-   * Get fee information for the currently logged-in student
-   * Returns comprehensive fee statistics and monthly history
-   */
-  getMyFees: async (sessionYearId: number = 4) => {
-    try {
-      const response = await api.get('/fees/my-fees', {
-        params: { session_year_id: sessionYearId }
-      });
-      return response.data;
-    } catch (error) {
-      throw error;
-    }
-  },
-
-  /**
-   * Get detailed monthly fee history for the currently logged-in student
-   * Returns month-wise payment status and history
-   */
-  getMyMonthlyHistory: async (sessionYearId: number = 4) => {
-    try {
-      const response = await api.get('/fees/my-monthly-history', {
-        params: { session_year_id: sessionYearId }
-      });
-      return response.data;
-    } catch (error) {
-      throw error;
-    }
-  },
-};
-
 // Expense Management API
 export const expenseAPI = {
   // Get expenses with filters and pagination
@@ -583,6 +497,10 @@ export const studentSiblingsAPI = {
   // Get sibling waiver info
   getSiblingWaiverInfo: (studentId: number) =>
     api.get(`/students/${studentId}/siblings/waiver-info`).then(response => response.data),
+
+  // Possible siblings (same father name and phone) that are not linked yet
+  getSuggestions: (studentId: number) =>
+    api.get(`/students/${studentId}/siblings/suggestions`).then(response => response.data),
 
   // Detect siblings for a student
   detectSiblings: (studentId: number) =>

@@ -30,7 +30,9 @@ Phase 3 is done (Nov 11, 2026, merged in PR #4). The transport operations module
 
 Phase 4 is done (Nov 11, 2026, merged in PR #5). The dashboard, student pages, reports, sibling waiver recalculation and the configuration endpoint now read the unified fee ledger and the transport operations module, through two small read-only services (`app/modules/fees/service/summary.py` and `app/modules/transport/service/summary.py`). The old `/fees` and `/transport` routes, their CRUD, schemas, models and receipt generators are deleted. Migration `V004` drops the 13 old tables and 3 old functions. A fresh deployment and a deployment migrated from the Phase 3 baseline were compared and are identical. `V004` is applied to the local `warsi_db`. All 146 tests pass on a clean migrated schema; on the local `warsi_db` 145 pass, and the one failure is the known local-data failure `test_build_plans_and_generate_dues`. The old fee and transport screens in the frontend stop working until Phase 6 replaces them. Next step: Phase 5, scope the remaining modules. Deploying to DigitalOcean, including running `V004`, is deferred to go-live.
 
-Phase 5 is done in code (Nov 11, 2026, branch `scope-remaining-modules`). Raw SQL is now checked, not trusted: on a school session every `text()` statement must filter by `:school_id`, which `app/core/tenant.py` fills in from the session. A statement without it, or with another school's id, raises instead of running; queries on global lists only use `global_sql()`. All 62 raw SQL statements in 12 files are scoped. Fixed on the way: `/configuration` returned every school's classes, session years, departments and other lists; the dashboard counted another school's students, leave and expenses when given that school's session year (now 404); attendance defaulted to Sunrise's session year id 4 (now the school's current session). Generated emails use the school setting `user.email_domain` (Sunrise keeps `sunrise.com` through migration `V005`). Gallery, inventory and profile photo uploads go to `<school code>/<kind>` Cloudinary folders. The unused WhatsApp text notification with Sunrise's name hardcoded is removed. 169 of 170 tests pass on the local `warsi_db`; the one failure is the known local-data failure `test_build_plans_and_generate_dues`. `V005` is not yet applied to the local `warsi_db`. Next step: Phase 6, frontend.
+Phase 5 is done (Nov 11, 2026, merged in PR #6). Raw SQL is now checked, not trusted: on a school session every `text()` statement must filter by `:school_id`, which `app/core/tenant.py` fills in from the session. A statement without it, or with another school's id, raises instead of running; queries on global lists only use `global_sql()`. All 62 raw SQL statements in 12 files are scoped. Fixed on the way: `/configuration` returned every school's classes, session years, departments and other lists; the dashboard counted another school's students, leave and expenses when given that school's session year (now 404); attendance defaulted to Sunrise's session year id 4 (now the school's current session). Generated emails use the school setting `user.email_domain` (Sunrise keeps `sunrise.com` through migration `V005`). Gallery, inventory and profile photo uploads go to `<school code>/<kind>` Cloudinary folders. The unused WhatsApp text notification with Sunrise's name hardcoded is removed. 169 of 170 tests pass on the local `warsi_db`; the one failure is the known local-data failure `test_build_plans_and_generate_dues`. `V005` is applied to the local `warsi_db`. Next step: Phase 6, frontend. Deploying to DigitalOcean, including running `V005`, is deferred to go-live.
+
+Phase 6 is done (Nov 12, 2026, branch `frontend-phase6`). The frontend finds its school from the subdomain (`REACT_APP_BASE_DOMAIN`, or `<code>.localhost` locally, or a fixed `REACT_APP_SCHOOL_CODE`), sends it as `X-School-Code`, and brands itself from the new `GET /public/school`. The admin, teacher and student portals and the public site share one shell (`components/Layout/PortalLayout.tsx`) with a new left panel and theme (`src/theme.ts`). New screens: Fees (`/admin/fees`: collect, fee structures, fee heads, concessions, billing run, reports), Transport (`/admin/transport`: riders, routes and stops, vehicles, rates), the student's My fees, and platform admin (`/platform/login`, `/platform`). Backend additions: `GET /public/school`, `GET /public/admissions` (the Admissions page: the session families apply for, its key dates counted from the session start, and fees per class), `GET /billing/my/statement` and a student's own receipt. `tests/transport/test_screen_requests.py` sends the request bodies the screens send. The old fee and transport screens and `transportService.ts` are deleted. A Settings screen (`/admin/settings`, API `/api/v1/school-settings`) lets a school admin change the school's own profile (name, short name, contact details, logo), its settings (modules, fee, transport, receipt and account settings, each with a default) and its own lists (classes, session years, departments, positions, leave types, expense categories, gallery categories, and the shop lists while the shop is on). List rows are never deleted, only marked not in use, and every change clears that school's `/configuration` cache. The School Shop is now a per-school module, setting `module.shop.enabled`, off by default for every school: its menu and pages are hidden, `/inventory` answers 403 and the dashboard skips stock alerts until an admin turns it on in Settings. `tests/tenant/test_school_admin_settings.py` covers both (7 tests). Next step: Phase 7.
 
 Status values: Not started, In progress, Done, Blocked.
 
@@ -41,8 +43,8 @@ Status values: Not started, In progress, Done, Blocked.
 | 2. Unified fee module core | Done | Merged in PR #3. `/api/v1/billing`, migration `V002`. Payment gateway deferred (decision 11). Fee screens in Phase 6 |
 | 3. Transport operations module | Done | Merged in PR #4. `/api/v1/transit`, migration `V003`. Transport screens in Phase 6 |
 | 4. Switch dependents and remove old code | Done | Merged in PR #5. Migration `V004`, applied to the local `warsi_db` |
-| 5. Scope the remaining modules | Done | Branch `scope-remaining-modules`, migration `V005` (not yet applied locally). Raw SQL guard in `app/core/tenant.py` |
-| 6. Frontend | Not started | |
+| 5. Scope the remaining modules | Done | Merged in PR #6. Migration `V005`, applied to the local `warsi_db`. Raw SQL guard in `app/core/tenant.py` |
+| 6. Frontend | Done | Branch `frontend-phase6`. Adds `/public/school`, `/public/admissions`, `/billing/my/statement`, the Settings screen (`/school-settings`) and the per-school School Shop switch (off by default) |
 | 7. Hardening | Not started | Includes row-level security (decision 12) |
 
 ## Current state
@@ -300,15 +302,19 @@ There are eight phases, run in order. Each phase ends with the app running and i
 - [x] Cloudinary folders: gallery, inventory and profile photos upload to `<school code>/<kind>`, overridable with `cloudinary.<kind>_folder`. Old images keep their URLs; inventory finds the old image's public id from any folder
 - [x] WhatsApp and branding: receipts already use per-school settings (Phase 2). The unused text notification with Sunrise's name and `TWILIO_WHATSAPP_TEMPLATE_SID` is removed
 - [x] Tests: `tests/tenant/test_raw_sql_scoping.py` (guard, every scoped module, dashboards, configuration) and `tests/tenant/test_school_settings.py`
-- [ ] Apply `V005` to the local `warsi_db` (`python migrate_database.py`)
+- [x] `V005` applied to the local `warsi_db`
 - Later list: the default password `Sunrise@001` is shared by every school (`core/password_config.py`); the sibling waiver shown on student sibling pages comes from SQL functions with Sunrise's rule, not the school's concession rule; lists referenced by id in request bodies (leave type, expense category and so on) are not checked to belong to the school
 
 ### Phase 6: Frontend
 
-- [ ] School-aware login (by subdomain) and per-school branding
-- [ ] New fee screens: heads, structures, generate dues, collect payment, student ledger, reports
-- [ ] New transport screens: routes, stops, vehicles, assignments
-- [ ] Super admin screens for managing schools
+- [x] School-aware login (by subdomain) and per-school branding (`config/school.ts`, `contexts/SchoolContext.tsx`)
+- [x] New fee screens: heads, structures, concessions, generate dues, collect payment, student ledger, reports; student's My fees
+- [x] New transport screens: routes, stops, vehicles, rates, assignments
+- [x] Super admin screens for managing schools (`/platform`)
+- [x] One shell and theme for the portals and the public site; public Admissions page shows the published fee structure
+- [x] Settings screen for school admins: profile, settings and the school's own lists (`pages/admin/SchoolSettings.tsx`, `/api/v1/school-settings`)
+- [x] School Shop as a per-school module (`module.shop.enabled`), off for every school until turned on in Settings
+- [x] Phase 6 signed off (Nov 12, 2026)
 
 ### Phase 7: Hardening
 

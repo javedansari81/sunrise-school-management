@@ -1,5 +1,5 @@
 /**
- * Standardized Dialog Design System for Sunrise School
+ * Standardized Dialog Design System
  * 
  * This file defines consistent styling patterns for all dialog components
  * across the application to ensure professional and uniform appearance.
@@ -18,7 +18,7 @@ export const dialogStyles = {
 
   // Professional header styling with gradient
   title: {
-    background: 'linear-gradient(135deg, #1976d2 0%, #1565c0 100%)',
+    background: 'linear-gradient(120deg, #0b1437 0%, #1d4ed8 55%, #7c3aed 100%)',
     color: 'white',
     padding: { xs: 2, sm: 3 },
     position: 'relative' as const,
@@ -72,9 +72,9 @@ export const dialogStyles = {
     padding: { xs: '8px 16px', sm: '10px 20px' },
     fontSize: { xs: '0.875rem', sm: '1rem' },
     minWidth: 100,
-    background: 'linear-gradient(135deg, #1976d2 0%, #1565c0 100%)',
+    background: 'linear-gradient(135deg, #2563eb 0%, #7c3aed 100%)',
     '&:hover': {
-      background: 'linear-gradient(135deg, #1565c0 0%, #0d47a1 100%)',
+      background: 'linear-gradient(135deg, #1d4ed8 0%, #6d28d9 100%)',
     },
   },
 
@@ -86,10 +86,10 @@ export const dialogStyles = {
     padding: { xs: '8px 16px', sm: '10px 20px' },
     fontSize: { xs: '0.875rem', sm: '1rem' },
     minWidth: 100,
-    borderColor: '#1976d2',
-    color: '#1976d2',
+    borderColor: '#2563eb',
+    color: '#2563eb',
     '&:hover': {
-      borderColor: '#1565c0',
+      borderColor: '#1d4ed8',
       backgroundColor: 'rgba(25, 118, 210, 0.04)',
     },
   },
@@ -121,15 +121,15 @@ export const dialogStyles = {
     '& .MuiOutlinedInput-root': {
       borderRadius: 2,
       '&:hover .MuiOutlinedInput-notchedOutline': {
-        borderColor: '#1976d2',
+        borderColor: '#2563eb',
       },
       '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-        borderColor: '#1976d2',
+        borderColor: '#2563eb',
       },
     },
     '& .MuiInputLabel-root': {
       '&.Mui-focused': {
-        color: '#1976d2',
+        color: '#2563eb',
       },
     },
   },
@@ -157,8 +157,8 @@ export const dialogStyles = {
  * Color palette for consistent theming
  */
 export const dialogColors = {
-  primary: '#1976d2',
-  primaryDark: '#1565c0',
+  primary: '#2563eb',
+  primaryDark: '#1d4ed8',
   primaryLight: '#42a5f5',
   secondary: '#ff6b35',
   success: '#2e7d32',

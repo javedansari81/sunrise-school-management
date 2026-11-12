@@ -12,6 +12,8 @@
  * - Production: Must be set via REACT_APP_API_URL environment variable
  */
 
+import { schoolHeaders } from './school';
+
 /**
  * Get the API base URL from environment variables
  * Falls back to localhost for development if not set
@@ -50,6 +52,7 @@ export const API_UPLOAD_TIMEOUT = 60000; // 60 seconds
  */
 export const DEFAULT_API_HEADERS = {
   'Content-Type': 'application/json',
+  ...schoolHeaders(),
 };
 
 /**
@@ -71,6 +74,7 @@ export const uploadApiConfig = {
   timeout: API_UPLOAD_TIMEOUT,
   headers: {
     'Content-Type': 'multipart/form-data',
+    ...schoolHeaders(),
   },
 };
 

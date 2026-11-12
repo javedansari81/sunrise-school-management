@@ -1,5 +1,5 @@
 from typing import Dict, Any, List, Optional
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
 import json
@@ -11,6 +11,40 @@ from app.models.gallery import GalleryCategory, GalleryImage
 from app.schemas.gallery import PublicGalleryCategory, PublicGalleryImage
 
 router = APIRouter()
+
+
+@router.get("/school")
+async def get_public_school(request: Request, db: AsyncSession = Depends(get_school_db)):
+    """
+    Name, logo and contact details of the school this request is for (by
+    subdomain or X-School-Code). The frontend brands itself with it before login.
+    """
+    from app.services.school_settings import features
+
+    school = request.state.school
+    return {
+        "code": school.code,
+        "name": school.name,
+        "short_name": school.short_name,
+        "logo_url": school.logo_url,
+        "address": school.address,
+        "phone": school.phone,
+        "email": school.email,
+        "website": school.website,
+        "currency": school.currency,
+        "features": await features(db),
+    }
+
+@router.get("/admissions")
+async def get_public_admissions(db: AsyncSession = Depends(get_school_db)):
+    """
+    For the public Admissions page: the session families apply for now, its key
+    dates, and what a new student pays per class (see app/services/admissions.py).
+    """
+    from app.modules.fees.audit import to_json
+    from app.services.admissions import admissions_info
+
+    return to_json(await admissions_info(db))
 
 
 @router.get("/faculty", response_model=Dict[str, Any])

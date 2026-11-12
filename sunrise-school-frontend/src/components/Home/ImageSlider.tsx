@@ -6,6 +6,7 @@ import 'slick-carousel/slick/slick.css';
 import 'slick-carousel/slick/slick-theme.css';
 import './ImageSlider.css';
 import { galleryAPI, PublicGalleryImage } from '../../services/galleryService';
+import { useSchool } from '../../contexts/SchoolContext';
 
 interface GalleryImageWithCategory extends PublicGalleryImage {
   category?: {
@@ -100,6 +101,7 @@ const NextArrow: React.FC<ArrowProps> = ({ onClick }) => {
 };
 
 const ImageSlider: React.FC = () => {
+  const { school } = useSchool();
   const [images, setImages] = useState<GalleryImageWithCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -175,7 +177,7 @@ const ImageSlider: React.FC = () => {
               lineHeight: 1.3,
             }}
           >
-            Welcome to Sunrise National Public School
+            Welcome to {school.name}
           </Typography>
           <Typography
             variant="h5"
